@@ -17,6 +17,7 @@ export function LoginPage() {
   };
 
   return (
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100 p-4">
     <div className="w-full max-w-md bg-white rounded-lg shadow-xl p-8">
       <div className="flex items-center justify-center mb-8">
         <Building2 className="w-10 h-10 text-blue-600 mr-3" />
@@ -75,6 +76,7 @@ export function LoginPage() {
           Sign up
         </Link>
       </p>
+    </div>
     </div>
   );
 }
