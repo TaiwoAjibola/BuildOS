@@ -29,11 +29,10 @@ interface VendorDoc {
   validUntil?: string;
   status: DocStatus;
   totalAmount: number;
-  items: { material: string; qty: number; unit: string; unitPrice: number; total: number }[];
+  items: { material: string; qty: number; unit: string; unitPrice: number; total: number; negotiations?: NegotiationRound[] }[];
   notes?: string;
   destinationStore?: string;
   storeLevel?: string;
-  negotiations?: NegotiationRound[];
 }
 
 const MOCK_DOCS: VendorDoc[] = [
@@ -44,12 +43,17 @@ const MOCK_DOCS: VendorDoc[] = [
     totalAmount: 3550000,
     destinationStore: "Block A Project Store", storeLevel: "Level 3 — Project Store",
     items: [
-      { material: "Sand (River)", qty: 60, unit: "Tonnes", unitPrice: 26000, total: 1560000 },
-      { material: "Granite 3/4 Inch", qty: 40, unit: "Tonnes", unitPrice: 49750, total: 1990000 },
-    ],
-    negotiations: [
-      { round: 1, date: "Apr 10, 2026", proposedAmount: 3200000, status: "countered", comment: "Requesting a 10% reduction based on volume. Can vendor accommodate?", by: "Chukwudi Eze (Procurement)" },
-      { round: 2, date: "Apr 11, 2026", proposedAmount: 3400000, status: "open",     comment: "Best we can offer is ₦3.4M with delivery included.", by: "Alpha Aggregates" },
+      { material: "Sand (River)", qty: 60, unit: "Tonnes", unitPrice: 26000, total: 1560000,
+        negotiations: [
+          { round: 1, date: "Apr 10, 2026", proposedAmount: 1400000, status: "countered", comment: "Requesting ~10% reduction on sand pricing based on volume.", by: "Chukwudi Eze (Procurement)" },
+          { round: 2, date: "Apr 11, 2026", proposedAmount: 1500000, status: "open",     comment: "Best we can offer is ₦25,000/tonne with delivery included.", by: "Alpha Aggregates" },
+        ],
+      },
+      { material: "Granite 3/4 Inch", qty: 40, unit: "Tonnes", unitPrice: 49750, total: 1990000,
+        negotiations: [
+          { round: 1, date: "Apr 10, 2026", proposedAmount: 1800000, status: "open", comment: "Requesting discount on granite bulk order — quote feels high.", by: "Chukwudi Eze (Procurement)" },
+        ],
+      },
     ],
   },
   {
@@ -305,23 +309,28 @@ const NEGO_STATUS_STYLE: Record<NegotiationStatus, string> = {
   countered:  "bg-blue-100 text-blue-700",
 };
 
-function NegotiateModal({ doc, onClose, onSave }: {
+function NegotiateModal({ doc, itemIndex, onClose, onSave }: {
   doc: VendorDoc;
+  itemIndex: number;
   onClose: () => void;
   onSave: (rounds: NegotiationRound[]) => void;
 }) {
-  const rounds = doc.negotiations ?? [];
-  const [proposedAmount, setProposedAmount] = useState("");
+  const item = doc.items[itemIndex];
+  const rounds = item.negotiations ?? [];
+  const [proposedUnitPrice, setProposedUnitPrice] = useState("");
   const [comment, setComment] = useState("");
   const [status, setStatus] = useState<NegotiationStatus>("countered");
   const today = new Date().toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" }).replace(/ /g, " ");
 
+  const parsedUnitPrice = parseFloat(proposedUnitPrice.replace(/,/g, ""));
+  const proposedTotal = !isNaN(parsedUnitPrice) && parsedUnitPrice > 0 ? parsedUnitPrice * item.qty : 0;
+
   function addRound() {
-    if (!proposedAmount.trim() || !comment.trim()) return;
+    if (!proposedUnitPrice.trim() || !comment.trim() || proposedTotal <= 0) return;
     const newRound: NegotiationRound = {
       round: rounds.length + 1,
       date: today,
-      proposedAmount: parseFloat(proposedAmount.replace(/,/g, "")),
+      proposedAmount: proposedTotal,
       status,
       comment,
       by: "Procurement Team",
@@ -330,19 +339,29 @@ function NegotiateModal({ doc, onClose, onSave }: {
     onClose();
   }
 
-  const currentBest = rounds.length > 0 ? rounds[rounds.length - 1].proposedAmount : doc.totalAmount;
+  const currentBestTotal = rounds.length > 0 ? rounds[rounds.length - 1].proposedAmount : item.total;
+  const currentBestUnitPrice = item.qty > 0 ? currentBestTotal / item.qty : item.unitPrice;
 
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
       <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto">
         <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 sticky top-0 bg-white z-10">
           <div>
-            <h2 className="text-base font-semibold text-gray-900">Quote Negotiation — {doc.id}</h2>
-            <p className="text-xs text-gray-500 mt-0.5">{doc.vendor} · Original: {fmt(doc.totalAmount)}</p>
+            <h2 className="text-base font-semibold text-gray-900">Line Item Negotiation — {doc.id}</h2>
+            <p className="text-xs text-gray-500 mt-0.5">{doc.vendor} · <span className="font-medium text-gray-700">{item.material}</span> · {item.qty} {item.unit}</p>
           </div>
           <button onClick={onClose} className="text-gray-400 hover:text-gray-600"><X className="w-5 h-5" /></button>
         </div>
         <div className="px-6 py-5 space-y-4">
+
+          {/* Item summary */}
+          <div className="flex items-center justify-between bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 text-sm">
+            <div>
+              <p className="font-medium text-gray-800">{item.material}</p>
+              <p className="text-xs text-gray-500">{item.qty} {item.unit} × {fmt(item.unitPrice)}/unit</p>
+            </div>
+            <p className="font-bold text-gray-900">{fmt(item.total)}</p>
+          </div>
 
           {/* Negotiation history */}
           {rounds.length > 0 ? (
@@ -363,9 +382,10 @@ function NegotiateModal({ doc, onClose, onSave }: {
                       </div>
                       <div className="text-right flex-shrink-0">
                         <p className="text-sm font-bold text-gray-800">{fmt(r.proposedAmount)}</p>
-                        <p className="text-xs text-gray-400">
-                          {r.proposedAmount < doc.totalAmount
-                            ? <span className="text-green-600">↓ {((1 - r.proposedAmount / doc.totalAmount) * 100).toFixed(1)}% off</span>
+                        <p className="text-xs text-gray-400">{item.qty > 0 ? `≈ ${fmt(Math.round(r.proposedAmount / item.qty))}/unit` : ""}</p>
+                        <p className="text-xs mt-0.5">
+                          {r.proposedAmount < item.total
+                            ? <span className="text-green-600">↓ {((1 - r.proposedAmount / item.total) * 100).toFixed(1)}% off</span>
                             : <span className="text-gray-400">same</span>}
                         </p>
                       </div>
@@ -375,7 +395,7 @@ function NegotiateModal({ doc, onClose, onSave }: {
               </div>
               <div className="flex items-center gap-2 bg-blue-50 border border-blue-100 rounded-xl px-4 py-2.5 text-sm">
                 <RotateCcw className="w-4 h-4 text-blue-500 flex-shrink-0" />
-                <span className="text-blue-700">Current best offer: <strong>{fmt(currentBest)}</strong></span>
+                <span className="text-blue-700">Current best: <strong>{fmt(currentBestTotal)}</strong> <span className="font-normal text-blue-500">({fmt(Math.round(currentBestUnitPrice))}/unit)</span></span>
               </div>
             </div>
           ) : (
@@ -390,12 +410,12 @@ function NegotiateModal({ doc, onClose, onSave }: {
             <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">New Round (Round {rounds.length + 1})</p>
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <label className="block text-xs font-medium text-gray-600 mb-1">Proposed Amount (₦) <span className="text-red-500">*</span></label>
-                <input value={proposedAmount} onChange={e => setProposedAmount(e.target.value)}
-                  placeholder={`e.g. ${Math.round(currentBest * 0.95).toLocaleString()}`}
+                <label className="block text-xs font-medium text-gray-600 mb-1">Proposed Unit Price (₦) <span className="text-red-500">*</span></label>
+                <input value={proposedUnitPrice} onChange={e => setProposedUnitPrice(e.target.value)}
+                  placeholder={`e.g. ${Math.round(currentBestUnitPrice * 0.95).toLocaleString()}`}
                   className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
-                {proposedAmount && !isNaN(parseFloat(proposedAmount.replace(/,/g, ""))) && (
-                  <p className="text-xs text-gray-400 mt-0.5">= {fmt(parseFloat(proposedAmount.replace(/,/g, "")))}</p>
+                {proposedTotal > 0 && (
+                  <p className="text-xs text-gray-400 mt-0.5">Total: {fmt(proposedTotal)} ({item.qty} × {fmt(parsedUnitPrice)})</p>
                 )}
               </div>
               <div>
@@ -403,8 +423,8 @@ function NegotiateModal({ doc, onClose, onSave }: {
                 <select value={status} onChange={e => setStatus(e.target.value as NegotiationStatus)}
                   className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-500">
                   <option value="countered">Counter Offer</option>
-                  <option value="accepted">Accept Quote</option>
-                  <option value="rejected">Reject Quote</option>
+                  <option value="accepted">Accept Price</option>
+                  <option value="rejected">Reject Price</option>
                   <option value="open">Open / Awaiting Response</option>
                 </select>
               </div>
@@ -419,7 +439,7 @@ function NegotiateModal({ doc, onClose, onSave }: {
         </div>
         <div className="flex justify-end gap-3 px-6 py-4 border-t border-gray-100">
           <button onClick={onClose} className="px-4 py-2 text-sm border border-gray-300 rounded-xl text-gray-700 hover:bg-gray-50">Cancel</button>
-          <button onClick={addRound} disabled={!proposedAmount.trim() || !comment.trim()}
+          <button onClick={addRound} disabled={!proposedUnitPrice.trim() || !comment.trim() || proposedTotal <= 0}
             className="px-4 py-2 text-sm bg-blue-700 text-white rounded-xl hover:bg-blue-800 disabled:opacity-40 disabled:cursor-not-allowed flex items-center gap-2">
             <MessageSquare className="w-4 h-4" /> Add Round
           </button>
@@ -611,7 +631,7 @@ export function ReceivedQuotesPage() {
   const [showRecordModal, setShowRecordModal] = useState(false);
   const [createPODoc, setCreatePODoc] = useState<VendorDoc | null>(null);
   const [compareRef, setCompareRef] = useState<string | null>(null);
-  const [negotiateDoc, setNegotiateDoc] = useState<VendorDoc | null>(null);
+  const [negotiateItem, setNegotiateItem] = useState<{ doc: VendorDoc; itemIndex: number } | null>(null);
 
   // Group all submissions by prRef for comparison
   const submissionGroups = docs.reduce<Record<string, VendorDoc[]>>((acc, d) => {
@@ -770,12 +790,6 @@ export function ReceivedQuotesPage() {
                             <ShoppingCart className="w-3.5 h-3.5" /> Create PO
                           </button>
                         )}
-                        {(d.docType === "quote" && d.status === "pending_review") && (
-                          <button onClick={() => setNegotiateDoc(d)} className="flex items-center gap-1 text-purple-600 hover:text-purple-800 text-xs font-medium">
-                            <MessageSquare className="w-3.5 h-3.5" />
-                            Negotiate{d.negotiations && d.negotiations.length > 0 ? ` (${d.negotiations.length})` : ""}
-                          </button>
-                        )}
                         {d.status === "pending_review" && (
                           <button onClick={() => setDocs(prev => prev.map(x => x.id === d.id ? { ...x, status: "approved" } : x))}
                             className="flex items-center gap-1 text-emerald-600 hover:text-emerald-800 text-xs font-medium">
@@ -804,24 +818,47 @@ export function ReceivedQuotesPage() {
                                   <th className="text-right pr-4 font-medium">Qty</th>
                                   <th className="text-left pr-4 font-medium">Unit</th>
                                   <th className="text-right pr-4 font-medium">Unit Price</th>
-                                  <th className="text-right font-medium">Total</th>
+                                  <th className="text-right pr-4 font-medium">Total</th>
+                                  {d.docType === "quote" && d.status === "pending_review" && (
+                                    <th className="text-right font-medium">Nego.</th>
+                                  )}
                                 </tr>
                               </thead>
                               <tbody>
-                                {d.items.map((item, i) => (
-                                  <tr key={i} className="border-b border-gray-100 last:border-0">
-                                    <td className="py-1 pr-4 text-gray-700">{item.material}</td>
-                                    <td className="py-1 pr-4 text-right text-gray-600">{item.qty}</td>
-                                    <td className="py-1 pr-4 text-gray-500">{item.unit}</td>
-                                    <td className="py-1 pr-4 text-right text-gray-600">{fmt(item.unitPrice)}</td>
-                                    <td className="py-1 text-right font-medium text-gray-800">{fmt(item.total)}</td>
-                                  </tr>
-                                ))}
+                                {d.items.map((item, i) => {
+                                  const itemNegoCount = item.negotiations?.length ?? 0;
+                                  const lastRound = item.negotiations?.[item.negotiations.length - 1];
+                                  return (
+                                    <tr key={i} className="border-b border-gray-100 last:border-0">
+                                      <td className="py-1 pr-4 text-gray-700">{item.material}</td>
+                                      <td className="py-1 pr-4 text-right text-gray-600">{item.qty}</td>
+                                      <td className="py-1 pr-4 text-gray-500">{item.unit}</td>
+                                      <td className="py-1 pr-4 text-right text-gray-600">{fmt(item.unitPrice)}</td>
+                                      <td className="py-1 pr-4 text-right font-medium text-gray-800">{fmt(item.total)}</td>
+                                      {d.docType === "quote" && d.status === "pending_review" && (
+                                        <td className="py-1 text-right">
+                                          <button
+                                            onClick={() => setNegotiateItem({ doc: d, itemIndex: i })}
+                                            className={`flex items-center gap-1 ml-auto text-xs font-medium ${itemNegoCount > 0 ? "text-purple-700" : "text-purple-500 hover:text-purple-700"}`}>
+                                            <MessageSquare className="w-3 h-3" />
+                                            {itemNegoCount > 0 ? `(${itemNegoCount})` : "Negotiate"}
+                                            {lastRound && (
+                                              <span className={`px-1.5 py-0.5 rounded text-xs ${NEGO_STATUS_STYLE[lastRound.status]}`}>
+                                                {lastRound.status.charAt(0).toUpperCase() + lastRound.status.slice(1)}
+                                              </span>
+                                            )}
+                                          </button>
+                                        </td>
+                                      )}
+                                    </tr>
+                                  );
+                                })}
                               </tbody>
                               <tfoot>
                                 <tr>
-                                  <td colSpan={4} className="pt-2 text-right font-semibold text-gray-700">Total</td>
-                                  <td className="pt-2 text-right font-bold text-gray-900">{fmt(d.totalAmount)}</td>
+                                  <td colSpan={d.docType === "quote" && d.status === "pending_review" ? 5 : 4} className="pt-2 text-right font-semibold text-gray-700">Total</td>
+                                  <td className="pt-2 pr-4 text-right font-bold text-gray-900">{fmt(d.totalAmount)}</td>
+                                  {d.docType === "quote" && d.status === "pending_review" && <td />}
                                 </tr>
                               </tfoot>
                             </table>
@@ -845,23 +882,6 @@ export function ReceivedQuotesPage() {
                                     <span className="text-xs text-gray-500">Project: {d.project}</span>
                                   </div>
                                 )}
-                              </div>
-                            </div>
-                          )}
-                          {d.negotiations && d.negotiations.length > 0 && (
-                            <div className="w-64">
-                              <p className="text-xs font-semibold text-gray-600 mb-2 uppercase tracking-wide">Negotiation ({d.negotiations.length} round{d.negotiations.length > 1 ? "s" : ""})</p>
-                              <div className="space-y-1.5">
-                                {d.negotiations.map(r => (
-                                  <div key={r.round} className="flex items-start gap-2 text-xs">
-                                    <span className={`px-1.5 py-0.5 rounded text-xs font-semibold ${NEGO_STATUS_STYLE[r.status]}`}>R{r.round}</span>
-                                    <div>
-                                      <span className="font-semibold text-gray-700">{fmt(r.proposedAmount)}</span>
-                                      <span className="text-gray-400"> · {r.date}</span>
-                                      <p className="text-gray-500 italic">"{r.comment.slice(0, 60)}{r.comment.length > 60 ? "…" : ""}"</p>
-                                    </div>
-                                  </div>
-                                ))}
                               </div>
                             </div>
                           )}
@@ -915,13 +935,16 @@ export function ReceivedQuotesPage() {
           />
         );
       })()}
-      {negotiateDoc && (
+      {negotiateItem && (
         <NegotiateModal
-          doc={negotiateDoc}
-          onClose={() => setNegotiateDoc(null)}
+          doc={negotiateItem.doc}
+          itemIndex={negotiateItem.itemIndex}
+          onClose={() => setNegotiateItem(null)}
           onSave={(rounds) => {
-            setDocs(prev => prev.map(d => d.id === negotiateDoc.id ? { ...d, negotiations: rounds } : d));
-            setNegotiateDoc(null);
+            setDocs(prev => prev.map(d => d.id === negotiateItem.doc.id
+              ? { ...d, items: d.items.map((it, idx) => idx === negotiateItem.itemIndex ? { ...it, negotiations: rounds } : it) }
+              : d));
+            setNegotiateItem(null);
           }}
         />
       )}

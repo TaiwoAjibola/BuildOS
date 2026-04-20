@@ -3,7 +3,7 @@ import { useParams, useNavigate } from "react-router";
 import {
   ArrowLeft, Mail, Phone, MapPin, Building2, Calendar, BadgeCheck,
   Briefcase, FileText, Clock, DollarSign, Activity, Edit, Download,
-  CheckCircle, XCircle, UserCheck, AlertCircle,
+  CheckCircle, XCircle, UserCheck, AlertCircle, X, Save,
 } from "lucide-react";
 
 type TabId = "personal" | "employment" | "projects" | "documents" | "attendance" | "payroll" | "activity";
@@ -90,8 +90,28 @@ export function EmployeeProfilePage() {
   const { id } = useParams();
   const navigate = useNavigate();
   const [tab, setTab] = useState<TabId>("personal");
+  const [editOpen, setEditOpen] = useState(false);
+  const [empData, setEmpData] = useState(allEmployees);
 
-  const emp = allEmployees[id ?? ""] ?? allEmployees["EMP-001"];
+  const emp = empData[id ?? ""] ?? empData["EMP-001"];
+  const empKey = id && empData[id] ? id : "EMP-001";
+
+  const [editDraft, setEditDraft] = useState({ ...emp });
+
+  function openEdit() {
+    setEditDraft({ ...empData[empKey] });
+    setEditOpen(true);
+  }
+
+  function saveEdit() {
+    setEmpData(prev => ({ ...prev, [empKey]: { ...editDraft } }));
+    setEditOpen(false);
+  }
+
+  function df(key: keyof typeof editDraft, value: string) {
+    setEditDraft(prev => ({ ...prev, [key]: value }));
+  }
+
   const initials = `${emp.firstName[0]}${emp.lastName[0]}`;
   const statusCfg = statusConfig[emp.status] ?? statusConfig.active;
   const avatarColors = ["bg-indigo-100 text-indigo-700", "bg-blue-100 text-blue-700", "bg-green-100 text-green-700"];
@@ -119,7 +139,7 @@ export function EmployeeProfilePage() {
           <button className="flex items-center gap-1.5 px-3 py-1.5 border border-gray-300 rounded-md text-sm text-gray-700 hover:bg-gray-50">
             <Download className="w-3.5 h-3.5" /> Export Profile
           </button>
-          <button className="flex items-center gap-1.5 px-3 py-1.5 bg-indigo-700 text-white rounded-md text-sm hover:bg-indigo-800">
+          <button onClick={openEdit} className="flex items-center gap-1.5 px-3 py-1.5 bg-indigo-700 text-white rounded-md text-sm hover:bg-indigo-800">
             <Edit className="w-3.5 h-3.5" /> Edit Employee
           </button>
         </div>
@@ -338,6 +358,135 @@ export function EmployeeProfilePage() {
                 </div>
               </div>
             ))}
+          </div>
+        </div>
+      )}
+
+      {/* Edit Employee Modal */}
+      {editOpen && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 sticky top-0 bg-white z-10">
+              <div>
+                <h2 className="text-base font-semibold text-gray-900">Edit Employee — {emp.id}</h2>
+                <p className="text-xs text-gray-500 mt-0.5">Update employment and personal details. Signature is managed by the employee.</p>
+              </div>
+              <button onClick={() => setEditOpen(false)} className="text-gray-400 hover:text-gray-600"><X className="w-5 h-5" /></button>
+            </div>
+            <div className="px-6 py-5 space-y-5">
+              {/* Name */}
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-xs font-medium text-gray-600 mb-1">First Name <span className="text-red-500">*</span></label>
+                  <input value={editDraft.firstName} onChange={e => df("firstName", e.target.value)}
+                    className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-gray-600 mb-1">Last Name <span className="text-red-500">*</span></label>
+                  <input value={editDraft.lastName} onChange={e => df("lastName", e.target.value)}
+                    className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+                </div>
+              </div>
+
+              {/* Contact */}
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-xs font-medium text-gray-600 mb-1">Email</label>
+                  <input value={editDraft.email} onChange={e => df("email", e.target.value)} type="email"
+                    className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-gray-600 mb-1">Phone</label>
+                  <input value={editDraft.phone} onChange={e => df("phone", e.target.value)}
+                    className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+                </div>
+              </div>
+
+              {/* Role / Dept */}
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-xs font-medium text-gray-600 mb-1">Job Title / Role</label>
+                  <input value={editDraft.role} onChange={e => df("role", e.target.value)}
+                    className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-gray-600 mb-1">Department</label>
+                  <input value={editDraft.department} onChange={e => df("department", e.target.value)}
+                    className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+                </div>
+              </div>
+
+              {/* Employment details */}
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-xs font-medium text-gray-600 mb-1">Employment Type</label>
+                  <select value={editDraft.employmentType} onChange={e => df("employmentType", e.target.value)}
+                    className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                    {["Full-time", "Part-time", "Contract", "Intern", "Consultant"].map(t => <option key={t}>{t}</option>)}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-gray-600 mb-1">Status</label>
+                  <select value={editDraft.status} onChange={e => df("status", e.target.value)}
+                    className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                    <option value="active">Active</option>
+                    <option value="inactive">Inactive</option>
+                    <option value="on_leave">On Leave</option>
+                  </select>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-xs font-medium text-gray-600 mb-1">Grade Level</label>
+                  <input value={editDraft.gradeLevel} onChange={e => df("gradeLevel", e.target.value)}
+                    className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-gray-600 mb-1">Work Location</label>
+                  <input value={editDraft.workLocation} onChange={e => df("workLocation", e.target.value)}
+                    className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-xs font-medium text-gray-600 mb-1">Monthly Salary (₦)</label>
+                  <input value={editDraft.salary} onChange={e => df("salary", e.target.value)}
+                    className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-gray-600 mb-1">Reports To</label>
+                  <input value={editDraft.reportingTo} onChange={e => df("reportingTo", e.target.value)}
+                    className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-medium text-gray-600 mb-1">Address</label>
+                <input value={editDraft.address} onChange={e => df("address", e.target.value)}
+                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+              </div>
+
+              <div>
+                <label className="block text-xs font-medium text-gray-600 mb-1">Emergency Contact</label>
+                <input value={editDraft.emergencyContact} onChange={e => df("emergencyContact", e.target.value)}
+                  placeholder="Name — phone (Relationship)"
+                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+              </div>
+
+              <div className="flex items-center gap-2 bg-amber-50 border border-amber-100 rounded-lg px-4 py-3 text-xs text-amber-700">
+                <AlertCircle className="w-4 h-4 flex-shrink-0" />
+                Signature is <strong>not editable here</strong> — employees manage their own signature via the ESS portal.
+              </div>
+            </div>
+            <div className="flex justify-end gap-3 px-6 py-4 border-t border-gray-100">
+              <button onClick={() => setEditOpen(false)} className="px-4 py-2 text-sm border border-gray-300 rounded-xl text-gray-700 hover:bg-gray-50">Cancel</button>
+              <button onClick={saveEdit}
+                className="px-4 py-2 text-sm bg-indigo-700 text-white rounded-xl hover:bg-indigo-800 flex items-center gap-2">
+                <Save className="w-4 h-4" /> Save Changes
+              </button>
+            </div>
           </div>
         </div>
       )}

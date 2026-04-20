@@ -124,6 +124,49 @@ function MaterialCombobox({
 type Tab = "material" | "finance" | "leave" | "issue" | "change";
 type FinanceSubType = "activity" | "expense" | "claim";
 
+// ─── Shared Attachments Component ────────────────────────────────────────────
+function AttachmentsSection({ files, onChange }: { files: File[]; onChange: (f: File[]) => void }) {
+  const ref = useRef<HTMLInputElement>(null);
+
+  function handleAdd(e: React.ChangeEvent<HTMLInputElement>) {
+    const newFiles = Array.from(e.target.files ?? []);
+    if (newFiles.length) onChange([...files, ...newFiles]);
+    if (ref.current) ref.current.value = "";
+  }
+
+  function remove(i: number) { onChange(files.filter((_, j) => j !== i)); }
+
+  return (
+    <div>
+      <label className="block text-sm font-medium text-gray-700 mb-1">
+        Attachments <span className="text-gray-400 font-normal">(optional)</span>
+      </label>
+      <input ref={ref} type="file" multiple
+        accept=".jpg,.jpeg,.png,.pdf,.doc,.docx,.xls,.xlsx"
+        className="hidden" onChange={handleAdd} />
+      <button type="button" onClick={() => ref.current?.click()}
+        className="w-full flex items-center gap-2 border border-dashed border-gray-300 rounded-md px-4 py-3 hover:bg-gray-50 transition-colors justify-center">
+        <Upload className="w-4 h-4 text-gray-400" />
+        <span className="text-sm text-gray-500">Click to attach files (PDF, images, Word, Excel)</span>
+      </button>
+      {files.length > 0 && (
+        <ul className="mt-2 space-y-1">
+          {files.map((f, i) => (
+            <li key={i} className="flex items-center gap-2 text-xs text-gray-600 bg-gray-50 rounded px-3 py-1.5">
+              <FileText className="w-3.5 h-3.5 text-gray-400 flex-shrink-0" />
+              <span className="flex-1 truncate">{f.name}</span>
+              <span className="text-gray-400 flex-shrink-0">{(f.size / 1024).toFixed(0)} KB</span>
+              <button type="button" onClick={() => remove(i)} className="text-gray-400 hover:text-gray-600">
+                <X className="w-3.5 h-3.5" />
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  );
+}
+
 const projects = [
   "Downtown Office Complex",
   "Riverside Residential",
@@ -166,6 +209,7 @@ function MaterialCreationForm({ onSuccess }: { onSuccess: (id: string) => void }
     materialName: "", description: "", estimatedQty: "", unit: "pcs", notes: "",
   });
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const [attachments, setAttachments] = useState<File[]>([]);
 
   function validate() {
     const e: Record<string, string> = {};
@@ -260,6 +304,8 @@ function MaterialCreationForm({ onSuccess }: { onSuccess: (id: string) => void }
           className="w-full border border-gray-300 rounded-md px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500 resize-none" />
       </div>
 
+      <AttachmentsSection files={attachments} onChange={setAttachments} />
+
       <button type="submit"
         className="w-full bg-teal-600 text-white py-2.5 rounded-md text-sm font-medium hover:bg-teal-700 transition-colors flex items-center justify-center gap-2">
         <Send className="w-4 h-4" />
@@ -279,6 +325,7 @@ function MaterialForm({ onSuccess }: { onSuccess: (id: string) => void }) {
     // service-specific
     serviceType: "", serviceProvider: "", estimatedCost: "", serviceDate: "",
   });
+  const [attachments, setAttachments] = useState<File[]>([]);
 
   const [errors, setErrors] = useState<Record<string, string>>({});
 
@@ -447,6 +494,8 @@ function MaterialForm({ onSuccess }: { onSuccess: (id: string) => void }) {
                   className="w-full border border-gray-300 rounded-md px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500 resize-none" />
               </div>
 
+              <AttachmentsSection files={attachments} onChange={setAttachments} />
+
               <button type="submit"
                 className="w-full bg-teal-600 text-white py-2.5 rounded-md text-sm font-medium hover:bg-teal-700 transition-colors">
                 Submit Material Request
@@ -518,6 +567,8 @@ function MaterialForm({ onSuccess }: { onSuccess: (id: string) => void }) {
               placeholder="Any additional context or urgency notes…"
               className="w-full border border-gray-300 rounded-md px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500 resize-none" />
           </div>
+
+          <AttachmentsSection files={attachments} onChange={setAttachments} />
 
           <button type="submit"
             className="w-full bg-teal-600 text-white py-2.5 rounded-md text-sm font-medium hover:bg-teal-700 transition-colors">
@@ -805,6 +856,7 @@ function LeaveForm({ onSuccess }: { onSuccess: (id: string) => void }) {
   const [endDate, setEndDate] = useState("");
   const [notes, setNotes] = useState("");
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const [attachments, setAttachments] = useState<File[]>([]);
 
   const workingDays = countWorkingDays(startDate, endDate);
 
@@ -868,6 +920,8 @@ function LeaveForm({ onSuccess }: { onSuccess: (id: string) => void }) {
           className="w-full border border-gray-300 rounded-md px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500 resize-none" />
       </div>
 
+      <AttachmentsSection files={attachments} onChange={setAttachments} />
+
       <button type="submit"
         className="w-full bg-teal-600 text-white py-2.5 rounded-md text-sm font-medium hover:bg-teal-700 transition-colors">
         Submit Leave Request
@@ -882,6 +936,7 @@ const changeCategoryOptions = ["Personal Details", "Bank Details", "Address", "E
 function IssueForm({ onSuccess }: { onSuccess: (id: string) => void }) {
   const [form, setForm] = useState({ type: "", title: "", description: "", priority: "medium", anonymous: false });
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const [attachments, setAttachments] = useState<File[]>([]);
 
   function validate() {
     const e: Record<string, string> = {};
@@ -939,6 +994,7 @@ function IssueForm({ onSuccess }: { onSuccess: (id: string) => void }) {
           className="w-4 h-4 rounded border-gray-300 text-teal-600 focus:ring-teal-500" />
         <label htmlFor="anonymous" className="text-sm text-gray-700">Submit anonymously</label>
       </div>
+      <AttachmentsSection files={attachments} onChange={setAttachments} />
       <button type="submit" className="w-full bg-teal-600 text-white py-2.5 rounded-md text-sm font-medium hover:bg-teal-700 transition-colors">
         Report Issue
       </button>
@@ -949,6 +1005,7 @@ function IssueForm({ onSuccess }: { onSuccess: (id: string) => void }) {
 function ChangeRequestForm({ onSuccess }: { onSuccess: (id: string) => void }) {
   const [form, setForm] = useState({ category: "", currentValue: "", requestedChange: "", notes: "" });
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const [attachments, setAttachments] = useState<File[]>([]);
 
   function validate() {
     const e: Record<string, string> = {};
@@ -994,6 +1051,7 @@ function ChangeRequestForm({ onSuccess }: { onSuccess: (id: string) => void }) {
           placeholder="Any additional context for HR…"
           className="w-full border border-gray-300 rounded-md px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500 resize-none" />
       </div>
+      <AttachmentsSection files={attachments} onChange={setAttachments} />
       <button type="submit" className="w-full bg-teal-600 text-white py-2.5 rounded-md text-sm font-medium hover:bg-teal-700 transition-colors">
         Submit Change Request
       </button>

@@ -103,11 +103,6 @@ export function AdminLayout() {
           icon: <FolderCog className="w-4 h-4" />,
         },
         {
-          label: "Report Automation",
-          href: "/apps/admin/report-automation",
-          icon: <FileBarChart className="w-4 h-4" />,
-        },
-        {
           label: "Email Configuration",
           href: "/apps/admin/email-config",
           icon: <Bell className="w-4 h-4" />,

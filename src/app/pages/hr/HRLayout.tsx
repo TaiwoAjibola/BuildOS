@@ -87,6 +87,7 @@ const sidebarSections = [
     label: "Reports",
     items: [
       { label: "HR Reports", href: "/apps/hr/reports", icon: <BarChart3 className="w-4 h-4" />, end: true },
+      { label: "Report Automation", href: "/apps/hr/report-automation", icon: <BarChart3 className="w-4 h-4" /> },
     ],
   },
 ];

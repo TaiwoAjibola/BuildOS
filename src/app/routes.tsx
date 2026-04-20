@@ -267,6 +267,7 @@ export const router = createBrowserRouter([
               { path: "approvals", Component: HRApprovalsPage },
               { path: "hr-tasks", Component: HRTasksPage },
               { path: "my-tasks", Component: HRMyTasksPage },
+              { path: "report-automation", Component: ReportAutomationPage },
             ],
           },
           {
@@ -305,7 +306,6 @@ export const router = createBrowserRouter([
               { path: "audit-logs", Component: AuditLogsPage },
               { path: "integrations", Component: IntegrationsPage },
               { path: "approvals", Component: AdminApprovalsPage },
-              { path: "report-automation", Component: ReportAutomationPage },
               { path: "email-config", Component: EmailConfigPage },
               { path: "issue-types", Component: IssueTypesPage },
               { path: "change-categories", Component: ChangeCategoriesPage },
