@@ -549,6 +549,15 @@ export function UsersPage() {
 
   return (
     <div>
+      {/* User Detail Modal */}
+      {selectedUser && (
+        <UserDetailPanel
+          user={selectedUser}
+          onClose={() => setSelectedUser(null)}
+          onUpdateSignature={() => {}}
+        />
+      )}
+
       {/* Header */}
       <div className="flex items-center justify-between mb-6">
         <div>
