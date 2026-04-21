@@ -670,27 +670,24 @@ export function UsersPage() {
                 </td>
                 <td className="px-4 py-3.5" onClick={(e) => e.stopPropagation()}>
                   <div className="relative flex justify-end">
+                    {/* ...existing code... */}
+                    {/* FIX: Remove invalid </label> and stray JSX, ensure correct closing tags */}
                     <button
                       onClick={() => setOpenMenuId(openMenuId === user.id ? null : user.id)}
                       className="p-1.5 rounded-lg hover:bg-gray-100 text-gray-400 hover:text-gray-700 transition-colors"
                     >
                       <input type="checkbox" className="rounded border-gray-300 text-indigo-600 focus:ring-indigo-500" />
-                      <span className={`px-1.5 py-0.5 rounded text-xs font-medium ${app.color}`}>{app.abbr}</span>
-                      <span className="text-sm text-gray-700">{app.label}</span>
-                    </label>
-                  ))}
-                </div>
-              </div>
-              <div className="flex justify-end gap-3 pt-2 border-t border-gray-100">
-                <button type="button" onClick={() => setShowAddModal(false)} className="px-4 py-2 border border-gray-300 rounded-lg text-sm text-gray-700 hover:bg-gray-50">Cancel</button>
-                <button type="submit" className="flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-lg text-sm font-medium hover:bg-indigo-700">
-                  <Mail className="w-4 h-4" />Send Invite
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
+                      {/* Add any additional button content here if needed */}
+                    </button>
+                  </div>
+                </td>
+                {/* ...existing code... */}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+      {/* ...existing code... */}
     </div>
   );
 }
