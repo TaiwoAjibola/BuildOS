@@ -211,7 +211,6 @@ function UserDetailPanel({ user, onClose, onUpdateSignature }: { user: UserRecor
     { key: "permissions", label: "Permissions" },
     { key: "activity",    label: "Activity" },
     { key: "requests",    label: "Requests" },
-    { key: "signature",   label: "Signature" },
   ] as const;
 
   // Group processes by app
@@ -675,99 +674,6 @@ export function UsersPage() {
                       onClick={() => setOpenMenuId(openMenuId === user.id ? null : user.id)}
                       className="p-1.5 rounded-lg hover:bg-gray-100 text-gray-400 hover:text-gray-700 transition-colors"
                     >
-                      <MoreVertical className="w-4 h-4" />
-                    </button>
-                    {openMenuId === user.id && (
-                      <div className="absolute right-0 top-8 w-40 bg-white rounded-lg border border-gray-200 shadow-lg z-20 py-1">
-                        <button onClick={() => { setSelectedUser(user); setOpenMenuId(null); }} className="w-full flex items-center gap-2 px-3 py-2 text-sm text-gray-700 hover:bg-gray-50">
-                          <Eye className="w-4 h-4 text-gray-400" />View Profile
-                        </button>
-                        <button className="w-full flex items-center gap-2 px-3 py-2 text-sm text-gray-700 hover:bg-gray-50">
-                          <Edit className="w-4 h-4 text-gray-400" />Edit
-                        </button>
-                        <button className="w-full flex items-center gap-2 px-3 py-2 text-sm text-gray-700 hover:bg-gray-50">
-                          <Copy className="w-4 h-4 text-gray-400" />Duplicate
-                        </button>
-                        <div className="border-t border-gray-100 my-1" />
-                        <button className="w-full flex items-center gap-2 px-3 py-2 text-sm text-red-600 hover:bg-red-50">
-                          <Trash2 className="w-4 h-4" />Delete
-                        </button>
-                      </div>
-                    )}
-                  </div>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-        {filtered.length === 0 && (
-          <div className="flex flex-col items-center justify-center py-16 text-center">
-            <AlertCircle className="w-8 h-8 text-gray-300 mb-2" />
-            <p className="text-sm text-gray-500">No users match your filters</p>
-          </div>
-        )}
-      </div>
-
-      {/* User detail panel */}
-      {selectedUser && (
-        <UserDetailPanel
-          user={selectedUser}
-          onClose={() => setSelectedUser(null)}
-          onUpdateSignature={(id, has, initials) => {
-            setSelectedUser(prev => prev ? { ...prev, hasSignature: has, signatureInitials: initials } : null);
-          }}
-        />
-      )}
-
-      {/* Close menu on outside click */}
-      {openMenuId && (
-        <div className="fixed inset-0 z-10" onClick={() => setOpenMenuId(null)} />
-      )}
-
-      {/* Add User Modal */}
-      {showAddModal && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full overflow-hidden">
-            <div className="px-6 py-5 border-b border-gray-100 flex items-center justify-between">
-              <div>
-                <h2 className="text-base font-semibold text-gray-900">Add New User</h2>
-                <p className="text-xs text-gray-500 mt-0.5">Invite a new user to BuildOS</p>
-              </div>
-              <button onClick={() => setShowAddModal(false)} className="p-1 text-gray-400 hover:text-gray-700 rounded-lg"><X className="w-5 h-5" /></button>
-            </div>
-            <form className="p-6 space-y-4">
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-xs font-medium text-gray-700 mb-1">First Name</label>
-                  <input type="text" className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500" placeholder="First name" />
-                </div>
-                <div>
-                  <label className="block text-xs font-medium text-gray-700 mb-1">Last Name</label>
-                  <input type="text" className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500" placeholder="Last name" />
-                </div>
-              </div>
-              <div>
-                <label className="block text-xs font-medium text-gray-700 mb-1">Email Address</label>
-                <input type="email" className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500" placeholder="user@buildos.com" />
-              </div>
-              <div>
-                <label className="block text-xs font-medium text-gray-700 mb-1">Role</label>
-                <select className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500">
-                  <option>Admin</option>
-                  <option>Construction Manager</option>
-                  <option>Finance Manager</option>
-                  <option>HR Manager</option>
-                  <option>Store Manager</option>
-                  <option>Accountant</option>
-                  <option>Site Engineer</option>
-                  <option>Employee</option>
-                </select>
-              </div>
-              <div>
-                <label className="block text-xs font-medium text-gray-700 mb-1.5">Assigned Applications</label>
-                <div className="grid grid-cols-2 gap-2">
-                  {ALL_APPS.map((app) => (
-                    <label key={app.key} className="flex items-center gap-2 p-2 border border-gray-200 rounded-lg hover:bg-gray-50 cursor-pointer">
                       <input type="checkbox" className="rounded border-gray-300 text-indigo-600 focus:ring-indigo-500" />
                       <span className={`px-1.5 py-0.5 rounded text-xs font-medium ${app.color}`}>{app.abbr}</span>
                       <span className="text-sm text-gray-700">{app.label}</span>

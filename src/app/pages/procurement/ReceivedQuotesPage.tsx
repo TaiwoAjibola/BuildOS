@@ -451,8 +451,21 @@ function NegotiateModal({ doc, itemIndex, onClose, onSave }: {
 
 function CreatePOFromQuoteModal({ doc, onClose, onDone }: { doc: VendorDoc; onClose: () => void; onDone: (id: string) => void }) {  const fmt = (n: number) => n >= 1_000_000 ? `₦${(n / 1_000_000).toFixed(2)}M` : n >= 1000 ? `₦${(n / 1000).toFixed(0)}K` : `₦${n}`;
   const today = new Date().toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" }).replace(/ /g, " ");
+  // Import suppliers from SuppliersPage
+  // (If not possible, copy the suppliers array here or import from a shared module)
+  const allSuppliers = [
+    { name: "CemCo Nigeria Ltd", contactPerson: "Tunde Adeyemi", phone: "+234 80 4521 7890" },
+    { name: "SteelMart International", contactPerson: "Kene Obi", phone: "+234 81 2233 4455" },
+    { name: "ElectraHub", contactPerson: "Femi Addo", phone: "+234 70 9988 7766" },
+    { name: "PlumbTech Ltd", contactPerson: "Lawal Musa", phone: "+234 81 5566 7788" },
+    { name: "BuildPlus Supplies", contactPerson: "Ngozi Eze", phone: "+234 80 7788 9900" },
+    { name: "Alpha Aggregates", contactPerson: "Emeka Nwosu", phone: "+234 80 3344 5566" },
+    { name: "TileWorld", contactPerson: "Bisi Akinola", phone: "+234 70 8877 6655" },
+  ];
+  const supplierInfo = allSuppliers.find(s => s.name === doc.vendor);
+  const defaultContact = supplierInfo ? `${supplierInfo.contactPerson} (${supplierInfo.phone})` : "";
   const [expectedDate, setExpectedDate] = useState("");
-  const [supplierContact, setSupplierContact] = useState("");
+  const [supplierContact, setSupplierContact] = useState(defaultContact);
   const [notes, setNotes] = useState("");
 
   const nextPO = `PO-${String(Math.floor(Math.random() * 9000) + 1000)}`;
@@ -542,6 +555,8 @@ function CompareQuotesModal({ prRef, quotes, onClose, onCreatePO }: {
 }) {
   const allMaterials = Array.from(new Set(quotes.flatMap((q) => q.items.map((it) => it.material))));
   const lowestAmount = Math.min(...quotes.map((q) => q.totalAmount));
+  // Add negotiation modal state
+  const [negotiate, setNegotiate] = useState<{ doc: VendorDoc; itemIndex: number } | null>(null);
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
       <div className="bg-white rounded-2xl shadow-2xl w-full max-w-3xl max-h-[90vh] overflow-y-auto">
@@ -576,14 +591,27 @@ function CompareQuotesModal({ prRef, quotes, onClose, onCreatePO }: {
                 {allMaterials.map((mat) => (
                   <tr key={mat} className="hover:bg-gray-50">
                     <td className="px-4 py-2.5 text-xs font-medium text-gray-700">{mat}</td>
-                    {quotes.map((q) => {
+                    {quotes.map((q, qIdx) => {
                       const item = q.items.find((it) => it.material === mat);
+                      const itemNegoCount = item?.negotiations?.length ?? 0;
+                      const lastRound = item?.negotiations?.[item.negotiations.length - 1];
                       return (
                         <td key={q.id} className="px-4 py-2.5 text-right text-xs text-gray-600">
                           {item ? (
                             <>
                               <span className="block font-medium text-gray-800">{fmt(item.total)}</span>
                               <span className="text-gray-400">{fmt(item.unitPrice)} / {item.unit}</span>
+                              <button
+                                onClick={() => setNegotiate({ doc: q, itemIndex: q.items.findIndex(it => it.material === mat) })}
+                                className={`flex items-center gap-1 ml-auto mt-1 text-xs font-medium ${itemNegoCount > 0 ? "text-purple-700" : "text-purple-500 hover:text-purple-700"}`}>
+                                <MessageSquare className="w-3 h-3" />
+                                {itemNegoCount > 0 ? `(${itemNegoCount})` : "Negotiate"}
+                                {lastRound && (
+                                  <span className={`px-1.5 py-0.5 rounded text-xs ${NEGO_STATUS_STYLE[lastRound.status]}`}>
+                                    {lastRound.status.charAt(0).toUpperCase() + lastRound.status.slice(1)}
+                                  </span>
+                                )}
+                              </button>
                             </>
                           ) : <span className="text-gray-300">—</span>}
                         </td>
@@ -618,6 +646,23 @@ function CompareQuotesModal({ prRef, quotes, onClose, onCreatePO }: {
             </button>
           ))}
         </div>
+        {/* Negotiation modal for comparison view */}
+        {negotiate && (
+          <NegotiateModal
+            doc={negotiate.doc}
+            itemIndex={negotiate.itemIndex}
+            onClose={() => setNegotiate(null)}
+            onSave={(rounds) => {
+              // Update negotiation rounds for the correct doc/item
+              const docIdx = quotes.findIndex(q => q.id === negotiate.doc.id);
+              if (docIdx !== -1) {
+                const itemIdx = negotiate.itemIndex;
+                quotes[docIdx].items[itemIdx].negotiations = rounds;
+              }
+              setNegotiate(null);
+            }}
+          />
+        )}
       </div>
     </div>
   );

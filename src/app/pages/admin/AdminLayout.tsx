@@ -117,6 +117,11 @@ export function AdminLayout() {
           href: "/apps/admin/report-builder",
           icon: <FileBarChart className="w-4 h-4" />,
         },
+        {
+          label: "Report Automation",
+          href: "/apps/admin/report-automation",
+          icon: <BarChart3 className="w-4 h-4" />,
+        },
       ],
     },
     {
