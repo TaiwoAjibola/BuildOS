@@ -1,6 +1,6 @@
 FROM node:20-alpine AS builder
 
-ARG CACHE_BUST=6
+ARG CACHE_BUST=7
 RUN echo "Cache bust: $CACHE_BUST"
 
 WORKDIR /app
@@ -20,8 +20,8 @@ RUN npm run build
 # ─── Production image ───────────────────────────────────────────────────────────
 FROM node:20-alpine
 
-# ✅ Required by Prisma query engine
-RUN apk add --no-cache openssl
+# ✅ openssl3 matches linux-musl-openssl-3.0.x target
+RUN apk add --no-cache openssl openssl-dev
 
 WORKDIR /app
 
