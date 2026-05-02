@@ -15,7 +15,7 @@ async function bootstrap() {
     app.useGlobalPipes(new ValidationPipe({ transform: true, whitelist: true }));
     app.setGlobalPrefix('api');
 
-    const port = process.env.PORT || 3001;
+    const port = process.env.PORT || 8080;
     await app.listen(port);
     console.log(`BuildOS API running on http://localhost:${port}/api`);
 }
