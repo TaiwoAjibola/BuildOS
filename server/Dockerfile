@@ -2,13 +2,13 @@ FROM node:20-alpine AS builder
 
 WORKDIR /app
 
-COPY server/package*.json ./
+COPY package*.json ./
 RUN npm ci
 
-COPY server/prisma ./prisma/
+COPY prisma ./prisma/
 RUN npx prisma generate
 
-COPY server/ .
+COPY . .
 RUN npm run build
 
 # ─── Production image ───────────────────────────────────────────────────────────
@@ -16,13 +16,13 @@ FROM node:20-alpine
 
 WORKDIR /app
 
-COPY server/package*.json ./
+COPY package*.json ./
 RUN npm ci --omit=dev
 
 COPY --from=builder /app/dist ./dist
 COPY --from=builder /app/node_modules/.prisma ./node_modules/.prisma
 COPY --from=builder /app/node_modules/@prisma ./node_modules/@prisma
-COPY server/prisma ./prisma/
+COPY prisma ./prisma/
 
 ENV NODE_ENV=production
 
