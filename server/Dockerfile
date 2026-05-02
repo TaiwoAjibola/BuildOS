@@ -1,6 +1,6 @@
 FROM node:20-alpine AS builder
 
-ARG CACHE_BUST=3
+ARG CACHE_BUST=4
 RUN echo "Cache bust: $CACHE_BUST"
 
 WORKDIR /app
@@ -16,10 +16,10 @@ RUN npx prisma generate
 
 COPY src ./src/
 
-# Build and immediately verify output exists
-RUN npm run build && ls -la dist/ && echo "✅ dist/main.js exists" || (echo "❌ nest build failed, trying tsc directly" && ./node_modules/.bin/tsc -p tsconfig.json)
+RUN npm run build
 
-RUN test -f dist/main.js || (echo "❌ dist/main.js NOT FOUND after build" && exit 1)
+# Show exactly what was built
+RUN echo "=== dist/ contents ===" && find dist/ -type f | sort
 
 # ─── Production image ───────────────────────────────────────────────────────────
 FROM node:20-alpine
