@@ -1,19 +1,25 @@
 FROM node:20-alpine AS builder
 
-# Cache bust — increment when you need a fresh build
-ARG CACHE_BUST=2
+ARG CACHE_BUST=3
 RUN echo "Cache bust: $CACHE_BUST"
 
 WORKDIR /app
 
 COPY package*.json ./
+COPY nest-cli.json ./
+COPY tsconfig*.json ./
+
 RUN npm ci
 
 COPY prisma ./prisma/
 RUN npx prisma generate
 
-COPY . .
-RUN npm run build
+COPY src ./src/
+
+# Build and immediately verify output exists
+RUN npm run build && ls -la dist/ && echo "✅ dist/main.js exists" || (echo "❌ nest build failed, trying tsc directly" && ./node_modules/.bin/tsc -p tsconfig.json)
+
+RUN test -f dist/main.js || (echo "❌ dist/main.js NOT FOUND after build" && exit 1)
 
 # ─── Production image ───────────────────────────────────────────────────────────
 FROM node:20-alpine
