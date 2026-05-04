@@ -55,7 +55,11 @@ const notifConfig: Record<string, { dot: string; bg: string }> = {
 
 export function ESSDashboardPage() {
   const navigate = useNavigate();
-  const { name: authName, role: authRole, initials: authInitials } = useAuthUser();
+  const {
+    name: authName,
+    role: authRole,
+    initials: authInitials,
+  } = useAuthUser();
   const [allProjects, setAllProjects] = useState<any[]>([]);
   const [recentRequests, setRecentRequests] = useState<RecentRequest[]>([]);
   const [notifications] = useState<Notification[]>([]);
@@ -74,13 +78,15 @@ export function ESSDashboardPage() {
             project: r.projectName || "—",
             date: r.createdAt ? r.createdAt.slice(0, 10) : "",
             status: (r.status || "pending").toLowerCase(),
-          }))
-        )
+          })),
+        ),
       )
       .catch(() => {});
   }, []);
 
-  const pendingCount = recentRequests.filter((r) => r.status === "pending").length;
+  const pendingCount = recentRequests.filter(
+    (r) => r.status === "pending",
+  ).length;
 
   const myProjects = allProjects.map((p) => ({
     id: p.id,

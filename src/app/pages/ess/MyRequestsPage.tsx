@@ -123,7 +123,6 @@ interface Request {
   approvalHistory: ApprovalHistoryEntry[];
 }
 
-
 // ─── Config ───────────────────────────────────────────────────────────────────
 
 const statusConfig: Record<
@@ -197,8 +196,8 @@ export function MyRequestsPage() {
             })),
             comments: pr.notes || "",
             approvalHistory: [],
-          }))
-        )
+          })),
+        ),
       )
       .catch(() => {});
   }, []);

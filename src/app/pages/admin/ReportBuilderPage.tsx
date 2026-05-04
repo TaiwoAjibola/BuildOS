@@ -1,14 +1,46 @@
 import React, { useState, useRef } from "react";
 import {
-  Play, Download, Plus, Trash2, Code, Eye, ChevronDown, BarChart2,
-  PieChart, LineChart, LayoutGrid, Copy, FileText, GripVertical, X,
-  Hash, Calendar, Type, ChevronUp, Layers, Printer, ArrowLeft, Rocket,
-  Archive, MoreHorizontal, Pencil, Search, SlidersHorizontal,
+  Play,
+  Download,
+  Plus,
+  Trash2,
+  Code,
+  Eye,
+  ChevronDown,
+  BarChart2,
+  PieChart,
+  LineChart,
+  LayoutGrid,
+  Copy,
+  FileText,
+  GripVertical,
+  X,
+  Hash,
+  Calendar,
+  Type,
+  ChevronUp,
+  Layers,
+  Printer,
+  ArrowLeft,
+  Rocket,
+  Archive,
+  MoreHorizontal,
+  Pencil,
+  Search,
+  SlidersHorizontal,
 } from "lucide-react";
 
 // ─── Types ─────────────────────────────────────────────────────────────────
 type FieldType = "text" | "number" | "date" | "status";
-type FilterOperator = "equals" | "not_equals" | "contains" | "greater_than" | "less_than" | "between" | "is_empty" | "in_list";
+type FilterOperator =
+  | "equals"
+  | "not_equals"
+  | "contains"
+  | "greater_than"
+  | "less_than"
+  | "between"
+  | "is_empty"
+  | "in_list";
 type Aggregation = "none" | "sum" | "count" | "avg" | "max" | "min";
 type SortDirection = "asc" | "desc";
 type VizType = "table" | "bar" | "line" | "pie" | "cards";
@@ -16,39 +48,108 @@ type BuilderMode = "visual" | "sql";
 type LogicOperator = "AND" | "OR";
 type ReportStatus = "draft" | "deployed" | "archived";
 type ReportType = "summary" | "detailed" | "analytical";
-type DocumentType = "Finance" | "HR" | "Procurement" | "Construction" | "Storefront" | "ESS" | "Admin";
+type DocumentType =
+  | "Finance"
+  | "HR"
+  | "Procurement"
+  | "Construction"
+  | "Storefront"
+  | "ESS"
+  | "Admin";
 type PageView = "library" | "builder";
 
-interface Field { key: string; label: string; type: FieldType; }
+interface Field {
+  key: string;
+  label: string;
+  type: FieldType;
+}
 interface DataSource {
-  value: string; label: string; module: string; moduleColor: string; appKey: string;
+  value: string;
+  label: string;
+  module: string;
+  moduleColor: string;
+  appKey: string;
   fields: Field[];
 }
-interface SelectedField { key: string; displayLabel: string; aggregation: Aggregation; }
-interface FilterRow { id: string; field: string; operator: FilterOperator; value: string; valueTo: string; logic: LogicOperator; }
-interface SortRule { field: string; direction: SortDirection; }
+interface SelectedField {
+  key: string;
+  displayLabel: string;
+  aggregation: Aggregation;
+}
+interface FilterRow {
+  id: string;
+  field: string;
+  operator: FilterOperator;
+  value: string;
+  valueTo: string;
+  logic: LogicOperator;
+}
+interface SortRule {
+  field: string;
+  direction: SortDirection;
+}
 interface ReportTemplate {
-  id: string; name: string; description: string; application: string;
-  reportType: ReportType; documentType: DocumentType; dataSource: string; builderType: BuilderMode;
-  status: ReportStatus; createdBy: string; lastUpdated: string; vizType: VizType;
-  selectedFields: SelectedField[]; filters: FilterRow[]; sortRules: SortRule[];
-  rowLimit: number; sqlQuery: string;
+  id: string;
+  name: string;
+  description: string;
+  application: string;
+  reportType: ReportType;
+  documentType: DocumentType;
+  dataSource: string;
+  builderType: BuilderMode;
+  status: ReportStatus;
+  createdBy: string;
+  lastUpdated: string;
+  vizType: VizType;
+  selectedFields: SelectedField[];
+  filters: FilterRow[];
+  sortRules: SortRule[];
+  rowLimit: number;
+  sqlQuery: string;
 }
 
 // ─── Applications ──────────────────────────────────────────────────────────
 const APPLICATIONS = [
-  { key: "construction", label: "Construction", color: "bg-orange-100 text-orange-700", icon: "🏗️" },
-  { key: "finance",      label: "Finance",      color: "bg-emerald-100 text-emerald-700", icon: "💰" },
-  { key: "procurement",  label: "Procurement",  color: "bg-blue-100 text-blue-700",       icon: "📦" },
-  { key: "hr",           label: "HR",           color: "bg-purple-100 text-purple-700",   icon: "👥" },
-  { key: "admin",        label: "Admin",        color: "bg-indigo-100 text-indigo-700",   icon: "⚙️" },
+  {
+    key: "construction",
+    label: "Construction",
+    color: "bg-orange-100 text-orange-700",
+    icon: "🏗️",
+  },
+  {
+    key: "finance",
+    label: "Finance",
+    color: "bg-emerald-100 text-emerald-700",
+    icon: "💰",
+  },
+  {
+    key: "procurement",
+    label: "Procurement",
+    color: "bg-blue-100 text-blue-700",
+    icon: "📦",
+  },
+  {
+    key: "hr",
+    label: "HR",
+    color: "bg-purple-100 text-purple-700",
+    icon: "👥",
+  },
+  {
+    key: "admin",
+    label: "Admin",
+    color: "bg-indigo-100 text-indigo-700",
+    icon: "⚙️",
+  },
 ];
 
 // ─── Data Sources ──────────────────────────────────────────────────────────
 const DATA_SOURCES: DataSource[] = [
   {
-    value: "projects", label: "Projects", module: "Construction",
-    moduleColor: "bg-orange-100 text-orange-700", appKey: "construction",
+    value: "projects",
+    label: "Projects",
+    module: "Construction",
+    moduleColor: "bg-orange-100 text-orange-700",
+    appKey: "construction",
     fields: [
       { key: "name", label: "Project Name", type: "text" },
       { key: "location", label: "Location", type: "text" },
@@ -62,8 +163,11 @@ const DATA_SOURCES: DataSource[] = [
     ],
   },
   {
-    value: "expenses", label: "Expenses", module: "Finance",
-    moduleColor: "bg-emerald-100 text-emerald-700", appKey: "finance",
+    value: "expenses",
+    label: "Expenses",
+    module: "Finance",
+    moduleColor: "bg-emerald-100 text-emerald-700",
+    appKey: "finance",
     fields: [
       { key: "date", label: "Date", type: "date" },
       { key: "category", label: "Category", type: "text" },
@@ -75,8 +179,11 @@ const DATA_SOURCES: DataSource[] = [
     ],
   },
   {
-    value: "purchase_orders", label: "Purchase Orders", module: "Procurement",
-    moduleColor: "bg-blue-100 text-blue-700", appKey: "procurement",
+    value: "purchase_orders",
+    label: "Purchase Orders",
+    module: "Procurement",
+    moduleColor: "bg-blue-100 text-blue-700",
+    appKey: "procurement",
     fields: [
       { key: "po_number", label: "PO Number", type: "text" },
       { key: "supplier", label: "Supplier", type: "text" },
@@ -89,8 +196,11 @@ const DATA_SOURCES: DataSource[] = [
     ],
   },
   {
-    value: "inventory", label: "Inventory", module: "Procurement",
-    moduleColor: "bg-blue-100 text-blue-700", appKey: "procurement",
+    value: "inventory",
+    label: "Inventory",
+    module: "Procurement",
+    moduleColor: "bg-blue-100 text-blue-700",
+    appKey: "procurement",
     fields: [
       { key: "item_name", label: "Item Name", type: "text" },
       { key: "category", label: "Category", type: "text" },
@@ -103,8 +213,11 @@ const DATA_SOURCES: DataSource[] = [
     ],
   },
   {
-    value: "employees", label: "Employees", module: "HR",
-    moduleColor: "bg-purple-100 text-purple-700", appKey: "hr",
+    value: "employees",
+    label: "Employees",
+    module: "HR",
+    moduleColor: "bg-purple-100 text-purple-700",
+    appKey: "hr",
     fields: [
       { key: "name", label: "Full Name", type: "text" },
       { key: "department", label: "Department", type: "text" },
@@ -117,8 +230,11 @@ const DATA_SOURCES: DataSource[] = [
     ],
   },
   {
-    value: "audit_logs", label: "Audit Logs", module: "Admin",
-    moduleColor: "bg-indigo-100 text-indigo-700", appKey: "admin",
+    value: "audit_logs",
+    label: "Audit Logs",
+    module: "Admin",
+    moduleColor: "bg-indigo-100 text-indigo-700",
+    appKey: "admin",
     fields: [
       { key: "user", label: "User", type: "text" },
       { key: "action", label: "Action", type: "text" },
@@ -135,12 +251,35 @@ const DATA_SOURCES: DataSource[] = [
 
 // ─── Helpers ────────────────────────────────────────────────────────────────
 const OPERATOR_LABELS: Record<FilterOperator, string> = {
-  equals: "=", not_equals: "≠", contains: "contains", greater_than: ">",
-  less_than: "<", between: "between", is_empty: "is empty", in_list: "in list",
+  equals: "=",
+  not_equals: "≠",
+  contains: "contains",
+  greater_than: ">",
+  less_than: "<",
+  between: "between",
+  is_empty: "is empty",
+  in_list: "in list",
 };
-const TEXT_OPS: FilterOperator[] = ["equals", "not_equals", "contains", "is_empty"];
-const NUM_OPS: FilterOperator[] = ["equals", "not_equals", "greater_than", "less_than", "between"];
-const DATE_OPS: FilterOperator[] = ["equals", "not_equals", "greater_than", "less_than", "between"];
+const TEXT_OPS: FilterOperator[] = [
+  "equals",
+  "not_equals",
+  "contains",
+  "is_empty",
+];
+const NUM_OPS: FilterOperator[] = [
+  "equals",
+  "not_equals",
+  "greater_than",
+  "less_than",
+  "between",
+];
+const DATE_OPS: FilterOperator[] = [
+  "equals",
+  "not_equals",
+  "greater_than",
+  "less_than",
+  "between",
+];
 const STATUS_OPS: FilterOperator[] = ["equals", "not_equals", "is_empty"];
 function getOps(type: FieldType): FilterOperator[] {
   if (type === "number") return NUM_OPS;
@@ -149,7 +288,10 @@ function getOps(type: FieldType): FilterOperator[] {
   return TEXT_OPS;
 }
 const TYPE_ICON: Record<FieldType, React.FC<{ className?: string }>> = {
-  text: Type, number: Hash, date: Calendar, status: Layers,
+  text: Type,
+  number: Hash,
+  date: Calendar,
+  status: Layers,
 };
 function statusBadge(s: ReportStatus) {
   if (s === "deployed") return "bg-emerald-100 text-emerald-700";
@@ -163,7 +305,8 @@ function reportTypeBadge(t: ReportType) {
 }
 function cellStatusColor(val: string | number) {
   const v = String(val);
-  if (["Active", "Approved", "Delivered", "Success"].includes(v)) return "bg-emerald-100 text-emerald-700";
+  if (["Active", "Approved", "Delivered", "Success"].includes(v))
+    return "bg-emerald-100 text-emerald-700";
   if (["Pending"].includes(v)) return "bg-amber-100 text-amber-700";
   if (["Rejected", "Failed"].includes(v)) return "bg-red-100 text-red-700";
   if (["Completed"].includes(v)) return "bg-blue-100 text-blue-700";
@@ -171,20 +314,45 @@ function cellStatusColor(val: string | number) {
 }
 
 // ─── Viz Components ─────────────────────────────────────────────────────────
-function BarChartViz({ data, fieldX, fieldY }: { data: Record<string, string | number>[]; fieldX: string; fieldY: string }) {
-  if (!fieldX || !fieldY) return <p className="text-sm text-gray-500 p-8 text-center">Select a text and a numeric column to visualize</p>;
+function BarChartViz({
+  data,
+  fieldX,
+  fieldY,
+}: {
+  data: Record<string, string | number>[];
+  fieldX: string;
+  fieldY: string;
+}) {
+  if (!fieldX || !fieldY)
+    return (
+      <p className="text-sm text-gray-500 p-8 text-center">
+        Select a text and a numeric column to visualize
+      </p>
+    );
   const max = Math.max(...data.map((r) => Number(r[fieldY]) || 0));
-  if (!max) return <p className="text-sm text-gray-500 p-8 text-center">No numeric data in selected column</p>;
+  if (!max)
+    return (
+      <p className="text-sm text-gray-500 p-8 text-center">
+        No numeric data in selected column
+      </p>
+    );
   return (
     <div className="p-5 space-y-2.5">
       {data.map((row, i) => {
         const val = Number(row[fieldY]) || 0;
         return (
           <div key={i} className="flex items-center gap-3">
-            <div className="w-32 text-xs text-gray-600 truncate text-right shrink-0">{String(row[fieldX]).slice(0, 18)}</div>
+            <div className="w-32 text-xs text-gray-600 truncate text-right shrink-0">
+              {String(row[fieldX]).slice(0, 18)}
+            </div>
             <div className="flex-1 bg-gray-100 rounded-full h-7 relative overflow-hidden">
-              <div className="h-full bg-indigo-500 rounded-full transition-all" style={{ width: `${(val / max) * 100}%` }} />
-              <span className="absolute right-2.5 top-1/2 -translate-y-1/2 text-xs font-semibold text-gray-700">{val.toLocaleString()}</span>
+              <div
+                className="h-full bg-indigo-500 rounded-full transition-all"
+                style={{ width: `${(val / max) * 100}%` }}
+              />
+              <span className="absolute right-2.5 top-1/2 -translate-y-1/2 text-xs font-semibold text-gray-700">
+                {val.toLocaleString()}
+              </span>
             </div>
           </div>
         );
@@ -192,52 +360,113 @@ function BarChartViz({ data, fieldX, fieldY }: { data: Record<string, string | n
     </div>
   );
 }
-function PieChartViz({ data, fieldLabel, fieldValue }: { data: Record<string, string | number>[]; fieldLabel: string; fieldValue: string }) {
-  if (!fieldLabel || !fieldValue) return <p className="text-sm text-gray-500 p-8 text-center">Select a label and a numeric column to visualize</p>;
+function PieChartViz({
+  data,
+  fieldLabel,
+  fieldValue,
+}: {
+  data: Record<string, string | number>[];
+  fieldLabel: string;
+  fieldValue: string;
+}) {
+  if (!fieldLabel || !fieldValue)
+    return (
+      <p className="text-sm text-gray-500 p-8 text-center">
+        Select a label and a numeric column to visualize
+      </p>
+    );
   const total = data.reduce((s, r) => s + (Number(r[fieldValue]) || 0), 0);
-  if (!total) return <p className="text-sm text-gray-500 p-8 text-center">No numeric data</p>;
-  const COLORS = ["#6366f1", "#10b981", "#f59e0b", "#ef4444", "#8b5cf6", "#06b6d4", "#f97316"];
+  if (!total)
+    return (
+      <p className="text-sm text-gray-500 p-8 text-center">No numeric data</p>
+    );
+  const COLORS = [
+    "#6366f1",
+    "#10b981",
+    "#f59e0b",
+    "#ef4444",
+    "#8b5cf6",
+    "#06b6d4",
+    "#f97316",
+  ];
   let cum = 0;
   const slices = data.map((row, i) => {
     const pct = (Number(row[fieldValue]) || 0) / total;
-    const s = cum * 2 * Math.PI, e = (cum + pct) * 2 * Math.PI;
+    const s = cum * 2 * Math.PI,
+      e = (cum + pct) * 2 * Math.PI;
     cum += pct;
     return {
       d: `M50 50 L${50 + 40 * Math.sin(s)} ${50 - 40 * Math.cos(s)} A40 40 0 ${pct > 0.5 ? 1 : 0} 1 ${50 + 40 * Math.sin(e)} ${50 - 40 * Math.cos(e)} Z`,
-      color: COLORS[i % COLORS.length], label: String(row[fieldLabel]), pct,
+      color: COLORS[i % COLORS.length],
+      label: String(row[fieldLabel]),
+      pct,
     };
   });
   return (
     <div className="flex items-center gap-8 p-5">
       <svg viewBox="0 0 100 100" className="w-40 h-40 shrink-0">
-        {slices.map((s, i) => <path key={i} d={s.d} fill={s.color} />)}
+        {slices.map((s, i) => (
+          <path key={i} d={s.d} fill={s.color} />
+        ))}
         <circle cx="50" cy="50" r="22" fill="white" />
       </svg>
       <div className="space-y-2">
         {slices.map((s, i) => (
           <div key={i} className="flex items-center gap-2 text-sm">
-            <div className="w-3 h-3 rounded-full shrink-0" style={{ backgroundColor: s.color }} />
+            <div
+              className="w-3 h-3 rounded-full shrink-0"
+              style={{ backgroundColor: s.color }}
+            />
             <span className="text-gray-700">{s.label}</span>
-            <span className="ml-2 text-gray-500 font-medium">{(s.pct * 100).toFixed(1)}%</span>
+            <span className="ml-2 text-gray-500 font-medium">
+              {(s.pct * 100).toFixed(1)}%
+            </span>
           </div>
         ))}
       </div>
     </div>
   );
 }
-function CardsViz({ data, fields, sourceFields }: { data: Record<string, string | number>[]; fields: SelectedField[]; sourceFields: Field[] }) {
-  const numFields = fields.filter((f) => sourceFields.find((sf) => sf.key === f.key)?.type === "number");
-  if (!numFields.length) return <p className="text-sm text-gray-500 p-8 text-center">Select numeric columns to show summary cards</p>;
+function CardsViz({
+  data,
+  fields,
+  sourceFields,
+}: {
+  data: Record<string, string | number>[];
+  fields: SelectedField[];
+  sourceFields: Field[];
+}) {
+  const numFields = fields.filter(
+    (f) => sourceFields.find((sf) => sf.key === f.key)?.type === "number",
+  );
+  if (!numFields.length)
+    return (
+      <p className="text-sm text-gray-500 p-8 text-center">
+        Select numeric columns to show summary cards
+      </p>
+    );
   return (
     <div className="grid grid-cols-2 md:grid-cols-3 gap-4 p-5">
       {numFields.map((f) => {
         const vals = data.map((r) => Number(r[f.key]) || 0);
         const total = vals.reduce((a, b) => a + b, 0);
         return (
-          <div key={f.key} className="bg-indigo-50 border border-indigo-100 rounded-xl p-4">
-            <p className="text-xs font-medium text-indigo-600 mb-1">{f.displayLabel}</p>
-            <p className="text-2xl font-bold text-gray-900">{total > 9999 ? `${(total / 1000).toFixed(1)}k` : total.toLocaleString()}</p>
-            <p className="text-xs text-gray-500 mt-1">Avg: {(total / vals.length).toFixed(1)} · Max: {Math.max(...vals).toLocaleString()}</p>
+          <div
+            key={f.key}
+            className="bg-indigo-50 border border-indigo-100 rounded-xl p-4"
+          >
+            <p className="text-xs font-medium text-indigo-600 mb-1">
+              {f.displayLabel}
+            </p>
+            <p className="text-2xl font-bold text-gray-900">
+              {total > 9999
+                ? `${(total / 1000).toFixed(1)}k`
+                : total.toLocaleString()}
+            </p>
+            <p className="text-xs text-gray-500 mt-1">
+              Avg: {(total / vals.length).toFixed(1)} · Max:{" "}
+              {Math.max(...vals).toLocaleString()}
+            </p>
           </div>
         );
       })}
@@ -263,7 +492,8 @@ export function ReportBuilderPage() {
   const [tplApp, setTplApp] = useState("construction");
   const [tplDataSource, setTplDataSource] = useState("projects");
   const [tplReportType, setTplReportType] = useState<ReportType>("summary");
-  const [tplDocumentType, setTplDocumentType] = useState<DocumentType>("Construction");
+  const [tplDocumentType, setTplDocumentType] =
+    useState<DocumentType>("Construction");
   const [builderMode, setBuilderMode] = useState<BuilderMode>("visual");
   const [selectedFields, setSelectedFields] = useState<SelectedField[]>([]);
   const [filters, setFilters] = useState<FilterRow[]>([]);
@@ -272,32 +502,56 @@ export function ReportBuilderPage() {
   const [vizType, setVizType] = useState<VizType>("table");
   const [sqlQuery, setSqlQuery] = useState("");
   const [hasRun, setHasRun] = useState(false);
-  const [activeTab, setActiveTab] = useState<"fields" | "filters" | "sort" | "viz">("fields");
+  const [activeTab, setActiveTab] = useState<
+    "fields" | "filters" | "sort" | "viz"
+  >("fields");
   const [showConfigPanel, setShowConfigPanel] = useState(true);
   const [deployedNotice, setDeployedNotice] = useState<string | null>(null);
   const dragIdx = useRef<number | null>(null);
 
-  const source = DATA_SOURCES.find((s) => s.value === tplDataSource) ?? DATA_SOURCES[0];
+  const source =
+    DATA_SOURCES.find((s) => s.value === tplDataSource) ?? DATA_SOURCES[0];
 
   // ── Library helpers ──
   const openNewTemplate = () => {
     setEditingId(null);
-    setTplName(""); setTplDescription(""); setTplApp("construction");
-    setTplDataSource("projects"); setTplReportType("summary"); setTplDocumentType("Construction");
-    setBuilderMode("visual"); setSelectedFields([]); setFilters([]);
-    setSortRules([]); setRowLimit(50); setVizType("table"); setSqlQuery("");
-    setHasRun(false); setActiveTab("fields"); setShowConfigPanel(true);
+    setTplName("");
+    setTplDescription("");
+    setTplApp("construction");
+    setTplDataSource("projects");
+    setTplReportType("summary");
+    setTplDocumentType("Construction");
+    setBuilderMode("visual");
+    setSelectedFields([]);
+    setFilters([]);
+    setSortRules([]);
+    setRowLimit(50);
+    setVizType("table");
+    setSqlQuery("");
+    setHasRun(false);
+    setActiveTab("fields");
+    setShowConfigPanel(true);
     setView("builder");
   };
 
   const openEditTemplate = (tpl: ReportTemplate) => {
     setEditingId(tpl.id);
-    setTplName(tpl.name); setTplDescription(tpl.description); setTplApp(tpl.application);
-    setTplDataSource(tpl.dataSource); setTplReportType(tpl.reportType); setTplDocumentType(tpl.documentType);
-    setBuilderMode(tpl.builderType); setSelectedFields(tpl.selectedFields);
-    setFilters(tpl.filters); setSortRules(tpl.sortRules); setRowLimit(tpl.rowLimit);
-    setVizType(tpl.vizType); setSqlQuery(tpl.sqlQuery);
-    setHasRun(false); setActiveTab("fields"); setShowConfigPanel(true);
+    setTplName(tpl.name);
+    setTplDescription(tpl.description);
+    setTplApp(tpl.application);
+    setTplDataSource(tpl.dataSource);
+    setTplReportType(tpl.reportType);
+    setTplDocumentType(tpl.documentType);
+    setBuilderMode(tpl.builderType);
+    setSelectedFields(tpl.selectedFields);
+    setFilters(tpl.filters);
+    setSortRules(tpl.sortRules);
+    setRowLimit(tpl.rowLimit);
+    setVizType(tpl.vizType);
+    setSqlQuery(tpl.sqlQuery);
+    setHasRun(false);
+    setActiveTab("fields");
+    setShowConfigPanel(true);
     setView("builder");
   };
 
@@ -314,12 +568,20 @@ export function ReportBuilderPage() {
   };
 
   const archiveTemplate = (id: string) => {
-    setTemplates((prev) => prev.map((t) => t.id === id ? { ...t, status: "archived", lastUpdated: "Just now" } : t));
+    setTemplates((prev) =>
+      prev.map((t) =>
+        t.id === id ? { ...t, status: "archived", lastUpdated: "Just now" } : t,
+      ),
+    );
     setOpenDropdownId(null);
   };
 
   const restoreTemplate = (id: string) => {
-    setTemplates((prev) => prev.map((t) => t.id === id ? { ...t, status: "draft", lastUpdated: "Just now" } : t));
+    setTemplates((prev) =>
+      prev.map((t) =>
+        t.id === id ? { ...t, status: "draft", lastUpdated: "Just now" } : t,
+      ),
+    );
     setOpenDropdownId(null);
   };
 
@@ -351,13 +613,21 @@ export function ReportBuilderPage() {
 
   const saveDraft = () => {
     const tpl = buildTemplateData("draft");
-    setTemplates((prev) => editingId ? prev.map((t) => t.id === editingId ? tpl : t) : [...prev, tpl]);
+    setTemplates((prev) =>
+      editingId
+        ? prev.map((t) => (t.id === editingId ? tpl : t))
+        : [...prev, tpl],
+    );
     setView("library");
   };
 
   const deployTemplate = () => {
     const tpl = buildTemplateData("deployed");
-    setTemplates((prev) => editingId ? prev.map((t) => t.id === editingId ? tpl : t) : [...prev, tpl]);
+    setTemplates((prev) =>
+      editingId
+        ? prev.map((t) => (t.id === editingId ? tpl : t))
+        : [...prev, tpl],
+    );
     setDeployedNotice(tpl.name);
     setTimeout(() => setDeployedNotice(null), 3500);
     setView("library");
@@ -368,7 +638,10 @@ export function ReportBuilderPage() {
     if (isSelected(field.key)) {
       setSelectedFields((prev) => prev.filter((f) => f.key !== field.key));
     } else {
-      setSelectedFields((prev) => [...prev, { key: field.key, displayLabel: field.label, aggregation: "none" }]);
+      setSelectedFields((prev) => [
+        ...prev,
+        { key: field.key, displayLabel: field.label, aggregation: "none" },
+      ]);
     }
   };
   const reorderField = (from: number, to: number) => {
@@ -380,17 +653,40 @@ export function ReportBuilderPage() {
     });
   };
   const addFilter = () => {
-    setFilters((prev) => [...prev, { id: Date.now().toString(), field: source.fields[0].key, operator: "equals", value: "", valueTo: "", logic: "AND" }]);
+    setFilters((prev) => [
+      ...prev,
+      {
+        id: Date.now().toString(),
+        field: source.fields[0].key,
+        operator: "equals",
+        value: "",
+        valueTo: "",
+        logic: "AND",
+      },
+    ]);
   };
   const updateFilter = (id: string, patch: Partial<FilterRow>) =>
-    setFilters((prev) => prev.map((f) => (f.id === id ? { ...f, ...patch } : f)));
+    setFilters((prev) =>
+      prev.map((f) => (f.id === id ? { ...f, ...patch } : f)),
+    );
 
-  const displayColumns = selectedFields.length > 0
-    ? selectedFields
-    : source.fields.map((f) => ({ key: f.key, displayLabel: f.label, aggregation: "none" as Aggregation }));
+  const displayColumns =
+    selectedFields.length > 0
+      ? selectedFields
+      : source.fields.map((f) => ({
+          key: f.key,
+          displayLabel: f.label,
+          aggregation: "none" as Aggregation,
+        }));
 
-  const firstText = selectedFields.find((f) => ["text", "status"].includes(source.fields.find((sf) => sf.key === f.key)?.type ?? ""));
-  const firstNum = selectedFields.find((f) => source.fields.find((sf) => sf.key === f.key)?.type === "number");
+  const firstText = selectedFields.find((f) =>
+    ["text", "status"].includes(
+      source.fields.find((sf) => sf.key === f.key)?.type ?? "",
+    ),
+  );
+  const firstNum = selectedFields.find(
+    (f) => source.fields.find((sf) => sf.key === f.key)?.type === "number",
+  );
 
   const previewData = (() => {
     let rows: Record<string, string | number>[] = [];
@@ -401,21 +697,35 @@ export function ReportBuilderPage() {
         const v = String(val ?? "").toLowerCase();
         const fv = f.value.toLowerCase();
         switch (f.operator) {
-          case "equals": return v === fv;
-          case "not_equals": return v !== fv;
-          case "contains": return v.includes(fv);
-          case "greater_than": return Number(val) > Number(f.value);
-          case "less_than": return Number(val) < Number(f.value);
-          case "is_empty": return !val || val === "";
-          case "between": return Number(val) >= Number(f.value) && Number(val) <= Number(f.valueTo);
-          default: return true;
+          case "equals":
+            return v === fv;
+          case "not_equals":
+            return v !== fv;
+          case "contains":
+            return v.includes(fv);
+          case "greater_than":
+            return Number(val) > Number(f.value);
+          case "less_than":
+            return Number(val) < Number(f.value);
+          case "is_empty":
+            return !val || val === "";
+          case "between":
+            return (
+              Number(val) >= Number(f.value) && Number(val) <= Number(f.valueTo)
+            );
+          default:
+            return true;
         }
       });
     }
     for (const rule of [...sortRules].reverse()) {
       rows.sort((a, b) => {
-        const av = a[rule.field], bv = b[rule.field];
-        const cmp = typeof av === "number" ? (av as number) - (bv as number) : String(av).localeCompare(String(bv));
+        const av = a[rule.field],
+          bv = b[rule.field];
+        const cmp =
+          typeof av === "number"
+            ? (av as number) - (bv as number)
+            : String(av).localeCompare(String(bv));
         return rule.direction === "asc" ? cmp : -cmp;
       });
     }
@@ -427,7 +737,10 @@ export function ReportBuilderPage() {
     if (statusFilter !== "all" && t.status !== statusFilter) return false;
     if (searchQuery) {
       const q = searchQuery.toLowerCase();
-      return t.name.toLowerCase().includes(q) || t.description.toLowerCase().includes(q);
+      return (
+        t.name.toLowerCase().includes(q) ||
+        t.description.toLowerCase().includes(q)
+      );
     }
     return true;
   });
@@ -443,15 +756,15 @@ export function ReportBuilderPage() {
     const currentApp = APPLICATIONS.find((a) => a.key === tplApp);
     return (
       <div className="flex h-[calc(100vh-56px)] -m-6 overflow-hidden">
-
         {/* Config panel */}
         {showConfigPanel && (
           <div className="w-72 bg-white border-r border-gray-200 flex flex-col overflow-hidden shrink-0">
-
             {/* Metadata section */}
             <div className="px-4 py-4 border-b border-gray-100 space-y-3">
               <div>
-                <label className="block text-xs font-medium text-gray-500 mb-1.5">Report Name</label>
+                <label className="block text-xs font-medium text-gray-500 mb-1.5">
+                  Report Name
+                </label>
                 <input
                   type="text"
                   value={tplName}
@@ -461,41 +774,71 @@ export function ReportBuilderPage() {
                 />
               </div>
               <div>
-                <label className="block text-xs font-medium text-gray-500 mb-1.5">Application</label>
+                <label className="block text-xs font-medium text-gray-500 mb-1.5">
+                  Application
+                </label>
                 <select
                   value={tplApp}
                   onChange={(e) => setTplApp(e.target.value)}
                   className="w-full px-3 py-1.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
                 >
-                  {APPLICATIONS.map((a) => <option key={a.key} value={a.key}>{a.icon} {a.label}</option>)}
+                  {APPLICATIONS.map((a) => (
+                    <option key={a.key} value={a.key}>
+                      {a.icon} {a.label}
+                    </option>
+                  ))}
                 </select>
               </div>
               <div>
-                <label className="block text-xs font-medium text-gray-500 mb-1.5">Report Type</label>
+                <label className="block text-xs font-medium text-gray-500 mb-1.5">
+                  Report Type
+                </label>
                 <div className="flex gap-1.5">
-                  {(["summary", "detailed", "analytical"] as ReportType[]).map((t) => (
-                    <button
-                      key={t}
-                      onClick={() => setTplReportType(t)}
-                      className={`flex-1 py-1.5 text-xs rounded-lg font-medium capitalize transition-colors ${tplReportType === t ? "bg-indigo-600 text-white" : "bg-gray-100 text-gray-600 hover:bg-gray-200"}`}
-                    >{t}</button>
-                  ))}
+                  {(["summary", "detailed", "analytical"] as ReportType[]).map(
+                    (t) => (
+                      <button
+                        key={t}
+                        onClick={() => setTplReportType(t)}
+                        className={`flex-1 py-1.5 text-xs rounded-lg font-medium capitalize transition-colors ${tplReportType === t ? "bg-indigo-600 text-white" : "bg-gray-100 text-gray-600 hover:bg-gray-200"}`}
+                      >
+                        {t}
+                      </button>
+                    ),
+                  )}
                 </div>
               </div>
               <div>
-                <label className="block text-xs font-medium text-gray-500 mb-1.5">Document Type</label>
+                <label className="block text-xs font-medium text-gray-500 mb-1.5">
+                  Document Type
+                </label>
                 <select
                   value={tplDocumentType}
-                  onChange={(e) => setTplDocumentType(e.target.value as DocumentType)}
+                  onChange={(e) =>
+                    setTplDocumentType(e.target.value as DocumentType)
+                  }
                   className="w-full px-3 py-1.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
                 >
-                  {(["Finance", "HR", "Procurement", "Construction", "Storefront", "ESS", "Admin"] as DocumentType[]).map((d) => (
-                    <option key={d} value={d}>{d}</option>
+                  {(
+                    [
+                      "Finance",
+                      "HR",
+                      "Procurement",
+                      "Construction",
+                      "Storefront",
+                      "ESS",
+                      "Admin",
+                    ] as DocumentType[]
+                  ).map((d) => (
+                    <option key={d} value={d}>
+                      {d}
+                    </option>
                   ))}
                 </select>
               </div>
               <div>
-                <label className="block text-xs font-medium text-gray-500 mb-1.5">Description</label>
+                <label className="block text-xs font-medium text-gray-500 mb-1.5">
+                  Description
+                </label>
                 <textarea
                   value={tplDescription}
                   onChange={(e) => setTplDescription(e.target.value)}
@@ -508,37 +851,76 @@ export function ReportBuilderPage() {
 
             {/* Data source */}
             <div className="px-4 py-3 border-b border-gray-100">
-              <label className="block text-xs font-medium text-gray-500 uppercase tracking-wide mb-1.5">Data Source</label>
+              <label className="block text-xs font-medium text-gray-500 uppercase tracking-wide mb-1.5">
+                Data Source
+              </label>
               <select
                 value={tplDataSource}
-                onChange={(e) => { setTplDataSource(e.target.value); setSelectedFields([]); setFilters([]); setSortRules([]); setHasRun(false); }}
+                onChange={(e) => {
+                  setTplDataSource(e.target.value);
+                  setSelectedFields([]);
+                  setFilters([]);
+                  setSortRules([]);
+                  setHasRun(false);
+                }}
                 className="w-full px-3 py-1.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
               >
-                {DATA_SOURCES.map((s) => <option key={s.value} value={s.value}>{s.module} — {s.label}</option>)}
+                {DATA_SOURCES.map((s) => (
+                  <option key={s.value} value={s.value}>
+                    {s.module} — {s.label}
+                  </option>
+                ))}
               </select>
             </div>
 
             {/* Tabs */}
             <div className="flex border-b border-gray-100 shrink-0">
               {(["fields", "filters", "sort", "viz"] as const).map((tab) => (
-                <button key={tab} onClick={() => setActiveTab(tab)} className={`flex-1 py-2 text-xs font-medium capitalize transition-colors border-b-2 ${activeTab === tab ? "border-indigo-500 text-indigo-700" : "border-transparent text-gray-500 hover:text-gray-700"}`}>
+                <button
+                  key={tab}
+                  onClick={() => setActiveTab(tab)}
+                  className={`flex-1 py-2 text-xs font-medium capitalize transition-colors border-b-2 ${activeTab === tab ? "border-indigo-500 text-indigo-700" : "border-transparent text-gray-500 hover:text-gray-700"}`}
+                >
                   {tab}
-                  {tab === "filters" && filters.length > 0 && <span className="ml-1 px-1 bg-indigo-100 text-indigo-600 rounded text-xs">{filters.length}</span>}
+                  {tab === "filters" && filters.length > 0 && (
+                    <span className="ml-1 px-1 bg-indigo-100 text-indigo-600 rounded text-xs">
+                      {filters.length}
+                    </span>
+                  )}
                 </button>
               ))}
             </div>
 
             <div className="flex-1 overflow-y-auto p-3">
-
               {/* Fields tab */}
               {activeTab === "fields" && (
                 <div className="space-y-3">
                   <div className="flex items-center justify-between">
-                    <span className="text-xs text-gray-500">Available fields</span>
+                    <span className="text-xs text-gray-500">
+                      Available fields
+                    </span>
                     <div className="flex gap-1.5">
-                      <button onClick={() => setSelectedFields(source.fields.map((f) => ({ key: f.key, displayLabel: f.label, aggregation: "none" })))} className="text-xs text-indigo-600 hover:underline">All</button>
+                      <button
+                        onClick={() =>
+                          setSelectedFields(
+                            source.fields.map((f) => ({
+                              key: f.key,
+                              displayLabel: f.label,
+                              aggregation: "none",
+                            })),
+                          )
+                        }
+                        className="text-xs text-indigo-600 hover:underline"
+                      >
+                        All
+                      </button>
                       <span className="text-gray-300">·</span>
-                      <button onClick={() => setSelectedFields([])} className="text-xs text-gray-500 hover:underline">Clear</button>
+                      <button
+                        onClick={() => setSelectedFields([])}
+                        className="text-xs text-gray-500 hover:underline"
+                      >
+                        Clear
+                      </button>
                     </div>
                   </div>
                   <div className="space-y-0.5">
@@ -546,30 +928,67 @@ export function ReportBuilderPage() {
                       const Icon = TYPE_ICON[field.type];
                       const sel = isSelected(field.key);
                       return (
-                        <button key={field.key} onClick={() => toggleField(field)} className={`w-full flex items-center gap-2 px-2.5 py-2 rounded-lg text-left transition-colors ${sel ? "bg-indigo-50 text-indigo-700" : "hover:bg-gray-50 text-gray-700"}`}>
-                          <Icon className={`w-3.5 h-3.5 shrink-0 ${sel ? "text-indigo-500" : "text-gray-400"}`} />
+                        <button
+                          key={field.key}
+                          onClick={() => toggleField(field)}
+                          className={`w-full flex items-center gap-2 px-2.5 py-2 rounded-lg text-left transition-colors ${sel ? "bg-indigo-50 text-indigo-700" : "hover:bg-gray-50 text-gray-700"}`}
+                        >
+                          <Icon
+                            className={`w-3.5 h-3.5 shrink-0 ${sel ? "text-indigo-500" : "text-gray-400"}`}
+                          />
                           <span className="text-xs flex-1">{field.label}</span>
-                          {sel && <div className="w-1.5 h-1.5 rounded-full bg-indigo-500" />}
+                          {sel && (
+                            <div className="w-1.5 h-1.5 rounded-full bg-indigo-500" />
+                          )}
                         </button>
                       );
                     })}
                   </div>
                   {selectedFields.length > 0 && (
                     <div className="border-t border-gray-100 pt-3">
-                      <p className="text-xs font-medium text-gray-500 mb-2">Selected — drag to reorder</p>
+                      <p className="text-xs font-medium text-gray-500 mb-2">
+                        Selected — drag to reorder
+                      </p>
                       <div className="space-y-1">
                         {selectedFields.map((sf, idx) => (
                           <div
                             key={sf.key}
                             draggable
-                            onDragStart={() => { dragIdx.current = idx; }}
+                            onDragStart={() => {
+                              dragIdx.current = idx;
+                            }}
                             onDragOver={(e) => e.preventDefault()}
-                            onDrop={() => { if (dragIdx.current !== null) reorderField(dragIdx.current, idx); dragIdx.current = null; }}
+                            onDrop={() => {
+                              if (dragIdx.current !== null)
+                                reorderField(dragIdx.current, idx);
+                              dragIdx.current = null;
+                            }}
                             className="flex items-center gap-1.5 px-2 py-1.5 bg-gray-50 border border-gray-200 rounded-lg"
                           >
                             <GripVertical className="w-3.5 h-3.5 text-gray-300 cursor-grab shrink-0" />
-                            <input value={sf.displayLabel} onChange={(e) => setSelectedFields((prev) => prev.map((f, i) => i === idx ? { ...f, displayLabel: e.target.value } : f))} className="flex-1 text-xs bg-transparent outline-none text-gray-700 min-w-0" />
-                            <button onClick={() => setSelectedFields((prev) => prev.filter((_, i) => i !== idx))} className="text-gray-300 hover:text-red-400"><X className="w-3 h-3" /></button>
+                            <input
+                              value={sf.displayLabel}
+                              onChange={(e) =>
+                                setSelectedFields((prev) =>
+                                  prev.map((f, i) =>
+                                    i === idx
+                                      ? { ...f, displayLabel: e.target.value }
+                                      : f,
+                                  ),
+                                )
+                              }
+                              className="flex-1 text-xs bg-transparent outline-none text-gray-700 min-w-0"
+                            />
+                            <button
+                              onClick={() =>
+                                setSelectedFields((prev) =>
+                                  prev.filter((_, i) => i !== idx),
+                                )
+                              }
+                              className="text-gray-300 hover:text-red-400"
+                            >
+                              <X className="w-3 h-3" />
+                            </button>
                           </div>
                         ))}
                       </div>
@@ -581,37 +1000,110 @@ export function ReportBuilderPage() {
               {/* Filters tab */}
               {activeTab === "filters" && (
                 <div className="space-y-3">
-                  {!filters.length && <p className="text-xs text-gray-500 text-center py-4">No filters. All rows will be shown.</p>}
+                  {!filters.length && (
+                    <p className="text-xs text-gray-500 text-center py-4">
+                      No filters. All rows will be shown.
+                    </p>
+                  )}
                   {filters.map((filter, idx) => {
-                    const meta = source.fields.find((f) => f.key === filter.field);
+                    const meta = source.fields.find(
+                      (f) => f.key === filter.field,
+                    );
                     const ops = getOps(meta?.type ?? "text");
                     return (
-                      <div key={filter.id} className="space-y-1.5 bg-gray-50 rounded-lg p-2.5 border border-gray-200">
+                      <div
+                        key={filter.id}
+                        className="space-y-1.5 bg-gray-50 rounded-lg p-2.5 border border-gray-200"
+                      >
                         {idx > 0 && (
                           <div className="flex gap-1 mb-1">
                             {(["AND", "OR"] as LogicOperator[]).map((l) => (
-                              <button key={l} onClick={() => updateFilter(filter.id, { logic: l })} className={`px-2 py-0.5 text-xs rounded font-medium ${filter.logic === l ? "bg-indigo-600 text-white" : "bg-gray-200 text-gray-600"}`}>{l}</button>
+                              <button
+                                key={l}
+                                onClick={() =>
+                                  updateFilter(filter.id, { logic: l })
+                                }
+                                className={`px-2 py-0.5 text-xs rounded font-medium ${filter.logic === l ? "bg-indigo-600 text-white" : "bg-gray-200 text-gray-600"}`}
+                              >
+                                {l}
+                              </button>
                             ))}
                           </div>
                         )}
-                        <select value={filter.field} onChange={(e) => updateFilter(filter.id, { field: e.target.value, operator: "equals", value: "" })} className="w-full px-2 py-1.5 border border-gray-200 rounded text-xs bg-white focus:outline-none focus:ring-1 focus:ring-indigo-400">
-                          {source.fields.map((f) => <option key={f.key} value={f.key}>{f.label}</option>)}
+                        <select
+                          value={filter.field}
+                          onChange={(e) =>
+                            updateFilter(filter.id, {
+                              field: e.target.value,
+                              operator: "equals",
+                              value: "",
+                            })
+                          }
+                          className="w-full px-2 py-1.5 border border-gray-200 rounded text-xs bg-white focus:outline-none focus:ring-1 focus:ring-indigo-400"
+                        >
+                          {source.fields.map((f) => (
+                            <option key={f.key} value={f.key}>
+                              {f.label}
+                            </option>
+                          ))}
                         </select>
-                        <select value={filter.operator} onChange={(e) => updateFilter(filter.id, { operator: e.target.value as FilterOperator })} className="w-full px-2 py-1.5 border border-gray-200 rounded text-xs bg-white focus:outline-none focus:ring-1 focus:ring-indigo-400">
-                          {ops.map((op) => <option key={op} value={op}>{OPERATOR_LABELS[op]}</option>)}
+                        <select
+                          value={filter.operator}
+                          onChange={(e) =>
+                            updateFilter(filter.id, {
+                              operator: e.target.value as FilterOperator,
+                            })
+                          }
+                          className="w-full px-2 py-1.5 border border-gray-200 rounded text-xs bg-white focus:outline-none focus:ring-1 focus:ring-indigo-400"
+                        >
+                          {ops.map((op) => (
+                            <option key={op} value={op}>
+                              {OPERATOR_LABELS[op]}
+                            </option>
+                          ))}
                         </select>
                         {filter.operator !== "is_empty" && (
-                          <input value={filter.value} onChange={(e) => updateFilter(filter.id, { value: e.target.value })} placeholder="Value..." className="w-full px-2 py-1.5 border border-gray-200 rounded text-xs bg-white focus:outline-none focus:ring-1 focus:ring-indigo-400" />
+                          <input
+                            value={filter.value}
+                            onChange={(e) =>
+                              updateFilter(filter.id, { value: e.target.value })
+                            }
+                            placeholder="Value..."
+                            className="w-full px-2 py-1.5 border border-gray-200 rounded text-xs bg-white focus:outline-none focus:ring-1 focus:ring-indigo-400"
+                          />
                         )}
                         {filter.operator === "between" && (
-                          <input value={filter.valueTo} onChange={(e) => updateFilter(filter.id, { valueTo: e.target.value })} placeholder="To..." className="w-full px-2 py-1.5 border border-gray-200 rounded text-xs bg-white focus:outline-none focus:ring-1 focus:ring-indigo-400" />
+                          <input
+                            value={filter.valueTo}
+                            onChange={(e) =>
+                              updateFilter(filter.id, {
+                                valueTo: e.target.value,
+                              })
+                            }
+                            placeholder="To..."
+                            className="w-full px-2 py-1.5 border border-gray-200 rounded text-xs bg-white focus:outline-none focus:ring-1 focus:ring-indigo-400"
+                          />
                         )}
-                        <button onClick={() => setFilters((prev) => prev.filter((f) => f.id !== filter.id))} className="text-xs text-red-400 hover:text-red-600 flex items-center gap-1"><Trash2 className="w-3 h-3" />Remove</button>
+                        <button
+                          onClick={() =>
+                            setFilters((prev) =>
+                              prev.filter((f) => f.id !== filter.id),
+                            )
+                          }
+                          className="text-xs text-red-400 hover:text-red-600 flex items-center gap-1"
+                        >
+                          <Trash2 className="w-3 h-3" />
+                          Remove
+                        </button>
                       </div>
                     );
                   })}
-                  <button onClick={addFilter} className="w-full flex items-center justify-center gap-1.5 py-2 border border-dashed border-gray-300 rounded-lg text-xs text-gray-500 hover:border-indigo-400 hover:text-indigo-600 transition-colors">
-                    <Plus className="w-3.5 h-3.5" />Add Filter
+                  <button
+                    onClick={addFilter}
+                    className="w-full flex items-center justify-center gap-1.5 py-2 border border-dashed border-gray-300 rounded-lg text-xs text-gray-500 hover:border-indigo-400 hover:text-indigo-600 transition-colors"
+                  >
+                    <Plus className="w-3.5 h-3.5" />
+                    Add Filter
                   </button>
                 </div>
               )}
@@ -620,33 +1112,102 @@ export function ReportBuilderPage() {
               {activeTab === "sort" && (
                 <div className="space-y-4">
                   <div>
-                    <label className="block text-xs font-medium text-gray-500 mb-2">Row Limit</label>
+                    <label className="block text-xs font-medium text-gray-500 mb-2">
+                      Row Limit
+                    </label>
                     <div className="flex gap-1.5 flex-wrap">
                       {[25, 50, 100, 500].map((n) => (
-                        <button key={n} onClick={() => setRowLimit(n)} className={`px-2.5 py-1 rounded-lg text-xs font-medium ${rowLimit === n ? "bg-indigo-600 text-white" : "bg-gray-100 text-gray-600 hover:bg-gray-200"}`}>{n}</button>
+                        <button
+                          key={n}
+                          onClick={() => setRowLimit(n)}
+                          className={`px-2.5 py-1 rounded-lg text-xs font-medium ${rowLimit === n ? "bg-indigo-600 text-white" : "bg-gray-100 text-gray-600 hover:bg-gray-200"}`}
+                        >
+                          {n}
+                        </button>
                       ))}
                     </div>
                   </div>
                   <div className="border-t border-gray-100 pt-3">
-                    <label className="block text-xs font-medium text-gray-500 mb-2">Sort Rules</label>
-                    {!sortRules.length && <p className="text-xs text-gray-500 mb-2">Rows returned in natural order.</p>}
+                    <label className="block text-xs font-medium text-gray-500 mb-2">
+                      Sort Rules
+                    </label>
+                    {!sortRules.length && (
+                      <p className="text-xs text-gray-500 mb-2">
+                        Rows returned in natural order.
+                      </p>
+                    )}
                     <div className="space-y-2">
                       {sortRules.map((rule, idx) => (
                         <div key={idx} className="flex gap-1.5 items-center">
-                          <select value={rule.field} onChange={(e) => setSortRules((prev) => prev.map((r, i) => i === idx ? { ...r, field: e.target.value } : r))} className="flex-1 px-2 py-1.5 border border-gray-200 rounded text-xs focus:outline-none focus:ring-1 focus:ring-indigo-400">
-                            {source.fields.map((f) => <option key={f.key} value={f.key}>{f.label}</option>)}
+                          <select
+                            value={rule.field}
+                            onChange={(e) =>
+                              setSortRules((prev) =>
+                                prev.map((r, i) =>
+                                  i === idx
+                                    ? { ...r, field: e.target.value }
+                                    : r,
+                                ),
+                              )
+                            }
+                            className="flex-1 px-2 py-1.5 border border-gray-200 rounded text-xs focus:outline-none focus:ring-1 focus:ring-indigo-400"
+                          >
+                            {source.fields.map((f) => (
+                              <option key={f.key} value={f.key}>
+                                {f.label}
+                              </option>
+                            ))}
                           </select>
-                          <button onClick={() => setSortRules((prev) => prev.map((r, i) => i === idx ? { ...r, direction: r.direction === "asc" ? "desc" : "asc" } : r))} className="px-2 py-1.5 border border-gray-200 rounded text-xs text-gray-600 hover:bg-gray-50 flex items-center gap-1">
-                            {rule.direction === "asc" ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
+                          <button
+                            onClick={() =>
+                              setSortRules((prev) =>
+                                prev.map((r, i) =>
+                                  i === idx
+                                    ? {
+                                        ...r,
+                                        direction:
+                                          r.direction === "asc"
+                                            ? "desc"
+                                            : "asc",
+                                      }
+                                    : r,
+                                ),
+                              )
+                            }
+                            className="px-2 py-1.5 border border-gray-200 rounded text-xs text-gray-600 hover:bg-gray-50 flex items-center gap-1"
+                          >
+                            {rule.direction === "asc" ? (
+                              <ChevronUp className="w-3 h-3" />
+                            ) : (
+                              <ChevronDown className="w-3 h-3" />
+                            )}
                             {rule.direction.toUpperCase()}
                           </button>
-                          <button onClick={() => setSortRules((prev) => prev.filter((_, i) => i !== idx))} className="text-gray-300 hover:text-red-400"><X className="w-3.5 h-3.5" /></button>
+                          <button
+                            onClick={() =>
+                              setSortRules((prev) =>
+                                prev.filter((_, i) => i !== idx),
+                              )
+                            }
+                            className="text-gray-300 hover:text-red-400"
+                          >
+                            <X className="w-3.5 h-3.5" />
+                          </button>
                         </div>
                       ))}
                     </div>
                     {sortRules.length < 3 && (
-                      <button onClick={() => setSortRules((prev) => [...prev, { field: source.fields[0].key, direction: "asc" }])} className="mt-2 w-full flex items-center justify-center gap-1.5 py-2 border border-dashed border-gray-300 rounded-lg text-xs text-gray-500 hover:border-indigo-400 hover:text-indigo-600 transition-colors">
-                        <Plus className="w-3.5 h-3.5" />Add Sort Rule
+                      <button
+                        onClick={() =>
+                          setSortRules((prev) => [
+                            ...prev,
+                            { field: source.fields[0].key, direction: "asc" },
+                          ])
+                        }
+                        className="mt-2 w-full flex items-center justify-center gap-1.5 py-2 border border-dashed border-gray-300 rounded-lg text-xs text-gray-500 hover:border-indigo-400 hover:text-indigo-600 transition-colors"
+                      >
+                        <Plus className="w-3.5 h-3.5" />
+                        Add Sort Rule
                       </button>
                     )}
                   </div>
@@ -656,17 +1217,26 @@ export function ReportBuilderPage() {
               {/* Viz tab */}
               {activeTab === "viz" && (
                 <div>
-                  <label className="block text-xs font-medium text-gray-500 mb-3">Visualization Type</label>
+                  <label className="block text-xs font-medium text-gray-500 mb-3">
+                    Visualization Type
+                  </label>
                   <div className="grid grid-cols-2 gap-2">
-                    {([
-                      { key: "table", label: "Table", Icon: LayoutGrid },
-                      { key: "bar", label: "Bar Chart", Icon: BarChart2 },
-                      { key: "line", label: "Line Chart", Icon: LineChart },
-                      { key: "pie", label: "Pie Chart", Icon: PieChart },
-                      { key: "cards", label: "KPI Cards", Icon: Layers },
-                    ] as const).map(({ key, label, Icon }) => (
-                      <button key={key} onClick={() => setVizType(key)} className={`flex flex-col items-center gap-1.5 p-3 border rounded-xl text-xs transition-colors ${vizType === key ? "border-indigo-500 bg-indigo-50 text-indigo-700" : "border-gray-200 text-gray-600 hover:border-gray-300"}`}>
-                        <Icon className="w-5 h-5" />{label}
+                    {(
+                      [
+                        { key: "table", label: "Table", Icon: LayoutGrid },
+                        { key: "bar", label: "Bar Chart", Icon: BarChart2 },
+                        { key: "line", label: "Line Chart", Icon: LineChart },
+                        { key: "pie", label: "Pie Chart", Icon: PieChart },
+                        { key: "cards", label: "KPI Cards", Icon: Layers },
+                      ] as const
+                    ).map(({ key, label, Icon }) => (
+                      <button
+                        key={key}
+                        onClick={() => setVizType(key)}
+                        className={`flex flex-col items-center gap-1.5 p-3 border rounded-xl text-xs transition-colors ${vizType === key ? "border-indigo-500 bg-indigo-50 text-indigo-700" : "border-gray-200 text-gray-600 hover:border-gray-300"}`}
+                      >
+                        <Icon className="w-5 h-5" />
+                        {label}
                       </button>
                     ))}
                   </div>
@@ -678,15 +1248,20 @@ export function ReportBuilderPage() {
 
         {/* Right: toolbar + preview */}
         <div className="flex-1 flex flex-col overflow-hidden">
-
           {/* Toolbar */}
           <div className="bg-white border-b border-gray-200 px-4 py-2.5 flex items-center gap-3 shrink-0">
-            <button onClick={() => setView("library")} className="flex items-center gap-1.5 text-sm text-gray-600 hover:text-gray-900 transition-colors shrink-0">
+            <button
+              onClick={() => setView("library")}
+              className="flex items-center gap-1.5 text-sm text-gray-600 hover:text-gray-900 transition-colors shrink-0"
+            >
               <ArrowLeft className="w-4 h-4" />
               <span className="hidden sm:inline">Report Library</span>
             </button>
             <div className="w-px h-5 bg-gray-200 shrink-0" />
-            <button onClick={() => setShowConfigPanel((v) => !v)} className="p-1.5 text-gray-400 hover:text-gray-700 hover:bg-gray-100 rounded-lg transition-colors shrink-0">
+            <button
+              onClick={() => setShowConfigPanel((v) => !v)}
+              className="p-1.5 text-gray-400 hover:text-gray-700 hover:bg-gray-100 rounded-lg transition-colors shrink-0"
+            >
               <SlidersHorizontal className="w-4 h-4" />
             </button>
             <input
@@ -697,27 +1272,48 @@ export function ReportBuilderPage() {
               className="flex-1 min-w-0 px-3 py-1.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
             />
             {currentApp && (
-              <span className={`hidden sm:inline-flex items-center px-2.5 py-1 rounded-lg text-xs font-medium shrink-0 ${currentApp.color}`}>
+              <span
+                className={`hidden sm:inline-flex items-center px-2.5 py-1 rounded-lg text-xs font-medium shrink-0 ${currentApp.color}`}
+              >
                 {currentApp.icon} {currentApp.label}
               </span>
             )}
             <div className="flex border border-gray-200 rounded-lg overflow-hidden text-sm shrink-0">
-              <button onClick={() => setBuilderMode("visual")} className={`flex items-center gap-1.5 px-3 py-1.5 ${builderMode === "visual" ? "bg-indigo-600 text-white" : "text-gray-600 hover:bg-gray-50"}`}>
-                <Eye className="w-3.5 h-3.5" />Visual
+              <button
+                onClick={() => setBuilderMode("visual")}
+                className={`flex items-center gap-1.5 px-3 py-1.5 ${builderMode === "visual" ? "bg-indigo-600 text-white" : "text-gray-600 hover:bg-gray-50"}`}
+              >
+                <Eye className="w-3.5 h-3.5" />
+                Visual
               </button>
-              <button onClick={() => setBuilderMode("sql")} className={`flex items-center gap-1.5 px-3 py-1.5 border-l border-gray-200 ${builderMode === "sql" ? "bg-indigo-600 text-white" : "text-gray-600 hover:bg-gray-50"}`}>
-                <Code className="w-3.5 h-3.5" />SQL
+              <button
+                onClick={() => setBuilderMode("sql")}
+                className={`flex items-center gap-1.5 px-3 py-1.5 border-l border-gray-200 ${builderMode === "sql" ? "bg-indigo-600 text-white" : "text-gray-600 hover:bg-gray-50"}`}
+              >
+                <Code className="w-3.5 h-3.5" />
+                SQL
               </button>
             </div>
             <div className="flex items-center gap-2 shrink-0">
-              <button onClick={() => setHasRun(true)} className="flex items-center gap-1.5 px-3 py-1.5 border border-gray-300 text-gray-700 rounded-lg text-sm hover:bg-gray-50 transition-colors">
-                <Play className="w-3.5 h-3.5" />Run
+              <button
+                onClick={() => setHasRun(true)}
+                className="flex items-center gap-1.5 px-3 py-1.5 border border-gray-300 text-gray-700 rounded-lg text-sm hover:bg-gray-50 transition-colors"
+              >
+                <Play className="w-3.5 h-3.5" />
+                Run
               </button>
-              <button onClick={saveDraft} className="flex items-center gap-1.5 px-3 py-1.5 border border-gray-300 text-gray-700 rounded-lg text-sm hover:bg-gray-50 transition-colors">
+              <button
+                onClick={saveDraft}
+                className="flex items-center gap-1.5 px-3 py-1.5 border border-gray-300 text-gray-700 rounded-lg text-sm hover:bg-gray-50 transition-colors"
+              >
                 Save Draft
               </button>
-              <button onClick={deployTemplate} className="flex items-center gap-1.5 px-3 py-1.5 bg-indigo-600 text-white rounded-lg text-sm hover:bg-indigo-700 transition-colors font-medium">
-                <Rocket className="w-3.5 h-3.5" />Deploy
+              <button
+                onClick={deployTemplate}
+                className="flex items-center gap-1.5 px-3 py-1.5 bg-indigo-600 text-white rounded-lg text-sm hover:bg-indigo-700 transition-colors font-medium"
+              >
+                <Rocket className="w-3.5 h-3.5" />
+                Deploy
               </button>
             </div>
           </div>
@@ -726,11 +1322,21 @@ export function ReportBuilderPage() {
           {builderMode === "visual" ? (
             <div className="flex-1 flex flex-col overflow-hidden bg-gray-50">
               <div className="bg-white border-b border-gray-100 px-5 py-2.5 flex items-center gap-3 shrink-0">
-                <span className="text-xs text-gray-500">{hasRun ? `${previewData.length} rows` : "Click Run to preview data"}</span>
+                <span className="text-xs text-gray-500">
+                  {hasRun
+                    ? `${previewData.length} rows`
+                    : "Click Run to preview data"}
+                </span>
                 {hasRun && (
                   <div className="ml-auto flex gap-2">
-                    <button className="flex items-center gap-1.5 px-3 py-1.5 border border-gray-300 rounded-lg text-xs text-gray-700 hover:bg-gray-50"><Download className="w-3.5 h-3.5" />CSV</button>
-                    <button className="flex items-center gap-1.5 px-3 py-1.5 border border-gray-300 rounded-lg text-xs text-gray-700 hover:bg-gray-50"><Printer className="w-3.5 h-3.5" />Print</button>
+                    <button className="flex items-center gap-1.5 px-3 py-1.5 border border-gray-300 rounded-lg text-xs text-gray-700 hover:bg-gray-50">
+                      <Download className="w-3.5 h-3.5" />
+                      CSV
+                    </button>
+                    <button className="flex items-center gap-1.5 px-3 py-1.5 border border-gray-300 rounded-lg text-xs text-gray-700 hover:bg-gray-50">
+                      <Printer className="w-3.5 h-3.5" />
+                      Print
+                    </button>
                   </div>
                 )}
               </div>
@@ -741,40 +1347,90 @@ export function ReportBuilderPage() {
                       <FileText className="w-8 h-8 text-indigo-400" />
                     </div>
                     <div>
-                      <p className="text-sm font-semibold text-gray-900">Configure your report template</p>
-                      <p className="text-xs text-gray-500 mt-1">Select fields, add filters, then click Run to preview</p>
+                      <p className="text-sm font-semibold text-gray-900">
+                        Configure your report template
+                      </p>
+                      <p className="text-xs text-gray-500 mt-1">
+                        Select fields, add filters, then click Run to preview
+                      </p>
                     </div>
-                    <button onClick={() => setHasRun(true)} className="flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-lg text-sm hover:bg-indigo-700 transition-colors">
-                      <Play className="w-4 h-4" />Run Preview
+                    <button
+                      onClick={() => setHasRun(true)}
+                      className="flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-lg text-sm hover:bg-indigo-700 transition-colors"
+                    >
+                      <Play className="w-4 h-4" />
+                      Run Preview
                     </button>
                   </div>
                 ) : (
                   <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
                     <div className="px-5 py-3.5 border-b border-gray-100 flex items-center gap-3">
-                      {currentApp && <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${currentApp.color}`}>{currentApp.label}</span>}
-                      <span className="text-sm font-semibold text-gray-900">{tplName || source.label}</span>
-                      <span className="text-xs text-gray-500">· {previewData.length} rows</span>
-                      {filters.length > 0 && <span className="px-2 py-0.5 bg-amber-50 text-amber-600 text-xs rounded-full">{filters.length} filter{filters.length > 1 ? "s" : ""} active</span>}
+                      {currentApp && (
+                        <span
+                          className={`px-2 py-0.5 rounded-full text-xs font-medium ${currentApp.color}`}
+                        >
+                          {currentApp.label}
+                        </span>
+                      )}
+                      <span className="text-sm font-semibold text-gray-900">
+                        {tplName || source.label}
+                      </span>
+                      <span className="text-xs text-gray-500">
+                        · {previewData.length} rows
+                      </span>
+                      {filters.length > 0 && (
+                        <span className="px-2 py-0.5 bg-amber-50 text-amber-600 text-xs rounded-full">
+                          {filters.length} filter{filters.length > 1 ? "s" : ""}{" "}
+                          active
+                        </span>
+                      )}
                     </div>
                     {vizType === "table" && (
-                      <div className="overflow-auto" style={{ maxHeight: "calc(100vh - 280px)" }}>
+                      <div
+                        className="overflow-auto"
+                        style={{ maxHeight: "calc(100vh - 280px)" }}
+                      >
                         <table className="w-full">
                           <thead className="sticky top-0 bg-gray-50 border-b border-gray-100 z-10">
-                            <tr>{displayColumns.map((col) => <th key={col.key} className="text-left px-4 py-3 text-xs font-medium text-gray-500 uppercase tracking-wide whitespace-nowrap">{col.displayLabel}</th>)}</tr>
+                            <tr>
+                              {displayColumns.map((col) => (
+                                <th
+                                  key={col.key}
+                                  className="text-left px-4 py-3 text-xs font-medium text-gray-500 uppercase tracking-wide whitespace-nowrap"
+                                >
+                                  {col.displayLabel}
+                                </th>
+                              ))}
+                            </tr>
                           </thead>
                           <tbody className="divide-y divide-gray-50">
                             {previewData.map((row, i) => (
                               <tr key={i} className="hover:bg-gray-50/60">
                                 {displayColumns.map((col) => {
                                   const val = row[col.key];
-                                  const fieldType = source.fields.find((f) => f.key === col.key)?.type;
+                                  const fieldType = source.fields.find(
+                                    (f) => f.key === col.key,
+                                  )?.type;
                                   return (
-                                    <td key={col.key} className="px-4 py-2.5 text-sm text-gray-700 whitespace-nowrap">
+                                    <td
+                                      key={col.key}
+                                      className="px-4 py-2.5 text-sm text-gray-700 whitespace-nowrap"
+                                    >
                                       {fieldType === "status" ? (
-                                        <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${cellStatusColor(val)}`}>{String(val)}</span>
+                                        <span
+                                          className={`px-2 py-0.5 rounded-full text-xs font-medium ${cellStatusColor(val)}`}
+                                        >
+                                          {String(val)}
+                                        </span>
                                       ) : fieldType === "number" ? (
-                                        <span className="font-mono">{typeof val === "number" ? val.toLocaleString() : val}</span>
-                                      ) : String(val ?? "—")}
+                                        <span className="font-mono">
+                                          {typeof val === "number"
+                                            ? val.toLocaleString()
+                                            : val}
+                                        </span>
+                                      ) : (
+                                        String(val ?? "—")
+                                      )}
                                     </td>
                                   );
                                 })}
@@ -784,9 +1440,27 @@ export function ReportBuilderPage() {
                         </table>
                       </div>
                     )}
-                    {(vizType === "bar" || vizType === "line") && <BarChartViz data={previewData} fieldX={firstText?.key ?? ""} fieldY={firstNum?.key ?? ""} />}
-                    {vizType === "pie" && <PieChartViz data={previewData} fieldLabel={firstText?.key ?? ""} fieldValue={firstNum?.key ?? ""} />}
-                    {vizType === "cards" && <CardsViz data={previewData} fields={displayColumns} sourceFields={source.fields} />}
+                    {(vizType === "bar" || vizType === "line") && (
+                      <BarChartViz
+                        data={previewData}
+                        fieldX={firstText?.key ?? ""}
+                        fieldY={firstNum?.key ?? ""}
+                      />
+                    )}
+                    {vizType === "pie" && (
+                      <PieChartViz
+                        data={previewData}
+                        fieldLabel={firstText?.key ?? ""}
+                        fieldValue={firstNum?.key ?? ""}
+                      />
+                    )}
+                    {vizType === "cards" && (
+                      <CardsViz
+                        data={previewData}
+                        fields={displayColumns}
+                        sourceFields={source.fields}
+                      />
+                    )}
                   </div>
                 )}
               </div>
@@ -795,31 +1469,52 @@ export function ReportBuilderPage() {
             /* SQL mode */
             <div className="flex-1 flex overflow-hidden">
               <div className="w-52 bg-white border-r border-gray-200 overflow-y-auto p-3 shrink-0">
-                <p className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-1">Schema Reference</p>
-                <p className="text-[10px] text-gray-400 mb-3">Click a field to insert into SQL</p>
+                <p className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-1">
+                  Schema Reference
+                </p>
+                <p className="text-[10px] text-gray-400 mb-3">
+                  Click a field to insert into SQL
+                </p>
                 {DATA_SOURCES.map((src) => {
                   const app = APPLICATIONS.find((a) => a.key === src.appKey);
                   return (
                     <div key={src.value} className="mb-4">
                       <div className="flex items-center gap-1.5 mb-1">
-                        <span className={`inline-block px-1.5 py-0.5 rounded text-xs font-medium ${src.moduleColor}`}>{app?.icon}</span>
+                        <span
+                          className={`inline-block px-1.5 py-0.5 rounded text-xs font-medium ${src.moduleColor}`}
+                        >
+                          {app?.icon}
+                        </span>
                         <button
                           onClick={() => {
                             const insert = `${src.value}`;
-                            const ta = document.getElementById('sql-editor') as HTMLTextAreaElement | null;
+                            const ta = document.getElementById(
+                              "sql-editor",
+                            ) as HTMLTextAreaElement | null;
                             if (ta) {
                               const start = ta.selectionStart;
                               const end = ta.selectionEnd;
-                              const newVal = sqlQuery.slice(0, start) + insert + sqlQuery.slice(end);
+                              const newVal =
+                                sqlQuery.slice(0, start) +
+                                insert +
+                                sqlQuery.slice(end);
                               setSqlQuery(newVal);
-                              setTimeout(() => { ta.focus(); ta.setSelectionRange(start + insert.length, start + insert.length); }, 0);
+                              setTimeout(() => {
+                                ta.focus();
+                                ta.setSelectionRange(
+                                  start + insert.length,
+                                  start + insert.length,
+                                );
+                              }, 0);
                             } else {
                               setSqlQuery((prev) => prev + insert);
                             }
                           }}
                           className="text-xs font-semibold text-gray-700 hover:text-indigo-600 hover:underline transition-colors"
                           title={`Insert table: ${src.value}`}
-                        >{src.value}</button>
+                        >
+                          {src.value}
+                        </button>
                       </div>
                       <div className="pl-3 space-y-0.5">
                         {src.fields.map((f) => (
@@ -827,13 +1522,24 @@ export function ReportBuilderPage() {
                             key={f.key}
                             onClick={() => {
                               const insert = `${src.value}.${f.key}`;
-                              const ta = document.getElementById('sql-editor') as HTMLTextAreaElement | null;
+                              const ta = document.getElementById(
+                                "sql-editor",
+                              ) as HTMLTextAreaElement | null;
                               if (ta) {
                                 const start = ta.selectionStart;
                                 const end = ta.selectionEnd;
-                                const newVal = sqlQuery.slice(0, start) + insert + sqlQuery.slice(end);
+                                const newVal =
+                                  sqlQuery.slice(0, start) +
+                                  insert +
+                                  sqlQuery.slice(end);
                                 setSqlQuery(newVal);
-                                setTimeout(() => { ta.focus(); ta.setSelectionRange(start + insert.length, start + insert.length); }, 0);
+                                setTimeout(() => {
+                                  ta.focus();
+                                  ta.setSelectionRange(
+                                    start + insert.length,
+                                    start + insert.length,
+                                  );
+                                }, 0);
                               } else {
                                 setSqlQuery((prev) => prev + insert);
                               }
@@ -841,8 +1547,12 @@ export function ReportBuilderPage() {
                             className="w-full text-left text-xs hover:bg-indigo-50 rounded px-1 py-0.5 group transition-colors"
                             title={`Insert: ${src.value}.${f.key}`}
                           >
-                            <span className="text-indigo-500 group-hover:text-indigo-700">{f.key}</span>
-                            <span className="text-gray-300 ml-1">({f.type})</span>
+                            <span className="text-indigo-500 group-hover:text-indigo-700">
+                              {f.key}
+                            </span>
+                            <span className="text-gray-300 ml-1">
+                              ({f.type})
+                            </span>
                           </button>
                         ))}
                       </div>
@@ -857,13 +1567,19 @@ export function ReportBuilderPage() {
                     onChange={(e) => setSqlQuery(e.target.value)}
                     rows={7}
                     spellCheck={false}
-                  id="sql-editor"
+                    id="sql-editor"
                     className="w-full px-4 py-3 bg-gray-950 text-emerald-400 border border-gray-800 rounded-xl font-mono text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 resize-none"
                   />
                   <div className="flex items-center justify-between mt-3">
-                    <p className="text-xs text-gray-500">Tables: {DATA_SOURCES.map((s) => s.value).join(", ")}</p>
-                    <button onClick={() => setHasRun(true)} className="flex items-center gap-1.5 px-3 py-1.5 bg-indigo-600 text-white rounded-lg text-sm hover:bg-indigo-700 transition-colors">
-                      <Play className="w-3.5 h-3.5" />Run Query
+                    <p className="text-xs text-gray-500">
+                      Tables: {DATA_SOURCES.map((s) => s.value).join(", ")}
+                    </p>
+                    <button
+                      onClick={() => setHasRun(true)}
+                      className="flex items-center gap-1.5 px-3 py-1.5 bg-indigo-600 text-white rounded-lg text-sm hover:bg-indigo-700 transition-colors"
+                    >
+                      <Play className="w-3.5 h-3.5" />
+                      Run Query
                     </button>
                   </div>
                 </div>
@@ -871,18 +1587,42 @@ export function ReportBuilderPage() {
                   <div className="flex-1 overflow-auto p-4">
                     <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
                       <div className="px-4 py-3 border-b border-gray-100 flex items-center gap-2">
-                        <span className="text-xs text-gray-500">{previewData.length} rows</span>
-                        <button className="ml-auto flex items-center gap-1.5 px-3 py-1.5 border border-gray-300 rounded-lg text-xs text-gray-700 hover:bg-gray-50"><Download className="w-3.5 h-3.5" />Export CSV</button>
+                        <span className="text-xs text-gray-500">
+                          {previewData.length} rows
+                        </span>
+                        <button className="ml-auto flex items-center gap-1.5 px-3 py-1.5 border border-gray-300 rounded-lg text-xs text-gray-700 hover:bg-gray-50">
+                          <Download className="w-3.5 h-3.5" />
+                          Export CSV
+                        </button>
                       </div>
-                      <div className="overflow-auto" style={{ maxHeight: "calc(100vh - 400px)" }}>
+                      <div
+                        className="overflow-auto"
+                        style={{ maxHeight: "calc(100vh - 400px)" }}
+                      >
                         <table className="w-full">
                           <thead className="sticky top-0 bg-gray-50 border-b border-gray-100">
-                            <tr>{source.fields.map((f) => <th key={f.key} className="text-left px-4 py-3 text-xs font-medium text-gray-500 uppercase tracking-wide whitespace-nowrap">{f.label}</th>)}</tr>
+                            <tr>
+                              {source.fields.map((f) => (
+                                <th
+                                  key={f.key}
+                                  className="text-left px-4 py-3 text-xs font-medium text-gray-500 uppercase tracking-wide whitespace-nowrap"
+                                >
+                                  {f.label}
+                                </th>
+                              ))}
+                            </tr>
                           </thead>
                           <tbody className="divide-y divide-gray-50">
                             {previewData.map((row, i) => (
                               <tr key={i} className="hover:bg-gray-50/60">
-                                {source.fields.map((f) => <td key={f.key} className="px-4 py-2.5 text-sm text-gray-700 whitespace-nowrap font-mono">{String(row[f.key] ?? "")}</td>)}
+                                {source.fields.map((f) => (
+                                  <td
+                                    key={f.key}
+                                    className="px-4 py-2.5 text-sm text-gray-700 whitespace-nowrap font-mono"
+                                  >
+                                    {String(row[f.key] ?? "")}
+                                  </td>
+                                ))}
                               </tr>
                             ))}
                           </tbody>
@@ -903,8 +1643,10 @@ export function ReportBuilderPage() {
   // LIBRARY VIEW
   // ─────────────────────────────────────────────────────────────────────────
   return (
-    <div className="space-y-6" onClick={() => openDropdownId && setOpenDropdownId(null)}>
-
+    <div
+      className="space-y-6"
+      onClick={() => openDropdownId && setOpenDropdownId(null)}
+    >
       {/* Deploy success notice */}
       {deployedNotice && (
         <div className="fixed bottom-6 right-6 z-50 bg-emerald-600 text-white px-5 py-3 rounded-xl shadow-lg flex items-center gap-3 text-sm font-medium">
@@ -916,27 +1658,45 @@ export function ReportBuilderPage() {
       {/* Page header */}
       <div className="flex items-start justify-between">
         <div>
-          <h1 className="text-2xl font-semibold text-gray-900">Report Builder</h1>
-          <p className="text-sm text-gray-600 mt-1">Design and deploy reusable report templates across all applications</p>
+          <h1 className="text-2xl font-semibold text-gray-900">
+            Report Builder
+          </h1>
+          <p className="text-sm text-gray-600 mt-1">
+            Design and deploy reusable report templates across all applications
+          </p>
         </div>
         <button
           onClick={openNewTemplate}
           className="flex items-center gap-2 bg-indigo-600 text-white px-4 py-2 rounded-lg hover:bg-indigo-700 transition-colors text-sm font-medium shrink-0"
         >
-          <Plus className="w-4 h-4" />New Template
+          <Plus className="w-4 h-4" />
+          New Template
         </button>
       </div>
 
       {/* Stats row */}
       <div className="grid grid-cols-4 gap-4">
         {[
-          { label: "Total Templates", value: templates.length, color: "text-gray-900" },
-          { label: "Deployed", value: totalDeployed, color: "text-emerald-600" },
+          {
+            label: "Total Templates",
+            value: templates.length,
+            color: "text-gray-900",
+          },
+          {
+            label: "Deployed",
+            value: totalDeployed,
+            color: "text-emerald-600",
+          },
           { label: "Draft", value: totalDraft, color: "text-amber-500" },
           { label: "Archived", value: totalArchived, color: "text-gray-400" },
         ].map((s) => (
-          <div key={s.label} className="bg-white rounded-xl border border-gray-200 p-5">
-            <p className="text-xs text-gray-500 font-medium uppercase tracking-wide mb-1">{s.label}</p>
+          <div
+            key={s.label}
+            className="bg-white rounded-xl border border-gray-200 p-5"
+          >
+            <p className="text-xs text-gray-500 font-medium uppercase tracking-wide mb-1">
+              {s.label}
+            </p>
             <p className={`text-3xl font-bold ${s.color}`}>{s.value}</p>
           </div>
         ))}
@@ -950,7 +1710,9 @@ export function ReportBuilderPage() {
               key={s}
               onClick={() => setStatusFilter(s)}
               className={`px-3 py-1.5 capitalize font-medium transition-colors ${statusFilter === s ? "bg-indigo-600 text-white" : "text-gray-600 hover:bg-gray-50 border-r border-gray-200 last:border-0"}`}
-            >{s}</button>
+            >
+              {s}
+            </button>
           ))}
         </div>
         <div className="relative flex-1 max-w-sm">
@@ -967,35 +1729,67 @@ export function ReportBuilderPage() {
 
       {/* Application groups */}
       {APPLICATIONS.map((app) => {
-        const appTemplates = visibleTemplates.filter((t) => t.application === app.key);
+        const appTemplates = visibleTemplates.filter(
+          (t) => t.application === app.key,
+        );
         if (!appTemplates.length) return null;
         return (
           <div key={app.key}>
             <div className="flex items-center gap-2.5 mb-3">
               <span className="text-base">{app.icon}</span>
-              <h2 className="text-sm font-semibold text-gray-900">{app.label} Reports</h2>
-              <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${app.color}`}>{appTemplates.length}</span>
+              <h2 className="text-sm font-semibold text-gray-900">
+                {app.label} Reports
+              </h2>
+              <span
+                className={`px-2 py-0.5 rounded-full text-xs font-medium ${app.color}`}
+              >
+                {appTemplates.length}
+              </span>
             </div>
             <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
               {appTemplates.map((tpl) => (
-                <div key={tpl.id} className="bg-white border border-gray-200 rounded-xl overflow-hidden hover:border-gray-300 hover:shadow-sm transition-all group">
+                <div
+                  key={tpl.id}
+                  className="bg-white border border-gray-200 rounded-xl overflow-hidden hover:border-gray-300 hover:shadow-sm transition-all group"
+                >
                   <div className="px-5 py-4">
                     {/* Badges row */}
                     <div className="flex items-center gap-2 mb-3">
-                      <span className={`px-2 py-0.5 rounded-full text-xs font-semibold uppercase tracking-wide ${statusBadge(tpl.status)}`}>{tpl.status}</span>
-                      <span className={`px-2 py-0.5 rounded-full text-xs font-medium capitalize ${reportTypeBadge(tpl.reportType)}`}>{tpl.reportType}</span>
+                      <span
+                        className={`px-2 py-0.5 rounded-full text-xs font-semibold uppercase tracking-wide ${statusBadge(tpl.status)}`}
+                      >
+                        {tpl.status}
+                      </span>
+                      <span
+                        className={`px-2 py-0.5 rounded-full text-xs font-medium capitalize ${reportTypeBadge(tpl.reportType)}`}
+                      >
+                        {tpl.reportType}
+                      </span>
                       <span className="ml-auto flex items-center gap-1 text-xs text-gray-400">
-                        {tpl.builderType === "visual" ? <Eye className="w-3 h-3" /> : <Code className="w-3 h-3" />}
+                        {tpl.builderType === "visual" ? (
+                          <Eye className="w-3 h-3" />
+                        ) : (
+                          <Code className="w-3 h-3" />
+                        )}
                         {tpl.builderType === "visual" ? "Visual" : "SQL"}
                       </span>
                     </div>
                     {/* Name & description */}
-                    <p className="text-sm font-semibold text-gray-900 mb-1">{tpl.name}</p>
-                    <p className="text-xs text-gray-500 leading-relaxed line-clamp-2">{tpl.description}</p>
+                    <p className="text-sm font-semibold text-gray-900 mb-1">
+                      {tpl.name}
+                    </p>
+                    <p className="text-xs text-gray-500 leading-relaxed line-clamp-2">
+                      {tpl.description}
+                    </p>
                     {/* Meta */}
                     <div className="flex items-center gap-3 mt-3 text-xs text-gray-400">
-                      <span className={`px-1.5 py-0.5 rounded text-xs font-medium ${DATA_SOURCES.find(s => s.value === tpl.dataSource)?.moduleColor ?? "bg-gray-100 text-gray-500"}`}>
-                        {DATA_SOURCES.find(s => s.value === tpl.dataSource)?.label}
+                      <span
+                        className={`px-1.5 py-0.5 rounded text-xs font-medium ${DATA_SOURCES.find((s) => s.value === tpl.dataSource)?.moduleColor ?? "bg-gray-100 text-gray-500"}`}
+                      >
+                        {
+                          DATA_SOURCES.find((s) => s.value === tpl.dataSource)
+                            ?.label
+                        }
                       </span>
                       <span>Updated {tpl.lastUpdated}</span>
                       <span>by {tpl.createdBy}</span>
@@ -1005,43 +1799,92 @@ export function ReportBuilderPage() {
                   {/* Actions */}
                   <div className="px-4 py-3 border-t border-gray-100 bg-gray-50/50 flex items-center gap-2">
                     {tpl.status === "deployed" && (
-                      <button onClick={() => { openEditTemplate(tpl); setTimeout(() => setHasRun(true), 50); }} className="flex items-center gap-1.5 px-3 py-1.5 bg-indigo-600 text-white rounded-lg text-xs font-medium hover:bg-indigo-700 transition-colors">
-                        <Play className="w-3 h-3" />Run
+                      <button
+                        onClick={() => {
+                          openEditTemplate(tpl);
+                          setTimeout(() => setHasRun(true), 50);
+                        }}
+                        className="flex items-center gap-1.5 px-3 py-1.5 bg-indigo-600 text-white rounded-lg text-xs font-medium hover:bg-indigo-700 transition-colors"
+                      >
+                        <Play className="w-3 h-3" />
+                        Run
                       </button>
                     )}
                     {tpl.status === "draft" && (
-                      <button onClick={() => { const updated = { ...tpl, status: "deployed" as ReportStatus, lastUpdated: "Just now" }; setTemplates(prev => prev.map(t => t.id === tpl.id ? updated : t)); setDeployedNotice(tpl.name); setTimeout(() => setDeployedNotice(null), 3500); }} className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-600 text-white rounded-lg text-xs font-medium hover:bg-emerald-700 transition-colors">
-                        <Rocket className="w-3 h-3" />Deploy
+                      <button
+                        onClick={() => {
+                          const updated = {
+                            ...tpl,
+                            status: "deployed" as ReportStatus,
+                            lastUpdated: "Just now",
+                          };
+                          setTemplates((prev) =>
+                            prev.map((t) => (t.id === tpl.id ? updated : t)),
+                          );
+                          setDeployedNotice(tpl.name);
+                          setTimeout(() => setDeployedNotice(null), 3500);
+                        }}
+                        className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-600 text-white rounded-lg text-xs font-medium hover:bg-emerald-700 transition-colors"
+                      >
+                        <Rocket className="w-3 h-3" />
+                        Deploy
                       </button>
                     )}
                     {tpl.status === "archived" && (
-                      <button onClick={() => restoreTemplate(tpl.id)} className="flex items-center gap-1.5 px-3 py-1.5 border border-gray-300 text-gray-700 rounded-lg text-xs font-medium hover:bg-gray-100 transition-colors">
+                      <button
+                        onClick={() => restoreTemplate(tpl.id)}
+                        className="flex items-center gap-1.5 px-3 py-1.5 border border-gray-300 text-gray-700 rounded-lg text-xs font-medium hover:bg-gray-100 transition-colors"
+                      >
                         Restore
                       </button>
                     )}
-                    <button onClick={() => openEditTemplate(tpl)} className="flex items-center gap-1.5 px-3 py-1.5 border border-gray-300 text-gray-700 rounded-lg text-xs font-medium hover:bg-gray-50 transition-colors">
-                      <Pencil className="w-3 h-3" />Edit
+                    <button
+                      onClick={() => openEditTemplate(tpl)}
+                      className="flex items-center gap-1.5 px-3 py-1.5 border border-gray-300 text-gray-700 rounded-lg text-xs font-medium hover:bg-gray-50 transition-colors"
+                    >
+                      <Pencil className="w-3 h-3" />
+                      Edit
                     </button>
                     {/* More dropdown */}
                     <div className="relative ml-auto">
                       <button
-                        onClick={(e) => { e.stopPropagation(); setOpenDropdownId(openDropdownId === tpl.id ? null : tpl.id); }}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setOpenDropdownId(
+                            openDropdownId === tpl.id ? null : tpl.id,
+                          );
+                        }}
                         className="p-1.5 text-gray-400 hover:text-gray-700 hover:bg-gray-100 rounded-lg transition-colors"
                       >
                         <MoreHorizontal className="w-4 h-4" />
                       </button>
                       {openDropdownId === tpl.id && (
-                        <div onClick={(e) => e.stopPropagation()} className="absolute right-0 bottom-full mb-1 w-36 bg-white rounded-lg shadow-lg border border-gray-200 py-1 z-20">
-                          <button onClick={() => duplicateTemplate(tpl)} className="w-full flex items-center gap-2 px-3 py-2 text-xs text-gray-700 hover:bg-gray-50">
-                            <Copy className="w-3.5 h-3.5 text-gray-400" />Duplicate
+                        <div
+                          onClick={(e) => e.stopPropagation()}
+                          className="absolute right-0 bottom-full mb-1 w-36 bg-white rounded-lg shadow-lg border border-gray-200 py-1 z-20"
+                        >
+                          <button
+                            onClick={() => duplicateTemplate(tpl)}
+                            className="w-full flex items-center gap-2 px-3 py-2 text-xs text-gray-700 hover:bg-gray-50"
+                          >
+                            <Copy className="w-3.5 h-3.5 text-gray-400" />
+                            Duplicate
                           </button>
                           {tpl.status !== "archived" ? (
-                            <button onClick={() => archiveTemplate(tpl.id)} className="w-full flex items-center gap-2 px-3 py-2 text-xs text-gray-700 hover:bg-gray-50">
-                              <Archive className="w-3.5 h-3.5 text-gray-400" />Archive
+                            <button
+                              onClick={() => archiveTemplate(tpl.id)}
+                              className="w-full flex items-center gap-2 px-3 py-2 text-xs text-gray-700 hover:bg-gray-50"
+                            >
+                              <Archive className="w-3.5 h-3.5 text-gray-400" />
+                              Archive
                             </button>
                           ) : (
-                            <button onClick={() => deleteTemplate(tpl.id)} className="w-full flex items-center gap-2 px-3 py-2 text-xs text-red-600 hover:bg-red-50">
-                              <Trash2 className="w-3.5 h-3.5" />Delete
+                            <button
+                              onClick={() => deleteTemplate(tpl.id)}
+                              className="w-full flex items-center gap-2 px-3 py-2 text-xs text-red-600 hover:bg-red-50"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                              Delete
                             </button>
                           )}
                         </div>
@@ -1061,12 +1904,20 @@ export function ReportBuilderPage() {
           <div className="w-16 h-16 bg-gray-100 rounded-2xl flex items-center justify-center mb-4">
             <FileText className="w-8 h-8 text-gray-300" />
           </div>
-          <p className="text-sm font-semibold text-gray-900">No templates found</p>
-          <p className="text-xs text-gray-500 mt-1 mb-4">
-            {searchQuery ? `No results for "${searchQuery}"` : "No templates match the selected filter"}
+          <p className="text-sm font-semibold text-gray-900">
+            No templates found
           </p>
-          <button onClick={openNewTemplate} className="flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-lg text-sm hover:bg-indigo-700 transition-colors">
-            <Plus className="w-4 h-4" />New Template
+          <p className="text-xs text-gray-500 mt-1 mb-4">
+            {searchQuery
+              ? `No results for "${searchQuery}"`
+              : "No templates match the selected filter"}
+          </p>
+          <button
+            onClick={openNewTemplate}
+            className="flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-lg text-sm hover:bg-indigo-700 transition-colors"
+          >
+            <Plus className="w-4 h-4" />
+            New Template
           </button>
         </div>
       )}
