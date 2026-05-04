@@ -63,6 +63,7 @@ export function ESSDashboardPage() {
   const [allProjects, setAllProjects] = useState<any[]>([]);
   const [recentRequests, setRecentRequests] = useState<RecentRequest[]>([]);
   const [notifications] = useState<Notification[]>([]);
+  const unreadNotifs = notifications.filter((n) => !n.read).length;
 
   useEffect(() => {
     fetchProjects({ status: "Active" })

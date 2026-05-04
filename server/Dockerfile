@@ -5,36 +5,37 @@ RUN echo "Cache bust: $CACHE_BUST"
 
 WORKDIR /app
 
-COPY package*.json ./
-COPY nest-cli.json ./
-COPY tsconfig*.json ./
+# Copy from server/ subdirectory (Railway builds from repo root context)
+COPY server/package*.json ./
+COPY server/nest-cli.json ./
+COPY server/tsconfig*.json ./
 
 RUN npm ci
 
-COPY prisma ./prisma/
+COPY server/prisma ./prisma/
 RUN npx prisma generate
 
-COPY src ./src/
+COPY server/src ./src/
 RUN npm run build
 
 # ─── Production image ───────────────────────────────────────────────────────────
 FROM node:20-alpine
 
-# ✅ openssl3 matches linux-musl-openssl-3.0.x target
+# openssl3 matches linux-musl-openssl-3.0.x target
 RUN apk add --no-cache openssl openssl-dev
 
 WORKDIR /app
 
-COPY package*.json ./
+COPY server/package*.json ./
 RUN npm ci --omit=dev
 
 COPY --from=builder /app/dist ./dist
 COPY --from=builder /app/node_modules/.prisma ./node_modules/.prisma
 COPY --from=builder /app/node_modules/@prisma ./node_modules/@prisma
-COPY prisma ./prisma/
+COPY server/prisma ./prisma/
 
 ENV NODE_ENV=production
 
 EXPOSE 8080
 
-CMD ["node", "dist/src/main"]
+CMD ["node", "dist/main"]

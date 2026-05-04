@@ -230,7 +230,7 @@ export function SuppliersPage() {
         <div>
           <h1 className="text-2xl font-semibold text-gray-900">Suppliers</h1>
           <p className="text-sm text-gray-500 mt-0.5">
-            {suppliers.length} registered suppliers · Manage supply chain and
+            {supplierList.length} registered suppliers · Manage supply chain and
             track performance
           </p>
         </div>
@@ -339,7 +339,7 @@ export function SuppliersPage() {
                     </div>
                     <span className="text-xs text-gray-400">·</span>
                     <div className="flex items-center gap-1 text-xs text-gray-500">
-                      {sup.category.map((c) => (
+                      {sup.category.map((c: string) => (
                         <span
                           key={c}
                           className="bg-gray-100 text-gray-600 px-1.5 py-0.5 rounded text-xs"
@@ -496,19 +496,26 @@ export function SuppliersPage() {
                           Supplied Materials
                         </p>
                         <div className="flex flex-wrap gap-2">
-                          {sup.materials.map((m) => (
-                            <div
-                              key={m.name}
-                              className="bg-white border border-gray-200 rounded-md px-3 py-2 text-xs"
-                            >
-                              <p className="font-medium text-gray-900">
-                                {m.name}
-                              </p>
-                              <p className="text-gray-400 mt-0.5">
-                                Last: {m.lastPrice.toLocaleString()} / {m.unit}
-                              </p>
-                            </div>
-                          ))}
+                          {sup.materials.map(
+                            (m: {
+                              name: string;
+                              unit: string;
+                              lastPrice: number;
+                            }) => (
+                              <div
+                                key={m.name}
+                                className="bg-white border border-gray-200 rounded-md px-3 py-2 text-xs"
+                              >
+                                <p className="font-medium text-gray-900">
+                                  {m.name}
+                                </p>
+                                <p className="text-gray-400 mt-0.5">
+                                  Last: {m.lastPrice.toLocaleString()} /{" "}
+                                  {m.unit}
+                                </p>
+                              </div>
+                            ),
+                          )}
                         </div>
                       </div>
                       <div className="flex justify-end gap-2 mt-4">
@@ -762,7 +769,7 @@ export function SuppliersPage() {
                     Categories
                   </p>
                   <div className="flex flex-wrap gap-1.5">
-                    {profileTarget.category.map((c) => (
+                    {profileTarget.category.map((c: string) => (
                       <span
                         key={c}
                         className="bg-blue-50 text-blue-700 text-xs px-2.5 py-1 rounded-full border border-blue-100"
@@ -799,19 +806,25 @@ export function SuppliersPage() {
                       </tr>
                     </thead>
                     <tbody className="divide-y">
-                      {profileTarget.materials.map((m) => (
-                        <tr key={m.name} className="hover:bg-gray-50">
-                          <td className="px-4 py-2.5 text-gray-800">
-                            {m.name}
-                          </td>
-                          <td className="px-4 py-2.5 text-gray-500">
-                            {m.unit}
-                          </td>
-                          <td className="px-4 py-2.5 text-right font-mono text-gray-800">
-                            ₦{m.lastPrice.toLocaleString()}
-                          </td>
-                        </tr>
-                      ))}
+                      {profileTarget.materials.map(
+                        (m: {
+                          name: string;
+                          unit: string;
+                          lastPrice: number;
+                        }) => (
+                          <tr key={m.name} className="hover:bg-gray-50">
+                            <td className="px-4 py-2.5 text-gray-800">
+                              {m.name}
+                            </td>
+                            <td className="px-4 py-2.5 text-gray-500">
+                              {m.unit}
+                            </td>
+                            <td className="px-4 py-2.5 text-right font-mono text-gray-800">
+                              ₦{m.lastPrice.toLocaleString()}
+                            </td>
+                          </tr>
+                        ),
+                      )}
                     </tbody>
                   </table>
                 </div>

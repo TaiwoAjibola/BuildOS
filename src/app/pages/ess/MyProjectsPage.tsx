@@ -36,8 +36,6 @@ interface MyProject {
   tag: string;
 }
 
-// ─── Mock data (James Okafor's view) ─────────────────────────────────────────
-
 // ─── Config ───────────────────────────────────────────────────────────────────
 
 const taskStatusConfig: Record<
