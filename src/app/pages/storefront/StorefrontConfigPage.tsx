@@ -272,7 +272,6 @@ interface StoreRecord {
   status: StoreStatus;
 }
 
-// SEED_STORES removed — data fetched from API
 
 function storeFromApi(s: ApiStore): StoreRecord {
   const level: StoreLevel = s.type === "Project" ? 3 : 1;
@@ -700,44 +699,10 @@ interface StoreThreshold {
   unit: string;
 }
 
-const SEED_THRESHOLDS: StoreThreshold[] = [
-  {
-    id: "1",
-    storeName: "General Store",
-    storeType: "General",
-    lowStockQty: 50,
-    outOfStockQty: 0,
-    unit: "%",
-  },
-  {
-    id: "2",
-    storeName: "Block A Project Store",
-    storeType: "Project",
-    lowStockQty: 20,
-    outOfStockQty: 0,
-    unit: "%",
-  },
-  {
-    id: "3",
-    storeName: "Block B Project Store",
-    storeType: "Project",
-    lowStockQty: 20,
-    outOfStockQty: 0,
-    unit: "%",
-  },
-  {
-    id: "4",
-    storeName: "Block C Project Store",
-    storeType: "Project",
-    lowStockQty: 15,
-    outOfStockQty: 0,
-    unit: "%",
-  },
-];
 
 function StockThresholdsPanel() {
   const [thresholds, setThresholds] =
-    useState<StoreThreshold[]>(SEED_THRESHOLDS);
+    useState<StoreThreshold[]>([]);
   const [showModal, setShowModal] = useState(false);
   const [editing, setEditing] = useState<StoreThreshold | null>(null);
   const [form, setForm] = useState<Omit<StoreThreshold, "id">>({
@@ -1024,27 +989,11 @@ interface Unit {
   category: string;
 }
 
-const SEED_UNITS: Unit[] = [
-  { id: "1", name: "Meter", abbreviation: "m", category: "Length" },
-  { id: "2", name: "Centimeter", abbreviation: "cm", category: "Length" },
-  { id: "3", name: "Foot", abbreviation: "ft", category: "Length" },
-  { id: "4", name: "Kilogram", abbreviation: "kg", category: "Weight" },
-  { id: "5", name: "Tonne", abbreviation: "t", category: "Weight" },
-  { id: "6", name: "Bag (Cement)", abbreviation: "bag", category: "Custom" },
-  { id: "7", name: "Cubic Meter", abbreviation: "m³", category: "Volume" },
-  { id: "8", name: "Litre", abbreviation: "L", category: "Volume" },
-  { id: "9", name: "Square Meter", abbreviation: "m²", category: "Area" },
-  { id: "10", name: "Piece / Unit", abbreviation: "pcs", category: "Custom" },
-  { id: "11", name: "Roll", abbreviation: "roll", category: "Custom" },
-  { id: "12", name: "Sheet", abbreviation: "sht", category: "Custom" },
-  { id: "13", name: "Length", abbreviation: "len", category: "Custom" },
-  { id: "14", name: "Box", abbreviation: "box", category: "Custom" },
-];
 
 const UNIT_CATEGORIES = ["All", "Length", "Weight", "Volume", "Area", "Custom"];
 
 function UnitsOfMeasurementPanel() {
-  const [units, setUnits] = useState<Unit[]>(SEED_UNITS);
+  const [units, setUnits] = useState<Unit[]>([]);
   const [catFilter, setCatFilter] = useState("All");
   const [showModal, setShowModal] = useState(false);
   const [editing, setEditing] = useState<Unit | null>(null);
@@ -1296,60 +1245,10 @@ const COLOR_CLASSES: Record<string, { bg: string; text: string }> = {
   gray: { bg: "bg-gray-100", text: "text-gray-600" },
 };
 
-const SEED_CATEGORIES: MaterialCategory[] = [
-  {
-    id: "1",
-    name: "Concrete & Cement",
-    description: "Cement bags, ready-mix concrete, and admixtures",
-    color: "gray",
-  },
-  {
-    id: "2",
-    name: "Steel & Reinforcement",
-    description: "Rebar, mesh, structural steel sections",
-    color: "blue",
-  },
-  {
-    id: "3",
-    name: "Electrical",
-    description: "Cables, conduits, switches, and distribution boards",
-    color: "amber",
-  },
-  {
-    id: "4",
-    name: "Plumbing & Drainage",
-    description: "Pipes, fittings, valves, and drainage systems",
-    color: "teal",
-  },
-  {
-    id: "5",
-    name: "Timber & Formwork",
-    description: "Planks, plywood sheets, and shuttering material",
-    color: "orange",
-  },
-  {
-    id: "6",
-    name: "Finishing Materials",
-    description: "Paints, tiles, screeds, and wall finishes",
-    color: "purple",
-  },
-  {
-    id: "7",
-    name: "Aggregates & Fill",
-    description: "Sharp sand, gravel, laterite, and hardcore fill",
-    color: "green",
-  },
-  {
-    id: "8",
-    name: "Plant & Equipment",
-    description: "Consumables and accessories for plant operations",
-    color: "red",
-  },
-];
 
 function MaterialCategoriesPanel() {
   const [categories, setCategories] =
-    useState<MaterialCategory[]>(SEED_CATEGORIES);
+    useState<MaterialCategory[]>([]);
   const [showModal, setShowModal] = useState(false);
   const [editing, setEditing] = useState<MaterialCategory | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<MaterialCategory | null>(

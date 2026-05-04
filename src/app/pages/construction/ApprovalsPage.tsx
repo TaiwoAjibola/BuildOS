@@ -34,112 +34,6 @@ interface Approval {
   description: string;
 }
 
-const _APPROVALS_PLACEHOLDER: Approval[] = [
-  {
-    id: "ap1",
-    type: "Material Request",
-    title: "Structural Steel I-beams (1200m)",
-    project: "Downtown Office Complex",
-    requestedBy: "Aisha Bello",
-    date: "2026-04-08",
-    amount: 320000,
-    status: "pending",
-    urgency: "urgent",
-    description:
-      "Required for Phase 2 structural framing scheduled to begin April 16. Delay will impact critical path.",
-  },
-  {
-    id: "ap2",
-    type: "Expense Request",
-    title: "Electrical Rough-in Advance Payment",
-    project: "Downtown Office Complex",
-    requestedBy: "John Smith",
-    date: "2026-04-08",
-    amount: 85000,
-    status: "pending",
-    urgency: "normal",
-    description:
-      "Advance payment to electrical subcontractor per contract terms (30% upfront).",
-  },
-  {
-    id: "ap3",
-    type: "Material Request",
-    title: "Concrete Blocks — 10,000 units",
-    project: "Riverside Residential",
-    requestedBy: "Sarah Johnson",
-    date: "2026-04-07",
-    amount: 48000,
-    status: "pending",
-    urgency: "urgent",
-    description:
-      "Existing stock is critically low. Works will halt in 3 days without resupply.",
-  },
-  {
-    id: "ap4",
-    type: "Schedule Change",
-    title: "Push Phase 3 deadline by 3 weeks",
-    project: "Shopping Mall Renovation",
-    requestedBy: "Emily Chen",
-    date: "2026-04-06",
-    status: "pending",
-    urgency: "normal",
-    description:
-      "Permit approval from the city planning authority was delayed by 3 weeks affecting the interior fit-out start date.",
-  },
-  {
-    id: "ap5",
-    type: "Expense Request",
-    title: "Overtime Labour — Week 14",
-    project: "Highway Interchange",
-    requestedBy: "Robert Lee",
-    date: "2026-04-05",
-    amount: 28500,
-    status: "pending",
-    urgency: "urgent",
-    description:
-      "Crew overtime required to recover 2 weeks of schedule lost due to unexpected ground conditions.",
-  },
-  {
-    id: "ap6",
-    type: "Material Request",
-    title: "Plywood Formwork — 300 sheets",
-    project: "Downtown Office Complex",
-    requestedBy: "Carlos Rivera",
-    date: "2026-04-04",
-    amount: 9600,
-    status: "approved",
-    urgency: "normal",
-    description:
-      "Routine materials replenishment for ongoing foundation works.",
-  },
-  {
-    id: "ap7",
-    type: "Expense Request",
-    title: "Safety Equipment Restock",
-    project: "Downtown Office Complex",
-    requestedBy: "Diana Park",
-    date: "2026-04-04",
-    amount: 3200,
-    status: "rejected",
-    urgency: "normal",
-    description:
-      "Replaced helmets and harnesses. Rejected — awaiting re-submission with supplier quotes.",
-  },
-  {
-    id: "ap8",
-    type: "Subcontract",
-    title: "HVAC System — Subcontractor Award",
-    project: "Downtown Office Complex",
-    requestedBy: "John Smith",
-    date: "2026-04-03",
-    amount: 420000,
-    status: "approved",
-    urgency: "normal",
-    description:
-      "Award of HVAC system installation to CoolAir Systems Ltd following competitive tender.",
-  },
-];
-
 const statusConfig: Record<
   ApprovalStatus,
   { icon: React.ReactNode; badge: string; label: string }
@@ -167,8 +61,6 @@ const typeColors: Record<ApprovalType, string> = {
   "Schedule Change": "bg-amber-50 text-amber-700",
   Subcontract: "bg-orange-50 text-orange-700",
 };
-
-void _APPROVALS_PLACEHOLDER;
 
 function fromApiApproval(
   r: Awaited<ReturnType<typeof getConstructionApprovals>>[0],

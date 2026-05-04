@@ -137,43 +137,6 @@ const ROLE_PERMS: Record<string, Record<string, RoleBasePerm>> = {
 };
 
 // ── Seed users ────────────────────────────────────────────────────────────────
-const SEED_USERS: UserRecord[] = [
-  {
-    id: "u1", name: "Chukwudi Eze", email: "c.eze@buildos.com",
-    role: "Construction Manager",
-    rolePerms: ROLE_PERMS["Construction Manager"],
-    overrides: {
-      p_approve_po: { ...defOverride(), approve: "allow" },   // override: can approve PO
-      p_create_exp: { ...defOverride(), edit: "deny" },        // override: cannot edit expense
-    },
-  },
-  {
-    id: "u2", name: "Sola Adeleke", email: "s.adeleke@buildos.com",
-    role: "Accountant",
-    rolePerms: ROLE_PERMS["Accountant"],
-    overrides: {},
-  },
-  {
-    id: "u3", name: "Musa Ibrahim", email: "m.ibrahim@buildos.com",
-    role: "Procurement Officer",
-    rolePerms: ROLE_PERMS["Procurement Officer"],
-    overrides: {
-      p_gen_rpt: { ...defOverride(), view: "allow", create: "allow" }, // override: can generate reports
-    },
-  },
-  {
-    id: "u4", name: "Ngozi Okafor", email: "n.okafor@buildos.com",
-    role: "HR Manager",
-    rolePerms: ROLE_PERMS["HR Manager"],
-    overrides: {},
-  },
-  {
-    id: "u5", name: "Tunde Bello", email: "t.bello@buildos.com",
-    role: "Employee",
-    rolePerms: ROLE_PERMS["Employee"],
-    overrides: {},
-  },
-];
 
 // ── Compute effective permission (override > role) ─────────────────────────────
 function effectivePerm(
@@ -354,7 +317,7 @@ function UserPermPane({
 
 // ── Main Page ─────────────────────────────────────────────────────────────────
 export function UserPermissionsPage() {
-  const [users, setUsers] = useState<UserRecord[]>(SEED_USERS);
+  const [users, setUsers] = useState<UserRecord[]>([]);
   const [search, setSearch] = useState("");
   const [roleFilter, setRoleFilter] = useState("all");
   const [selectedUser, setSelectedUser] = useState<UserRecord | null>(null);

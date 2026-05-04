@@ -174,124 +174,6 @@ const DATA_SOURCES: DataSource[] = [
 ];
 
 // ─── Seed Templates ────────────────────────────────────────────────────────
-const SEED_TEMPLATES: ReportTemplate[] = [
-  {
-    id: "tpl-001", name: "Project Status Summary",
-    description: "Monthly overview of all active construction projects including progress and budget status.",
-    application: "construction", reportType: "summary", documentType: "Construction", dataSource: "projects",
-    builderType: "visual", status: "deployed", createdBy: "Admin User", lastUpdated: "2 hours ago",
-    vizType: "table",
-    selectedFields: [
-      { key: "name", displayLabel: "Project Name", aggregation: "none" },
-      { key: "status", displayLabel: "Status", aggregation: "none" },
-      { key: "progress", displayLabel: "Progress %", aggregation: "none" },
-      { key: "budget", displayLabel: "Budget ($)", aggregation: "none" },
-      { key: "manager", displayLabel: "Manager", aggregation: "none" },
-    ],
-    filters: [], sortRules: [{ field: "progress", direction: "desc" }], rowLimit: 50, sqlQuery: "",
-  },
-  {
-    id: "tpl-002", name: "Budget vs Spent Analysis",
-    description: "Comparative bar chart showing budgeted versus actual spend per project.",
-    application: "construction", reportType: "analytical", documentType: "Construction", dataSource: "projects",
-    builderType: "visual", status: "deployed", createdBy: "Admin User", lastUpdated: "Yesterday",
-    vizType: "bar",
-    selectedFields: [
-      { key: "name", displayLabel: "Project Name", aggregation: "none" },
-      { key: "budget", displayLabel: "Budget ($)", aggregation: "sum" },
-      { key: "spent", displayLabel: "Spent ($)", aggregation: "sum" },
-    ],
-    filters: [], sortRules: [], rowLimit: 50, sqlQuery: "",
-  },
-  {
-    id: "tpl-003", name: "Delayed Projects Report",
-    description: "SQL-driven list of projects currently on hold or delayed with manager details.",
-    application: "construction", reportType: "detailed", documentType: "Construction", dataSource: "projects",
-    builderType: "sql", status: "draft", createdBy: "Admin User", lastUpdated: "3 days ago",
-    vizType: "table", selectedFields: [], filters: [], sortRules: [], rowLimit: 100,
-    sqlQuery: "SELECT name, location, status, progress, manager\nFROM projects\nWHERE status IN ('On Hold', 'Delayed')\nORDER BY progress ASC;",
-  },
-  {
-    id: "tpl-004", name: "Monthly Expense Summary",
-    description: "Breakdown of expenses by category for the current month as a pie chart.",
-    application: "finance", reportType: "summary", documentType: "Finance", dataSource: "expenses",
-    builderType: "visual", status: "deployed", createdBy: "Admin User", lastUpdated: "5 hours ago",
-    vizType: "pie",
-    selectedFields: [
-      { key: "category", displayLabel: "Category", aggregation: "none" },
-      { key: "amount", displayLabel: "Amount ($)", aggregation: "sum" },
-      { key: "status", displayLabel: "Status", aggregation: "none" },
-    ],
-    filters: [], sortRules: [{ field: "amount", direction: "desc" }], rowLimit: 50, sqlQuery: "",
-  },
-  {
-    id: "tpl-005", name: "Pending Approval Expenses",
-    description: "All expenses currently awaiting finance manager approval.",
-    application: "finance", reportType: "detailed", documentType: "Finance", dataSource: "expenses",
-    builderType: "visual", status: "draft", createdBy: "Finance Manager", lastUpdated: "1 day ago",
-    vizType: "table",
-    selectedFields: [
-      { key: "date", displayLabel: "Date", aggregation: "none" },
-      { key: "category", displayLabel: "Category", aggregation: "none" },
-      { key: "amount", displayLabel: "Amount ($)", aggregation: "none" },
-      { key: "vendor", displayLabel: "Vendor", aggregation: "none" },
-    ],
-    filters: [{ id: "f1", field: "status", operator: "equals", value: "Pending", valueTo: "", logic: "AND" }],
-    sortRules: [{ field: "amount", direction: "desc" }], rowLimit: 100, sqlQuery: "",
-  },
-  {
-    id: "tpl-006", name: "PO Pipeline Report",
-    description: "Active purchase orders by supplier showing delivery status and totals.",
-    application: "procurement", reportType: "summary", documentType: "Procurement", dataSource: "purchase_orders",
-    builderType: "visual", status: "deployed", createdBy: "Admin User", lastUpdated: "3 hours ago",
-    vizType: "table",
-    selectedFields: [
-      { key: "po_number", displayLabel: "PO #", aggregation: "none" },
-      { key: "supplier", displayLabel: "Supplier", aggregation: "none" },
-      { key: "total", displayLabel: "Total ($)", aggregation: "none" },
-      { key: "status", displayLabel: "Status", aggregation: "none" },
-      { key: "delivery_date", displayLabel: "Delivery Date", aggregation: "none" },
-    ],
-    filters: [], sortRules: [{ field: "delivery_date", direction: "asc" }], rowLimit: 50, sqlQuery: "",
-  },
-  {
-    id: "tpl-007", name: "Low Stock Alert Report",
-    description: "Inventory items at or below reorder level thresholds.",
-    application: "procurement", reportType: "analytical", documentType: "Procurement", dataSource: "inventory",
-    builderType: "sql", status: "archived", createdBy: "Store Manager", lastUpdated: "2 weeks ago",
-    vizType: "table", selectedFields: [], filters: [], sortRules: [], rowLimit: 50,
-    sqlQuery: "SELECT item_name, quantity, reorder_level, supplier\nFROM inventory\nWHERE quantity <= reorder_level\nORDER BY quantity ASC;",
-  },
-  {
-    id: "tpl-008", name: "Employee Headcount by Department",
-    description: "Staff count and salary distribution across all active departments.",
-    application: "hr", reportType: "summary", documentType: "HR", dataSource: "employees",
-    builderType: "visual", status: "deployed", createdBy: "HR Manager", lastUpdated: "1 week ago",
-    vizType: "bar",
-    selectedFields: [
-      { key: "department", displayLabel: "Department", aggregation: "none" },
-      { key: "name", displayLabel: "Employee", aggregation: "none" },
-      { key: "salary", displayLabel: "Salary ($)", aggregation: "sum" },
-    ],
-    filters: [{ id: "f1", field: "status", operator: "equals", value: "Active", valueTo: "", logic: "AND" }],
-    sortRules: [{ field: "department", direction: "asc" }], rowLimit: 100, sqlQuery: "",
-  },
-  {
-    id: "tpl-009", name: "System Activity Audit",
-    description: "Full audit trail of user actions across all modules for compliance.",
-    application: "admin", reportType: "detailed", documentType: "Admin", dataSource: "audit_logs",
-    builderType: "visual", status: "deployed", createdBy: "Admin User", lastUpdated: "30 minutes ago",
-    vizType: "table",
-    selectedFields: [
-      { key: "user", displayLabel: "User", aggregation: "none" },
-      { key: "action", displayLabel: "Action", aggregation: "none" },
-      { key: "module", displayLabel: "Module", aggregation: "none" },
-      { key: "timestamp", displayLabel: "Timestamp", aggregation: "none" },
-      { key: "result", displayLabel: "Result", aggregation: "none" },
-    ],
-    filters: [], sortRules: [{ field: "timestamp", direction: "desc" }], rowLimit: 100, sqlQuery: "",
-  },
-];
 
 // ─── Helpers ────────────────────────────────────────────────────────────────
 const OPERATOR_LABELS: Record<FilterOperator, string> = {
@@ -411,7 +293,7 @@ export function ReportBuilderPage() {
   const [view, setView] = useState<PageView>("library");
 
   // ── Template library state ──
-  const [templates, setTemplates] = useState<ReportTemplate[]>(SEED_TEMPLATES);
+  const [templates, setTemplates] = useState<ReportTemplate[]>([]);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [statusFilter, setStatusFilter] = useState<ReportStatus | "all">("all");
   const [searchQuery, setSearchQuery] = useState("");

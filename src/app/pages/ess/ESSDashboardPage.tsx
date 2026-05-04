@@ -12,6 +12,8 @@ import {
   Plus,
 } from "lucide-react";
 import { fetchProjects } from "../../api/projects";
+import { useAuthUser } from "../../utils/useAuthUser";
+
 
 // ─── Mock data for the logged-in employee ────────────────────────────────────
 
@@ -115,6 +117,7 @@ const notifConfig: Record<string, { dot: string; bg: string }> = {
 
 export function ESSDashboardPage() {
   const navigate = useNavigate();
+  const { name: authName, role: authRole, initials: authInitials } = useAuthUser();
   const [allProjects, setAllProjects] = useState<any[]>([]);
 
   useEffect(() => {
@@ -127,15 +130,14 @@ export function ESSDashboardPage() {
     id: p.id,
     name: p.name,
     location: p.location || [p.city, p.state].filter(Boolean).join(", ") || "—",
-    role: "Team Member", // TODO: No auth context — employee role on project cannot be determined
+    role: "Team Member",
     progress: p.progress || 0,
     status: p.status,
   }));
 
-  const pendingCount = recentRequests.filter(
-    (r) => r.status === "pending",
-  ).length;
-  const unreadNotifs = notifications.filter((n) => !n.read).length;
+  const firstName = authName ? authName.split(" ")[0] : "there";
+  const displayRole = authRole || "Employee";
+  const displayInitials = authInitials || "?";
 
   return (
     <div className="space-y-6 max-w-5xl">
@@ -143,15 +145,13 @@ export function ESSDashboardPage() {
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-4">
           <div className="w-12 h-12 rounded-full bg-teal-600 flex items-center justify-center text-white font-semibold text-base">
-            {currentUser.avatar}
+            {displayInitials}
           </div>
           <div>
             <h1 className="text-xl font-semibold text-gray-900">
-              Good morning, {currentUser.name.split(" ")[0]} 👋
+              Good morning, {firstName} 👋
             </h1>
-            <p className="text-sm text-gray-500">
-              {currentUser.role} · {currentUser.dept}
-            </p>
+            <p className="text-sm text-gray-500 capitalize">{displayRole}</p>
           </div>
         </div>
         <button
