@@ -14,48 +14,7 @@ export function BoardOfDirectorsPage() {
   const [showModal, setShowModal] = useState(false);
   const [editingDirector, setEditingDirector] = useState<Director | null>(null);
 
-  const [directors, setDirectors] = useState<Director[]>([
-    {
-      id: "1",
-      firstName: "John",
-      middleName: "Michael",
-      lastName: "Smith",
-      designation: "Chairman",
-      sequence: 1,
-    },
-    {
-      id: "2",
-      firstName: "Sarah",
-      middleName: "Elizabeth",
-      lastName: "Johnson",
-      designation: "CEO",
-      sequence: 2,
-    },
-    {
-      id: "3",
-      firstName: "Robert",
-      middleName: "James",
-      lastName: "Williams",
-      designation: "CFO",
-      sequence: 3,
-    },
-    {
-      id: "4",
-      firstName: "Emily",
-      middleName: "Rose",
-      lastName: "Brown",
-      designation: "COO",
-      sequence: 4,
-    },
-    {
-      id: "5",
-      firstName: "Michael",
-      middleName: "David",
-      lastName: "Davis",
-      designation: "Director",
-      sequence: 5,
-    },
-  ]);
+  const [directors, setDirectors] = useState<Director[]>([]);
 
   const [formData, setFormData] = useState({
     firstName: "",
