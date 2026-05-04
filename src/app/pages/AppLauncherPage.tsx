@@ -2,26 +2,52 @@ import { useState, useRef, useEffect } from "react";
 import { motion, AnimatePresence } from "motion/react";
 import { useNavigate } from "react-router";
 import {
-  Building2, DollarSign, ShoppingCart, Users, UserCircle,
-  Settings, Store, Search, Bell, X, ChevronRight, ChevronDown, ArrowUpRight,
-  Activity, Clock, TrendingUp, BarChart2, CreditCard, FileText,
-  Package, User, Layers, Briefcase, CheckCircle2, AlertCircle,
+  Building2,
+  DollarSign,
+  ShoppingCart,
+  Users,
+  UserCircle,
+  Settings,
+  Store,
+  Search,
+  Bell,
+  X,
+  ChevronRight,
+  ChevronDown,
+  ArrowUpRight,
+  Activity,
+  Clock,
+  TrendingUp,
+  BarChart2,
+  CreditCard,
+  FileText,
+  Package,
+  User,
+  Layers,
+  Briefcase,
+  CheckCircle2,
+  AlertCircle,
 } from "lucide-react";
 import { useAuthUser } from "../utils/useAuthUser";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 interface AppDef {
-  id: string; name: string; full: string; tagline: string;
-  icon: React.ElementType; href: string;
-  cardBg: string;        // card fill (light pastel)
-  border: string;        // border hex
-  stripe: string;        // top stripe + dot accent
-  accent: string;        // strong - metric values, icons
-  accentDim: string;     // muted chip / tile fill
+  id: string;
+  name: string;
+  full: string;
+  tagline: string;
+  icon: React.ElementType;
+  href: string;
+  cardBg: string; // card fill (light pastel)
+  border: string; // border hex
+  stripe: string; // top stripe + dot accent
+  accent: string; // strong - metric values, icons
+  accentDim: string; // muted chip / tile fill
   textPrimary: string;
   textSecondary: string;
-  cols: number; rows: number;
+  cols: number;
+  rows: number;
   blurb: string;
 }
 
@@ -29,81 +55,147 @@ interface AppDef {
 
 const APPS: AppDef[] = [
   {
-    id: "construction", name: "Projects", full: "BuildOS Projects",
+    id: "construction",
+    name: "Projects",
+    full: "BuildOS Projects",
     tagline: "Site execution · Timeline · Approvals",
-    icon: Building2, href: "/apps/construction",
-    cardBg: "#f0f7ff", border: "#93c5fd", stripe: "#2563eb",
-    accent: "#1d4ed8", accentDim: "#dbeafe",
-    textPrimary: "#1e3a8a", textSecondary: "#3b82f6",
-    cols: 2, rows: 2,
-    blurb: "Oversee construction projects, track timelines and manage site approvals end-to-end.",
+    icon: Building2,
+    href: "/apps/construction",
+    cardBg: "#f0f7ff",
+    border: "#93c5fd",
+    stripe: "#2563eb",
+    accent: "#1d4ed8",
+    accentDim: "#dbeafe",
+    textPrimary: "#1e3a8a",
+    textSecondary: "#3b82f6",
+    cols: 2,
+    rows: 2,
+    blurb:
+      "Oversee construction projects, track timelines and manage site approvals end-to-end.",
   },
   {
-    id: "finance", name: "Finance", full: "BuildOS Finance",
+    id: "finance",
+    name: "Finance",
+    full: "BuildOS Finance",
     tagline: "Budgets · Expenses · Payroll",
-    icon: DollarSign, href: "/apps/finance",
-    cardBg: "#f0fdf6", border: "#6ee7b7", stripe: "#059669",
-    accent: "#047857", accentDim: "#d1fae5",
-    textPrimary: "#064e3b", textSecondary: "#10b981",
-    cols: 1, rows: 2,
-    blurb: "Track budgets, manage expenses, process payroll and generate financial reports.",
+    icon: DollarSign,
+    href: "/apps/finance",
+    cardBg: "#f0fdf6",
+    border: "#6ee7b7",
+    stripe: "#059669",
+    accent: "#047857",
+    accentDim: "#d1fae5",
+    textPrimary: "#064e3b",
+    textSecondary: "#10b981",
+    cols: 1,
+    rows: 2,
+    blurb:
+      "Track budgets, manage expenses, process payroll and generate financial reports.",
   },
   {
-    id: "hr", name: "HR", full: "BuildOS HR",
+    id: "hr",
+    name: "HR",
+    full: "BuildOS HR",
     tagline: "People · Payroll · Leave",
-    icon: Users, href: "/apps/hr",
-    cardBg: "#fffbeb", border: "#fcd34d", stripe: "#d97706",
-    accent: "#b45309", accentDim: "#fef3c7",
-    textPrimary: "#78350f", textSecondary: "#d97706",
-    cols: 1, rows: 1,
+    icon: Users,
+    href: "/apps/hr",
+    cardBg: "#fffbeb",
+    border: "#fcd34d",
+    stripe: "#d97706",
+    accent: "#b45309",
+    accentDim: "#fef3c7",
+    textPrimary: "#78350f",
+    textSecondary: "#d97706",
+    cols: 1,
+    rows: 1,
     blurb: "Centralise employee records, leave, recruitment and payroll.",
   },
   {
-    id: "procurement", name: "Procurement", full: "BuildOS Procurement",
+    id: "procurement",
+    name: "Procurement",
+    full: "BuildOS Procurement",
     tagline: "RFQ · PO · Vendor Management",
-    icon: ShoppingCart, href: "/apps/procurement",
-    cardBg: "#faf5ff", border: "#c4b5fd", stripe: "#7c3aed",
-    accent: "#6d28d9", accentDim: "#ede9fe",
-    textPrimary: "#4c1d95", textSecondary: "#7c3aed",
-    cols: 1, rows: 1,
+    icon: ShoppingCart,
+    href: "/apps/procurement",
+    cardBg: "#faf5ff",
+    border: "#c4b5fd",
+    stripe: "#7c3aed",
+    accent: "#6d28d9",
+    accentDim: "#ede9fe",
+    textPrimary: "#4c1d95",
+    textSecondary: "#7c3aed",
+    cols: 1,
+    rows: 1,
     blurb: "End-to-end procurement from material requests to PO approval.",
   },
   {
-    id: "storefront", name: "Storefront", full: "BuildOS Storefront",
+    id: "storefront",
+    name: "Storefront",
+    full: "BuildOS Storefront",
     tagline: "Inventory · Materials · Stores",
-    icon: Store, href: "/apps/storefront",
-    cardBg: "#f0fdfa", border: "#5eead4", stripe: "#0d9488",
-    accent: "#0f766e", accentDim: "#ccfbf1",
-    textPrimary: "#134e4a", textSecondary: "#0d9488",
-    cols: 1, rows: 1,
+    icon: Store,
+    href: "/apps/storefront",
+    cardBg: "#f0fdfa",
+    border: "#5eead4",
+    stripe: "#0d9488",
+    accent: "#0f766e",
+    accentDim: "#ccfbf1",
+    textPrimary: "#134e4a",
+    textSecondary: "#0d9488",
+    cols: 1,
+    rows: 1,
     blurb: "Manage store levels, consumable and reusable material flows.",
   },
   {
-    id: "ess", name: "ESS", full: "BuildOS ESS",
+    id: "ess",
+    name: "ESS",
+    full: "BuildOS ESS",
     tagline: "Self-Service · Pay Slips · Requests",
-    icon: UserCircle, href: "/apps/ess",
-    cardBg: "#eef2ff", border: "#a5b4fc", stripe: "#4f46e5",
-    accent: "#4338ca", accentDim: "#e0e7ff",
-    textPrimary: "#312e81", textSecondary: "#6366f1",
-    cols: 1, rows: 1,
+    icon: UserCircle,
+    href: "/apps/ess",
+    cardBg: "#eef2ff",
+    border: "#a5b4fc",
+    stripe: "#4f46e5",
+    accent: "#4338ca",
+    accentDim: "#e0e7ff",
+    textPrimary: "#312e81",
+    textSecondary: "#6366f1",
+    cols: 1,
+    rows: 1,
     blurb: "Access pay slips, apply for leave and manage your personal data.",
   },
   {
-    id: "admin", name: "Admin", full: "BuildOS Admin",
+    id: "admin",
+    name: "Admin",
+    full: "BuildOS Admin",
     tagline: "Users · Roles · System Settings",
-    icon: Settings, href: "/apps/admin",
-    cardBg: "#f8fafc", border: "#cbd5e1", stripe: "#475569",
-    accent: "#334155", accentDim: "#e2e8f0",
-    textPrimary: "#0f172a", textSecondary: "#64748b",
-    cols: 2, rows: 1,
+    icon: Settings,
+    href: "/apps/admin",
+    cardBg: "#f8fafc",
+    border: "#cbd5e1",
+    stripe: "#475569",
+    accent: "#334155",
+    accentDim: "#e2e8f0",
+    textPrimary: "#0f172a",
+    textSecondary: "#64748b",
+    cols: 2,
+    rows: 1,
     blurb: "Manage users, roles, permissions and system configuration.",
   },
 ];
 
 // ─── Grid helpers ─────────────────────────────────────────────────────────────
 
-const colSpan: Record<number, string> = { 1: "col-span-1", 2: "col-span-2", 3: "col-span-3" };
-const rowSpan: Record<number, string> = { 1: "row-span-1", 2: "row-span-2", 3: "row-span-3" };
+const colSpan: Record<number, string> = {
+  1: "col-span-1",
+  2: "col-span-2",
+  3: "col-span-3",
+};
+const rowSpan: Record<number, string> = {
+  1: "row-span-1",
+  2: "row-span-2",
+  3: "row-span-3",
+};
 
 // ─── Animated counter ─────────────────────────────────────────────────────────
 
@@ -124,24 +216,59 @@ function Counter({ to, duration = 0.8 }: { to: number; duration?: number }) {
 
 // ─── Sparkline ────────────────────────────────────────────────────────────────
 
-function Sparkline({ color, values = [3, 5, 4, 8, 6, 9, 7, 11, 10, 13] }: { color: string; values?: number[] }) {
+function Sparkline({
+  color,
+  values = [3, 5, 4, 8, 6, 9, 7, 11, 10, 13],
+}: {
+  color: string;
+  values?: number[];
+}) {
   const max = Math.max(...values);
-  const w = 80, h = 24;
-  const pts = values.map((v, i) => `${(i / (values.length - 1)) * w},${h - (v / max) * (h - 4) - 2}`).join(" ");
+  const w = 80,
+    h = 24;
+  const pts = values
+    .map(
+      (v, i) =>
+        `${(i / (values.length - 1)) * w},${h - (v / max) * (h - 4) - 2}`,
+    )
+    .join(" ");
   return (
     <svg width={w} height={h} viewBox={`0 0 ${w} ${h}`} fill="none">
-      <polyline points={pts} stroke={color} strokeWidth="2" fill="none" strokeLinecap="round" strokeLinejoin="round" />
-      <circle cx={w} cy={h - (values[values.length - 1] / max) * (h - 4) - 2} r="2.5" fill={color} />
+      <polyline
+        points={pts}
+        stroke={color}
+        strokeWidth="2"
+        fill="none"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+      <circle
+        cx={w}
+        cy={h - (values[values.length - 1] / max) * (h - 4) - 2}
+        r="2.5"
+        fill={color}
+      />
     </svg>
   );
 }
 
 // ─── Trend badge ──────────────────────────────────────────────────────────────
 
-function TrendBadge({ trend, delta }: { trend: Metric["trend"]; delta?: string }) {
+function TrendBadge({
+  trend,
+  delta,
+}: {
+  trend: Metric["trend"];
+  delta?: string;
+}) {
   const arrow = trend === "up" ? "↑" : trend === "down" ? "↓" : "→";
-  const color = trend === "up" ? "#15803d" : trend === "down" ? "#b91c1c" : "#64748b";
-  return <span style={{ color }} className="text-[10px] font-semibold">{arrow} {delta}</span>;
+  const color =
+    trend === "up" ? "#15803d" : trend === "down" ? "#b91c1c" : "#64748b";
+  return (
+    <span style={{ color }} className="text-[10px] font-semibold">
+      {arrow} {delta}
+    </span>
+  );
 }
 
 // ─── Hover variant A — Stats grid ─────────────────────────────────────────────
@@ -157,23 +284,43 @@ function HoverStats({ app, isLarge }: { app: AppDef; isLarge: boolean }) {
       transition={{ duration: 0.22, ease: "easeOut" }}
     >
       <div className="flex items-center gap-2">
-        <div className="w-7 h-7 rounded-lg flex items-center justify-center" style={{ background: app.accentDim }}>
+        <div
+          className="w-7 h-7 rounded-lg flex items-center justify-center"
+          style={{ background: app.accentDim }}
+        >
           <app.icon style={{ color: app.accent }} className="w-3.5 h-3.5" />
         </div>
-        <span style={{ color: app.textPrimary }} className="text-xs font-bold">{app.name}</span>
+        <span style={{ color: app.textPrimary }} className="text-xs font-bold">
+          {app.name}
+        </span>
       </div>
-      <div className={`grid gap-2 flex-1 ${isLarge ? "grid-cols-2" : "grid-cols-1"}`}>
+      <div
+        className={`grid gap-2 flex-1 ${isLarge ? "grid-cols-2" : "grid-cols-1"}`}
+      >
         {app.metrics.slice(0, isLarge ? 4 : 2).map((m, i) => (
           <motion.div
             key={m.label}
             className="rounded-xl p-2.5 flex flex-col gap-1"
-            style={{ background: app.accentDim, border: `1px solid ${app.border}` }}
+            style={{
+              background: app.accentDim,
+              border: `1px solid ${app.border}`,
+            }}
             initial={{ opacity: 0, scale: 0.92 }}
             animate={{ opacity: 1, scale: 1 }}
             transition={{ delay: i * 0.05 }}
           >
-            <div style={{ color: app.accent }} className="text-lg font-black leading-none">{m.value}</div>
-            <div style={{ color: app.textSecondary }} className="text-[9px] leading-tight">{m.label}</div>
+            <div
+              style={{ color: app.accent }}
+              className="text-lg font-black leading-none"
+            >
+              {m.value}
+            </div>
+            <div
+              style={{ color: app.textSecondary }}
+              className="text-[9px] leading-tight"
+            >
+              {m.label}
+            </div>
             <TrendBadge trend={m.trend} delta={m.delta} />
           </motion.div>
         ))}
@@ -197,7 +344,30 @@ function HoverActivity({ app, isLarge }: { app: AppDef; isLarge: boolean }) {
       initial={{ opacity: 0, x: 14 }}
       animate={{ opacity: 1, x: 0 }}
       exit={{ opacity: 0, x: 14 }}
-
+      transition={{ duration: 0.22, ease: "easeOut" }}
+    >
+      <div className="flex items-center gap-2">
+        <div
+          className="w-7 h-7 rounded-lg flex items-center justify-center"
+          style={{ background: app.accentDim }}
+        >
+          <app.icon style={{ color: app.accent }} className="w-3.5 h-3.5" />
+        </div>
+        <span style={{ color: app.textPrimary }} className="text-xs font-bold">
+          {app.name}
+        </span>
+      </div>
+      <div className="flex-1 flex flex-col gap-1.5 overflow-hidden">
+        <div
+          className="flex items-center gap-2 text-[11px]"
+          style={{ color: app.textSecondary }}
+        >
+          <Activity className="w-3 h-3 flex-shrink-0" />
+          <span className="truncate">{app.tagline}</span>
+        </div>
+      </div>
+      {isLarge && (
+        <motion.p
           style={{ color: app.textSecondary }}
           className="text-[11px] text-center max-w-[200px] leading-relaxed opacity-70 mt-1"
           initial={{ opacity: 0 }}
@@ -213,7 +383,13 @@ function HoverActivity({ app, isLarge }: { app: AppDef; isLarge: boolean }) {
 
 // ─── Bento Card ───────────────────────────────────────────────────────────────
 
-function BentoCard({ app, onOpen }: { app: AppDef; onOpen: (a: AppDef) => void }) {
+function BentoCard({
+  app,
+  onOpen,
+}: {
+  app: AppDef;
+  onOpen: (a: AppDef) => void;
+}) {
   const [hovered, setHovered] = useState(false);
   const isLarge = app.cols >= 2 || app.rows >= 2;
 
@@ -240,7 +416,10 @@ function BentoCard({ app, onOpen }: { app: AppDef; onOpen: (a: AppDef) => void }
       transition={{ duration: 0.2 }}
     >
       {/* Top accent stripe */}
-      <div className="absolute top-0 left-0 right-0 h-[3px]" style={{ background: app.stripe }} />
+      <div
+        className="absolute top-0 left-0 right-0 h-[3px]"
+        style={{ background: app.stripe }}
+      />
 
       {/* Large ambient icon on big cards */}
       {isLarge && (
@@ -257,18 +436,39 @@ function BentoCard({ app, onOpen }: { app: AppDef; onOpen: (a: AppDef) => void }
         transition={{ duration: 0.2 }}
       >
         <div className="flex items-start justify-between">
-          <div className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0"
-               style={{ background: app.accentDim }}>
-            <app.icon style={{ color: app.accent }} className="w-[18px] h-[18px]" />
+          <div
+            className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0"
+            style={{ background: app.accentDim }}
+          >
+            <app.icon
+              style={{ color: app.accent }}
+              className="w-[18px] h-[18px]"
+            />
           </div>
-          <ArrowUpRight className="w-4 h-4 opacity-25" style={{ color: app.accent }} />
+          <ArrowUpRight
+            className="w-4 h-4 opacity-25"
+            style={{ color: app.accent }}
+          />
         </div>
         <div className="mt-2.5">
-          <h2 style={{ color: app.textPrimary }} className="text-sm font-bold leading-tight">{app.name}</h2>
-          <p style={{ color: app.textSecondary }} className="text-[10px] mt-0.5 opacity-70">{app.tagline}</p>
+          <h2
+            style={{ color: app.textPrimary }}
+            className="text-sm font-bold leading-tight"
+          >
+            {app.name}
+          </h2>
+          <p
+            style={{ color: app.textSecondary }}
+            className="text-[10px] mt-0.5 opacity-70"
+          >
+            {app.tagline}
+          </p>
         </div>
         {isLarge && (
-          <p style={{ color: app.textSecondary }} className="text-xs mt-1.5 leading-relaxed opacity-60 max-w-xs">
+          <p
+            style={{ color: app.textSecondary }}
+            className="text-xs mt-1.5 leading-relaxed opacity-60 max-w-xs"
+          >
             {app.blurb}
           </p>
         )}
@@ -288,7 +488,10 @@ function BentoCard({ app, onOpen }: { app: AppDef; onOpen: (a: AppDef) => void }
           >
             <motion.div
               className="rounded-2xl w-14 h-14 flex items-center justify-center"
-              style={{ background: app.accentDim, border: `2px solid ${app.border}` }}
+              style={{
+                background: app.accentDim,
+                border: `2px solid ${app.border}`,
+              }}
               initial={{ scale: 0.7 }}
               animate={{ scale: 1 }}
               transition={{ type: "spring", stiffness: 280, damping: 18 }}
@@ -327,9 +530,14 @@ function DetailOverlay({ app, onClose }: { app: AppDef; onClose: () => void }) {
   return (
     <motion.div
       className="fixed inset-0 z-50 flex items-center justify-center p-6"
-      initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
     >
-      <div className="absolute inset-0 bg-black/30 backdrop-blur-sm" onClick={onClose} />
+      <div
+        className="absolute inset-0 bg-black/30 backdrop-blur-sm"
+        onClick={onClose}
+      />
       <motion.div
         className="relative w-full max-w-lg z-10 rounded-2xl overflow-hidden bg-white shadow-2xl"
         style={{ border: `1.5px solid ${app.border}` }}
@@ -344,12 +552,19 @@ function DetailOverlay({ app, onClose }: { app: AppDef; onClose: () => void }) {
         {/* Header */}
         <div className="flex items-start justify-between px-6 pt-4 pb-4 border-b border-gray-100">
           <div className="flex items-center gap-3.5">
-            <div className="w-11 h-11 rounded-xl flex items-center justify-center shrink-0"
-                 style={{ background: app.accentDim }}>
+            <div
+              className="w-11 h-11 rounded-xl flex items-center justify-center shrink-0"
+              style={{ background: app.accentDim }}
+            >
               <app.icon style={{ color: app.accent }} className="w-5 h-5" />
             </div>
             <div>
-              <h2 style={{ color: app.textPrimary }} className="text-base font-bold">{app.full}</h2>
+              <h2
+                style={{ color: app.textPrimary }}
+                className="text-base font-bold"
+              >
+                {app.full}
+              </h2>
               <p className="text-xs text-gray-400 mt-0.5">{app.blurb}</p>
             </div>
           </div>
@@ -390,7 +605,8 @@ function AppDropdown({ onOpen }: { onOpen: (a: AppDef) => void }) {
 
   useEffect(() => {
     function handler(e: MouseEvent) {
-      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+      if (ref.current && !ref.current.contains(e.target as Node))
+        setOpen(false);
     }
     document.addEventListener("mousedown", handler);
     return () => document.removeEventListener("mousedown", handler);
@@ -404,7 +620,9 @@ function AppDropdown({ onOpen }: { onOpen: (a: AppDef) => void }) {
       >
         <Layers className="w-3.5 h-3.5 text-gray-400" />
         Applications
-        <ChevronDown className={`w-3.5 h-3.5 text-gray-400 transition-transform duration-200 ${open ? "rotate-180" : ""}`} />
+        <ChevronDown
+          className={`w-3.5 h-3.5 text-gray-400 transition-transform duration-200 ${open ? "rotate-180" : ""}`}
+        />
       </button>
 
       <AnimatePresence>
@@ -417,24 +635,36 @@ function AppDropdown({ onOpen }: { onOpen: (a: AppDef) => void }) {
             transition={{ duration: 0.18, ease: "easeOut" }}
           >
             <div className="px-3 py-2 border-b border-gray-100">
-              <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-widest">All Applications</p>
+              <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-widest">
+                All Applications
+              </p>
             </div>
             <div className="py-1 max-h-80 overflow-y-auto">
               {APPS.map((app) => (
                 <button
                   key={app.id}
                   className="w-full flex items-center gap-3 px-3 py-2.5 hover:bg-gray-50 transition-colors text-left"
-                  onClick={() => { setOpen(false); onOpen(app); }}
+                  onClick={() => {
+                    setOpen(false);
+                    onOpen(app);
+                  }}
                 >
                   <div
                     className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0"
                     style={{ background: app.accentDim }}
                   >
-                    <app.icon className="w-4 h-4" style={{ color: app.accent }} />
+                    <app.icon
+                      className="w-4 h-4"
+                      style={{ color: app.accent }}
+                    />
                   </div>
                   <div className="min-w-0">
-                    <p className="text-sm font-semibold text-gray-900 leading-tight">{app.name}</p>
-                    <p className="text-[10px] text-gray-400 truncate">{app.tagline}</p>
+                    <p className="text-sm font-semibold text-gray-900 leading-tight">
+                      {app.name}
+                    </p>
+                    <p className="text-[10px] text-gray-400 truncate">
+                      {app.tagline}
+                    </p>
                   </div>
                   <div
                     className="ml-auto w-1.5 h-1.5 rounded-full shrink-0"
@@ -452,7 +682,15 @@ function AppDropdown({ onOpen }: { onOpen: (a: AppDef) => void }) {
 
 // ─── Top Nav ──────────────────────────────────────────────────────────────────
 
-function TopNav({ searchQuery, onSearch, onOpen }: { searchQuery: string; onSearch: (v: string) => void; onOpen: (a: AppDef) => void }) {
+function TopNav({
+  searchQuery,
+  onSearch,
+  onOpen,
+}: {
+  searchQuery: string;
+  onSearch: (v: string) => void;
+  onOpen: (a: AppDef) => void;
+}) {
   const { initials } = useAuthUser();
   return (
     <div className="shrink-0 h-14 bg-white border-b border-gray-200 px-5 flex items-center gap-4 z-20">
@@ -491,14 +729,19 @@ export function AppLauncherPage() {
   const [activeApp, setActiveApp] = useState<AppDef | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
 
-  const filtered = APPS.filter((a) =>
-    a.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    a.tagline.toLowerCase().includes(searchQuery.toLowerCase())
+  const filtered = APPS.filter(
+    (a) =>
+      a.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      a.tagline.toLowerCase().includes(searchQuery.toLowerCase()),
   );
 
   return (
     <div className="flex flex-col h-screen bg-gray-100 overflow-hidden">
-      <TopNav searchQuery={searchQuery} onSearch={setSearchQuery} onOpen={setActiveApp} />
+      <TopNav
+        searchQuery={searchQuery}
+        onSearch={setSearchQuery}
+        onOpen={setActiveApp}
+      />
       {/* Full-screen bento grid — 4 cols × 3 rows fills remaining viewport */}
       <div className="flex-1 min-h-0 p-4">
         <div className="h-full grid grid-cols-4 grid-rows-3 gap-3">
@@ -508,7 +751,9 @@ export function AppLauncherPage() {
         </div>
       </div>
       <AnimatePresence>
-        {activeApp && <DetailOverlay app={activeApp} onClose={() => setActiveApp(null)} />}
+        {activeApp && (
+          <DetailOverlay app={activeApp} onClose={() => setActiveApp(null)} />
+        )}
       </AnimatePresence>
     </div>
   );
