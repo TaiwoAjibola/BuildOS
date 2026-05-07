@@ -167,15 +167,7 @@ const RQ_UNITS = [
   "Units",
   "Cartons",
 ];
-const RQ_STORES = [
-  { name: "Main Central Warehouse", level: "Level 1 — Central Store" },
-  { name: "Abuja Central Depot", level: "Level 1 — Central Store" },
-  { name: "Lagos Regional Hub", level: "Level 2 — Regional Hub" },
-  { name: "Port Harcourt Regional Hub", level: "Level 2 — Regional Hub" },
-  { name: "Block A Project Store", level: "Level 3 — Project Store" },
-  { name: "Block B Project Store", level: "Level 3 — Project Store" },
-  { name: "Block C Project Store", level: "Level 3 — Project Store" },
-];
+const RQ_STORES: { name: string; level: string }[] = [];
 
 interface DocItem {
   material: string;

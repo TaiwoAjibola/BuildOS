@@ -11,43 +11,16 @@ const REPORT_CARDS = [
 ];
 
 // ── Stock Levels data ──────────────────────────────────────────────────────────
-const STOCK_DATA = [
-  { material: "Cement (50kg bag)", category: "Concrete",   store: "General Store",           qty: 260, reorder: 100, value: 2210000, status: "In Stock" },
-  { material: "Steel Rebar Y16",   category: "Steel",      store: "General Store",           qty: 10,  reorder: 5,   value: 4100000, status: "In Stock" },
-  { material: "Electrical Conduit",category: "Electrical", store: "General Store",           qty: 45,  reorder: 200, value: 54000,   status: "Low Stock" },
-  { material: "Concrete Block 9\"",category: "Concrete",   store: "General Store",           qty: 3500,reorder: 1000,value: 1225000, status: "In Stock" },
-  { material: "Cement (50kg bag)", category: "Concrete",   store: "Block A Project Store",   qty: 150, reorder: 50,  value: 1275000, status: "In Stock" },
-  { material: "PVC Pipes 2 Inch",  category: "Plumbing",   store: "Block A Project Store",   qty: 0,   reorder: 20,  value: 0,       status: "Out of Stock" },
-  { material: "Flush Doors",       category: "Finishes",   store: "General Store",           qty: 14,  reorder: 10,  value: 630000,  status: "In Stock" },
-  { material: "2.5mm Twin Cable",  category: "Electrical", store: "General Store",           qty: 80,  reorder: 300, value: 68000,   status: "Low Stock" },
-];
+const STOCK_DATA: { material: string; category: string; store: string; qty: number; reorder: number; value: number; status: string }[] = [];
 
 // ── Transfer summary data ──────────────────────────────────────────────────────
-const TRANSFER_DATA = [
-  { ref: "TRF-041", from: "General Store", to: "Block A", items: 2, qty: 110, date: "Jun 4, 2025",  status: "Completed", value: 1015000 },
-  { ref: "TRF-040", from: "General Store", to: "Block B", items: 1, qty: 500, date: "Jun 3, 2025",  status: "In Transit",value: 175000  },
-  { ref: "TRF-039", from: "Block A",       to: "Block C", items: 1, qty: 5,   date: "Jun 2, 2025",  status: "Pending",   value: 70000   },
-  { ref: "TRF-038", from: "General Store", to: "Block A", items: 1, qty: 2,   date: "May 28, 2025", status: "Completed", value: 820000  },
-];
+const TRANSFER_DATA: { ref: string; from: string; to: string; items: number; qty: number; date: string; status: string; value: number }[] = [];
 
 // ── Return summary data ────────────────────────────────────────────────────────
-const RETURN_DATA = [
-  { ref: "RET-009", material: "Cement (50kg bag)", qty: 30,  unit: "Bags",    from: "Block B", to: "General Store", condition: "Good",    status: "Pending Approval", date: "Jun 4, 2025"  },
-  { ref: "RET-008", material: "Binding Wire",       qty: 5,   unit: "Rolls",   from: "Block A", to: "General Store", condition: "Good",    status: "Approved",         date: "Jun 3, 2025"  },
-  { ref: "RET-007", material: "Cement (50kg bag)", qty: 30,  unit: "Bags",    from: "Block B", to: "General Store", condition: "Good",    status: "Received",         date: "Jun 1, 2025"  },
-  { ref: "RET-006", material: "Flush Doors",        qty: 6,   unit: "Units",   from: "Block C", to: "General Store", condition: "Good",    status: "Received",         date: "May 18, 2025" },
-  { ref: "RET-005", material: "Formwork Plywood",   qty: 3,   unit: "Sheets",  from: "Block A", to: "General Store", condition: "Damaged", status: "Rejected",         date: "May 15, 2025" },
-];
+const RETURN_DATA: { ref: string; material: string; qty: number; unit: string; from: string; to: string; condition: string; status: string; date: string }[] = [];
 
 // ── Movement summary (same as StockMovementPage but aggregated) ────────────────
-const MOVEMENT_DATA = [
-  { id: "MOV-001", date: "Jun 4, 2025",  material: "Cement (50kg bag)",     from: "General Store", to: "Block A", qty: 100, type: "Transfer" },
-  { id: "MOV-003", date: "Jun 3, 2025",  material: "Concrete Block 9\"",    from: "General Store", to: "Block B", qty: 500, type: "Transfer" },
-  { id: "MOV-004", date: "Jun 3, 2025",  material: "Steel Rebar Y16",       from: "Vendor",        to: "General Store", qty: 5, type: "Receipt" },
-  { id: "MOV-006", date: "Jun 1, 2025",  material: "Cement (50kg bag)",     from: "Block B",       to: "General Store", qty: 30, type: "Return" },
-  { id: "MOV-007", date: "May 30, 2025", material: "PVC Pipes 2 Inch",      from: "General Store", to: "Block A", qty: 20, type: "Issue" },
-  { id: "MOV-010", date: "May 22, 2025", material: "2.5mm Twin Cable",      from: "General Store", to: "Block A", qty: 200, type: "Issue" },
-];
+const MOVEMENT_DATA: { id: string; date: string; material: string; from: string; to: string; qty: number; type: string }[] = [];
 
 const STATUS_STYLE: Record<string, string> = {
   "In Stock":         "bg-green-50 text-green-700",

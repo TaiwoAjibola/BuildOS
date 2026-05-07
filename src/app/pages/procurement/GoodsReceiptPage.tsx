@@ -226,14 +226,7 @@ const GRN_WAREHOUSES = [
   "Chemical Store",
   "Plumbing Store",
 ];
-const GRN_PO_REFS = [
-  "PO-0031",
-  "PO-0030",
-  "PO-0029",
-  "PO-0028",
-  "PO-0027",
-  "PO-0026",
-];
+const GRN_PO_REFS: string[] = [];
 const GRN_UNITS = [
   "Bags",
   "Units",

@@ -38,25 +38,7 @@ interface JournalEntry {
   lines: JournalLine[];
 }
 
-const ACCOUNTS = [
-  { code: "1010", name: "Cash & Bank" },
-  { code: "1100", name: "Accounts Receivable" },
-  { code: "1200", name: "Inventory" },
-  { code: "1500", name: "Fixed Assets" },
-  { code: "2000", name: "Accounts Payable" },
-  { code: "2100", name: "Accrued Liabilities" },
-  { code: "2300", name: "VAT Payable" },
-  { code: "2310", name: "WHT Payable" },
-  { code: "3000", name: "Share Capital" },
-  { code: "3100", name: "Retained Earnings" },
-  { code: "4000", name: "Revenue" },
-  { code: "4100", name: "Other Income" },
-  { code: "5100", name: "Labour Expense" },
-  { code: "5200", name: "Materials Expense" },
-  { code: "5300", name: "Equipment Expense" },
-  { code: "5400", name: "Operating Expense" },
-  { code: "6000", name: "Interest Expense" },
-];
+const ACCOUNTS: { code: string; name: string }[] = [];
 
 const blankLine = (): JournalLine => ({
   id: `ln-${Date.now()}-${Math.random()}`,
