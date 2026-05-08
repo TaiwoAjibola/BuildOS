@@ -1,0 +1,89 @@
+import { apiFetch } from './client';
+
+export interface Transaction {
+    id: string; type: string; category?: string; description: string;
+    amount: number; currency: string; status: string; reference?: string;
+    date: string; accountId?: string; bankAccountId?: string;
+    createdBy?: string; notes?: string; createdAt: string;
+}
+export interface JournalLine {
+    id?: string; accountId: string; accountName?: string; accountCode?: string;
+    debit: number; credit: number; description?: string;
+}
+export interface JournalEntry {
+    id: string; ref: string; date: string; description?: string;
+    status: string; lines: JournalLine[]; createdBy?: string;
+    postedAt?: string; createdAt: string;
+}
+export interface ChartAccount {
+    id: string; code: string; name: string; type: string;
+    subType?: string; parentId?: string; description?: string;
+    isActive: boolean; balance: number; createdAt: string;
+}
+export interface BankAccount {
+    id: string; bankName: string; accountName: string; accountNumber: string;
+    currency: string; balance: number; isDefault: boolean;
+    branchName?: string; sortCode?: string; createdAt: string;
+}
+export interface TaxConfig {
+    id: string; name: string; type: string; rate: number;
+    code?: string; description?: string; isActive: boolean; createdAt: string;
+}
+
+// Transactions
+export const getTransactions = (type?: string, status?: string) => {
+    const params = new URLSearchParams();
+    if (type) params.set('type', type);
+    if (status) params.set('status', status);
+    const qs = params.toString();
+    return apiFetch<Transaction[]>(qs ? `/transactions?${qs}` : '/transactions');
+};
+export const getTransaction = (id: string) => apiFetch<Transaction>(`/transactions/${id}`);
+export const createTransaction = (data: Partial<Transaction>) =>
+    apiFetch<Transaction>('/transactions', { method: 'POST', body: JSON.stringify(data) });
+export const updateTransaction = (id: string, data: Partial<Transaction>) =>
+    apiFetch<Transaction>(`/transactions/${id}`, { method: 'PUT', body: JSON.stringify(data) });
+export const deleteTransaction = (id: string) =>
+    apiFetch<void>(`/transactions/${id}`, { method: 'DELETE' });
+
+// Journal Entries
+export const getJournalEntries = (status?: string) =>
+    apiFetch<JournalEntry[]>(status ? `/journal-entries?status=${status}` : '/journal-entries');
+export const getJournalEntry = (id: string) => apiFetch<JournalEntry>(`/journal-entries/${id}`);
+export const createJournalEntry = (data: Partial<JournalEntry>) =>
+    apiFetch<JournalEntry>('/journal-entries', { method: 'POST', body: JSON.stringify(data) });
+export const updateJournalEntry = (id: string, data: Partial<JournalEntry>) =>
+    apiFetch<JournalEntry>(`/journal-entries/${id}`, { method: 'PUT', body: JSON.stringify(data) });
+export const deleteJournalEntry = (id: string) =>
+    apiFetch<void>(`/journal-entries/${id}`, { method: 'DELETE' });
+
+// Chart of Accounts
+export const getChartAccounts = (type?: string) =>
+    apiFetch<ChartAccount[]>(type ? `/chart-accounts?type=${type}` : '/chart-accounts');
+export const getChartAccount = (id: string) => apiFetch<ChartAccount>(`/chart-accounts/${id}`);
+export const createChartAccount = (data: Partial<ChartAccount>) =>
+    apiFetch<ChartAccount>('/chart-accounts', { method: 'POST', body: JSON.stringify(data) });
+export const updateChartAccount = (id: string, data: Partial<ChartAccount>) =>
+    apiFetch<ChartAccount>(`/chart-accounts/${id}`, { method: 'PUT', body: JSON.stringify(data) });
+export const deleteChartAccount = (id: string) =>
+    apiFetch<void>(`/chart-accounts/${id}`, { method: 'DELETE' });
+
+// Bank Accounts
+export const getBankAccounts = () => apiFetch<BankAccount[]>('/bank-accounts');
+export const getBankAccount = (id: string) => apiFetch<BankAccount>(`/bank-accounts/${id}`);
+export const createBankAccount = (data: Partial<BankAccount>) =>
+    apiFetch<BankAccount>('/bank-accounts', { method: 'POST', body: JSON.stringify(data) });
+export const updateBankAccount = (id: string, data: Partial<BankAccount>) =>
+    apiFetch<BankAccount>(`/bank-accounts/${id}`, { method: 'PUT', body: JSON.stringify(data) });
+export const deleteBankAccount = (id: string) =>
+    apiFetch<void>(`/bank-accounts/${id}`, { method: 'DELETE' });
+
+// Tax Configs
+export const getTaxConfigs = () => apiFetch<TaxConfig[]>('/tax-configs');
+export const getTaxConfig = (id: string) => apiFetch<TaxConfig>(`/tax-configs/${id}`);
+export const createTaxConfig = (data: Partial<TaxConfig>) =>
+    apiFetch<TaxConfig>('/tax-configs', { method: 'POST', body: JSON.stringify(data) });
+export const updateTaxConfig = (id: string, data: Partial<TaxConfig>) =>
+    apiFetch<TaxConfig>(`/tax-configs/${id}`, { method: 'PUT', body: JSON.stringify(data) });
+export const deleteTaxConfig = (id: string) =>
+    apiFetch<void>(`/tax-configs/${id}`, { method: 'DELETE' });

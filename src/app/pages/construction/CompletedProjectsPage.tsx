@@ -1,45 +1,24 @@
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router";
 import { Search, Calendar, MapPin, CheckCircle2 } from "lucide-react";
+import { fetchProjects } from "../../api/projects";
 
 export function CompletedProjectsPage() {
   const navigate = useNavigate();
-  const completedProjects = [
-    {
-      id: "P001",
-      name: "Harbor View Residential Complex",
-      location: "Downtown District",
-      completionDate: "2026-02-15",
-      budget: 12500000,
-      duration: "18 months",
-      contractor: "Premier Construction Co.",
-      projectManager: "John Smith",
-    },
-    {
-      id: "P003",
-      name: "City Center Mall Renovation",
-      location: "Central Business District",
-      completionDate: "2026-01-28",
-      budget: 8750000,
-      duration: "12 months",
-      contractor: "Urban Builders Inc.",
-      projectManager: "Sarah Johnson",
-    },
-    {
-      id: "P007",
-      name: "Green Park Office Tower",
-      location: "Tech Park Area",
-      completionDate: "2025-12-10",
-      budget: 15200000,
-      duration: "24 months",
-      contractor: "Skyline Constructions",
-      projectManager: "Michael Chen",
-    },
-  ];
+  const [completedProjects, setCompletedProjects] = useState<any[]>([]);
+
+  useEffect(() => {
+    fetchProjects({ status: "Completed" })
+      .then(setCompletedProjects)
+      .catch(console.error);
+  }, []);
 
   return (
     <div className="p-6 space-y-6">
       <div>
-        <h1 className="text-2xl font-semibold text-gray-900">Completed Projects</h1>
+        <h1 className="text-2xl font-semibold text-gray-900">
+          Completed Projects
+        </h1>
         <p className="text-sm text-gray-600 mt-1">
           Successfully completed construction projects
         </p>
@@ -50,7 +29,9 @@ export function CompletedProjectsPage() {
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm text-gray-600">Total Completed</p>
-              <p className="text-2xl font-semibold text-gray-900 mt-1">24</p>
+              <p className="text-2xl font-semibold text-gray-900 mt-1">
+                {completedProjects.length}
+              </p>
             </div>
             <div className="w-10 h-10 bg-green-100 rounded-lg flex items-center justify-center">
               <CheckCircle2 className="w-5 h-5 text-green-600" />
@@ -61,21 +42,37 @@ export function CompletedProjectsPage() {
         <div className="bg-white border border-gray-200 rounded-lg p-4">
           <div>
             <p className="text-sm text-gray-600">Total Value</p>
-            <p className="text-2xl font-semibold text-gray-900 mt-1">$285M</p>
+            <p className="text-2xl font-semibold text-gray-900 mt-1">
+              $
+              {(
+                completedProjects.reduce((s, p) => s + (p.budget ?? 0), 0) /
+                1000000
+              ).toFixed(0)}
+              M
+            </p>
           </div>
         </div>
 
         <div className="bg-white border border-gray-200 rounded-lg p-4">
           <div>
             <p className="text-sm text-gray-600">This Year</p>
-            <p className="text-2xl font-semibold text-gray-900 mt-1">5</p>
+            <p className="text-2xl font-semibold text-gray-900 mt-1">
+              {
+                completedProjects.filter(
+                  (p) =>
+                    p.endDate &&
+                    new Date(p.endDate).getFullYear() ===
+                      new Date().getFullYear(),
+                ).length
+              }
+            </p>
           </div>
         </div>
 
         <div className="bg-white border border-gray-200 rounded-lg p-4">
           <div>
             <p className="text-sm text-gray-600">Avg. Duration</p>
-            <p className="text-2xl font-semibold text-gray-900 mt-1">15.8 mo</p>
+            <p className="text-2xl font-semibold text-gray-900 mt-1">—</p>
           </div>
         </div>
       </div>
@@ -103,7 +100,9 @@ export function CompletedProjectsPage() {
           <div
             key={project.id}
             className="bg-white border border-gray-200 rounded-lg p-6 hover:border-blue-300 transition-colors cursor-pointer"
-            onClick={() => navigate(`/apps/construction/projects/${project.id}`)}
+            onClick={() =>
+              navigate(`/apps/construction/projects/${project.id}`)
+            }
           >
             <div className="flex items-start justify-between">
               <div className="flex-1">
@@ -128,19 +127,25 @@ export function CompletedProjectsPage() {
                   </div>
                   <div className="flex items-center gap-2 text-gray-600">
                     <Calendar className="w-4 h-4" />
-                    <span>Completed: {project.completionDate}</span>
+                    <span>Completed: {project.endDate}</span>
                   </div>
                 </div>
 
                 <div className="mt-3 pt-3 border-t border-gray-100 text-sm text-gray-600">
-                  <div>Budget: ${(project.budget / 1000000).toFixed(1)}M • Duration: {project.duration}</div>
-                  <div className="mt-1">PM: {project.projectManager} • Contractor: {project.contractor}</div>
+                  <div>Budget: ${(project.budget / 1000000).toFixed(1)}M</div>
+                  <div className="mt-1">
+                    {project.manager ? `PM: ${project.manager}` : ""}
+                  </div>
                 </div>
               </div>
 
               <button
-                onClick={e => { e.stopPropagation(); navigate(`/apps/construction/projects/${project.id}`); }}
-                className="px-4 py-2 text-sm text-blue-600 hover:bg-blue-50 rounded-lg transition-colors">
+                onClick={(e) => {
+                  e.stopPropagation();
+                  navigate(`/apps/construction/projects/${project.id}`);
+                }}
+                className="px-4 py-2 text-sm text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+              >
                 View Details
               </button>
             </div>

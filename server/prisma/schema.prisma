@@ -1,0 +1,972 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider      = "prisma-client-js"
+  binaryTargets = ["native", "linux-musl-openssl-3.0.x"]
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ─────────────── ENUMS ───────────────
+
+enum ProjectStatus {
+  Active
+  Planning
+  OnHold
+  Completed
+  Cancelled
+}
+
+enum ProjectType {
+  Commercial
+  Residential
+  Industrial
+  Infrastructure
+  Renovation
+}
+
+enum EmployeeStatus {
+  active
+  inactive
+  on_leave
+}
+
+enum EmploymentType {
+  FullTime
+  Contract
+}
+
+enum LeaveStatus {
+  pending
+  approved
+  rejected
+}
+
+enum POStatus {
+  draft
+  sent
+  confirmed
+  partially_received
+  completed
+  cancelled
+}
+
+enum POPaymentStatus {
+  unpaid
+  confirmation_requested
+  paid
+}
+
+enum ExpenseStatus {
+  Draft
+  Submitted
+  Approved
+  Rejected
+  SentToFinance
+  Paid
+}
+
+enum IncomeStatus {
+  Draft
+  Confirmed
+  Invoiced
+  Received
+}
+
+enum BudgetScope {
+  Project
+  Department
+}
+
+enum BudgetStatus {
+  Active
+  OnTrack
+  AtRisk
+  OverBudget
+  Closed
+}
+
+enum PaymentType {
+  Expense
+  Payroll
+  Vendor
+  Contractor
+}
+
+enum PaymentStatus {
+  ApprovedRequest
+  SentToFinance
+  PaymentInitiated
+  PaymentCompleted
+  Failed
+}
+
+enum ClaimStatus {
+  Submitted
+  UnderReview
+  Approved
+  Rejected
+  Paid
+}
+
+// ─────────────── PROJECTS ───────────────
+
+model Project {
+  id         String        @id @default(cuid())
+  name       String
+  client     String
+  location   String
+  state      String
+  city       String
+  status     ProjectStatus @default(Planning)
+  type       ProjectType
+  budget     Float
+  spent      Float         @default(0)
+  progress   Int           @default(0)
+  startDate  DateTime
+  endDate    DateTime
+  manager    String
+  teamSize   Int           @default(0)
+  createdAt  DateTime      @default(now())
+  updatedAt  DateTime      @updatedAt
+
+  expenses   Expense[]
+  incomes    Income[]
+  budgets    Budget[]
+}
+
+// ─────────────── DEPARTMENTS ───────────────
+
+model Department {
+  id          String  @id @default(cuid())
+  name        String  @unique
+  description String
+  location    String
+  budget      String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  head        Employee? @relation("DeptHead", fields: [headId], references: [id])
+  headId      String?   @unique
+  employees   Employee[] @relation("DeptMembers")
+}
+
+// ─────────────── EMPLOYEES ───────────────
+
+model Employee {
+  id             String         @id @default(cuid())
+  firstName      String
+  lastName       String
+  role           String
+  email          String         @unique
+  phone          String
+  dateHired      DateTime
+  status         EmployeeStatus @default(active)
+  employmentType EmploymentType @default(FullTime)
+  projectCount   Int            @default(0)
+  projects       String[]       @default([])
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @updatedAt
+
+  department     Department?    @relation("DeptMembers", fields: [departmentId], references: [id])
+  departmentId   String?
+
+  headOf         Department?    @relation("DeptHead")
+  leaveRequests  LeaveRequest[]
+  claims         Claim[]
+}
+
+// ─────────────── LEAVE TYPES ───────────────
+
+model LeaveType {
+  id                String  @id @default(cuid())
+  name              String  @unique
+  daysAllowed       Int
+  carryOver         Boolean @default(false)
+  maxCarryOver      Int     @default(0)
+  paid              Boolean @default(true)
+  approvalsRequired Int     @default(1)
+  color             String
+  gender            String  @default("All")
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  leaveRequests     LeaveRequest[]
+}
+
+// ─────────────── LEAVE REQUESTS ───────────────
+
+model LeaveRequest {
+  id          String      @id @default(cuid())
+  refId       String      @unique
+  days        Int
+  startDate   DateTime
+  endDate     DateTime
+  status      LeaveStatus @default(pending)
+  submittedAt DateTime    @default(now())
+  approvedBy  String?
+  approvedAt  DateTime?
+  notes       String?
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+
+  employee    Employee    @relation(fields: [employeeId], references: [id])
+  employeeId  String
+  leaveType   LeaveType   @relation(fields: [leaveTypeId], references: [id])
+  leaveTypeId String
+}
+
+// ─────────────── CLAIM TYPES ───────────────
+
+model ClaimType {
+  id              String  @id @default(cuid())
+  name            String  @unique
+  description     String
+  isProjectBased  Boolean @default(false)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  claims          Claim[]
+}
+
+// ─────────────── CLAIMS ───────────────
+
+model Claim {
+  id              String      @id @default(cuid())
+  amount          Float
+  description     String
+  date            DateTime
+  status          ClaimStatus @default(Submitted)
+  reviewedBy      String?
+  reviewedAt      DateTime?
+  rejectionReason String?
+  paidAt          DateTime?
+  createdAt       DateTime    @default(now())
+  updatedAt       DateTime    @updatedAt
+
+  employee        Employee    @relation(fields: [employeeId], references: [id])
+  employeeId      String
+  claimType       ClaimType   @relation(fields: [claimTypeId], references: [id])
+  claimTypeId     String
+}
+
+// ─────────────── SUPPLIERS ───────────────
+
+model Supplier {
+  id                 String   @id @default(cuid())
+  name               String
+  contactPerson      String
+  phone              String
+  email              String
+  city               String
+  categories         String[]
+  rating             Float    @default(0)
+  onTimeDeliveryRate Float    @default(0)
+  rejectRate         Float    @default(0)
+  totalSpend         Float    @default(0)
+  lastOrder          DateTime?
+  status             String   @default("active")
+  notes              String?
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  materials          SupplierMaterial[]
+  purchaseOrders     PurchaseOrder[]
+}
+
+model SupplierMaterial {
+  id         String   @id @default(cuid())
+  name       String
+  unit       String
+  lastPrice  Float
+  supplier   Supplier @relation(fields: [supplierId], references: [id], onDelete: Cascade)
+  supplierId String
+}
+
+// ─────────────── PURCHASE ORDERS ───────────────
+
+model PurchaseOrder {
+  id             String          @id @default(cuid())
+  prRef          String?
+  mrRef          String?
+  status         POStatus        @default(draft)
+  paymentStatus  POPaymentStatus @default(unpaid)
+  sentToFinance  Boolean         @default(false)
+  financeRef     String?
+  createdBy      String
+  createdDate    DateTime        @default(now())
+  expectedDate   DateTime
+  totalValue     Float           @default(0)
+  receivedValue  Float           @default(0)
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
+
+  supplier       Supplier        @relation(fields: [supplierId], references: [id])
+  supplierId     String
+  items          POItem[]
+}
+
+model POItem {
+  id              String        @id @default(cuid())
+  material        String
+  qty             Float
+  unit            String
+  unitCost        Float
+  received        Float         @default(0)
+  purchaseOrder   PurchaseOrder @relation(fields: [purchaseOrderId], references: [id], onDelete: Cascade)
+  purchaseOrderId String
+}
+
+// ─────────────── EXPENSES ───────────────
+
+model Expense {
+  id              String        @id @default(cuid())
+  category        String
+  amount          Float
+  description     String
+  createdBy       String
+  date            DateTime
+  status          ExpenseStatus @default(Draft)
+  receipt         String?
+  approvedBy      String?
+  approvedAt      DateTime?
+  rejectedBy      String?
+  rejectedAt      DateTime?
+  rejectionReason String?
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+
+  project         Project?      @relation(fields: [projectId], references: [id])
+  projectId       String?
+}
+
+// ─────────────── INCOME ───────────────
+
+model Income {
+  id          String       @id @default(cuid())
+  source      String
+  amount      Float
+  description String
+  date        DateTime
+  status      IncomeStatus @default(Draft)
+  receivedBy  String?
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+
+  project     Project?     @relation(fields: [projectId], references: [id])
+  projectId   String?
+}
+
+// ─────────────── BUDGETS ───────────────
+
+model Budget {
+  id          String       @id @default(cuid())
+  name        String
+  scope       BudgetScope  @default(Project)
+  totalBudget Float
+  spent       Float        @default(0)
+  committed   Float        @default(0)
+  period      String
+  status      BudgetStatus @default(Active)
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+
+  project     Project?     @relation(fields: [projectId], references: [id])
+  projectId   String?
+}
+
+// ─────────────── PAYMENTS ───────────────
+
+model Payment {
+  id          String        @id @default(cuid())
+  type        PaymentType
+  reference   String
+  recipient   String
+  amount      Float
+  method      String
+  bank        String?
+  date        DateTime
+  status      PaymentStatus @default(ApprovedRequest)
+  initiatedBy String?
+  completedAt DateTime?
+  note        String?
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+}
+
+// ─────────────── USERS ───────────────
+
+enum UserRole {
+  admin
+  manager
+  viewer
+}
+
+model User {
+  id         String    @id @default(cuid())
+  email      String    @unique
+  password   String
+  name       String
+  role       UserRole  @default(viewer)
+  department String?
+  phone      String?
+  status     String    @default("Active")
+  lastLogin  DateTime?
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+}
+
+// ─────────────── APP ROLES / PERMISSIONS ───────────────
+
+model AppRole {
+  id          String   @id @default(cuid())
+  name        String   @unique
+  description String?
+  isSuper     Boolean  @default(false)
+  permissions Json     @default("{}")
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+// ─────────────── MATERIALS / INVENTORY ───────────────
+
+model Material {
+  id               String   @id @default(cuid())
+  name             String
+  category         String
+  unit             String
+  totalQty         Float    @default(0)
+  availableQty     Float    @default(0)
+  reservedQty      Float    @default(0)
+  unitCost         Float    @default(0)
+  reorderLevel     Float    @default(0)
+  materialType     String   @default("Consumable")
+  allocationStatus String   @default("Available")
+  allocatedTo      String?
+  allocatedProject String?
+  condition        String?
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+}
+
+model Store {
+  id          String      @id @default(cuid())
+  name        String
+  type        String      @default("General")
+  projectId   String?
+  projectName String?
+  manager     String?
+  location    String?
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+  storeItems  StoreItem[]
+}
+
+model StoreItem {
+  id           String    @id @default(cuid())
+  materialName String
+  category     String
+  unit         String
+  qty          Float     @default(0)
+  reorderLevel Float     @default(0)
+  unitCost     Float     @default(0)
+  lastReceived DateTime?
+  bin          String?
+  store        Store     @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  storeId      String
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+}
+
+model StockMovement {
+  id          String   @id @default(cuid())
+  type        String
+  materialName String
+  unit        String
+  qty         Float
+  storeName   String
+  storeId     String?
+  reference   String?
+  projectName String?
+  projectId   String?
+  date        DateTime @default(now())
+  createdBy   String
+  notes       String?
+  createdAt   DateTime @default(now())
+}
+
+model StockTransfer {
+  id            String    @id @default(cuid())
+  reference     String    @unique
+  fromStoreId   String?
+  fromStoreName String
+  toStoreId     String?
+  toStoreName   String
+  items         Json      @default("[]")
+  status        String    @default("Pending")
+  requestedBy   String
+  approvedBy    String?
+  requestDate   DateTime  @default(now())
+  completedAt   DateTime?
+  notes         String?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+}
+
+model MaterialRequest {
+  id          String    @id @default(cuid())
+  reference   String    @unique
+  materialName String
+  unit        String
+  qty         Float
+  storeName   String
+  storeId     String?
+  projectName String?
+  projectId   String?
+  purpose     String?
+  priority    String    @default("Normal")
+  status      String    @default("Pending")
+  requestedBy String
+  approvedBy  String?
+  requestDate DateTime  @default(now())
+  approvedAt  DateTime?
+  notes       String?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+}
+
+model MaterialReturn {
+  id            String    @id @default(cuid())
+  reference     String    @unique
+  materialName  String
+  unit          String
+  qty           Float
+  fromStoreName String
+  toStoreName   String
+  condition     String    @default("Good")
+  reason        String?
+  status        String    @default("Pending")
+  requestedBy   String
+  approvedBy    String?
+  requestDate   DateTime  @default(now())
+  approvedAt    DateTime?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+}
+
+// ─────────────── PROCUREMENT ───────────────
+
+model PurchaseRequest {
+  id            String   @id @default(cuid())
+  prRef         String   @unique
+  title         String
+  projectId     String?
+  projectName   String?
+  status        String   @default("Draft")
+  priority      String   @default("Normal")
+  requestedBy   String
+  daysToDeliver Int?
+  items         Json     @default("[]")
+  notes         String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+}
+
+model PurchaseInvoice {
+  id           String    @id @default(cuid())
+  invoiceNo    String    @unique
+  poRef        String?
+  supplierName String
+  supplierId   String?
+  invoiceDate  DateTime
+  dueDate      DateTime?
+  lines        Json      @default("[]")
+  subtotal     Float     @default(0)
+  vatTotal     Float     @default(0)
+  total        Float     @default(0)
+  status       String    @default("Pending")
+  notes        String?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+}
+
+model SentRFQ {
+  id           String    @id @default(cuid())
+  rfqRef       String    @unique
+  supplierName String
+  supplierId   String?
+  status       String    @default("Sent")
+  items        Json      @default("[]")
+  sentDate     DateTime  @default(now())
+  expiryDate   DateTime?
+  notes        String?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+}
+
+model ReceivedQuote {
+  id           String    @id @default(cuid())
+  rfqRef       String?
+  supplierName String
+  supplierId   String?
+  status       String    @default("Received")
+  items        Json      @default("[]")
+  receivedDate DateTime  @default(now())
+  validUntil   DateTime?
+  totalValue   Float     @default(0)
+  notes        String?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+}
+
+// ─────────────── CONSTRUCTION EXTRAS ───────────────
+
+model ProjectDocument {
+  id         String   @id @default(cuid())
+  name       String
+  type       String
+  size       String   @default("")
+  url        String   @default("")
+  uploadedBy String
+  folderName String
+  projectId  String?
+  tags       String[] @default([])
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+}
+
+model ConstructionApproval {
+  id          String    @id @default(cuid())
+  type        String
+  reference   String
+  description String
+  projectId   String?
+  projectName String?
+  status      String    @default("Pending")
+  requestedBy String
+  requestDate DateTime  @default(now())
+  reviewedBy  String?
+  reviewedAt  DateTime?
+  notes       String?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+}
+
+model Timeline {
+  id          String   @id @default(cuid())
+  name        String
+  projectId   String?
+  projectName String?
+  status      String   @default("On Track")
+  startDate   DateTime
+  endDate     DateTime
+  phases      Json     @default("[]")
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+// ─────────────── HR EXTRAS ───────────────
+
+model AttendanceRecord {
+  id           String   @id @default(cuid())
+  employeeId   String?
+  employeeName String
+  department   String
+  date         DateTime
+  clockIn      String?
+  clockOut     String?
+  hoursWorked  Float    @default(0)
+  status       String   @default("Present")
+  notes        String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+}
+
+model PayrollPeriod {
+  id          String       @id @default(cuid())
+  name        String
+  startDate   DateTime
+  endDate     DateTime
+  status      String       @default("Open")
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+  payrollRuns PayrollRun[]
+}
+
+model PayrollRun {
+  id            String         @id @default(cuid())
+  periodId      String?
+  period        PayrollPeriod? @relation(fields: [periodId], references: [id])
+  periodName    String
+  month         Int
+  year          Int
+  status        String         @default("Draft")
+  totalGross    Float          @default(0)
+  totalNet      Float          @default(0)
+  employeeCount Int            @default(0)
+  processedBy   String?
+  processedAt   DateTime?
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+  entries       PayrollEntry[]
+}
+
+model PayrollEntry {
+  id           String     @id @default(cuid())
+  runId        String
+  run          PayrollRun @relation(fields: [runId], references: [id], onDelete: Cascade)
+  employeeId   String?
+  employeeName String
+  department   String
+  grossPay     Float
+  deductions   Float      @default(0)
+  netPay       Float
+  tax          Float      @default(0)
+  pension      Float      @default(0)
+  allowances   Float      @default(0)
+  status       String     @default("Pending")
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+}
+
+model Payslip {
+  id           String   @id @default(cuid())
+  employeeId   String?
+  employeeName String
+  department   String
+  period       String
+  month        Int
+  year         Int
+  grossPay     Float
+  deductions   Float    @default(0)
+  netPay       Float
+  tax          Float    @default(0)
+  pension      Float    @default(0)
+  allowances   Float    @default(0)
+  status       String   @default("Issued")
+  issuedAt     DateTime @default(now())
+  createdAt    DateTime @default(now())
+}
+
+model Appraisal {
+  id           String   @id @default(cuid())
+  employeeId   String?
+  employeeName String
+  department   String
+  period       String
+  score        Float    @default(0)
+  rating       String   @default("Satisfactory")
+  reviewer     String
+  reviewDate   DateTime
+  goals        String?
+  achievements String?
+  comments     String?
+  status       String   @default("Draft")
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+}
+
+model Issue {
+  id          String    @id @default(cuid())
+  title       String
+  category    String
+  priority    String    @default("Medium")
+  status      String    @default("Open")
+  description String
+  reportedBy  String
+  assignedTo  String?
+  projectId   String?
+  projectName String?
+  resolution  String?
+  reportedAt  DateTime  @default(now())
+  resolvedAt  DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+}
+
+// ─────────────── FINANCE EXTRAS ───────────────
+
+model Transaction {
+  id          String   @id @default(cuid())
+  date        DateTime
+  description String
+  amount      Float
+  type        String
+  accountCode String?
+  accountName String
+  reference   String?
+  category    String?
+  status      String   @default("Confirmed")
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model JournalEntry {
+  id          String        @id @default(cuid())
+  reference   String        @unique
+  date        DateTime
+  description String
+  status      String        @default("Draft")
+  createdBy   String
+  postedAt    DateTime?
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+  lines       JournalLine[]
+}
+
+model JournalLine {
+  id          String       @id @default(cuid())
+  accountCode String
+  accountName String
+  debit       Float        @default(0)
+  credit      Float        @default(0)
+  description String?
+  journalId   String
+  journal     JournalEntry @relation(fields: [journalId], references: [id], onDelete: Cascade)
+  createdAt   DateTime     @default(now())
+}
+
+model ChartAccount {
+  id        String   @id @default(cuid())
+  code      String   @unique
+  name      String
+  type      String
+  category  String
+  balance   Float    @default(0)
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model BankAccount {
+  id          String   @id @default(cuid())
+  bankName    String
+  accountNo   String
+  accountName String
+  balance     Float    @default(0)
+  currency    String   @default("NGN")
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model TaxConfig {
+  id        String   @id @default(cuid())
+  name      String
+  type      String
+  rate      Float
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Task {
+  id          String    @id @default(cuid())
+  title       String
+  description String?
+  status      String    @default("todo")
+  priority    String    @default("medium")
+  assignedTo  String?
+  projectId   String?
+  projectName String?
+  dueDate     DateTime?
+  tags        String[]  @default([])
+  createdBy   String    @default("system")
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+}
+
+model JobRole {
+  id               String   @id @default(cuid())
+  title            String
+  department       String
+  gradeLevel       String?
+  minSalary        String?
+  maxSalary        String?
+  headcount        Int      @default(0)
+  responsibilities String[] @default([])
+  skills           String[] @default([])
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+}
+
+model WorkforceAllocation {
+  id           String   @id @default(cuid())
+  employeeId   String?
+  employeeName String
+  projectId    String?
+  projectName  String
+  role         String
+  allocPct     Float    @default(100)
+  startDate    String
+  endDate      String?
+  status       String   @default("active")
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+}
+
+model ActivityRecord {
+  id          String   @id @default(cuid())
+  userId      String?
+  userName    String
+  action      String
+  module      String
+  description String?
+  createdAt   DateTime @default(now())
+}
+
+model ReportDefinition {
+  id          String      @id @default(cuid())
+  name        String
+  type        String
+  module      String
+  description String?
+  isScheduled Boolean     @default(false)
+  schedule    String?
+  createdBy   String      @default("system")
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+  runs        ReportRun[]
+}
+
+model ReportRun {
+  id          String           @id @default(cuid())
+  reportId    String
+  report      ReportDefinition @relation(fields: [reportId], references: [id], onDelete: Cascade)
+  status      String           @default("pending")
+  startedAt   DateTime         @default(now())
+  completedAt DateTime?
+  outputUrl   String?
+  errorMsg    String?
+  createdAt   DateTime         @default(now())
+}
+
+model ResourcePlan {
+  id           String   @id @default(cuid())
+  name         String
+  projectId    String?
+  projectName  String?
+  resourceType String
+  quantity     Int      @default(1)
+  unit         String?
+  startDate    String
+  endDate      String?
+  status       String   @default("planned")
+  cost         Float    @default(0)
+  notes        String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+}
+
+model ComplianceDocumentType {
+  id          String   @id @default(cuid())
+  name        String
+  description String?
+  level       String   @default("Mandatory")
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}

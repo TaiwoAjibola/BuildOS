@@ -134,6 +134,10 @@ import { StorefrontConfigPage } from "./pages/storefront/StorefrontConfigPage";
 
 // Finance new pages
 import { JournalEntryPage } from "./pages/finance/JournalEntryPage";
+import { BudgetTrackingPage } from "./pages/finance/BudgetTrackingPage";
+import { ExpensesPage } from "./pages/finance/ExpensesPage";
+import { ScheduledPostingPage } from "./pages/finance/ScheduledPostingPage";
+import { TransactionsPage } from "./pages/finance/TransactionsPage";
 import { FinanceTasksPage } from "./pages/finance/FinanceTasksPage";
 import { FinanceMyTasksPage } from "./pages/finance/FinanceMyTasksPage";
 import { ProcessMappingPage } from "./pages/finance/ProcessMappingPage";
@@ -182,15 +186,15 @@ export const router = createBrowserRouter([
               { path: "active", Component: ActiveProjectsPage },
               { path: "completed", Component: CompletedProjectsPage },
               { path: "projects/:id", Component: ProjectDetailsPage },
-              { path: "approvals",        Component: ApprovalsPage       },
-              { path: "reports",           Component: ReportsPage         },
+              { path: "approvals", Component: ApprovalsPage },
+              { path: "reports", Component: ReportsPage },
               { path: "resource-planning", Component: ResourcePlanningPage },
               { path: "timeline-planning", Component: TimelinePlanningPage },
-              { path: "documents",         Component: DocumentsPage       },
-              { path: "tasks",             Component: TasksPage            },
-              { path: "my-tasks",          Component: ConstructionMyTasksPage },
-              { path: "time-tracking",     Component: TimeTrackingPage     },
-              { path: "project-config",    Component: ProjectConfigPage    },
+              { path: "documents", Component: DocumentsPage },
+              { path: "tasks", Component: TasksPage },
+              { path: "my-tasks", Component: ConstructionMyTasksPage },
+              { path: "time-tracking", Component: TimeTrackingPage },
+              { path: "project-config", Component: ProjectConfigPage },
             ],
           },
           {
@@ -216,6 +220,10 @@ export const router = createBrowserRouter([
               { path: "process-mapping", Component: ProcessMappingPage },
               { path: "posting-engine", Component: PostingEnginePage },
               { path: "purchase-invoice", Component: PurchaseInvoicePage },
+              { path: "budget-tracking", Component: BudgetTrackingPage },
+              { path: "expenses-list", Component: ExpensesPage },
+              { path: "scheduled-posting", Component: ScheduledPostingPage },
+              { path: "transactions", Component: TransactionsPage },
             ],
           },
           {
@@ -237,7 +245,10 @@ export const router = createBrowserRouter([
               { path: "my-tasks", Component: ProcurementMyTasksPage },
               { path: "sent-requests", Component: SentRequestsPage },
               { path: "received-quotes", Component: ReceivedQuotesPage },
-              { path: "supplier-compliance", Component: SupplierCompliancePage },
+              {
+                path: "supplier-compliance",
+                Component: SupplierCompliancePage,
+              },
             ],
           },
           {
@@ -309,6 +320,10 @@ export const router = createBrowserRouter([
               { path: "email-config", Component: EmailConfigPage },
               { path: "issue-types", Component: IssueTypesPage },
               { path: "change-categories", Component: ChangeCategoriesPage },
+              {
+                path: "financial-config",
+                Component: FinancialConfigurationPage,
+              },
             ],
           },
           {
@@ -316,19 +331,22 @@ export const router = createBrowserRouter([
             Component: StorefrontLayout,
             children: [
               { index: true, Component: StorefrontDashboardPage },
-              { path: "dashboard",         Component: StorefrontDashboardPage },
-              { path: "all-materials",     Component: AllMaterialsPage },
-              { path: "general-store",     Component: GeneralStorePage },
-              { path: "project-stores",    Component: ProjectStoresPage },
-              { path: "stock-movement",    Component: StorefrontStockMovementPage },
+              { path: "dashboard", Component: StorefrontDashboardPage },
+              { path: "all-materials", Component: AllMaterialsPage },
+              { path: "general-store", Component: GeneralStorePage },
+              { path: "project-stores", Component: ProjectStoresPage },
+              {
+                path: "stock-movement",
+                Component: StorefrontStockMovementPage,
+              },
               { path: "incoming-requests", Component: IncomingRequestsPage },
-              { path: "stock-transfers",   Component: StockTransferPage },
-              { path: "returns",           Component: MaterialReturnsPage },
-              { path: "approvals",         Component: StorefrontApprovalsPage },
-              { path: "reports",           Component: StorefrontReportsPage },
-              { path: "tasks",             Component: StorefrontTasksPage },
-              { path: "my-tasks",          Component: StorefrontMyTasksPage  },
-              { path: "config",            Component: StorefrontConfigPage  },
+              { path: "stock-transfers", Component: StockTransferPage },
+              { path: "returns", Component: MaterialReturnsPage },
+              { path: "approvals", Component: StorefrontApprovalsPage },
+              { path: "reports", Component: StorefrontReportsPage },
+              { path: "tasks", Component: StorefrontTasksPage },
+              { path: "my-tasks", Component: StorefrontMyTasksPage },
+              { path: "config", Component: StorefrontConfigPage },
             ],
           },
         ],

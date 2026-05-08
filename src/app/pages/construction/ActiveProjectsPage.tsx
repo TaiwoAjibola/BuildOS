@@ -1,80 +1,29 @@
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router";
-import { Search, Calendar, MapPin, TrendingUp, AlertCircle } from "lucide-react";
+import {
+  Search,
+  Calendar,
+  MapPin,
+  TrendingUp,
+  AlertCircle,
+} from "lucide-react";
+import { fetchProjects } from "../../api/projects";
 
 export function ActiveProjectsPage() {
   const navigate = useNavigate();
-  const activeProjects = [
-    {
-      id: "P002",
-      name: "Skyline Business Plaza",
-      location: "Financial District",
-      startDate: "2025-08-01",
-      endDate: "2026-10-31",
-      progress: 65,
-      budget: 18500000,
-      spent: 12025000,
-      status: "On Track",
-      contractor: "Skyline Constructions",
-      projectManager: "David Lee",
-      workforce: 145,
-    },
-    {
-      id: "P004",
-      name: "Metro Station Expansion",
-      location: "North Metro Line",
-      startDate: "2025-06-15",
-      endDate: "2026-12-20",
-      progress: 48,
-      budget: 25000000,
-      spent: 12000000,
-      status: "On Track",
-      contractor: "Infrastructure Pro Ltd.",
-      projectManager: "Lisa Anderson",
-      workforce: 210,
-    },
-    {
-      id: "P005",
-      name: "Lakeside Resort Development",
-      location: "Lake District",
-      startDate: "2025-09-10",
-      endDate: "2027-03-15",
-      progress: 32,
-      budget: 32000000,
-      spent: 10240000,
-      status: "At Risk",
-      contractor: "Premier Construction Co.",
-      projectManager: "James Wilson",
-      workforce: 180,
-    },
-    {
-      id: "P006",
-      name: "Tech Campus Phase 2",
-      location: "Innovation Zone",
-      startDate: "2025-11-01",
-      endDate: "2026-08-30",
-      progress: 75,
-      budget: 14200000,
-      spent: 10650000,
-      status: "On Track",
-      contractor: "BuildRight Solutions",
-      projectManager: "Maria Garcia",
-      workforce: 120,
-    },
-    {
-      id: "P008",
-      name: "Highway Bridge Reconstruction",
-      location: "West Highway Corridor",
-      startDate: "2025-07-20",
-      endDate: "2026-06-15",
-      progress: 55,
-      budget: 19800000,
-      spent: 10890000,
-      status: "Delayed",
-      contractor: "Infrastructure Pro Ltd.",
-      projectManager: "Thomas Brown",
-      workforce: 165,
-    },
-  ];
+  const [activeProjects, setActiveProjects] = useState<any[]>([]);
+
+  useEffect(() => {
+    fetchProjects()
+      .then((all) =>
+        setActiveProjects(
+          all.filter(
+            (p) => p.status !== "Completed" && p.status !== "Cancelled",
+          ),
+        ),
+      )
+      .catch(console.error);
+  }, []);
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -99,7 +48,9 @@ export function ActiveProjectsPage() {
     <div className="p-6 space-y-6">
       {/* Header */}
       <div>
-        <h1 className="text-2xl font-semibold text-gray-900">Active Projects</h1>
+        <h1 className="text-2xl font-semibold text-gray-900">
+          Active Projects
+        </h1>
         <p className="text-sm text-gray-600 mt-1">
           Currently in-progress construction projects
         </p>
@@ -111,7 +62,9 @@ export function ActiveProjectsPage() {
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm text-gray-600">Active Projects</p>
-              <p className="text-2xl font-semibold text-gray-900 mt-1">18</p>
+              <p className="text-2xl font-semibold text-gray-900 mt-1">
+                {activeProjects.length}
+              </p>
             </div>
             <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center">
               <TrendingUp className="w-5 h-5 text-blue-600" />
@@ -122,14 +75,24 @@ export function ActiveProjectsPage() {
         <div className="bg-white border border-gray-200 rounded-lg p-4">
           <div>
             <p className="text-sm text-gray-600">Total Workforce</p>
-            <p className="text-2xl font-semibold text-gray-900 mt-1">1,820</p>
+            <p className="text-2xl font-semibold text-gray-900 mt-1">
+              {activeProjects
+                .reduce((s, p) => s + (p.workforce ?? 0), 0)
+                .toLocaleString()}
+            </p>
           </div>
         </div>
 
         <div className="bg-white border border-gray-200 rounded-lg p-4">
           <div>
             <p className="text-sm text-gray-600">On Track</p>
-            <p className="text-2xl font-semibold text-green-600 mt-1">14</p>
+            <p className="text-2xl font-semibold text-green-600 mt-1">
+              {
+                activeProjects.filter(
+                  (p) => p.status === "Active" || p.status === "On Track",
+                ).length
+              }
+            </p>
           </div>
         </div>
 
@@ -137,7 +100,16 @@ export function ActiveProjectsPage() {
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm text-gray-600">At Risk / Delayed</p>
-              <p className="text-2xl font-semibold text-yellow-600 mt-1">4</p>
+              <p className="text-2xl font-semibold text-yellow-600 mt-1">
+                {
+                  activeProjects.filter(
+                    (p) =>
+                      p.status === "At Risk" ||
+                      p.status === "Delayed" ||
+                      p.status === "On Hold",
+                  ).length
+                }
+              </p>
             </div>
             <AlertCircle className="w-5 h-5 text-yellow-600" />
           </div>
@@ -176,7 +148,9 @@ export function ActiveProjectsPage() {
           <div
             key={project.id}
             className="bg-white border border-gray-200 rounded-lg p-6 hover:border-blue-300 transition-colors cursor-pointer"
-            onClick={() => navigate(`/apps/construction/projects/${project.id}`)}
+            onClick={() =>
+              navigate(`/apps/construction/projects/${project.id}`)
+            }
           >
             <div className="flex items-start justify-between mb-4">
               <div className="flex-1">
@@ -186,7 +160,7 @@ export function ActiveProjectsPage() {
                   </span>
                   <span
                     className={`px-2 py-1 text-xs font-medium rounded ${getStatusColor(
-                      project.status
+                      project.status,
                     )}`}
                   >
                     {project.status}
@@ -209,7 +183,8 @@ export function ActiveProjectsPage() {
                     </span>
                   </div>
                   <div className="text-gray-600">
-                    <span className="font-medium">Workforce:</span> {project.workforce}
+                    <span className="font-medium">Location:</span>{" "}
+                    {project.location}
                   </div>
                 </div>
 
@@ -224,7 +199,7 @@ export function ActiveProjectsPage() {
                   <div className="w-full bg-gray-200 rounded-full h-2">
                     <div
                       className={`h-2 rounded-full ${getProgressColor(
-                        project.progress
+                        project.progress,
                       )}`}
                       style={{ width: `${project.progress}%` }}
                     />
@@ -246,17 +221,19 @@ export function ActiveProjectsPage() {
 
                 <div className="mt-3 pt-3 border-t border-gray-100 flex items-center gap-6 text-sm text-gray-600">
                   <div>
-                    <span className="font-medium">PM:</span> {project.projectManager}
-                  </div>
-                  <div>
-                    <span className="font-medium">Contractor:</span> {project.contractor}
+                    <span className="font-medium">PM:</span>{" "}
+                    {project.manager || "—"}
                   </div>
                 </div>
               </div>
 
               <button
-                onClick={e => { e.stopPropagation(); navigate(`/apps/construction/projects/${project.id}`); }}
-                className="px-4 py-2 text-sm text-blue-600 hover:bg-blue-50 rounded-lg transition-colors">
+                onClick={(e) => {
+                  e.stopPropagation();
+                  navigate(`/apps/construction/projects/${project.id}`);
+                }}
+                className="px-4 py-2 text-sm text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+              >
                 View Details
               </button>
             </div>
