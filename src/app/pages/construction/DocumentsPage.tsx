@@ -1,228 +1,325 @@
-import { useState, useRef } from "react";
-import { Upload, Search, FolderOpen, Folder, FileText, Download, Eye, MoreHorizontal, Trash2, Edit, Plus, ChevronRight } from "lucide-react";
+import { useParams } from "react-router";
+import { useState, useMemo, useRef } from "react";
+import { Folder, FolderOpen, FileText, Upload, Download, Trash2, Plus, MoreHorizontal, Edit, Search, ChevronRight, ChevronDown, X, RefreshCw } from "lucide-react";
+import { getProjectById, documentFolders, documentFiles, fmtDate } from "./mockData";
 
-interface DocFile {
-  id: string; name: string; type: string; size: string;
-  uploadedBy: string; date: string; version: string; project: string;
+interface FolderNode {
+  id: string;
+  name: string;
+  parentFolderId: string | null;
+  children: FolderNode[];
+  createdBy: string;
 }
 
-interface DocFolder {
-  id: string; project: string; count: number; lastModified: string;
+function buildTree(folders: typeof documentFolders): FolderNode[] {
+  const map = new Map<string, FolderNode>();
+  const roots: FolderNode[] = [];
+  for (const f of folders) {
+    map.set(f.id, { ...f, children: [] });
+  }
+  for (const f of folders) {
+    const node = map.get(f.id)!;
+    if (f.parentFolderId && map.has(f.parentFolderId)) {
+      map.get(f.parentFolderId)!.children.push(node);
+    } else if (!f.parentFolderId) {
+      roots.push(node);
+    }
+  }
+  return roots;
 }
-
-const folders: DocFolder[] = [
-  { id: "f1", project: "Downtown Office Complex", count: 24, lastModified: "Apr 9, 2026" },
-  { id: "f2", project: "Riverside Residential", count: 18, lastModified: "Apr 7, 2026" },
-  { id: "f3", project: "Industrial Warehouse", count: 9, lastModified: "Apr 5, 2026" },
-  { id: "f4", project: "Shopping Mall Renovation", count: 31, lastModified: "Mar 28, 2026" },
-  { id: "f5", project: "Highway Interchange", count: 15, lastModified: "Apr 1, 2026" },
-];
-
-const allDocs: DocFile[] = [
-  { id: "d1", name: "Architectural Drawings v3.2", type: "PDF", size: "18.4 MB", uploadedBy: "John Smith", date: "2026-03-01", version: "v3.2", project: "Downtown Office Complex" },
-  { id: "d2", name: "Structural Engineering Report", type: "PDF", size: "8.9 MB", uploadedBy: "Aisha Bello", date: "2026-02-14", version: "v1.0", project: "Downtown Office Complex" },
-  { id: "d3", name: "Client Contract — Zenith Properties", type: "PDF", size: "2.1 MB", uploadedBy: "Admin", date: "2026-01-10", version: "v1.0", project: "Downtown Office Complex" },
-  { id: "d4", name: "Site Safety Plan", type: "PDF", size: "5.6 MB", uploadedBy: "Diana Park", date: "2026-01-25", version: "v1.0", project: "Downtown Office Complex" },
-  { id: "d5", name: "Material Spec Sheet", type: "XLSX", size: "1.3 MB", uploadedBy: "Aisha Bello", date: "2026-02-20", version: "v2.1", project: "Downtown Office Complex" },
-  { id: "d6", name: "Progress Photos — March 2026", type: "ZIP", size: "247 MB", uploadedBy: "Carlos Rivera", date: "2026-04-01", version: "v1.0", project: "Downtown Office Complex" },
-  { id: "d7", name: "Architectural Plans — Block A", type: "PDF", size: "12.1 MB", uploadedBy: "Sarah Johnson", date: "2026-02-01", version: "v2.0", project: "Riverside Residential" },
-  { id: "d8", name: "Soil Report", type: "PDF", size: "3.4 MB", uploadedBy: "Geotech Ltd", date: "2026-01-18", version: "v1.0", project: "Riverside Residential" },
-  { id: "d9", name: "Warehouse Layout Design", type: "DWG", size: "7.8 MB", uploadedBy: "Mike Davis", date: "2026-03-15", version: "v1.1", project: "Industrial Warehouse" },
-  { id: "d10", name: "Mall Renovation BOQ", type: "XLSX", size: "4.2 MB", uploadedBy: "Emily Chen", date: "2026-01-05", version: "v3.0", project: "Shopping Mall Renovation" },
-];
-
-const typeIcon: Record<string, string> = { PDF: "📄", XLSX: "📊", ZIP: "🗜️", DWG: "📐" };
-const typeColor: Record<string, string> = { PDF: "bg-red-50 text-red-700", XLSX: "bg-green-50 text-green-700", ZIP: "bg-gray-100 text-gray-700", DWG: "bg-blue-50 text-blue-700" };
 
 export function DocumentsPage() {
+  const { id } = useParams<{ id: string }>();
+  const project = getProjectById(id ?? "");
   const fileRef = useRef<HTMLInputElement>(null);
-  const [view, setView] = useState<"folders" | "all">("folders");
-  const [selectedProject, setSelectedProject] = useState<string | null>(null);
+
+  const [selectedFolderId, setSelectedFolderId] = useState<string | null>(null);
+  const [expandedFolders, setExpandedFolders] = useState<Set<string>>(new Set(["DF-001"]));
   const [search, setSearch] = useState("");
-  const [openMenu, setOpenMenu] = useState<string | null>(null);
-  const [docList, setDocList] = useState<DocFile[]>(allDocs);
-  const [renameId, setRenameId] = useState<string | null>(null);
-  const [renameName, setRenameName] = useState("");
-  const [deleteId, setDeleteId] = useState<string | null>(null);
+  const [showNewFolder, setShowNewFolder] = useState(false);
+  const [newFolderName, setNewFolderName] = useState("");
+  const [localFolders, setLocalFolders] = useState(documentFolders);
+  const [localFiles, setLocalFiles] = useState(documentFiles);
   const [toastMsg, setToastMsg] = useState<string | null>(null);
+  const [openMenu, setOpenMenu] = useState<string | null>(null);
+
+  const projectFolders = useMemo(() => localFolders.filter(f => f.projectId === (id ?? "")), [localFolders, id]);
+  const projectFiles = useMemo(() => localFiles.filter(f => f.projectId === (id ?? "")), [localFiles, id]);
+  const folderTree = useMemo(() => buildTree(projectFolders), [projectFolders]);
+
+  const selectedFiles = useMemo(() => {
+    if (!selectedFolderId) return [];
+    let allFolderIds = [selectedFolderId];
+    const folderMap = new Map(projectFolders.map(f => [f.id, f]));
+    const collectChildren = (parentId: string) => {
+      projectFolders.filter(f => f.parentFolderId === parentId).forEach(child => {
+        allFolderIds.push(child.id);
+        collectChildren(child.id);
+      });
+    };
+    collectChildren(selectedFolderId);
+    return projectFiles.filter(f => allFolderIds.includes(f.folderId));
+  }, [projectFiles, selectedFolderId, projectFolders]);
+
+  const filteredFiles = selectedFiles.filter(f =>
+    !search || f.name.toLowerCase().includes(search.toLowerCase())
+  );
 
   function showToast(msg: string) {
     setToastMsg(msg);
     setTimeout(() => setToastMsg(null), 3000);
   }
 
-  function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    setDocList(prev => [...prev, {
-      id: `d${Date.now()}`,
-      name: file.name,
-      type: file.name.split(".").pop()?.toUpperCase() ?? "FILE",
-      size: `${(file.size / 1024 / 1024).toFixed(1)} MB`,
-      uploadedBy: "You",
-      date: new Date().toISOString().split("T")[0],
-      version: "v1.0",
-      project: selectedProject ?? "General",
+  function toggleExpand(folderId: string) {
+    setExpandedFolders(prev => {
+      const next = new Set(prev);
+      if (next.has(folderId)) next.delete(folderId);
+      else next.add(folderId);
+      return next;
+    });
+  }
+
+  function handleCreateFolder() {
+    if (!newFolderName.trim()) return;
+    const newId = `DF-${Date.now()}`;
+    setLocalFolders(prev => [...prev, {
+      id: newId,
+      projectId: id ?? "",
+      parentFolderId: selectedFolderId,
+      name: newFolderName.trim(),
+      createdBy: "You",
     }]);
-    showToast(`"${file.name}" uploaded successfully`);
+    setNewFolderName("");
+    setShowNewFolder(false);
+    if (selectedFolderId) setExpandedFolders(prev => new Set(prev).add(selectedFolderId));
+    showToast(`Folder "${newFolderName.trim()}" created`);
+  }
+
+  function handleFileUpload(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file || !selectedFolderId) return;
+    setLocalFiles(prev => [...prev, {
+      id: `DCF-${Date.now()}`,
+      folderId: selectedFolderId,
+      projectId: id ?? "",
+      name: file.name,
+      fileUrl: "#",
+      version: 1,
+      uploadedBy: "You",
+      uploadedAt: new Date().toISOString().split("T")[0],
+    }]);
+    showToast(`"${file.name}" uploaded`);
     e.target.value = "";
   }
 
-  function confirmRename(id: string) {
-    if (!renameName.trim()) return;
-    setDocList(prev => prev.map(d => d.id === id ? { ...d, name: renameName.trim() } : d));
-    setRenameId(null);
-    setRenameName("");
+  function handleDeleteFile(fileId: string) {
+    setLocalFiles(prev => prev.filter(f => f.id !== fileId));
+    setOpenMenu(null);
+    showToast("File deleted");
   }
 
-  function handleDelete(id: string) {
-    setDocList(prev => prev.filter(d => d.id !== id));
-    setDeleteId(null);
+  function handleReplaceFile(fileId: string) {
+    const input = document.createElement("input");
+    input.type = "file";
+    input.onchange = (e: any) => {
+      const file = e.target?.files?.[0];
+      if (!file) return;
+      setLocalFiles(prev => prev.map(f =>
+        f.id === fileId ? { ...f, name: file.name, version: f.version + 1, uploadedBy: "You", uploadedAt: new Date().toISOString().split("T")[0] } : f
+      ));
+      showToast(`"${file.name}" uploaded as new version`);
+    };
+    input.click();
   }
 
-  const displayed = docList.filter(d => {
-    if (selectedProject && d.project !== selectedProject) return false;
-    if (search && !d.name.toLowerCase().includes(search.toLowerCase())) return false;
-    return true;
-  });
+  function handleRenameFile(fileId: string) {
+    const newName = prompt("Enter new file name:");
+    if (!newName?.trim()) return;
+    setLocalFiles(prev => prev.map(f =>
+      f.id === fileId ? { ...f, name: newName.trim() } : f
+    ));
+    setOpenMenu(null);
+  }
 
-  const deleteDoc = docList.find(d => d.id === deleteId);
+  function renderTreeNode(node: FolderNode, depth: number = 0): React.ReactNode {
+    const isExpanded = expandedFolders.has(node.id);
+    const isSelected = selectedFolderId === node.id;
+    const hasChildren = node.children.length > 0;
+    const fileCount = projectFiles.filter(f => {
+      let ids = [node.id];
+      const collect = (pid: string) => {
+        projectFolders.filter(f2 => f2.parentFolderId === pid).forEach(c => { ids.push(c.id); collect(c.id); });
+      };
+      collect(node.id);
+      return ids.includes(f.folderId);
+    }).length;
+
+    return (
+      <div key={node.id}>
+        <div
+          className={`flex items-center gap-1.5 px-2 py-1.5 rounded-md cursor-pointer text-sm transition-colors group ${
+            isSelected ? "bg-orange-100 text-orange-800 font-medium" : "text-gray-700 hover:bg-gray-100"
+          }`}
+          style={{ paddingLeft: `${12 + depth * 16}px` }}
+          onClick={() => {
+            setSelectedFolderId(node.id);
+            if (hasChildren) toggleExpand(node.id);
+          }}
+        >
+          {hasChildren ? (
+            <span className="flex-shrink-0 text-gray-400">
+              {isExpanded ? <ChevronDown className="w-3.5 h-3.5" /> : <ChevronRight className="w-3.5 h-3.5" />}
+            </span>
+          ) : (
+            <span className="w-3.5 flex-shrink-0" />
+          )}
+          {isSelected ? (
+            <FolderOpen className="w-4 h-4 text-orange-500 flex-shrink-0" />
+          ) : (
+            <Folder className="w-4 h-4 text-gray-400 flex-shrink-0" />
+          )}
+          <span className="truncate flex-1">{node.name}</span>
+          <span className="text-[10px] text-gray-400 opacity-0 group-hover:opacity-100 transition-opacity">{fileCount}</span>
+        </div>
+        {hasChildren && isExpanded && (
+          <div>
+            {node.children.map(child => renderTreeNode(child, depth + 1))}
+          </div>
+        )}
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-5">
-      <input ref={fileRef} type="file" className="hidden" onChange={handleFileChange} />
+      <input ref={fileRef} type="file" className="hidden" onChange={handleFileUpload} />
       {toastMsg && (
         <div className="fixed bottom-6 right-6 z-50 bg-gray-900 text-white text-sm px-4 py-2.5 rounded-lg shadow-lg">
           {toastMsg}
         </div>
       )}
+
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-semibold text-gray-900">Documents</h1>
-          <p className="text-sm text-gray-500 mt-0.5">Central file system for all project documents</p>
+          <p className="text-sm text-gray-500 mt-0.5">{project?.name ?? "Project"} — Document management</p>
         </div>
-        <button onClick={() => fileRef.current?.click()} className="flex items-center gap-2 bg-orange-600 text-white px-4 py-2 rounded-md text-sm font-medium hover:bg-orange-700">
-          <Upload className="w-4 h-4" /> Upload Document
-        </button>
-      </div>
-
-      {/* Stats */}
-      <div className="grid grid-cols-4 gap-4">
-        {[
-          { label: "Total Files", value: docList.length },
-          { label: "Total Size", value: "316 MB" },
-          { label: "Projects", value: folders.length },
-          { label: "Uploaded This Week", value: "4" },
-        ].map(s => (
-          <div key={s.label} className="bg-white border border-gray-200 rounded-lg p-4 text-center">
-            <p className="text-2xl font-bold text-gray-900">{s.value}</p>
-            <p className="text-xs text-gray-500 mt-1">{s.label}</p>
-          </div>
-        ))}
-      </div>
-
-      {/* View toggle + search */}
-      <div className="flex items-center gap-4">
-        <div className="flex border border-gray-200 rounded-md overflow-hidden">
-          <button onClick={() => { setView("folders"); setSelectedProject(null); }} className={`flex items-center gap-1.5 px-3 py-1.5 text-sm ${view === "folders" ? "bg-orange-50 text-orange-700 font-medium" : "text-gray-600 hover:bg-gray-50"}`}>
-            <Folder className="w-3.5 h-3.5" /> Folders
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => setShowNewFolder(true)}
+            className="flex items-center gap-1.5 px-3 py-2 border border-gray-300 rounded-md text-sm text-gray-700 hover:bg-gray-50"
+          >
+            <Plus className="w-3.5 h-3.5" /> New Folder
           </button>
-          <button onClick={() => setView("all")} className={`flex items-center gap-1.5 px-3 py-1.5 text-sm border-l border-gray-200 ${view === "all" ? "bg-orange-50 text-orange-700 font-medium" : "text-gray-600 hover:bg-gray-50"}`}>
-            <FileText className="w-3.5 h-3.5" /> All Files
+          <button
+            onClick={() => selectedFolderId ? fileRef.current?.click() : showToast("Select a folder first")}
+            className="flex items-center gap-1.5 px-3 py-2 bg-orange-600 text-white rounded-md text-sm font-medium hover:bg-orange-700"
+          >
+            <Upload className="w-3.5 h-3.5" /> Upload
           </button>
         </div>
-        <div className="relative flex-1 max-w-sm">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-400" />
-          <input type="text" value={search} onChange={e => setSearch(e.target.value)} placeholder="Search documents…" className="pl-9 pr-4 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-orange-500 w-full" />
-        </div>
       </div>
 
-      {/* Folder view */}
-      {view === "folders" && !selectedProject && (
-        <div className="grid grid-cols-3 gap-4">
-          {folders.map(f => (
-            <button key={f.id} onClick={() => { setView("all"); setSelectedProject(f.project); }} className="bg-white border border-gray-200 rounded-lg p-5 text-left hover:border-orange-300 hover:shadow-sm transition-all group">
-              <div className="flex items-center gap-3 mb-3">
-                <FolderOpen className="w-8 h-8 text-orange-400 group-hover:text-orange-600" />
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-semibold text-gray-900 truncate">{f.project}</p>
-                  <p className="text-xs text-gray-400">{f.count} files</p>
-                </div>
-                <ChevronRight className="w-4 h-4 text-gray-300 group-hover:text-orange-500" />
-              </div>
-              <p className="text-xs text-gray-400">Last modified: {f.lastModified}</p>
-            </button>
-          ))}
-        </div>
-      )}
-
-      {/* File list */}
-      {(view === "all" || selectedProject) && (
-        <div>
-          {selectedProject && (
-            <div className="flex items-center gap-2 mb-3">
-              <button onClick={() => { setView("folders"); setSelectedProject(null); }} className="text-sm text-orange-600 hover:text-orange-700 font-medium">Folders</button>
-              <ChevronRight className="w-4 h-4 text-gray-400" />
-              <span className="text-sm font-medium text-gray-900">{selectedProject}</span>
-            </div>
-          )}
+      <div className="flex gap-5">
+        {/* Folder tree sidebar */}
+        <div className="w-64 flex-shrink-0">
           <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
+            <div className="px-3 py-2.5 border-b border-gray-100 flex items-center justify-between">
+              <span className="text-xs font-semibold text-gray-900 uppercase tracking-wider">Folders</span>
+              <span className="text-[10px] text-gray-400">{projectFolders.length}</span>
+            </div>
+            <div className="p-1.5 max-h-[600px] overflow-y-auto">
+              {folderTree.map(node => renderTreeNode(node))}
+              {folderTree.length === 0 && (
+                <p className="text-xs text-gray-400 text-center py-6">No folders yet</p>
+              )}
+            </div>
+          </div>
+        </div>
+
+        {/* File list */}
+        <div className="flex-1 min-w-0">
+          <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
+            <div className="px-4 py-3 border-b border-gray-100 flex items-center justify-between gap-3">
+              <div className="flex items-center gap-2">
+                <span className="text-sm font-semibold text-gray-900">
+                  {selectedFolderId ? projectFolders.find(f => f.id === selectedFolderId)?.name ?? "Select a folder" : "Select a folder"}
+                </span>
+                {selectedFolderId && (
+                  <span className="text-xs text-gray-400 bg-gray-100 px-2 py-0.5 rounded">{filteredFiles.length} file{filteredFiles.length !== 1 ? "s" : ""}</span>
+                )}
+              </div>
+              <div className="relative w-56">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-400" />
+                <input
+                  value={search}
+                  onChange={e => setSearch(e.target.value)}
+                  placeholder="Search files..."
+                  className="pl-9 pr-4 py-1.5 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-orange-500 w-full"
+                />
+              </div>
+            </div>
             <table className="w-full text-sm">
               <thead className="bg-gray-50 border-b border-gray-200">
                 <tr>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wide">Name</th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wide">Type</th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wide">Size</th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wide">Version</th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wide">Project</th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wide">File Name</th>
+                  <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wide">Version</th>
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wide">Uploaded By</th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wide">Date</th>
-                  <th className="px-4 py-3 w-20" />
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wide">Uploaded Date</th>
+                  <th className="px-4 py-3 w-24" />
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100">
-                {displayed.map(d => (
-                  <tr key={d.id} className="hover:bg-gray-50">
+                {filteredFiles.map(f => (
+                  <tr key={f.id} className="hover:bg-gray-50 group">
                     <td className="px-4 py-3">
                       <div className="flex items-center gap-2">
-                        <span className="text-lg leading-none">{typeIcon[d.type] ?? "📁"}</span>
-                        {renameId === d.id ? (
-                          <form onSubmit={e => { e.preventDefault(); confirmRename(d.id); }} className="flex items-center gap-1">
-                            <input
-                              autoFocus
-                              value={renameName}
-                              onChange={e => setRenameName(e.target.value)}
-                              className="border border-orange-400 rounded px-2 py-0.5 text-sm focus:outline-none focus:ring-1 focus:ring-orange-500 w-48"
-                            />
-                            <button type="submit" className="text-xs text-orange-600 font-medium hover:text-orange-700 px-1">OK</button>
-                            <button type="button" onClick={() => setRenameId(null)} className="text-xs text-gray-400 hover:text-gray-600 px-1">×</button>
-                          </form>
-                        ) : (
-                          <span className="font-medium text-gray-900">{d.name}</span>
-                        )}
+                        <FileText className="w-4 h-4 text-gray-400 flex-shrink-0" />
+                        <span className="font-medium text-gray-900">{f.name}</span>
                       </div>
                     </td>
-                    <td className="px-4 py-3">
-                      <span className={`text-xs px-1.5 py-0.5 rounded font-mono font-medium ${typeColor[d.type] ?? "bg-gray-100 text-gray-600"}`}>{d.type}</span>
+                    <td className="px-4 py-3 text-center">
+                      <span className="text-xs bg-orange-50 text-orange-700 px-2 py-0.5 rounded font-mono font-medium">v{f.version}</span>
                     </td>
-                    <td className="px-4 py-3 text-sm text-gray-500">{d.size}</td>
-                    <td className="px-4 py-3 text-xs text-blue-600 font-medium">{d.version}</td>
-                    <td className="px-4 py-3 text-xs text-gray-500 truncate max-w-[160px]">{d.project}</td>
-                    <td className="px-4 py-3 text-sm text-gray-500">{d.uploadedBy}</td>
-                    <td className="px-4 py-3 text-sm text-gray-400">{d.date}</td>
+                    <td className="px-4 py-3 text-sm text-gray-600">{f.uploadedBy}</td>
+                    <td className="px-4 py-3 text-sm text-gray-400">{fmtDate(f.uploadedAt)}</td>
                     <td className="px-4 py-3">
                       <div className="flex items-center gap-1">
-                        <button onClick={() => showToast(`Previewing "${d.name}"…`)} className="p-1 rounded hover:bg-gray-200 text-gray-400" title="Preview"><Eye className="w-3.5 h-3.5" /></button>
-                        <button onClick={() => showToast(`Downloading "${d.name}"…`)} className="p-1 rounded hover:bg-gray-200 text-gray-400" title="Download"><Download className="w-3.5 h-3.5" /></button>
+                        <button
+                          onClick={() => showToast(`Downloading "${f.name}"…`)}
+                          className="p-1.5 rounded hover:bg-gray-100 text-gray-400 hover:text-gray-600"
+                          title="Download"
+                        >
+                          <Download className="w-3.5 h-3.5" />
+                        </button>
                         <div className="relative">
-                          <button onClick={() => setOpenMenu(openMenu === d.id ? null : d.id)} className="p-1 rounded hover:bg-gray-200 text-gray-400">
+                          <button
+                            onClick={() => setOpenMenu(openMenu === f.id ? null : f.id)}
+                            className="p-1.5 rounded hover:bg-gray-100 text-gray-400 hover:text-gray-600"
+                          >
                             <MoreHorizontal className="w-3.5 h-3.5" />
                           </button>
-                          {openMenu === d.id && (
-                            <div className="absolute right-0 top-full mt-1 w-36 bg-white border border-gray-200 rounded-lg shadow-lg z-10 py-1" onMouseLeave={() => setOpenMenu(null)}>
-                              <button onClick={() => { setRenameId(d.id); setRenameName(d.name); setOpenMenu(null); }} className="flex items-center gap-2 w-full px-3 py-2 text-sm text-gray-700 hover:bg-gray-50"><Edit className="w-3.5 h-3.5" /> Rename</button>
+                          {openMenu === f.id && (
+                            <div className="absolute right-0 top-full mt-1 w-40 bg-white border border-gray-200 rounded-lg shadow-lg z-10 py-1">
+                              <button
+                                onClick={() => { handleRenameFile(f.id); }}
+                                className="flex items-center gap-2 w-full px-3 py-2 text-sm text-gray-700 hover:bg-gray-50"
+                              >
+                                <Edit className="w-3.5 h-3.5" /> Rename
+                              </button>
+                              <button
+                                onClick={() => { handleReplaceFile(f.id); setOpenMenu(null); }}
+                                className="flex items-center gap-2 w-full px-3 py-2 text-sm text-gray-700 hover:bg-gray-50"
+                              >
+                                <RefreshCw className="w-3.5 h-3.5" /> Replace
+                              </button>
                               <hr className="my-1 border-gray-100" />
-                              <button onClick={() => { setDeleteId(d.id); setOpenMenu(null); }} className="flex items-center gap-2 w-full px-3 py-2 text-sm text-red-600 hover:bg-red-50"><Trash2 className="w-3.5 h-3.5" /> Delete</button>
+                              <button
+                                onClick={() => handleDeleteFile(f.id)}
+                                className="flex items-center gap-2 w-full px-3 py-2 text-sm text-red-600 hover:bg-red-50"
+                              >
+                                <Trash2 className="w-3.5 h-3.5" /> Delete
+                              </button>
                             </div>
                           )}
                         </div>
@@ -230,38 +327,78 @@ export function DocumentsPage() {
                     </td>
                   </tr>
                 ))}
+                {!selectedFolderId && (
+                  <tr>
+                    <td colSpan={5} className="px-4 py-12 text-center">
+                      <FolderOpen className="w-8 h-8 text-gray-300 mx-auto mb-2" />
+                      <p className="text-sm text-gray-500">Select a folder to view files</p>
+                    </td>
+                  </tr>
+                )}
+                {selectedFolderId && filteredFiles.length === 0 && (
+                  <tr>
+                    <td colSpan={5} className="px-4 py-12 text-center">
+                      <FileText className="w-8 h-8 text-gray-300 mx-auto mb-2" />
+                      <p className="text-sm text-gray-500">No files in this folder</p>
+                      <button
+                        onClick={() => fileRef.current?.click()}
+                        className="mt-2 text-sm text-orange-600 font-medium hover:text-orange-700"
+                      >
+                        Upload a file →
+                      </button>
+                    </td>
+                  </tr>
+                )}
               </tbody>
             </table>
-            {displayed.length === 0 && (
-              <div className="py-12 text-center">
-                <FileText className="w-8 h-8 text-gray-300 mx-auto mb-2" />
-                <p className="text-sm text-gray-500">No documents found</p>
-              </div>
-            )}
+          </div>
+
+          {/* Version history hint */}
+          {selectedFolderId && filteredFiles.some(f => f.version > 1) && (
+            <div className="mt-3 bg-orange-50 border border-orange-200 rounded-lg p-3">
+              <p className="text-xs text-orange-700">
+                <strong>Version history:</strong> Files with version &gt; 1 have previous versions. Click Replace to upload a new version.
+              </p>
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* New Folder Modal */}
+      {showNewFolder && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl shadow-2xl max-w-sm w-full p-6">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-base font-semibold text-gray-900">New Folder</h3>
+              <button onClick={() => { setShowNewFolder(false); setNewFolderName(""); }} className="text-gray-400 hover:text-gray-600">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            <div className="mb-4">
+              <label className="block text-sm font-medium text-gray-700 mb-1">Folder Name</label>
+              <input
+                value={newFolderName}
+                onChange={e => setNewFolderName(e.target.value)}
+                placeholder="e.g. Structural Drawings"
+                className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange-500"
+                autoFocus
+                onKeyDown={e => e.key === "Enter" && handleCreateFolder()}
+              />
+              {selectedFolderId && (
+                <p className="text-xs text-gray-400 mt-1.5">
+                  Will be created inside: <strong>{projectFolders.find(f => f.id === selectedFolderId)?.name ?? "root"}</strong>
+                </p>
+              )}
+            </div>
+            <div className="flex justify-end gap-3">
+              <button onClick={() => { setShowNewFolder(false); setNewFolderName(""); }} className="px-4 py-2 border border-gray-300 rounded-md text-sm text-gray-700 hover:bg-gray-50">Cancel</button>
+              <button onClick={handleCreateFolder} disabled={!newFolderName.trim()} className="px-4 py-2 bg-orange-600 text-white rounded-md text-sm font-medium hover:bg-orange-700 disabled:opacity-40">Create</button>
+            </div>
           </div>
         </div>
       )}
 
-      {/* Delete Confirmation */}
-      {deleteId && deleteDoc && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-xl shadow-2xl max-w-sm w-full p-6">
-            <div className="flex items-start gap-3 mb-4">
-              <div className="flex-shrink-0 w-10 h-10 rounded-full bg-red-100 flex items-center justify-center">
-                <Trash2 className="w-5 h-5 text-red-600" />
-              </div>
-              <div>
-                <h3 className="text-base font-semibold text-gray-900">Delete Document</h3>
-                <p className="text-sm text-gray-500 mt-1">Are you sure you want to delete <span className="font-medium text-gray-700">"{deleteDoc.name}"</span>? This action cannot be undone.</p>
-              </div>
-            </div>
-            <div className="flex justify-end gap-3">
-              <button onClick={() => setDeleteId(null)} className="px-4 py-2 border border-gray-300 rounded-md text-sm text-gray-700 hover:bg-gray-50">Cancel</button>
-              <button onClick={() => handleDelete(deleteId)} className="px-4 py-2 bg-red-600 text-white rounded-md text-sm font-medium hover:bg-red-700">Delete</button>
-            </div>
-          </div>
-        </div>
-      )}
+      {openMenu && <div className="fixed inset-0 z-0" onClick={() => setOpenMenu(null)} />}
     </div>
   );
 }
