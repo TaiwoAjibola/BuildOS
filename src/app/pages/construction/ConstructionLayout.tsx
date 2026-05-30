@@ -77,6 +77,22 @@ export function ConstructionLayout() {
       ],
     },
     {
+      label: "Management",
+      items: [
+        { label: "Schedule", href: "/apps/construction/schedule", icon: <Calendar className="w-4 h-4" />, end: true },
+        { label: "Daily Reports", href: "/apps/construction/daily-reports", icon: <FileText className="w-4 h-4" />, end: true },
+        { label: "Vendors", href: "/apps/construction/vendors", icon: <Truck className="w-4 h-4" />, end: true },
+        { label: "Issues", href: "/apps/construction/issues", icon: <AlertTriangle className="w-4 h-4" />, end: true },
+        { label: "Change Requests", href: "/apps/construction/change-requests", icon: <GitCompare className="w-4 h-4" />, end: true },
+        { label: "Delays", href: "/apps/construction/delays", icon: <Clock className="w-4 h-4" />, end: true },
+        { label: "Quality", href: "/apps/construction/quality", icon: <CheckSquare className="w-4 h-4" />, end: true },
+        { label: "HSE", href: "/apps/construction/hse", icon: <ShieldCheck className="w-4 h-4" />, end: true },
+        { label: "Documents", href: "/apps/construction/documents", icon: <FolderKanban className="w-4 h-4" />, end: true },
+        { label: "Costs", href: "/apps/construction/costs", icon: <FileSpreadsheet className="w-4 h-4" />, end: true },
+        { label: "Stakeholders", href: "/apps/construction/stakeholders", icon: <Briefcase className="w-4 h-4" />, end: true },
+      ],
+    },
+    {
       label: "Resources",
       items: [
         { label: "Resources", href: "/apps/construction/resources", icon: <Users className="w-4 h-4" />, end: true },

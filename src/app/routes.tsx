@@ -16,18 +16,29 @@ import { ConstructionLayout } from "./pages/construction/ConstructionLayout";
 import { PortfolioDashboardPage } from "./pages/construction/PortfolioDashboardPage";
 import { ProjectsListPage } from "./pages/construction/ProjectsListPage";
 import { ProjectOverviewPage } from "./pages/construction/ProjectOverviewPage";
+import { ScheduleOverviewPage } from "./pages/construction/ScheduleOverviewPage";
 import { SchedulePage } from "./pages/construction/SchedulePage";
+import { DailyReportsOverviewPage } from "./pages/construction/DailyReportsOverviewPage";
 import { DailyReportsPage } from "./pages/construction/DailyReportsPage";
 import { DailyReportFormPage } from "./pages/construction/DailyReportFormPage";
+import { VendorsOverviewPage } from "./pages/construction/VendorsOverviewPage";
 import { VendorsPage } from "./pages/construction/VendorsPage";
 import { VendorDetailPage } from "./pages/construction/VendorDetailPage";
+import { IssuesOverviewPage } from "./pages/construction/IssuesOverviewPage";
 import { IssuesPage } from "./pages/construction/IssuesPage";
+import { ChangeRequestsOverviewPage } from "./pages/construction/ChangeRequestsOverviewPage";
 import { ChangeRequestsPage } from "./pages/construction/ChangeRequestsPage";
+import { DelaysOverviewPage } from "./pages/construction/DelaysOverviewPage";
 import { DelaysPage } from "./pages/construction/DelaysPage";
+import { QualityOverviewPage } from "./pages/construction/QualityOverviewPage";
 import { QualityPage } from "./pages/construction/QualityPage";
+import { HSEOverviewPage } from "./pages/construction/HSEOverviewPage";
 import { HSEPage } from "./pages/construction/HSEPage";
+import { DocumentsOverviewPage } from "./pages/construction/DocumentsOverviewPage";
 import { DocumentsPage } from "./pages/construction/DocumentsPage";
+import { CostsOverviewPage } from "./pages/construction/CostsOverviewPage";
 import { CostsPage } from "./pages/construction/CostsPage";
+import { StakeholdersOverviewPage } from "./pages/construction/StakeholdersOverviewPage";
 import { StakeholdersPage } from "./pages/construction/StakeholdersPage";
 import { ResourcesPage } from "./pages/construction/ResourcesPage";
 import { ReportsPage } from "./pages/construction/ReportsPage";
@@ -182,6 +193,17 @@ export const router = createBrowserRouter([
             children: [
               { index: true, Component: ProjectsListPage },
               { path: "dashboard", Component: PortfolioDashboardPage },
+              { path: "schedule", Component: ScheduleOverviewPage },
+              { path: "daily-reports", Component: DailyReportsOverviewPage },
+              { path: "vendors", Component: VendorsOverviewPage },
+              { path: "issues", Component: IssuesOverviewPage },
+              { path: "change-requests", Component: ChangeRequestsOverviewPage },
+              { path: "delays", Component: DelaysOverviewPage },
+              { path: "quality", Component: QualityOverviewPage },
+              { path: "hse", Component: HSEOverviewPage },
+              { path: "documents", Component: DocumentsOverviewPage },
+              { path: "costs", Component: CostsOverviewPage },
+              { path: "stakeholders", Component: StakeholdersOverviewPage },
               { path: "reports", Component: ReportsPage },
               { path: "resources", Component: ResourcesPage },
               { path: "settings", Component: SettingsPage },
