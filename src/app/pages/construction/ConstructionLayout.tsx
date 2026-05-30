@@ -1,10 +1,10 @@
-import { Outlet, useParams, useLocation, NavLink } from "react-router";
+import { Outlet, useParams, NavLink } from "react-router";
 import { AppHeader } from "../../components/AppHeader";
 import { CollapsibleSidebar } from "../../components/CollapsibleSidebar";
 import type { SidebarSection } from "../../components/CollapsibleSidebar";
 import { getProjectById } from "./mockData";
 import {
-  LayoutDashboard, FolderKanban, Users, ShoppingCart, BarChart3, Settings,
+  LayoutDashboard, FolderKanban, Users, BarChart3, Settings,
   ClipboardList, Calendar, FileText, Truck, AlertTriangle, GitCompare,
   Clock, CheckSquare, ShieldCheck, FileSpreadsheet, Briefcase,
 } from "lucide-react";
@@ -12,7 +12,6 @@ import {
 function ProjectSidebarSection({ projectId }: { projectId: string }) {
   const project = getProjectById(projectId);
   if (!project) return null;
-  const location = useLocation();
 
   const subTabs = [
     { label: "Overview", href: `/apps/construction/projects/${projectId}/overview`, icon: <ClipboardList className="w-4 h-4" /> },
@@ -30,13 +29,16 @@ function ProjectSidebarSection({ projectId }: { projectId: string }) {
   ];
 
   return (
-    <div className="mb-1">
+    <div className="mt-2 mb-1 border-t border-slate-700/50 pt-2">
       <div className="px-2 py-1.5">
-        <p className="text-[10px] font-semibold text-amber-400 uppercase tracking-widest">{project.name}</p>
-        <p className="text-[10px] text-slate-500 mt-0.5">{project.client}</p>
+        <div className="flex items-center gap-1.5">
+          <FolderKanban className="w-3.5 h-3.5 text-amber-400" />
+          <p className="text-[10px] font-semibold text-amber-400 uppercase tracking-widest truncate">{project.name}</p>
+        </div>
+        <p className="text-[10px] text-slate-500 mt-0.5 truncate">{project.client}</p>
       </div>
       <div className="space-y-0.5">
-        {subTabs.map(tab => (
+        {subTabs.map((tab) => (
           <NavLink
             key={tab.href}
             to={tab.href}
@@ -50,7 +52,7 @@ function ProjectSidebarSection({ projectId }: { projectId: string }) {
             }
           >
             {tab.icon}
-            {tab.label}
+            <span className="truncate">{tab.label}</span>
           </NavLink>
         ))}
       </div>
@@ -60,7 +62,6 @@ function ProjectSidebarSection({ projectId }: { projectId: string }) {
 
 export function ConstructionLayout() {
   const { id } = useParams();
-  const location = useLocation();
 
   const baseSections: SidebarSection[] = [
     {
@@ -79,12 +80,6 @@ export function ConstructionLayout() {
       label: "Resources",
       items: [
         { label: "Resources", href: "/apps/construction/resources", icon: <Users className="w-4 h-4" />, end: true },
-      ],
-    },
-    {
-      label: "Links",
-      items: [
-        { label: "Procurement", href: "/apps/procurement", icon: <ShoppingCart className="w-4 h-4" />, end: true },
       ],
     },
     {
