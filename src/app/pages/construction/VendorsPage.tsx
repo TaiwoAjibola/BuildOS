@@ -1,7 +1,7 @@
 import { useParams, useNavigate } from "react-router";
 import { useState } from "react";
 import { Truck, Plus, Search, Filter, Eye, Award, CheckCircle, XCircle, Users, DollarSign, Briefcase, Package } from "lucide-react";
-import { getVendorsByProject, getProjectById, getTasksByProject, fmtCurrency } from "./mockData";
+import { getVendorsByProject, getProjectById, getTasksByProject, fmtCurrency, vendors as allVendors } from "./mockData";
 import type { Vendor, Task } from "./types";
 
 const statusStyles: Record<string, { badge: string; label: string }> = {
@@ -39,6 +39,7 @@ export function VendorsPage() {
   const [contractFilter, setContractFilter] = useState("All");
   const [showAddModal, setShowAddModal] = useState(false);
   const [form, setForm] = useState(emptyVendor);
+  const [selectedVendorId, setSelectedVendorId] = useState("");
   const [showFilters, setShowFilters] = useState(false);
   const [showAssignModal, setShowAssignModal] = useState(false);
   const [assignVendor, setAssignVendor] = useState<Vendor | null>(null);
@@ -65,6 +66,7 @@ export function VendorsPage() {
     vendors.push(newVendor);
     setShowAddModal(false);
     setForm(emptyVendor);
+    setSelectedVendorId("");
   }
 
   function openAssignModal(vendor: Vendor) {
@@ -84,6 +86,18 @@ export function VendorsPage() {
     assignVendor.assignedWorkPackages = selectedWorkPackages;
     setShowAssignModal(false);
     setAssignVendor(null);
+  }
+
+  function handleVendorSelect(id: string) {
+    setSelectedVendorId(id);
+    if (id === "" || id === "__new__") {
+      setForm(emptyVendor);
+    } else {
+      const v = allVendors.find(v => v.id === id);
+      if (v) {
+        setForm({ ...form, name: v.name, trade: v.trade, contractType: v.contractType, isNominated: v.isNominated });
+      }
+    }
   }
 
   function contractTypeColor(ct: string) {
@@ -108,7 +122,7 @@ export function VendorsPage() {
           </div>
         </div>
         <button
-          onClick={() => setShowAddModal(true)}
+          onClick={() => { setShowAddModal(true); setForm(emptyVendor); setSelectedVendorId(""); }}
           className="flex items-center gap-2 px-4 py-2 rounded-lg text-white text-sm font-medium"
           style={{ backgroundColor: "#E8973A" }}
         >
@@ -264,6 +278,23 @@ export function VendorsPage() {
               <button onClick={() => setShowAddModal(false)} className="text-gray-400 hover:text-gray-600 text-xl leading-none">&times;</button>
             </div>
             <div className="p-5 space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Select existing vendor</label>
+                <select
+                  value={selectedVendorId}
+                  onChange={e => handleVendorSelect(e.target.value)}
+                  className="w-full px-3 py-2 rounded-lg border text-sm"
+                  style={{ borderColor: "#E2E8F0", backgroundColor: "#F7F8FA" }}
+                >
+                  <option value="">— Select —</option>
+                  {allVendors.map(v => (
+                    <option key={v.id} value={v.id}>
+                      {v.name} — {getProjectById(v.projectId)?.name || v.projectId} ({v.trade})
+                    </option>
+                  ))}
+                  <option value="__new__">Register New Vendor</option>
+                </select>
+              </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Vendor Name</label>
                 <input

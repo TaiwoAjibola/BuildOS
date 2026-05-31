@@ -30,6 +30,21 @@ const statusIcon: Record<string, React.ReactNode> = {
   Closed: <CheckCircle className="w-4 h-4 text-gray-400" />,
 };
 
+const emptyForm = {
+  description: "",
+  reason: "",
+  changeTypes: [] as string[],
+  raisedBy: "Current User",
+  dateRaised: new Date().toISOString().split("T")[0],
+  scopeImpact: "",
+  scheduleImpactDays: 0,
+  costImpact: 0,
+  qualityImpact: "",
+  stakeholderImpact: "",
+  recommendedAction: "",
+  status: "Proposed" as const,
+};
+
 export function ChangeRequestsPage() {
   const { id } = useParams();
   const project = id ? getProjectById(id) : undefined;
@@ -37,6 +52,8 @@ export function ChangeRequestsPage() {
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [selectedCR, setSelectedCR] = useState<ChangeRequest | null>(null);
   const [crStates, setCrStates] = useState<Record<string, ChangeRequest>>({});
+  const [showCreateModal, setShowCreateModal] = useState(false);
+  const [form, setForm] = useState({ ...emptyForm });
 
   const projectCRs = id ? changeRequests.filter(cr => cr.projectId === id) : [];
 
@@ -46,6 +63,55 @@ export function ChangeRequestsPage() {
 
   function updateCR(id: string, updates: Partial<ChangeRequest>) {
     setCrStates(s => ({ ...s, [id]: { ...getCR(changeRequests.find(c => c.id === id)!), ...updates } }));
+  }
+
+  function nextId(): string {
+    const nums = changeRequests.map(cr => parseInt(cr.id.replace("CR-", ""), 10)).filter(n => !isNaN(n));
+    const max = nums.length ? Math.max(...nums) : 0;
+    return `CR-${String(max + 1).padStart(3, "0")}`;
+  }
+
+  function nextCrNumber(): string {
+    const nums = changeRequests.map(cr => parseInt(cr.crNumber.replace("CR-", ""), 10)).filter(n => !isNaN(n));
+    const max = nums.length ? Math.max(...nums) : 0;
+    return `CR-${String(max + 1).padStart(4, "0")}`;
+  }
+
+  function handleCreate() {
+    if (!form.description.trim() || !id) return;
+    const newCR: ChangeRequest = {
+      id: nextId(),
+      projectId: id,
+      crNumber: nextCrNumber(),
+      dateRaised: form.dateRaised,
+      raisedBy: form.raisedBy,
+      changeTypes: form.changeTypes,
+      description: form.description,
+      reason: form.reason,
+      summaryTaskId: "",
+      taskId: "",
+      scopeImpact: form.scopeImpact,
+      scheduleImpactDays: form.scheduleImpactDays,
+      costImpact: form.costImpact,
+      qualityImpact: form.qualityImpact,
+      stakeholderImpact: form.stakeholderImpact,
+      recommendedAction: form.recommendedAction,
+      status: form.status,
+      approverId: null,
+      approvedAt: null,
+      approvalNotes: "",
+    };
+    changeRequests.push(newCR);
+    setCrStates(s => ({ ...s, [newCR.id]: newCR }));
+    setShowCreateModal(false);
+    setForm({ ...emptyForm });
+  }
+
+  function toggleChangeType(t: string) {
+    setForm(f => ({
+      ...f,
+      changeTypes: f.changeTypes.includes(t) ? f.changeTypes.filter(x => x !== t) : [...f.changeTypes, t],
+    }));
   }
 
   const filtered = projectCRs.filter(cr => {
@@ -62,7 +128,7 @@ export function ChangeRequestsPage() {
           <h1 className="text-2xl font-semibold text-gray-900">Change Requests</h1>
           <p className="text-sm text-gray-500 mt-0.5">{project ? `${project.name} — ` : ""}Formally log and approve project deviations</p>
         </div>
-        <button className="flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium text-white hover:opacity-90" style={{ backgroundColor: "#E8973A" }}>
+        <button onClick={() => setShowCreateModal(true)} className="flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium text-white hover:opacity-90" style={{ backgroundColor: "#E8973A" }}>
           <Plus className="w-4 h-4" /> New CR
         </button>
       </div>
@@ -139,6 +205,87 @@ export function ChangeRequestsPage() {
           </div>
         )}
       </div>
+
+      {/* Create Modal */}
+      {showCreateModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" onClick={() => setShowCreateModal(false)}>
+          <div className="bg-white rounded-xl shadow-2xl max-w-2xl w-full max-h-[85vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
+            <div className="sticky top-0 bg-white border-b border-gray-200 px-6 py-4 flex items-center justify-between z-10">
+              <h2 className="text-lg font-semibold text-gray-900">New Change Request</h2>
+              <button onClick={() => setShowCreateModal(false)} className="text-gray-400 hover:text-gray-600 text-xl leading-none">&times;</button>
+            </div>
+            <div className="p-6 space-y-4">
+              <div>
+                <label className="block text-xs font-medium text-gray-500 uppercase tracking-wide mb-1">Description <span className="text-red-500">*</span></label>
+                <textarea value={form.description} onChange={e => setForm(f => ({ ...f, description: e.target.value }))} rows={3} className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2" required />
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-gray-500 uppercase tracking-wide mb-1">Reason</label>
+                <textarea value={form.reason} onChange={e => setForm(f => ({ ...f, reason: e.target.value }))} rows={2} className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2" />
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-gray-500 uppercase tracking-wide mb-1.5">Change Types</label>
+                <div className="flex flex-wrap gap-2">
+                  {["Cost", "Scope", "Schedule", "Design", "Quality"].map(t => (
+                    <label key={t} className="flex items-center gap-1.5 text-sm cursor-pointer">
+                      <input type="checkbox" checked={form.changeTypes.includes(t)} onChange={() => toggleChangeType(t)} className="rounded border-gray-300" />
+                      {t}
+                    </label>
+                  ))}
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-xs font-medium text-gray-500 uppercase tracking-wide mb-1">Raised By</label>
+                  <input value={form.raisedBy} onChange={e => setForm(f => ({ ...f, raisedBy: e.target.value }))} className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2" />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-gray-500 uppercase tracking-wide mb-1">Date Raised</label>
+                  <input type="date" value={form.dateRaised} onChange={e => setForm(f => ({ ...f, dateRaised: e.target.value }))} className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2" />
+                </div>
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-gray-500 uppercase tracking-wide mb-1">Scope Impact</label>
+                <textarea value={form.scopeImpact} onChange={e => setForm(f => ({ ...f, scopeImpact: e.target.value }))} rows={2} className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2" />
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-xs font-medium text-gray-500 uppercase tracking-wide mb-1">Schedule Impact (days)</label>
+                  <input type="number" min="0" value={form.scheduleImpactDays} onChange={e => setForm(f => ({ ...f, scheduleImpactDays: Math.max(0, parseInt(e.target.value) || 0) }))} className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2" />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-gray-500 uppercase tracking-wide mb-1">Cost Impact (₦)</label>
+                  <input type="number" min="0" value={form.costImpact} onChange={e => setForm(f => ({ ...f, costImpact: Math.max(0, parseInt(e.target.value) || 0) }))} className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2" />
+                </div>
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-gray-500 uppercase tracking-wide mb-1">Quality Impact</label>
+                <textarea value={form.qualityImpact} onChange={e => setForm(f => ({ ...f, qualityImpact: e.target.value }))} rows={2} className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2" />
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-gray-500 uppercase tracking-wide mb-1">Stakeholder Impact</label>
+                <textarea value={form.stakeholderImpact} onChange={e => setForm(f => ({ ...f, stakeholderImpact: e.target.value }))} rows={2} className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2" />
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-gray-500 uppercase tracking-wide mb-1">Recommended Action</label>
+                <textarea value={form.recommendedAction} onChange={e => setForm(f => ({ ...f, recommendedAction: e.target.value }))} rows={2} className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2" />
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-gray-500 uppercase tracking-wide mb-1">Status</label>
+                <select value={form.status} onChange={e => setForm(f => ({ ...f, status: e.target.value as ChangeRequest["status"] }))} className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2">
+                  {["Proposed", "Under Review", "Approved", "Rejected", "Implemented", "Closed"].map(s => <option key={s} value={s}>{s}</option>)}
+                </select>
+              </div>
+            </div>
+            <div className="sticky bottom-0 bg-white border-t border-gray-200 px-6 py-4 flex items-center justify-end gap-3">
+              <button onClick={() => setShowCreateModal(false)} className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-md hover:bg-gray-200">Cancel</button>
+              <button onClick={handleCreate} disabled={!form.description.trim()} className="flex items-center gap-1.5 px-4 py-2 rounded-md text-sm font-medium text-white hover:opacity-90 disabled:opacity-50" style={{ backgroundColor: "#E8973A" }}>
+                <Plus className="w-4 h-4" /> Create CR
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Detail Modal */}
       {selectedCR && (() => {

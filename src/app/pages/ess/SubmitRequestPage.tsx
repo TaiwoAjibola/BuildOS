@@ -850,15 +850,25 @@ function IssueForm({ onSuccess }: { onSuccess: (id: string) => void }) {
   );
 }
 
+const changeTypeOptions = ["Cost", "Scope", "Schedule", "Design", "Quality"];
+
 function ChangeRequestForm({ onSuccess }: { onSuccess: (id: string) => void }) {
-  const [form, setForm] = useState({ category: "", currentValue: "", requestedChange: "", notes: "" });
+  const [form, setForm] = useState({
+    category: "", description: "", reason: "", changeTypes: [] as string[],
+    scopeImpact: "", scheduleImpactDays: 0, costImpact: 0,
+    qualityImpact: "", stakeholderImpact: "", recommendedAction: "", notes: "",
+  });
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [attachments, setAttachments] = useState<File[]>([]);
+
+  function toggleChangeType(t: string) {
+    setForm(f => ({ ...f, changeTypes: f.changeTypes.includes(t) ? f.changeTypes.filter(x => x !== t) : [...f.changeTypes, t] }));
+  }
 
   function validate() {
     const e: Record<string, string> = {};
     if (!form.category) e.category = "Select a change category";
-    if (!form.requestedChange.trim()) e.requestedChange = "Describe the requested change";
+    if (!form.description.trim()) e.description = "Describe the change";
     return e;
   }
 
@@ -881,26 +891,78 @@ function ChangeRequestForm({ onSuccess }: { onSuccess: (id: string) => void }) {
         {errors.category && <p className="text-xs text-red-500 mt-1">{errors.category}</p>}
       </div>
       <div>
-        <label className="block text-sm font-medium text-gray-700 mb-1">Current Value <span className="text-gray-400 font-normal">(optional)</span></label>
-        <input value={form.currentValue} onChange={e => setForm(f => ({ ...f, currentValue: e.target.value }))}
-          placeholder="e.g. current bank account number"
-          className="w-full border border-gray-300 rounded-md px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500" />
+        <label className="block text-sm font-medium text-gray-700 mb-1">Description <span className="text-red-500">*</span></label>
+        <textarea value={form.description} onChange={e => { setForm(f => ({ ...f, description: e.target.value })); if (errors.description) setErrors(p => { const x = {...p}; delete x.description; return x; }); }}
+          rows={2} placeholder="Describe the change being requested…"
+          className={`w-full border rounded-md px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500 resize-none ${errors.description ? "border-red-400" : "border-gray-300"}`} />
+        {errors.description && <p className="text-xs text-red-500 mt-1">{errors.description}</p>}
       </div>
       <div>
-        <label className="block text-sm font-medium text-gray-700 mb-1">Requested Change <span className="text-red-500">*</span></label>
-        <textarea value={form.requestedChange} onChange={e => { setForm(f => ({ ...f, requestedChange: e.target.value })); if (errors.requestedChange) setErrors(p => { const x = {...p}; delete x.requestedChange; return x; }); }}
-          rows={3} placeholder="Describe the change you are requesting…"
-          className={`w-full border rounded-md px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500 resize-none ${errors.requestedChange ? "border-red-400" : "border-gray-300"}`} />
-        {errors.requestedChange && <p className="text-xs text-red-500 mt-1">{errors.requestedChange}</p>}
+        <label className="block text-sm font-medium text-gray-700 mb-1">Reason for Change</label>
+        <textarea value={form.reason} onChange={e => setForm(f => ({ ...f, reason: e.target.value }))} rows={2}
+          placeholder="Why is this change needed?"
+          className="w-full border border-gray-300 rounded-md px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500 resize-none" />
       </div>
       <div>
-        <label className="block text-sm font-medium text-gray-700 mb-1">Supporting Notes <span className="text-gray-400 font-normal">(optional)</span></label>
+        <label className="block text-sm font-medium text-gray-700 mb-1">Change Types</label>
+        <div className="flex flex-wrap gap-3">
+          {changeTypeOptions.map(t => (
+            <label key={t} className="flex items-center gap-1.5 text-sm text-gray-700 cursor-pointer">
+              <input type="checkbox" checked={form.changeTypes.includes(t)} onChange={() => toggleChangeType(t)} className="rounded" />
+              {t}
+            </label>
+          ))}
+        </div>
+      </div>
+      <div className="border-t border-gray-100 pt-4">
+        <p className="text-xs font-medium text-gray-500 uppercase tracking-wider mb-3">Impact Assessment</p>
+        <div className="space-y-3">
+          <div>
+            <label className="block text-xs font-medium text-gray-600 mb-1">Scope Impact</label>
+            <textarea value={form.scopeImpact} onChange={e => setForm(f => ({ ...f, scopeImpact: e.target.value }))} rows={1}
+              placeholder="How does this affect scope?"
+              className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500 resize-none" />
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="block text-xs font-medium text-gray-600 mb-1">Schedule Impact (days)</label>
+              <input type="number" value={form.scheduleImpactDays} onChange={e => setForm(f => ({ ...f, scheduleImpactDays: Number(e.target.value) }))}
+                className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500" />
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-gray-600 mb-1">Cost Impact (₦)</label>
+              <input type="number" value={form.costImpact} onChange={e => setForm(f => ({ ...f, costImpact: Number(e.target.value) }))}
+                className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500" />
+            </div>
+          </div>
+          <div>
+            <label className="block text-xs font-medium text-gray-600 mb-1">Quality Impact</label>
+            <textarea value={form.qualityImpact} onChange={e => setForm(f => ({ ...f, qualityImpact: e.target.value }))} rows={1}
+              placeholder="Quality implications?"
+              className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500 resize-none" />
+          </div>
+          <div>
+            <label className="block text-xs font-medium text-gray-600 mb-1">Stakeholder Impact</label>
+            <textarea value={form.stakeholderImpact} onChange={e => setForm(f => ({ ...f, stakeholderImpact: e.target.value }))} rows={1}
+              placeholder="Stakeholder implications?"
+              className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500 resize-none" />
+          </div>
+          <div>
+            <label className="block text-xs font-medium text-gray-600 mb-1">Recommended Action</label>
+            <textarea value={form.recommendedAction} onChange={e => setForm(f => ({ ...f, recommendedAction: e.target.value }))} rows={1}
+              placeholder="What action do you recommend?"
+              className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500 resize-none" />
+          </div>
+        </div>
+      </div>
+      <div>
+        <label className="block text-sm font-medium text-gray-700 mb-1">Additional Notes <span className="text-gray-400 font-normal">(optional)</span></label>
         <textarea value={form.notes} onChange={e => setForm(f => ({ ...f, notes: e.target.value }))} rows={2}
-          placeholder="Any additional context for HR…"
+          placeholder="Any additional context…"
           className="w-full border border-gray-300 rounded-md px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500 resize-none" />
       </div>
       <AttachmentsSection files={attachments} onChange={setAttachments} />
-      <button type="submit" className="w-full bg-teal-600 text-white py-2.5 rounded-md text-sm font-medium hover:bg-teal-700 transition-colors">
+      <button type="submit" className="w-full text-white py-2.5 rounded-md text-sm font-medium transition-colors" style={{ backgroundColor: "#E8973A" }}>
         Submit Change Request
       </button>
     </form>
@@ -1041,11 +1103,11 @@ export function SubmitRequestPage() {
             <div className="bg-gray-50 border border-gray-200 rounded-xl p-4 space-y-3">
               <h3 className="text-sm font-semibold text-gray-800">Change Request</h3>
               <p className="text-xs text-gray-700 leading-relaxed">
-                Request updates to your personal information, bank details, or emergency contacts on record.
+                Submit a formal change request with full impact assessment — scope, schedule, cost, quality, and stakeholder implications.
               </p>
               <ul className="text-xs text-gray-700 space-y-1 list-disc list-inside">
-                <li>Changes are reviewed by HR before applying</li>
-                <li>Bank detail changes require additional verification</li>
+                <li>All change requests are reviewed before approval</li>
+                <li>Include impact assessment for faster processing</li>
                 <li>Upload supporting documents where needed</li>
               </ul>
             </div>

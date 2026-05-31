@@ -3,6 +3,7 @@ import { useState } from "react";
 import { CheckSquare, AlertTriangle, FileText, ClipboardList, Beaker, XCircle, Plus, Eye, User, Calendar } from "lucide-react";
 import { getProjectById, qualityNCRs, fmtDate } from "./mockData";
 import type { QualityNCR } from "./types";
+import type { QualityNCR } from "./types";
 
 type QATab = "compliance" | "inspections" | "ncrs" | "capa" | "schedule";
 
@@ -71,48 +72,68 @@ const yesNoColor: Record<string, string> = {
   "No": "bg-gray-100 text-gray-600",
 };
 
-function NCRModal({ onClose, projectId }: { onClose: () => void; projectId: string }) {
+function NCRModal({ onClose, projectId }: { onClose: (ncr: QualityNCR | null) => void; projectId: string }) {
+  const [form, setForm] = useState({ description: "", taskId: "", raisedBy: "", correctiveAction: "", responsiblePerson: "", targetCloseDate: "" });
+  function handleSubmit() {
+    if (!form.description.trim()) return;
+    const newNcr: QualityNCR = {
+      id: `NCR-${String(qualityNCRs.length + 1).padStart(3, "0")}`,
+      projectId,
+      ncrId: `NCR-${String(qualityNCRs.length + 23).padStart(4, "0")}`,
+      date: new Date().toISOString().split("T")[0],
+      description: form.description,
+      taskId: form.taskId || "WP-001",
+      raisedBy: form.raisedBy || "Current User",
+      correctiveAction: form.correctiveAction,
+      responsiblePerson: form.responsiblePerson,
+      targetCloseDate: form.targetCloseDate,
+      status: "Open",
+    };
+    qualityNCRs.push(newNcr);
+    onClose(newNcr);
+  }
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40" onClick={onClose}>
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40" onClick={() => onClose(null)}>
       <div className="bg-white rounded-lg border border-gray-200 p-6 w-full max-w-lg mx-4 shadow-xl" onClick={e => e.stopPropagation()}>
         <div className="flex items-center justify-between mb-4">
           <h3 className="text-base font-semibold text-gray-900">Raise New NCR</h3>
-          <button onClick={onClose} className="text-gray-400 hover:text-gray-600"><XCircle className="w-5 h-5" /></button>
+          <button onClick={() => onClose(null)} className="text-gray-400 hover:text-gray-600"><XCircle className="w-5 h-5" /></button>
         </div>
         <div className="space-y-4">
           <div>
             <label className="block text-xs font-medium text-gray-600 mb-1">Description</label>
-            <textarea className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange-500" rows={3} placeholder="Describe the non-conformance..." />
+            <textarea value={form.description} onChange={e => setForm({ ...form, description: e.target.value })} className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange-500" rows={3} placeholder="Describe the non-conformance..." />
           </div>
           <div className="grid grid-cols-2 gap-4">
             <div>
               <label className="block text-xs font-medium text-gray-600 mb-1">Work Package</label>
-              <select className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange-500">
+              <select value={form.taskId} onChange={e => setForm({ ...form, taskId: e.target.value })} className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange-500">
+                <option value="">Select</option>
                 <option>WP-001</option><option>WP-002</option><option>WP-003</option><option>WP-004</option><option>WP-005</option>
               </select>
             </div>
             <div>
               <label className="block text-xs font-medium text-gray-600 mb-1">Raised By</label>
-              <input className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange-500" placeholder="Name" />
+              <input value={form.raisedBy} onChange={e => setForm({ ...form, raisedBy: e.target.value })} className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange-500" placeholder="Name" />
             </div>
           </div>
           <div>
             <label className="block text-xs font-medium text-gray-600 mb-1">Corrective Action</label>
-            <input className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange-500" placeholder="Proposed action" />
+            <input value={form.correctiveAction} onChange={e => setForm({ ...form, correctiveAction: e.target.value })} className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange-500" placeholder="Proposed action" />
           </div>
           <div className="grid grid-cols-2 gap-4">
             <div>
               <label className="block text-xs font-medium text-gray-600 mb-1">Responsible Person</label>
-              <input className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange-500" placeholder="Name" />
+              <input value={form.responsiblePerson} onChange={e => setForm({ ...form, responsiblePerson: e.target.value })} className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange-500" placeholder="Name" />
             </div>
             <div>
               <label className="block text-xs font-medium text-gray-600 mb-1">Target Close Date</label>
-              <input type="date" className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange-500" />
+              <input type="date" value={form.targetCloseDate} onChange={e => setForm({ ...form, targetCloseDate: e.target.value })} className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange-500" />
             </div>
           </div>
           <div className="flex justify-end gap-2 pt-2">
-            <button onClick={onClose} className="px-4 py-2 text-sm text-gray-600 border border-gray-300 rounded-md hover:bg-gray-50">Cancel</button>
-            <button className="px-4 py-2 text-sm text-white bg-orange-600 rounded-md hover:bg-orange-700">Submit</button>
+            <button onClick={() => onClose(null)} className="px-4 py-2 text-sm text-gray-600 border border-gray-300 rounded-md hover:bg-gray-50">Cancel</button>
+            <button onClick={handleSubmit} className="px-4 py-2 text-sm text-white bg-orange-600 rounded-md hover:bg-orange-700">Submit</button>
           </div>
         </div>
       </div>
@@ -129,8 +150,10 @@ export function QualityPage() {
   const project = id ? getProjectById(id) : undefined;
   const [activeTab, setActiveTab] = useState<QATab>("compliance");
   const [showNCRModal, setShowNCRModal] = useState(false);
+  const [ncrVersion, setNcrVersion] = useState(0);
 
   const ncrData = qualityNCRs.filter(n => n.projectId === id);
+  void ncrVersion;
 
   return (
     <div className="space-y-5">
@@ -324,7 +347,7 @@ export function QualityPage() {
         </div>
       )}
 
-      {showNCRModal && <NCRModal onClose={() => setShowNCRModal(false)} projectId={id || ""} />}
+      {showNCRModal && <NCRModal onClose={r => { setShowNCRModal(false); if (r) setNcrVersion(v => v + 1); }} projectId={id || ""} />}
     </div>
   );
 }

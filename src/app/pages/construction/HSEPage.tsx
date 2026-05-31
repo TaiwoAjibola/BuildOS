@@ -1,7 +1,7 @@
 import { useParams } from "react-router";
-import { useState } from "react";
-import { ShieldCheck, AlertTriangle, FileText, ClipboardList, Users, BookOpen, Siren, Award, Plus, Eye, Calendar, Search } from "lucide-react";
-import { getProjectById, hseMatrix, fmtDate } from "./mockData";
+import { useState, useCallback } from "react";
+import { ShieldCheck, AlertTriangle, FileText, ClipboardList, Users, BookOpen, Siren, Award, Plus, Eye, Calendar, Search, XCircle } from "lucide-react";
+import { getProjectById, hseMatrix, fmtDate, staffList } from "./mockData";
 
 type HSETab = "toolbox" | "incidents" | "permits" | "audits" | "drills" | "competency";
 
@@ -91,8 +91,60 @@ export function HSEPage() {
   const { id } = useParams();
   const project = id ? getProjectById(id) : undefined;
   const [activeTab, setActiveTab] = useState<HSETab>("toolbox");
+  const [showToolboxModal, setShowToolboxModal] = useState(false);
+  const [showIncidentModal, setShowIncidentModal] = useState(false);
+  const [showPermitModal, setShowPermitModal] = useState(false);
+  const [showAuditModal, setShowAuditModal] = useState(false);
+  const [showDrillModal, setShowDrillModal] = useState(false);
+  const [showCompetencyModal, setShowCompetencyModal] = useState(false);
+  const [localToolboxTalks, setLocalToolboxTalks] = useState(toolboxTalks);
+  const [localIncidents, setLocalIncidents] = useState(incidents);
+  const [localPermits, setLocalPermits] = useState(permits);
+  const [localAudits, setLocalAudits] = useState(audits);
+  const [localDrills, setLocalDrills] = useState(drills);
+  const [localMatrix, setLocalMatrix] = useState(hseMatrix.filter(m => m.projectId === id));
 
-  const matrixData = hseMatrix.filter(m => m.projectId === id);
+  const matrixData = localMatrix;
+  const [tbForm, setTbForm] = useState({ date: "", topic: "", facilitator: "", attendees: "", notes: "" });
+  const [incForm, setIncForm] = useState({ date: "", type: "Near Miss" as string, description: "", person: "", wp: "", rootCause: "", correctiveAction: "", status: "Open" as string });
+  const [permitForm, setPermitForm] = useState({ type: "", issuedTo: "", area: "", dateIssued: "", expiry: "", status: "Active" as string });
+  const [auditForm, setAuditForm] = useState({ date: "", area: "", auditor: "", finding: "", severity: "Low" as string, responsible: "", targetClose: "", status: "Open" as string });
+  const [drillForm, setDrillForm] = useState({ type: "", date: "", participants: "", outcome: "", lessonsLearned: "" });
+  const [compForm, setCompForm] = useState({ staffMember: "", competency: "", dateObtained: "", expiryDate: "", status: "Valid" as string });
+
+  const projectTasks = id ? ["WP-001","WP-002","WP-003","WP-004","WP-005","WP-006","WP-007","WP-008","WP-009","WP-010"] : [];
+
+  function addToolboxTalk() {
+    setLocalToolboxTalks(prev => [...prev, { ...tbForm, date: tbForm.date || new Date().toISOString().split("T")[0] }]);
+    setShowToolboxModal(false);
+    setTbForm({ date: "", topic: "", facilitator: "", attendees: "", notes: "" });
+  }
+  function addIncident() {
+    const newId = `INC-${String(localIncidents.length + 1).padStart(3, "0")}`;
+    setLocalIncidents(prev => [...prev, { id: newId, date: incForm.date || new Date().toISOString().split("T")[0], type: incForm.type as any, description: incForm.description, person: incForm.person, wp: incForm.wp, rootCause: incForm.rootCause, correctiveAction: incForm.correctiveAction, status: incForm.status as any }]);
+    setShowIncidentModal(false);
+    setIncForm({ date: "", type: "Near Miss", description: "", person: "", wp: "", rootCause: "", correctiveAction: "", status: "Open" });
+  }
+  function addPermit() {
+    setLocalPermits(prev => [...prev, { type: permitForm.type, issuedTo: permitForm.issuedTo, area: permitForm.area, dateIssued: permitForm.dateIssued || new Date().toISOString().split("T")[0], expiry: permitForm.expiry, status: permitForm.status as any }]);
+    setShowPermitModal(false);
+    setPermitForm({ type: "", issuedTo: "", area: "", dateIssued: "", expiry: "", status: "Active" });
+  }
+  function addAudit() {
+    setLocalAudits(prev => [...prev, { date: auditForm.date || new Date().toISOString().split("T")[0], area: auditForm.area, auditor: auditForm.auditor, finding: auditForm.finding, severity: auditForm.severity as any, responsible: auditForm.responsible, targetClose: auditForm.targetClose, status: auditForm.status as any }]);
+    setShowAuditModal(false);
+    setAuditForm({ date: "", area: "", auditor: "", finding: "", severity: "Low", responsible: "", targetClose: "", status: "Open" });
+  }
+  function addDrill() {
+    setLocalDrills(prev => [...prev, { type: drillForm.type, date: drillForm.date || new Date().toISOString().split("T")[0], participants: drillForm.participants, outcome: drillForm.outcome, lessonsLearned: drillForm.lessonsLearned }]);
+    setShowDrillModal(false);
+    setDrillForm({ type: "", date: "", participants: "", outcome: "", lessonsLearned: "" });
+  }
+  function addCompetency() {
+    setLocalMatrix(prev => [...prev, { id: `HSE-${String(prev.length + 1).padStart(3, "0")}`, projectId: id || "", staffMember: compForm.staffMember, competency: compForm.competency, dateObtained: compForm.dateObtained, expiryDate: compForm.expiryDate, status: compForm.status as any }]);
+    setShowCompetencyModal(false);
+    setCompForm({ staffMember: "", competency: "", dateObtained: "", expiryDate: "", status: "Valid" });
+  }
 
   return (
     <div className="space-y-5">
@@ -122,7 +174,7 @@ export function HSEPage() {
         <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
           <div className="px-5 py-4 border-b border-gray-100 flex items-center justify-between">
             <h3 className="text-sm font-semibold text-gray-900">Toolbox Talks</h3>
-            <button className="flex items-center gap-1.5 px-3 py-2 bg-orange-600 text-white rounded-md text-sm font-medium hover:bg-orange-700">
+            <button onClick={() => setShowToolboxModal(true)} className="flex items-center gap-1.5 px-3 py-2 bg-orange-600 text-white rounded-md text-sm font-medium hover:bg-orange-700">
               <Plus className="w-3.5 h-3.5" /> Add Talk
             </button>
           </div>
@@ -136,7 +188,7 @@ export function HSEPage() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100">
-                {toolboxTalks.map((t, i) => (
+                {localToolboxTalks.map((t, i) => (
                   <tr key={i} className="hover:bg-gray-50">
                     <td className="px-4 py-3 text-gray-600">{fmtDate(t.date)}</td>
                     <td className="px-4 py-3 text-gray-900 font-medium">{t.topic}</td>
@@ -156,7 +208,7 @@ export function HSEPage() {
         <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
           <div className="px-5 py-4 border-b border-gray-100 flex items-center justify-between">
             <h3 className="text-sm font-semibold text-gray-900">Incident Log</h3>
-            <button className="flex items-center gap-1.5 px-3 py-2 bg-orange-600 text-white rounded-md text-sm font-medium hover:bg-orange-700">
+            <button onClick={() => setShowIncidentModal(true)} className="flex items-center gap-1.5 px-3 py-2 bg-orange-600 text-white rounded-md text-sm font-medium hover:bg-orange-700">
               <Plus className="w-3.5 h-3.5" /> Report Incident
             </button>
           </div>
@@ -170,7 +222,7 @@ export function HSEPage() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100">
-                {incidents.map(inc => (
+                {localIncidents.map(inc => (
                   <tr key={inc.id} className="hover:bg-gray-50">
                     <td className="px-4 py-3 font-mono text-sm text-orange-600 font-medium">{inc.id}</td>
                     <td className="px-4 py-3 text-gray-600">{fmtDate(inc.date)}</td>
@@ -194,7 +246,7 @@ export function HSEPage() {
         <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
           <div className="px-5 py-4 border-b border-gray-100 flex items-center justify-between">
             <h3 className="text-sm font-semibold text-gray-900">Permits to Work</h3>
-            <button className="flex items-center gap-1.5 px-3 py-2 bg-orange-600 text-white rounded-md text-sm font-medium hover:bg-orange-700">
+            <button onClick={() => setShowPermitModal(true)} className="flex items-center gap-1.5 px-3 py-2 bg-orange-600 text-white rounded-md text-sm font-medium hover:bg-orange-700">
               <Plus className="w-3.5 h-3.5" /> Issue Permit
             </button>
           </div>
@@ -208,7 +260,7 @@ export function HSEPage() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100">
-                {permits.map((p, i) => (
+                {localPermits.map((p, i) => (
                   <tr key={i} className="hover:bg-gray-50">
                     <td className="px-4 py-3"><Badge label={p.type} className="bg-blue-50 text-blue-700" /></td>
                     <td className="px-4 py-3 text-gray-900 font-medium">{p.issuedTo}</td>
@@ -229,7 +281,7 @@ export function HSEPage() {
         <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
           <div className="px-5 py-4 border-b border-gray-100 flex items-center justify-between">
             <h3 className="text-sm font-semibold text-gray-900">HSE Audits & Inspections</h3>
-            <button className="flex items-center gap-1.5 px-3 py-2 bg-orange-600 text-white rounded-md text-sm font-medium hover:bg-orange-700">
+            <button onClick={() => setShowAuditModal(true)} className="flex items-center gap-1.5 px-3 py-2 bg-orange-600 text-white rounded-md text-sm font-medium hover:bg-orange-700">
               <Plus className="w-3.5 h-3.5" /> New Audit
             </button>
           </div>
@@ -243,7 +295,7 @@ export function HSEPage() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100">
-                {audits.map((a, i) => (
+                {localAudits.map((a, i) => (
                   <tr key={i} className="hover:bg-gray-50">
                     <td className="px-4 py-3 text-gray-600">{fmtDate(a.date)}</td>
                     <td className="px-4 py-3 text-gray-900 font-medium">{a.area}</td>
@@ -266,7 +318,7 @@ export function HSEPage() {
         <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
           <div className="px-5 py-4 border-b border-gray-100 flex items-center justify-between">
             <h3 className="text-sm font-semibold text-gray-900">Emergency Drills</h3>
-            <button className="flex items-center gap-1.5 px-3 py-2 bg-orange-600 text-white rounded-md text-sm font-medium hover:bg-orange-700">
+            <button onClick={() => setShowDrillModal(true)} className="flex items-center gap-1.5 px-3 py-2 bg-orange-600 text-white rounded-md text-sm font-medium hover:bg-orange-700">
               <Plus className="w-3.5 h-3.5" /> Schedule Drill
             </button>
           </div>
@@ -280,7 +332,7 @@ export function HSEPage() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100">
-                {drills.map((d, i) => (
+                {localDrills.map((d, i) => (
                   <tr key={i} className="hover:bg-gray-50">
                     <td className="px-4 py-3"><Badge label={d.type} className="bg-purple-50 text-purple-700" /></td>
                     <td className="px-4 py-3 text-gray-600">{fmtDate(d.date)}</td>
@@ -300,7 +352,7 @@ export function HSEPage() {
         <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
           <div className="px-5 py-4 border-b border-gray-100 flex items-center justify-between">
             <h3 className="text-sm font-semibold text-gray-900">HSE Competency Matrix</h3>
-            <button className="flex items-center gap-1.5 px-3 py-2 bg-orange-600 text-white rounded-md text-sm font-medium hover:bg-orange-700">
+            <button onClick={() => setShowCompetencyModal(true)} className="flex items-center gap-1.5 px-3 py-2 bg-orange-600 text-white rounded-md text-sm font-medium hover:bg-orange-700">
               <Plus className="w-3.5 h-3.5" /> Add Record
             </button>
           </div>
@@ -327,6 +379,151 @@ export function HSEPage() {
                 ))}
               </tbody>
             </table>
+          </div>
+        </div>
+      )}
+
+      {/* Toolbox Talk Modal */}
+      {showToolboxModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40" onClick={() => setShowToolboxModal(false)}>
+          <div className="bg-white rounded-xl w-full max-w-md mx-4 p-6 shadow-xl" onClick={e => e.stopPropagation()}>
+            <div className="flex items-center justify-between mb-4"><h3 className="text-base font-semibold text-gray-900">Add Toolbox Talk</h3><button onClick={() => setShowToolboxModal(false)} className="text-gray-400 hover:text-gray-600"><XCircle className="w-5 h-5" /></button></div>
+            <div className="space-y-3">
+              <div><label className="block text-xs font-medium text-gray-600 mb-1">Date</label><input type="date" value={tbForm.date} onChange={e => setTbForm({ ...tbForm, date: e.target.value })} className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm" /></div>
+              <div><label className="block text-xs font-medium text-gray-600 mb-1">Topic</label><input value={tbForm.topic} onChange={e => setTbForm({ ...tbForm, topic: e.target.value })} className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm" placeholder="e.g. Safe Lifting" /></div>
+              <div><label className="block text-xs font-medium text-gray-600 mb-1">Facilitator</label><select value={tbForm.facilitator} onChange={e => setTbForm({ ...tbForm, facilitator: e.target.value })} className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm">{staffList.map(s => <option key={s} value={s}>{s}</option>)}</select></div>
+              <div><label className="block text-xs font-medium text-gray-600 mb-1">Attendees</label><input value={tbForm.attendees} onChange={e => setTbForm({ ...tbForm, attendees: e.target.value })} className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm" placeholder="e.g. 24" /></div>
+              <div><label className="block text-xs font-medium text-gray-600 mb-1">Notes</label><textarea value={tbForm.notes} onChange={e => setTbForm({ ...tbForm, notes: e.target.value })} className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm" rows={2} /></div>
+            </div>
+            <div className="flex justify-end gap-2 mt-4 pt-3 border-t border-gray-100">
+              <button onClick={() => setShowToolboxModal(false)} className="px-4 py-2 text-sm text-gray-600 border border-gray-300 rounded-lg">Cancel</button>
+              <button onClick={addToolboxTalk} className="px-4 py-2 text-sm text-white rounded-lg" style={{ backgroundColor: "#E8973A" }}>Add Talk</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Incident Modal */}
+      {showIncidentModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40" onClick={() => setShowIncidentModal(false)}>
+          <div className="bg-white rounded-xl w-full max-w-lg mx-4 p-6 shadow-xl" onClick={e => e.stopPropagation()}>
+            <div className="flex items-center justify-between mb-4"><h3 className="text-base font-semibold text-gray-900">Report Incident</h3><button onClick={() => setShowIncidentModal(false)} className="text-gray-400 hover:text-gray-600"><XCircle className="w-5 h-5" /></button></div>
+            <div className="space-y-3 max-h-[70vh] overflow-y-auto">
+              <div className="grid grid-cols-2 gap-3">
+                <div><label className="block text-xs font-medium text-gray-600 mb-1">Date</label><input type="date" value={incForm.date} onChange={e => setIncForm({ ...incForm, date: e.target.value })} className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm" /></div>
+                <div><label className="block text-xs font-medium text-gray-600 mb-1">Type</label><select value={incForm.type} onChange={e => setIncForm({ ...incForm, type: e.target.value })} className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm"><option>Near Miss</option><option>First Aid</option><option>LTI</option><option>Fatality</option></select></div>
+              </div>
+              <div><label className="block text-xs font-medium text-gray-600 mb-1">Description</label><textarea value={incForm.description} onChange={e => setIncForm({ ...incForm, description: e.target.value })} className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm" rows={2} /></div>
+              <div className="grid grid-cols-2 gap-3">
+                <div><label className="block text-xs font-medium text-gray-600 mb-1">Person Involved</label><input value={incForm.person} onChange={e => setIncForm({ ...incForm, person: e.target.value })} className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm" /></div>
+                <div><label className="block text-xs font-medium text-gray-600 mb-1">Work Package</label><select value={incForm.wp} onChange={e => setIncForm({ ...incForm, wp: e.target.value })} className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm"><option value="">Select</option>{projectTasks.map(t => <option key={t}>{t}</option>)}</select></div>
+              </div>
+              <div><label className="block text-xs font-medium text-gray-600 mb-1">Root Cause</label><input value={incForm.rootCause} onChange={e => setIncForm({ ...incForm, rootCause: e.target.value })} className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm" /></div>
+              <div><label className="block text-xs font-medium text-gray-600 mb-1">Corrective Action</label><input value={incForm.correctiveAction} onChange={e => setIncForm({ ...incForm, correctiveAction: e.target.value })} className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm" /></div>
+              <div><label className="block text-xs font-medium text-gray-600 mb-1">Status</label><select value={incForm.status} onChange={e => setIncForm({ ...incForm, status: e.target.value })} className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm"><option>Open</option><option>Under Investigation</option><option>Closed</option></select></div>
+            </div>
+            <div className="flex justify-end gap-2 mt-4 pt-3 border-t border-gray-100">
+              <button onClick={() => setShowIncidentModal(false)} className="px-4 py-2 text-sm text-gray-600 border border-gray-300 rounded-lg">Cancel</button>
+              <button onClick={addIncident} className="px-4 py-2 text-sm text-white rounded-lg" style={{ backgroundColor: "#E8973A" }}>Submit</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Permit Modal */}
+      {showPermitModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40" onClick={() => setShowPermitModal(false)}>
+          <div className="bg-white rounded-xl w-full max-w-md mx-4 p-6 shadow-xl" onClick={e => e.stopPropagation()}>
+            <div className="flex items-center justify-between mb-4"><h3 className="text-base font-semibold text-gray-900">Issue Permit</h3><button onClick={() => setShowPermitModal(false)} className="text-gray-400 hover:text-gray-600"><XCircle className="w-5 h-5" /></button></div>
+            <div className="space-y-3">
+              <div className="grid grid-cols-2 gap-3">
+                <div><label className="block text-xs font-medium text-gray-600 mb-1">Permit Type</label><select value={permitForm.type} onChange={e => setPermitForm({ ...permitForm, type: e.target.value })} className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm"><option>Hot Work</option><option>Work at Height</option><option>Excavation</option><option>Confined Space</option></select></div>
+                <div><label className="block text-xs font-medium text-gray-600 mb-1">Issued To</label><input value={permitForm.issuedTo} onChange={e => setPermitForm({ ...permitForm, issuedTo: e.target.value })} className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm" /></div>
+              </div>
+              <div><label className="block text-xs font-medium text-gray-600 mb-1">Area</label><input value={permitForm.area} onChange={e => setPermitForm({ ...permitForm, area: e.target.value })} className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm" /></div>
+              <div className="grid grid-cols-2 gap-3">
+                <div><label className="block text-xs font-medium text-gray-600 mb-1">Date Issued</label><input type="date" value={permitForm.dateIssued} onChange={e => setPermitForm({ ...permitForm, dateIssued: e.target.value })} className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm" /></div>
+                <div><label className="block text-xs font-medium text-gray-600 mb-1">Expiry</label><input type="date" value={permitForm.expiry} onChange={e => setPermitForm({ ...permitForm, expiry: e.target.value })} className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm" /></div>
+              </div>
+              <div><label className="block text-xs font-medium text-gray-600 mb-1">Status</label><select value={permitForm.status} onChange={e => setPermitForm({ ...permitForm, status: e.target.value })} className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm"><option>Active</option><option>Expired</option><option>Closed</option></select></div>
+            </div>
+            <div className="flex justify-end gap-2 mt-4 pt-3 border-t border-gray-100">
+              <button onClick={() => setShowPermitModal(false)} className="px-4 py-2 text-sm text-gray-600 border border-gray-300 rounded-lg">Cancel</button>
+              <button onClick={addPermit} className="px-4 py-2 text-sm text-white rounded-lg" style={{ backgroundColor: "#E8973A" }}>Issue Permit</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Audit Modal */}
+      {showAuditModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40" onClick={() => setShowAuditModal(false)}>
+          <div className="bg-white rounded-xl w-full max-w-md mx-4 p-6 shadow-xl" onClick={e => e.stopPropagation()}>
+            <div className="flex items-center justify-between mb-4"><h3 className="text-base font-semibold text-gray-900">New HSE Audit</h3><button onClick={() => setShowAuditModal(false)} className="text-gray-400 hover:text-gray-600"><XCircle className="w-5 h-5" /></button></div>
+            <div className="space-y-3">
+              <div className="grid grid-cols-2 gap-3">
+                <div><label className="block text-xs font-medium text-gray-600 mb-1">Date</label><input type="date" value={auditForm.date} onChange={e => setAuditForm({ ...auditForm, date: e.target.value })} className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm" /></div>
+                <div><label className="block text-xs font-medium text-gray-600 mb-1">Area</label><input value={auditForm.area} onChange={e => setAuditForm({ ...auditForm, area: e.target.value })} className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm" /></div>
+              </div>
+              <div><label className="block text-xs font-medium text-gray-600 mb-1">Auditor</label><select value={auditForm.auditor} onChange={e => setAuditForm({ ...auditForm, auditor: e.target.value })} className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm">{staffList.map(s => <option key={s} value={s}>{s}</option>)}</select></div>
+              <div><label className="block text-xs font-medium text-gray-600 mb-1">Finding</label><textarea value={auditForm.finding} onChange={e => setAuditForm({ ...auditForm, finding: e.target.value })} className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm" rows={2} /></div>
+              <div className="grid grid-cols-2 gap-3">
+                <div><label className="block text-xs font-medium text-gray-600 mb-1">Severity</label><select value={auditForm.severity} onChange={e => setAuditForm({ ...auditForm, severity: e.target.value })} className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm"><option>Low</option><option>Medium</option><option>High</option></select></div>
+                <div><label className="block text-xs font-medium text-gray-600 mb-1">Responsible</label><input value={auditForm.responsible} onChange={e => setAuditForm({ ...auditForm, responsible: e.target.value })} className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm" /></div>
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div><label className="block text-xs font-medium text-gray-600 mb-1">Target Close</label><input type="date" value={auditForm.targetClose} onChange={e => setAuditForm({ ...auditForm, targetClose: e.target.value })} className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm" /></div>
+                <div><label className="block text-xs font-medium text-gray-600 mb-1">Status</label><select value={auditForm.status} onChange={e => setAuditForm({ ...auditForm, status: e.target.value })} className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm"><option>Open</option><option>In Progress</option><option>Closed</option></select></div>
+              </div>
+            </div>
+            <div className="flex justify-end gap-2 mt-4 pt-3 border-t border-gray-100">
+              <button onClick={() => setShowAuditModal(false)} className="px-4 py-2 text-sm text-gray-600 border border-gray-300 rounded-lg">Cancel</button>
+              <button onClick={addAudit} className="px-4 py-2 text-sm text-white rounded-lg" style={{ backgroundColor: "#E8973A" }}>Submit</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Drill Modal */}
+      {showDrillModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40" onClick={() => setShowDrillModal(false)}>
+          <div className="bg-white rounded-xl w-full max-w-md mx-4 p-6 shadow-xl" onClick={e => e.stopPropagation()}>
+            <div className="flex items-center justify-between mb-4"><h3 className="text-base font-semibold text-gray-900">Schedule Emergency Drill</h3><button onClick={() => setShowDrillModal(false)} className="text-gray-400 hover:text-gray-600"><XCircle className="w-5 h-5" /></button></div>
+            <div className="space-y-3">
+              <div className="grid grid-cols-2 gap-3">
+                <div><label className="block text-xs font-medium text-gray-600 mb-1">Drill Type</label><select value={drillForm.type} onChange={e => setDrillForm({ ...drillForm, type: e.target.value })} className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm"><option>Fire Evacuation</option><option>First Aid Response</option><option>Spill Containment</option><option>Earthquake Drill</option></select></div>
+                <div><label className="block text-xs font-medium text-gray-600 mb-1">Date</label><input type="date" value={drillForm.date} onChange={e => setDrillForm({ ...drillForm, date: e.target.value })} className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm" /></div>
+              </div>
+              <div><label className="block text-xs font-medium text-gray-600 mb-1">Participants</label><input value={drillForm.participants} onChange={e => setDrillForm({ ...drillForm, participants: e.target.value })} className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm" placeholder="e.g. 45" /></div>
+              <div><label className="block text-xs font-medium text-gray-600 mb-1">Outcome</label><textarea value={drillForm.outcome} onChange={e => setDrillForm({ ...drillForm, outcome: e.target.value })} className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm" rows={2} /></div>
+              <div><label className="block text-xs font-medium text-gray-600 mb-1">Lessons Learned</label><textarea value={drillForm.lessonsLearned} onChange={e => setDrillForm({ ...drillForm, lessonsLearned: e.target.value })} className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm" rows={2} /></div>
+            </div>
+            <div className="flex justify-end gap-2 mt-4 pt-3 border-t border-gray-100">
+              <button onClick={() => setShowDrillModal(false)} className="px-4 py-2 text-sm text-gray-600 border border-gray-300 rounded-lg">Cancel</button>
+              <button onClick={addDrill} className="px-4 py-2 text-sm text-white rounded-lg" style={{ backgroundColor: "#E8973A" }}>Schedule Drill</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Competency Record Modal */}
+      {showCompetencyModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40" onClick={() => setShowCompetencyModal(false)}>
+          <div className="bg-white rounded-xl w-full max-w-md mx-4 p-6 shadow-xl" onClick={e => e.stopPropagation()}>
+            <div className="flex items-center justify-between mb-4"><h3 className="text-base font-semibold text-gray-900">Add Competency Record</h3><button onClick={() => setShowCompetencyModal(false)} className="text-gray-400 hover:text-gray-600"><XCircle className="w-5 h-5" /></button></div>
+            <div className="space-y-3">
+              <div><label className="block text-xs font-medium text-gray-600 mb-1">Staff Member</label><select value={compForm.staffMember} onChange={e => setCompForm({ ...compForm, staffMember: e.target.value })} className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm">{staffList.map(s => <option key={s} value={s}>{s}</option>)}</select></div>
+              <div><label className="block text-xs font-medium text-gray-600 mb-1">Competency</label><select value={compForm.competency} onChange={e => setCompForm({ ...compForm, competency: e.target.value })} className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm"><option>First Aid at Work</option><option>Fire Marshal Training</option><option>Working at Height</option><option>Confined Space</option><option>IOSH Managing Safely</option><option>NEBOSH Certificate</option></select></div>
+              <div className="grid grid-cols-2 gap-3">
+                <div><label className="block text-xs font-medium text-gray-600 mb-1">Date Obtained</label><input type="date" value={compForm.dateObtained} onChange={e => setCompForm({ ...compForm, dateObtained: e.target.value })} className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm" /></div>
+                <div><label className="block text-xs font-medium text-gray-600 mb-1">Expiry Date</label><input type="date" value={compForm.expiryDate} onChange={e => setCompForm({ ...compForm, expiryDate: e.target.value })} className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm" /></div>
+              </div>
+              <div><label className="block text-xs font-medium text-gray-600 mb-1">Status</label><select value={compForm.status} onChange={e => setCompForm({ ...compForm, status: e.target.value })} className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm"><option>Valid</option><option>Expiring Soon</option><option>Expired</option></select></div>
+            </div>
+            <div className="flex justify-end gap-2 mt-4 pt-3 border-t border-gray-100">
+              <button onClick={() => setShowCompetencyModal(false)} className="px-4 py-2 text-sm text-gray-600 border border-gray-300 rounded-lg">Cancel</button>
+              <button onClick={addCompetency} className="px-4 py-2 text-sm text-white rounded-lg" style={{ backgroundColor: "#E8973A" }}>Add Record</button>
+            </div>
           </div>
         </div>
       )}
