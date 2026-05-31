@@ -34,7 +34,7 @@ const EMPTY_VENDOR_FORM = {
 };
 
 export function ProjectSetupPage() {
-  const { projectId } = useParams<{ projectId: string }>();
+  const { id: projectId } = useParams<{ id: string }>();
   const project = getProjectById(projectId!);
 
   const [currentStep, setCurrentStep] = useState(0);

@@ -89,7 +89,7 @@ function newScopeRow(): DailyScope {
 }
 
 export function DailyReportFormPage() {
-  const { projectId, reportId } = useParams<{ projectId: string; reportId?: string }>();
+  const { id: projectId, reportId } = useParams<{ id: string; reportId?: string }>();
   const navigate = useNavigate();
   const project = getProjectById(projectId || "");
   const projectVendors = getVendorsByProject(projectId || "");

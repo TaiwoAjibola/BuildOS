@@ -28,7 +28,7 @@ const emptyVendor = {
 };
 
 export function VendorsPage() {
-  const { projectId } = useParams<{ projectId: string }>();
+  const { id: projectId } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const project = getProjectById(projectId!);
   const vendors = getVendorsByProject(projectId!);

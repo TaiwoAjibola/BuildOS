@@ -15,7 +15,7 @@ const weatherIcon = (w: string) => {
 };
 
 export function DailyReportsPage() {
-  const { projectId } = useParams<{ projectId: string }>();
+  const { id: projectId } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const project = getProjectById(projectId || "");
   const allReports = getReportsByProject(projectId || "");
