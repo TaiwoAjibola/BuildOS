@@ -5,7 +5,7 @@ import {
   ChevronDown, MoreHorizontal, Eye, Edit, Trash2, Filter,
   FolderKanban, CheckCircle, Clock, XCircle, ArrowUpDown, Building2,
 } from "lucide-react";
-import { projects as mockProjects, fmtCurrency, fmtDate, ragColor, ragLabel, ragBg, ragText } from "./mockData";
+import { projects as mockProjects, fmtCurrency, fmtDate, ragColor, ragLabel, ragBg, ragText, staffList } from "./mockData";
 import type { Project, ContractType } from "./types";
 
 type ProjectStatus = Project["status"];
@@ -28,9 +28,9 @@ function StatusBadge({ status }: { status: ProjectStatus }) {
 
 const DEFAULT_FORM = {
   name: "", client: "", location: "", siteAddress: "", projectManager: "",
-  mainContractor: "", contractType: "Lump Sum" as ContractType,
+  contractType: "Lump Sum" as ContractType,
   plannedStartDate: "", plannedEndDate: "", description: "",
-  blockCount: 0, clusterId: "", budget: 0,
+  blockCount: 0, clusterId: "",
 };
 
 export function ProjectsListPage() {
@@ -302,7 +302,6 @@ export function ProjectsListPage() {
                   location: form.location,
                   client: form.client,
                   projectManager: form.projectManager,
-                  mainContractor: form.mainContractor,
                   contractType: form.contractType,
                   plannedStartDate: form.plannedStartDate,
                   plannedEndDate: form.plannedEndDate,
@@ -311,7 +310,7 @@ export function ProjectsListPage() {
                   clusterId: form.clusterId,
                   status: "Active" as ProjectStatus,
                   ragStatus: "on-track" as const,
-                  budget: form.budget,
+                  budget: 0,
                   spent: 0,
                   createdAt: new Date().toISOString().split("T")[0],
                 };
@@ -336,8 +335,15 @@ export function ProjectsListPage() {
                   </select>
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Location</label>
-                  <input type="text" value={form.location} onChange={e => setForm(f => ({...f, location: e.target.value}))} className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500" placeholder="e.g. Lekki, Lagos" />
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Location *</label>
+                  <input type="text" required value={form.location} onChange={e => setForm(f => ({...f, location: e.target.value}))} className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500" placeholder="e.g. Lekki, Lagos" />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Cluster</label>
+                  <select value={form.clusterId} onChange={e => setForm(f => ({...f, clusterId: e.target.value}))} className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500">
+                    <option value="">Select cluster</option>
+                    {["Lekki-VI", "Ikeja", "Apapa"].map(c => <option key={c} value={c}>{c}</option>)}
+                  </select>
                 </div>
                 <div className="col-span-2">
                   <label className="block text-sm font-medium text-gray-700 mb-1">Site Address</label>
@@ -345,11 +351,14 @@ export function ProjectsListPage() {
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Project Manager *</label>
-                  <input type="text" required value={form.projectManager} onChange={e => setForm(f => ({...f, projectManager: e.target.value}))} className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500" placeholder="PM name" />
+                  <select required value={form.projectManager} onChange={e => setForm(f => ({...f, projectManager: e.target.value}))} className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500">
+                    <option value="">Select PM</option>
+                    {staffList.map(s => <option key={s} value={s}>{s}</option>)}
+                  </select>
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Main Contractor</label>
-                  <input type="text" value={form.mainContractor} onChange={e => setForm(f => ({...f, mainContractor: e.target.value}))} className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500" placeholder="Contractor name" />
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Blocks/Units</label>
+                  <input type="number" value={form.blockCount || ""} onChange={e => setForm(f => ({...f, blockCount: Number(e.target.value)}))} className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500" placeholder="0" />
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Start Date *</label>
@@ -358,18 +367,6 @@ export function ProjectsListPage() {
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">End Date *</label>
                   <input type="date" required value={form.plannedEndDate} onChange={e => setForm(f => ({...f, plannedEndDate: e.target.value}))} className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500" />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Budget (₦)</label>
-                  <input type="number" value={form.budget || ""} onChange={e => setForm(f => ({...f, budget: Number(e.target.value)}))} className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500" placeholder="0" />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Cluster</label>
-                  <input type="text" value={form.clusterId} onChange={e => setForm(f => ({...f, clusterId: e.target.value}))} className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500" placeholder="e.g. Lekki-VI" />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Blocks/Units</label>
-                  <input type="number" value={form.blockCount || ""} onChange={e => setForm(f => ({...f, blockCount: Number(e.target.value)}))} className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500" placeholder="0" />
                 </div>
               </div>
               <div>
