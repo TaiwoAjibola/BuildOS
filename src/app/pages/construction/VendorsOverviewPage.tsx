@@ -85,7 +85,7 @@ export function VendorsOverviewPage() {
                     key={v.id}
                     className="cursor-pointer hover:opacity-80 transition-opacity"
                     style={{ borderBottom: i < filtered.length - 1 ? "1px solid #E2E8F0" : "none" }}
-                    onClick={() => navigate(`/apps/construction/projects/${v.projectId}/vendors/${v.id}`)}
+                    onClick={() => navigate(`/apps/construction/vendors/${v.id}`)}
                   >
                     <td className="px-4 py-3 font-medium" style={{ color: "#1A202C" }}>{v.name}</td>
                     <td className="px-4 py-3" style={{ color: "#718096" }}>{project?.name ?? v.projectId}</td>

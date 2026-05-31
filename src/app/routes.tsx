@@ -25,6 +25,7 @@ import { DailyReportFormPage } from "./pages/construction/DailyReportFormPage";
 import { VendorsOverviewPage } from "./pages/construction/VendorsOverviewPage";
 import { VendorsPage } from "./pages/construction/VendorsPage";
 import { VendorDetailPage } from "./pages/construction/VendorDetailPage";
+import { GlobalVendorDetailPage } from "./pages/construction/GlobalVendorDetailPage";
 import { IssuesOverviewPage } from "./pages/construction/IssuesOverviewPage";
 import { IssuesPage } from "./pages/construction/IssuesPage";
 import { ChangeRequestsOverviewPage } from "./pages/construction/ChangeRequestsOverviewPage";
@@ -199,6 +200,7 @@ export const router = createBrowserRouter([
               { path: "schedule", Component: ScheduleOverviewPage },
               { path: "daily-reports", Component: DailyReportsOverviewPage },
               { path: "vendors", Component: VendorsOverviewPage },
+              { path: "vendors/:vendorId", Component: GlobalVendorDetailPage },
               { path: "issues", Component: IssuesOverviewPage },
               { path: "change-requests", Component: ChangeRequestsOverviewPage },
               { path: "delays", Component: DelaysOverviewPage },

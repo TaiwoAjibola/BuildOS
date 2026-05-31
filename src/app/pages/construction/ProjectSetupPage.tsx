@@ -4,7 +4,7 @@ import {
   CheckCircle, Circle, ArrowRight, ArrowLeft, Lock, Calendar,
   Building2, Users, Layers, FileText, Plus, X, Trash2, ChevronRight, ChevronDown
 } from "lucide-react";
-import { getProjectById, staffList, tradeTypes, clusters, tasks as allTasks, fmtDate } from "./mockData";
+import { getProjectById, staffList, tradeTypes, clusters, tasks as allTasks, fmtDate, vendors as allVendors } from "./mockData";
 import type { Task, Vendor, ProjectCalendar } from "./types";
 
 const STEPS = [
@@ -67,6 +67,9 @@ export function ProjectSetupPage() {
   // Step 3 — Vendor Registration
   const [projectVendors, setProjectVendors] = useState<Vendor[]>([]);
   const [vendorForm, setVendorForm] = useState(EMPTY_VENDOR_FORM);
+  const [selectedExistingVendor, setSelectedExistingVendor] = useState("");
+  const [vendorStageAssignments, setVendorStageAssignments] = useState<Record<string, string[]>>({});
+  const [isNewVendor, setIsNewVendor] = useState(false);
 
   // Step 4 — Calendar
   const emptyCalendar: ProjectCalendar = {
@@ -184,18 +187,70 @@ export function ProjectSetupPage() {
   };
 
   // Vendor helpers
+  const uniqueVendors = useMemo(() => {
+    const seen = new Set<string>();
+    return allVendors.filter(v => {
+      const key = v.name.toLowerCase();
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
+  }, []);
+
+  const handleSelectExistingVendor = (id: string) => {
+    setSelectedExistingVendor(id);
+    if (id === "__new__") {
+      setIsNewVendor(true);
+      setVendorForm(EMPTY_VENDOR_FORM);
+    } else if (id === "") {
+      setIsNewVendor(false);
+      setVendorForm(EMPTY_VENDOR_FORM);
+    } else {
+      setIsNewVendor(false);
+      const v = allVendors.find(v => v.id === id);
+      if (v) {
+        setVendorForm({
+          name: v.name, trade: v.trade, contractType: v.contractType,
+          isNominated: v.isNominated, contractSum: v.contractSum, blockAssignment: v.blockAssignment,
+          skilledCount: v.skilledCount, unskilledCount: v.unskilledCount,
+          mandaysEstimate: v.mandaysEstimate, status: v.status,
+        });
+      }
+    }
+  };
+
+  const toggleStageForVendor = (vendorId: string, stageId: string) => {
+    setVendorStageAssignments(prev => {
+      const current = prev[vendorId] || [];
+      const updated = current.includes(stageId)
+        ? current.filter(s => s !== stageId)
+        : [...current, stageId];
+      return { ...prev, [vendorId]: updated };
+    });
+  };
+
   const addVendor = () => {
     if (!vendorForm.name || !vendorForm.trade) return;
     const newV: Vendor = {
       id: `V-${String(projectVendors.length + 1).padStart(3, "0")}`,
       projectId: projectId!, assignedWorkPackages: [], ...vendorForm,
     };
+    if (!vendorStageAssignments[newV.id]) {
+      setVendorStageAssignments(prev => ({ ...prev, [newV.id]: [] }));
+    }
     setProjectVendors(prev => [...prev, newV]);
     setVendorForm(EMPTY_VENDOR_FORM);
+    setSelectedExistingVendor("");
+    setIsNewVendor(false);
   };
 
   const removeVendor = (id: string) => {
     setProjectVendors(prev => prev.filter(v => v.id !== id));
+    setVendorStageAssignments(prev => {
+      const next = { ...prev };
+      delete next[id];
+      return next;
+    });
   };
 
   // Navigation
@@ -593,163 +648,242 @@ export function ProjectSetupPage() {
     </div>
   );
 
-  // Step 3 — Vendor Registration
-  const renderVendorRegistration = () => (
-    <div className="space-y-4">
-      <div className="rounded-xl border p-6" style={{ borderColor: "#E2E8F0", backgroundColor: "white" }}>
-        <h2 className="text-lg font-bold mb-4" style={{ color: "#1A202C" }}>Register Vendor</h2>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Vendor Name</label>
-            <input
-              type="text" value={vendorForm.name}
-              onChange={e => setVendorForm({ ...vendorForm, name: e.target.value })}
-              className="w-full px-3 py-2 rounded-lg border text-sm"
-              style={{ borderColor: "#E2E8F0", backgroundColor: "#F7F8FA" }}
-              placeholder="e.g. Alhaji Masonry Services"
-            />
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Trade</label>
-            <select
-              value={vendorForm.trade}
-              onChange={e => setVendorForm({ ...vendorForm, trade: e.target.value })}
-              className="w-full px-3 py-2 rounded-lg border text-sm"
-              style={{ borderColor: "#E2E8F0", backgroundColor: "#F7F8FA" }}
-            >
-              <option value="">Select trade</option>
-              {tradeTypes.map(t => <option key={t} value={t}>{t}</option>)}
-            </select>
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Contract Type</label>
-            <select
-              value={vendorForm.contractType}
-              onChange={e => setVendorForm({ ...vendorForm, contractType: e.target.value as Vendor["contractType"] })}
-              className="w-full px-3 py-2 rounded-lg border text-sm"
-              style={{ borderColor: "#E2E8F0", backgroundColor: "#F7F8FA" }}
-            >
-              <option value="Labor-only">Labor-only</option>
-              <option value="Supply & Install">Supply & Install</option>
-              <option value="Nominated Subcontractor">Nominated Subcontractor</option>
-            </select>
-          </div>
-          <div className="flex items-center gap-2 pt-6">
-            <input
-              type="checkbox" id="vendorNominated" checked={vendorForm.isNominated}
-              onChange={e => setVendorForm({ ...vendorForm, isNominated: e.target.checked })}
-              className="rounded" style={{ accentColor: "#E8973A" }}
-            />
-            <label htmlFor="vendorNominated" className="text-sm text-gray-700">Nominated by House</label>
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Contract Sum (₦)</label>
-            <input
-              type="number" value={vendorForm.contractSum}
-              onChange={e => setVendorForm({ ...vendorForm, contractSum: Number(e.target.value) })}
-              className="w-full px-3 py-2 rounded-lg border text-sm"
-              style={{ borderColor: "#E2E8F0", backgroundColor: "#F7F8FA" }}
-            />
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Block Assignment</label>
-            <input
-              type="text" value={vendorForm.blockAssignment}
-              onChange={e => setVendorForm({ ...vendorForm, blockAssignment: e.target.value })}
-              className="w-full px-3 py-2 rounded-lg border text-sm"
-              style={{ borderColor: "#E2E8F0", backgroundColor: "#F7F8FA" }}
-              placeholder="e.g. Tower A"
-            />
-          </div>
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Skilled Workers</label>
-              <input
-                type="number" value={vendorForm.skilledCount}
-                onChange={e => setVendorForm({ ...vendorForm, skilledCount: Number(e.target.value) })}
-                className="w-full px-3 py-2 rounded-lg border text-sm"
-                style={{ borderColor: "#E2E8F0", backgroundColor: "#F7F8FA" }}
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Unskilled Workers</label>
-              <input
-                type="number" value={vendorForm.unskilledCount}
-                onChange={e => setVendorForm({ ...vendorForm, unskilledCount: Number(e.target.value) })}
-                className="w-full px-3 py-2 rounded-lg border text-sm"
-                style={{ borderColor: "#E2E8F0", backgroundColor: "#F7F8FA" }}
-              />
-            </div>
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Man-days Estimate</label>
-            <input
-              type="number" value={vendorForm.mandaysEstimate}
-              onChange={e => setVendorForm({ ...vendorForm, mandaysEstimate: Number(e.target.value) })}
-              className="w-full px-3 py-2 rounded-lg border text-sm"
-              style={{ borderColor: "#E2E8F0", backgroundColor: "#F7F8FA" }}
-            />
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Status</label>
-            <select
-              value={vendorForm.status}
-              onChange={e => setVendorForm({ ...vendorForm, status: e.target.value as Vendor["status"] })}
-              className="w-full px-3 py-2 rounded-lg border text-sm"
-              style={{ borderColor: "#E2E8F0", backgroundColor: "#F7F8FA" }}
-            >
-              <option value="Awarded">Awarded</option>
-              <option value="Active">Active</option>
-              <option value="Completed">Completed</option>
-              <option value="Terminated">Terminated</option>
-            </select>
-          </div>
-        </div>
-        <div className="flex justify-end mt-4">
-          <button
-            onClick={addVendor}
-            className="flex items-center gap-1.5 px-4 py-2 rounded-lg text-white text-sm font-medium"
-            style={{ backgroundColor: "#E8973A" }}
-          >
-            <Plus className="w-4 h-4" /> Register Vendor
-          </button>
-        </div>
-      </div>
+  // Step 3 — Vendor Registration & Stage Assignment
+  const renderVendorRegistration = () => {
+    const stages = projectTasks.filter(t => t.level === 1);
 
-      {/* Registered Vendors List */}
-      {projectVendors.length > 0 && (
-        <div className="rounded-xl border" style={{ borderColor: "#E2E8F0", backgroundColor: "white" }}>
-          <div className="px-5 py-3 border-b" style={{ borderColor: "#E2E8F0" }}>
-            <h3 className="text-sm font-semibold" style={{ color: "#1A202C" }}>
-              Registered Vendors ({projectVendors.length})
-            </h3>
+    return (
+      <div className="space-y-4">
+        <div className="rounded-xl border p-6" style={{ borderColor: "#E2E8F0", backgroundColor: "white" }}>
+          <h2 className="text-lg font-bold mb-4" style={{ color: "#1A202C" }}>
+            {isNewVendor ? "Register New Vendor" : "Select Vendor"}
+          </h2>
+
+          <div className="mb-4">
+            <label className="block text-sm font-medium text-gray-700 mb-1">Choose Vendor</label>
+            <select
+              value={selectedExistingVendor}
+              onChange={e => handleSelectExistingVendor(e.target.value)}
+              className="w-full px-3 py-2 rounded-lg border text-sm"
+              style={{ borderColor: "#E2E8F0", backgroundColor: "#F7F8FA" }}
+            >
+              <option value="">— Select Vendor —</option>
+              {uniqueVendors.map(v => (
+                <option key={v.id} value={v.id}>{v.name} — {v.trade}</option>
+              ))}
+              <option value="__new__">Register New Vendor</option>
+            </select>
           </div>
-          <div className="divide-y" style={{ borderColor: "#E2E8F0" }}>
-            {projectVendors.map(v => (
-              <div key={v.id} className="flex items-center justify-between px-5 py-3 text-sm">
-                <div className="flex items-center gap-3">
-                  <div className="w-8 h-8 rounded-full flex items-center justify-center text-white text-xs font-bold"
-                    style={{ backgroundColor: "#E8973A" }}>
-                    {v.name.charAt(0)}
-                  </div>
-                  <div>
-                    <p className="font-medium text-gray-900">{v.name}</p>
-                    <p className="text-xs text-gray-500">{v.trade} · {v.contractType}</p>
-                  </div>
-                </div>
-                <button
-                  onClick={() => removeVendor(v.id)}
-                  className="p-1.5 rounded-lg hover:bg-red-50 text-red-400 hover:text-red-600 transition-colors"
-                >
-                  <Trash2 className="w-4 h-4" />
-                </button>
+
+          {selectedExistingVendor && (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Vendor Name</label>
+                <input
+                  type="text" value={vendorForm.name}
+                  onChange={e => setVendorForm({ ...vendorForm, name: e.target.value })}
+                  className="w-full px-3 py-2 rounded-lg border text-sm"
+                  style={{ borderColor: "#E2E8F0", backgroundColor: "#F7F8FA" }}
+                  placeholder="e.g. Alhaji Masonry Services"
+                />
               </div>
-            ))}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Trade</label>
+                <select
+                  value={vendorForm.trade}
+                  onChange={e => setVendorForm({ ...vendorForm, trade: e.target.value })}
+                  className="w-full px-3 py-2 rounded-lg border text-sm"
+                  style={{ borderColor: "#E2E8F0", backgroundColor: "#F7F8FA" }}
+                >
+                  <option value="">Select trade</option>
+                  {tradeTypes.map(t => <option key={t} value={t}>{t}</option>)}
+                </select>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Contract Type</label>
+                <select
+                  value={vendorForm.contractType}
+                  onChange={e => setVendorForm({ ...vendorForm, contractType: e.target.value as Vendor["contractType"] })}
+                  className="w-full px-3 py-2 rounded-lg border text-sm"
+                  style={{ borderColor: "#E2E8F0", backgroundColor: "#F7F8FA" }}
+                >
+                  <option value="Labor-only">Labor-only</option>
+                  <option value="Supply & Install">Supply & Install</option>
+                  <option value="Nominated Subcontractor">Nominated Subcontractor</option>
+                </select>
+              </div>
+              <div className="flex items-center gap-2 pt-6">
+                <input
+                  type="checkbox" id="vendorNominated" checked={vendorForm.isNominated}
+                  onChange={e => setVendorForm({ ...vendorForm, isNominated: e.target.checked })}
+                  className="rounded" style={{ accentColor: "#E8973A" }}
+                />
+                <label htmlFor="vendorNominated" className="text-sm text-gray-700">Nominated by House</label>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Contract Sum (₦)</label>
+                <input
+                  type="number" value={vendorForm.contractSum}
+                  onChange={e => setVendorForm({ ...vendorForm, contractSum: Number(e.target.value) })}
+                  className="w-full px-3 py-2 rounded-lg border text-sm"
+                  style={{ borderColor: "#E2E8F0", backgroundColor: "#F7F8FA" }}
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Block Assignment</label>
+                <input
+                  type="text" value={vendorForm.blockAssignment}
+                  onChange={e => setVendorForm({ ...vendorForm, blockAssignment: e.target.value })}
+                  className="w-full px-3 py-2 rounded-lg border text-sm"
+                  style={{ borderColor: "#E2E8F0", backgroundColor: "#F7F8FA" }}
+                  placeholder="e.g. Tower A"
+                />
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Skilled Workers</label>
+                  <input
+                    type="number" value={vendorForm.skilledCount}
+                    onChange={e => setVendorForm({ ...vendorForm, skilledCount: Number(e.target.value) })}
+                    className="w-full px-3 py-2 rounded-lg border text-sm"
+                    style={{ borderColor: "#E2E8F0", backgroundColor: "#F7F8FA" }}
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Unskilled Workers</label>
+                  <input
+                    type="number" value={vendorForm.unskilledCount}
+                    onChange={e => setVendorForm({ ...vendorForm, unskilledCount: Number(e.target.value) })}
+                    className="w-full px-3 py-2 rounded-lg border text-sm"
+                    style={{ borderColor: "#E2E8F0", backgroundColor: "#F7F8FA" }}
+                  />
+                </div>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Man-days Estimate</label>
+                <input
+                  type="number" value={vendorForm.mandaysEstimate}
+                  onChange={e => setVendorForm({ ...vendorForm, mandaysEstimate: Number(e.target.value) })}
+                  className="w-full px-3 py-2 rounded-lg border text-sm"
+                  style={{ borderColor: "#E2E8F0", backgroundColor: "#F7F8FA" }}
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Status</label>
+                <select
+                  value={vendorForm.status}
+                  onChange={e => setVendorForm({ ...vendorForm, status: e.target.value as Vendor["status"] })}
+                  className="w-full px-3 py-2 rounded-lg border text-sm"
+                  style={{ borderColor: "#E2E8F0", backgroundColor: "#F7F8FA" }}
+                >
+                  <option value="Awarded">Awarded</option>
+                  <option value="Active">Active</option>
+                  <option value="Completed">Completed</option>
+                  <option value="Terminated">Terminated</option>
+                </select>
+              </div>
+            </div>
+          )}
+
+          <div className="flex justify-end mt-4">
+            <button
+              onClick={addVendor}
+              disabled={!vendorForm.name || !vendorForm.trade}
+              className="flex items-center gap-1.5 px-4 py-2 rounded-lg text-white text-sm font-medium disabled:opacity-50"
+              style={{ backgroundColor: "#E8973A" }}
+            >
+              <Plus className="w-4 h-4" /> Add to Project
+            </button>
           </div>
         </div>
-      )}
-    </div>
-  );
+
+        {/* Stage Assignment — only after vendors are added */}
+        {projectVendors.length > 0 && stages.length > 0 && (
+          <div className="rounded-xl border p-5" style={{ borderColor: "#E2E8F0", backgroundColor: "white" }}>
+            <h3 className="text-base font-bold mb-4" style={{ color: "#1A202C" }}>Assign Vendors to Schedule Phases</h3>
+            <p className="text-sm text-gray-500 mb-4">For each vendor, select which stages of the schedule they will work on.</p>
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr style={{ backgroundColor: "#F7F8FA", borderBottom: "1px solid #E2E8F0" }}>
+                    <th className="text-left px-3 py-2.5 font-medium text-gray-500">Vendor</th>
+                    {stages.map(s => (
+                      <th key={s.id} className="text-center px-3 py-2.5 font-medium text-gray-500 min-w-[120px]">{s.name}</th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {projectVendors.map(v => (
+                    <tr key={v.id} style={{ borderBottom: "1px solid #E2E8F0" }}>
+                      <td className="px-3 py-2.5 font-medium text-gray-900">{v.name}</td>
+                      {stages.map(s => {
+                        const assigned = vendorStageAssignments[v.id] || [];
+                        const isChecked = assigned.includes(s.id);
+                        return (
+                          <td key={s.id} className="text-center px-3 py-2.5">
+                            <input
+                              type="checkbox"
+                              checked={isChecked}
+                              onChange={() => toggleStageForVendor(v.id, s.id)}
+                              className="w-4 h-4 rounded"
+                              style={{ accentColor: "#E8973A" }}
+                            />
+                          </td>
+                        );
+                      })}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
+
+        {/* Registered Vendors List */}
+        {projectVendors.length > 0 && (
+          <div className="rounded-xl border" style={{ borderColor: "#E2E8F0", backgroundColor: "white" }}>
+            <div className="px-5 py-3 border-b flex items-center justify-between" style={{ borderColor: "#E2E8F0" }}>
+              <h3 className="text-sm font-semibold" style={{ color: "#1A202C" }}>
+                Registered Vendors ({projectVendors.length})
+              </h3>
+            </div>
+            <div className="divide-y" style={{ borderColor: "#E2E8F0" }}>
+              {projectVendors.map(v => {
+                const assignedStages = (vendorStageAssignments[v.id] || [])
+                  .map(sid => stages.find(s => s.id === sid))
+                  .filter(Boolean);
+                return (
+                  <div key={v.id} className="flex items-center justify-between px-5 py-3 text-sm">
+                    <div className="flex items-center gap-3">
+                      <div className="w-8 h-8 rounded-full flex items-center justify-center text-white text-xs font-bold"
+                        style={{ backgroundColor: "#E8973A" }}>
+                        {v.name.charAt(0)}
+                      </div>
+                      <div>
+                        <p className="font-medium text-gray-900">{v.name}</p>
+                        <p className="text-xs text-gray-500">{v.trade} · {v.contractType}</p>
+                        {assignedStages.length > 0 && (
+                          <p className="text-xs text-gray-400 mt-0.5">
+                            Stages: {assignedStages.map(s => s!.name).join(", ")}
+                          </p>
+                        )}
+                      </div>
+                    </div>
+                    <button
+                      onClick={() => removeVendor(v.id)}
+                      className="p-1.5 rounded-lg hover:bg-red-50 text-red-400 hover:text-red-600 transition-colors"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
+      </div>
+    );
+  };
 
   // Step 4 — Calendar
   const renderCalendar = () => (

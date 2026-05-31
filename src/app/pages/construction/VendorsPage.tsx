@@ -242,7 +242,7 @@ export function VendorsPage() {
               </div>
               <div className="flex items-center justify-between">
                 <button
-                  onClick={(e) => { e.stopPropagation(); navigate(`/apps/construction/projects/${vendor.projectId}/vendors/${vendor.id}`); }}
+                  onClick={(e) => { e.stopPropagation(); navigate(`/apps/construction/vendors/${vendor.id}`); }}
                   className="flex items-center gap-1 text-xs hover:underline" style={{ color: "#E8973A" }}
                 >
                   <Eye className="w-3.5 h-3.5" />
