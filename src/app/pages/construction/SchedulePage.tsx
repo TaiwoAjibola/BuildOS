@@ -2,7 +2,7 @@ import { useParams } from "react-router";
 import { useState, useMemo } from "react";
 import { Calendar, ChevronRight, ChevronDown, Plus, Edit, Filter, List, BarChart3, GitBranch, X, Save, ArrowLeft, ArrowRight } from "lucide-react";
 import type { Task } from "./types";
-import { getTasksByProject, getProjectById, fmtDate, ragColor, ragLabel, pctCompleteColor, tasks as allTasks } from "./mockData";
+import { getTasksByProject, getProjectById, getVendorsByProject, fmtDate, ragColor, ragLabel, pctCompleteColor, tasks as allTasks } from "./mockData";
 
 type ViewMode = "list" | "gantt";
 
@@ -554,12 +554,16 @@ function EditTaskPanel({ task, allTasks, onSave, onClose }: { task: Task; allTas
           </div>
           <div>
             <label className="block text-xs font-medium text-gray-500 mb-1">Vendor</label>
-            <input
+            <select
               value={edit.vendorId || ""}
               onChange={e => set("vendorId", e.target.value || null)}
-              placeholder="Vendor ID"
               className="w-full border border-[#E2E8F0] rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#E8973A]"
-            />
+            >
+              <option value="">No vendor assigned</option>
+              {getVendorsByProject(edit.projectId).map(v => (
+                <option key={v.id} value={v.id}>{v.name} — {v.trade}</option>
+              ))}
+            </select>
           </div>
           <div>
             <label className="block text-xs font-medium text-gray-500 mb-1">RAG Status</label>
