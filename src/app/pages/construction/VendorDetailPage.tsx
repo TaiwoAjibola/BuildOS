@@ -1,6 +1,6 @@
 import { useParams, useNavigate } from "react-router";
 import { useState } from "react";
-import { ArrowLeft, Award, CheckCircle, XCircle, AlertTriangle, DollarSign, Users, Briefcase, Calculator } from "lucide-react";
+import { ArrowLeft, Award, CheckCircle, XCircle, AlertTriangle, DollarSign, Users, Briefcase, Calculator, Plus, BadgeCheck, Check } from "lucide-react";
 import { getProjectById, getTasksByProject, vendors, fmtCurrency } from "./mockData";
 import type { Vendor } from "./types";
 
@@ -12,7 +12,8 @@ const statusStyles: Record<string, { badge: string; label: string }> = {
 };
 
 export function VendorDetailPage() {
-  const { projectId, vendorId } = useParams<{ projectId: string; vendorId: string }>();
+  const { id, vendorId } = useParams<{ id: string; vendorId: string }>();
+  const projectId = id;
   const navigate = useNavigate();
   const project = getProjectById(projectId!);
   const vendor = vendors.find(v => v.id === vendorId && v.projectId === projectId);
@@ -30,6 +31,8 @@ export function VendorDetailPage() {
     ratio: number;
     verdict: "within" | "slightly-over" | "significantly-over";
   } | null>(null);
+  const [selectedWPs, setSelectedWPs] = useState<string[]>([]);
+  const [tick, setTick] = useState(0);
 
   if (!vendor) {
     return (
@@ -38,14 +41,24 @@ export function VendorDetailPage() {
           <Briefcase className="w-16 h-16 mx-auto mb-4 opacity-50" />
           <p className="text-xl font-medium">Vendor not found</p>
           <p className="text-sm">The vendor you're looking for doesn't exist in this project.</p>
-          <button
-            onClick={() => navigate(`/apps/construction/projects/${projectId}/vendors`)}
-            className="mt-4 inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium"
-            style={{ backgroundColor: "#E8973A", color: "white" }}
-          >
-            <ArrowLeft className="w-4 h-4" />
-            Back to Vendors
-          </button>
+          <div className="flex items-center justify-center gap-3 mt-4">
+            <button
+              onClick={() => navigate(`/apps/construction/projects/${projectId}/vendors`)}
+              className="inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium border"
+              style={{ borderColor: "#E2E8F0", backgroundColor: "white", color: "#374151" }}
+            >
+              <ArrowLeft className="w-4 h-4" />
+              Back to Vendors
+            </button>
+            <button
+              onClick={() => navigate(`/apps/construction/projects/${projectId}/vendors`)}
+              className="inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium text-white"
+              style={{ backgroundColor: "#E8973A" }}
+            >
+              <Plus className="w-4 h-4" />
+              Create Vendor
+            </button>
+          </div>
         </div>
       </div>
     );
@@ -127,6 +140,20 @@ export function VendorDetailPage() {
             <p className="text-sm text-gray-500">Project: {project?.name || projectId}</p>
           </div>
         </div>
+        {!vendor.isNominated && (
+          <button
+            onClick={() => {
+              vendor.isNominated = true;
+              vendor.contractType = "Nominated Subcontractor";
+              setTick(t => t + 1);
+            }}
+            className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium text-white"
+            style={{ backgroundColor: "#E8973A" }}
+          >
+            <BadgeCheck className="w-4 h-4" />
+            Nominate as Subcontractor
+          </button>
+        )}
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -196,6 +223,61 @@ export function VendorDetailPage() {
               </div>
             )}
           </div>
+
+          {/* Available Work Packages */}
+          {(() => {
+            const allTasks = getTasksByProject(projectId!);
+            const availableWPs = allTasks.filter(t => t.level === 4 && !vendor.assignedWorkPackages.includes(t.id));
+            if (availableWPs.length === 0) return null;
+            return (
+              <div className="rounded-xl border p-5" style={{ borderColor: "#E2E8F0", backgroundColor: "white" }}>
+                <div className="flex items-center gap-2 mb-4">
+                  <Briefcase className="w-4 h-4" style={{ color: "#E8973A" }} />
+                  <h2 className="text-base font-bold text-gray-900">Available Work Packages</h2>
+                </div>
+                <div className="space-y-2 mb-3">
+                  {availableWPs.map(wp => (
+                    <label
+                      key={wp.id}
+                      className="flex items-center gap-3 px-3 py-2 rounded-lg text-sm cursor-pointer"
+                      style={{ backgroundColor: selectedWPs.includes(wp.id) ? "#FFF5E6" : "#F7F8FA" }}
+                    >
+                      <input
+                        type="checkbox"
+                        checked={selectedWPs.includes(wp.id)}
+                        onChange={() =>
+                          setSelectedWPs(prev =>
+                            prev.includes(wp.id) ? prev.filter(x => x !== wp.id) : [...prev, wp.id]
+                          )
+                        }
+                        className="rounded"
+                        style={{ accentColor: "#E8973A" }}
+                      />
+                      <div className="flex items-center gap-2 flex-1">
+                        <div className="w-2 h-2 rounded-full" style={{ backgroundColor: "#E8973A" }} />
+                        <span className="font-medium text-gray-900">{wp.name}</span>
+                        <span className="text-gray-400 text-xs ml-auto">{wp.id}</span>
+                      </div>
+                    </label>
+                  ))}
+                </div>
+                {selectedWPs.length > 0 && (
+                  <button
+                    onClick={() => {
+                      vendor.assignedWorkPackages.push(...selectedWPs);
+                      setSelectedWPs([]);
+                      setTick(t => t + 1);
+                    }}
+                    className="w-full py-2 rounded-lg text-sm font-medium text-white flex items-center justify-center gap-2"
+                    style={{ backgroundColor: "#E8973A" }}
+                  >
+                    <Check className="w-4 h-4" />
+                    Assign {selectedWPs.length} Work Package{selectedWPs.length > 1 ? "s" : ""}
+                  </button>
+                )}
+              </div>
+            );
+          })()}
         </div>
 
         {/* Right Column — Calculator + Contract Summary */}

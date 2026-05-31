@@ -15,6 +15,7 @@ import { AppLauncherPage } from "./pages/AppLauncherPage";
 import { ConstructionLayout } from "./pages/construction/ConstructionLayout";
 import { PortfolioDashboardPage } from "./pages/construction/PortfolioDashboardPage";
 import { ProjectsListPage } from "./pages/construction/ProjectsListPage";
+import { ProjectTabsLayout } from "./pages/construction/ProjectTabsLayout";
 import { ProjectOverviewPage } from "./pages/construction/ProjectOverviewPage";
 import { ScheduleOverviewPage } from "./pages/construction/ScheduleOverviewPage";
 import { SchedulePage } from "./pages/construction/SchedulePage";
@@ -207,22 +208,28 @@ export const router = createBrowserRouter([
               { path: "reports", Component: ReportsPage },
               { path: "resources", Component: ResourcesPage },
               { path: "settings", Component: SettingsPage },
-              { path: "projects/:id", Component: ProjectOverviewPage },
-              { path: "projects/:id/overview", Component: ProjectOverviewPage },
-              { path: "projects/:id/schedule", Component: SchedulePage },
-              { path: "projects/:id/daily-reports", Component: DailyReportsPage },
-              { path: "projects/:id/daily-reports/new", Component: DailyReportFormPage },
-              { path: "projects/:id/daily-reports/:reportId", Component: DailyReportFormPage },
-              { path: "projects/:id/vendors", Component: VendorsPage },
-              { path: "projects/:id/vendors/:vendorId", Component: VendorDetailPage },
-              { path: "projects/:id/issues", Component: IssuesPage },
-              { path: "projects/:id/change-requests", Component: ChangeRequestsPage },
-              { path: "projects/:id/delays", Component: DelaysPage },
-              { path: "projects/:id/quality", Component: QualityPage },
-              { path: "projects/:id/hse", Component: HSEPage },
-              { path: "projects/:id/documents", Component: DocumentsPage },
-              { path: "projects/:id/costs", Component: CostsPage },
-              { path: "projects/:id/stakeholders", Component: StakeholdersPage },
+              {
+                path: "projects/:id",
+                Component: ProjectTabsLayout,
+                children: [
+                  { index: true, Component: ProjectOverviewPage },
+                  { path: "overview", Component: ProjectOverviewPage },
+                  { path: "schedule", Component: SchedulePage },
+                  { path: "daily-reports", Component: DailyReportsPage },
+                  { path: "daily-reports/new", Component: DailyReportFormPage },
+                  { path: "daily-reports/:reportId", Component: DailyReportFormPage },
+                  { path: "vendors", Component: VendorsPage },
+                  { path: "vendors/:vendorId", Component: VendorDetailPage },
+                  { path: "issues", Component: IssuesPage },
+                  { path: "change-requests", Component: ChangeRequestsPage },
+                  { path: "delays", Component: DelaysPage },
+                  { path: "quality", Component: QualityPage },
+                  { path: "hse", Component: HSEPage },
+                  { path: "documents", Component: DocumentsPage },
+                  { path: "costs", Component: CostsPage },
+                  { path: "stakeholders", Component: StakeholdersPage },
+                ],
+              },
             ],
           },
           {

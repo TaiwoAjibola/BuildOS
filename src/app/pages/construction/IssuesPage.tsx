@@ -1,7 +1,7 @@
 import { useParams, useNavigate } from "react-router";
 import { useState } from "react";
 import { AlertTriangle, Plus, Search, Filter, Eye, CheckCircle, Clock, XCircle, Loader2, User, Calendar } from "lucide-react";
-import { getIssuesByProject, getProjectById, fmtDate } from "./mockData";
+import { getIssuesByProject, getProjectById, getTasksByProject, staffList, fmtDate } from "./mockData";
 import type { Issue } from "./types";
 
 function daysOpen(dateRaised: string): number {
@@ -36,6 +36,20 @@ const statusIcon: Record<string, React.ReactNode> = {
 
 const statusTimeline = ["Open", "Under Investigation", "In Progress", "Escalated", "Resolved", "Closed"];
 
+const impactOptions = ["Schedule", "Cost", "Scope", "Quality", "Safety"];
+
+const emptyForm = {
+  title: "",
+  description: "",
+  taskId: "",
+  impactTypes: [] as string[],
+  rootCause: "",
+  targetDate: "",
+  actions: "",
+  ownerId: "",
+  status: "Open" as Issue["status"],
+};
+
 export function IssuesPage() {
   const { id } = useParams();
   const navigate = useNavigate();
@@ -44,6 +58,8 @@ export function IssuesPage() {
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [selectedIssue, setSelectedIssue] = useState<Issue | null>(null);
+  const [showLogModal, setShowLogModal] = useState(false);
+  const [form, setForm] = useState(emptyForm);
 
   const filtered = issues.filter(i => {
     if (search && !i.title.toLowerCase().includes(search.toLowerCase()) && !i.issueNumber.toLowerCase().includes(search.toLowerCase())) return false;
@@ -52,6 +68,41 @@ export function IssuesPage() {
   });
 
   const now = Date.now();
+  const workPackages = id ? getTasksByProject(id).filter(t => t.level === 4) : [];
+
+  function toggleImpact(type: string) {
+    setForm(prev => ({
+      ...prev,
+      impactTypes: prev.impactTypes.includes(type)
+        ? prev.impactTypes.filter(t => t !== type)
+        : [...prev.impactTypes, type],
+    }));
+  }
+
+  function handleLogIssue() {
+    if (!form.title.trim()) return;
+    const newIssue: Issue = {
+      id: `ISS-${String(issues.length + 1).padStart(3, "0")}`,
+      projectId: id!,
+      issueNumber: `ISS-${String(issues.length + 1043).padStart(4, "0")}`,
+      dateRaised: new Date().toISOString().slice(0, 10),
+      raisedBy: "Emeka Okafor",
+      title: form.title,
+      description: form.description,
+      taskId: form.taskId,
+      impactTypes: form.impactTypes,
+      rootCause: form.rootCause,
+      targetDate: form.targetDate,
+      actions: form.actions,
+      ownerId: form.ownerId,
+      status: form.status,
+      resolutionNotes: "",
+      closedAt: null,
+    };
+    issues.push(newIssue);
+    setShowLogModal(false);
+    setForm(emptyForm);
+  }
 
   return (
     <div className="space-y-5">
@@ -60,7 +111,7 @@ export function IssuesPage() {
           <h1 className="text-2xl font-semibold text-gray-900">Issues</h1>
           <p className="text-sm text-gray-500 mt-0.5">{project ? `${project.name} — ` : ""}Log and track project issues</p>
         </div>
-        <button className="flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium text-white hover:opacity-90" style={{ backgroundColor: "#E8973A" }}>
+        <button onClick={() => setShowLogModal(true)} className="flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium text-white hover:opacity-90" style={{ backgroundColor: "#E8973A" }}>
           <Plus className="w-4 h-4" /> Log Issue
         </button>
       </div>
@@ -137,6 +188,147 @@ export function IssuesPage() {
           </div>
         )}
       </div>
+
+      {/* Log Issue Modal */}
+      {showLogModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" onClick={() => setShowLogModal(false)}>
+          <div className="bg-white rounded-xl shadow-2xl max-w-2xl w-full max-h-[85vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
+            <div className="sticky top-0 bg-white border-b border-gray-200 px-6 py-4 flex items-center justify-between z-10">
+              <h2 className="text-lg font-semibold text-gray-900">Log Issue</h2>
+              <button onClick={() => setShowLogModal(false)} className="text-gray-400 hover:text-gray-600 text-xl leading-none">&times;</button>
+            </div>
+
+            <div className="p-6 space-y-5">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Issue Title <span className="text-red-500">*</span></label>
+                <input
+                  type="text" value={form.title}
+                  onChange={e => setForm({ ...form, title: e.target.value })}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2"
+                  placeholder="Brief title of the issue"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Description</label>
+                <textarea
+                  value={form.description}
+                  onChange={e => setForm({ ...form, description: e.target.value })}
+                  rows={3}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 resize-none"
+                  placeholder="Describe the issue in detail"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Work Package Affected</label>
+                <select
+                  value={form.taskId}
+                  onChange={e => setForm({ ...form, taskId: e.target.value })}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2"
+                >
+                  <option value="">Select work package</option>
+                  {workPackages.map(wp => (
+                    <option key={wp.id} value={wp.id}>{wp.name} ({wp.id})</option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Impact Type</label>
+                <div className="flex flex-wrap gap-3">
+                  {impactOptions.map(t => (
+                    <label key={t} className="flex items-center gap-1.5 text-sm cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={form.impactTypes.includes(t)}
+                        onChange={() => toggleImpact(t)}
+                        className="rounded"
+                        style={{ accentColor: "#E8973A" }}
+                      />
+                      {t}
+                    </label>
+                  ))}
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Root Cause</label>
+                <input
+                  type="text" value={form.rootCause}
+                  onChange={e => setForm({ ...form, rootCause: e.target.value })}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2"
+                  placeholder="What caused the issue"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Target Resolution Date</label>
+                <input
+                  type="date" value={form.targetDate}
+                  onChange={e => setForm({ ...form, targetDate: e.target.value })}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Actions Being Taken</label>
+                <textarea
+                  value={form.actions}
+                  onChange={e => setForm({ ...form, actions: e.target.value })}
+                  rows={3}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 resize-none"
+                  placeholder="Describe the actions being taken to resolve this issue"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Resolution Owner</label>
+                  <select
+                    value={form.ownerId}
+                    onChange={e => setForm({ ...form, ownerId: e.target.value })}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2"
+                  >
+                    <option value="">Select owner</option>
+                    {staffList.map(s => (
+                      <option key={s} value={s}>{s}</option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Status</label>
+                  <select
+                    value={form.status}
+                    onChange={e => setForm({ ...form, status: e.target.value as Issue["status"] })}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2"
+                  >
+                    {statusTimeline.map(s => (
+                      <option key={s} value={s}>{s}</option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+            </div>
+
+            <div className="sticky bottom-0 bg-white border-t border-gray-200 px-6 py-4 flex items-center justify-end gap-3">
+              <button
+                onClick={() => { setShowLogModal(false); setForm(emptyForm); }}
+                className="px-4 py-2 border border-gray-300 rounded-md text-sm text-gray-600 hover:bg-gray-50"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleLogIssue}
+                className="px-4 py-2 rounded-md text-sm font-medium text-white hover:opacity-90"
+                style={{ backgroundColor: "#E8973A" }}
+              >
+                Log Issue
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Detail Modal */}
       {selectedIssue && (

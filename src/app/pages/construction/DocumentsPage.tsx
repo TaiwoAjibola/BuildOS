@@ -34,7 +34,7 @@ export function DocumentsPage() {
   const fileRef = useRef<HTMLInputElement>(null);
 
   const [selectedFolderId, setSelectedFolderId] = useState<string | null>(null);
-  const [expandedFolders, setExpandedFolders] = useState<Set<string>>(new Set(["DF-001"]));
+  const [expandedFolders, setExpandedFolders] = useState<Set<string>>(new Set([]));
   const [search, setSearch] = useState("");
   const [showNewFolder, setShowNewFolder] = useState(false);
   const [newFolderName, setNewFolderName] = useState("");
@@ -50,7 +50,6 @@ export function DocumentsPage() {
   const selectedFiles = useMemo(() => {
     if (!selectedFolderId) return [];
     let allFolderIds = [selectedFolderId];
-    const folderMap = new Map(projectFolders.map(f => [f.id, f]));
     const collectChildren = (parentId: string) => {
       projectFolders.filter(f => f.parentFolderId === parentId).forEach(child => {
         allFolderIds.push(child.id);
@@ -153,6 +152,7 @@ export function DocumentsPage() {
       collect(node.id);
       return ids.includes(f.folderId);
     }).length;
+    const folderCount = node.children.length;
 
     return (
       <div key={node.id}>
@@ -179,7 +179,10 @@ export function DocumentsPage() {
             <Folder className="w-4 h-4 text-gray-400 flex-shrink-0" />
           )}
           <span className="truncate flex-1">{node.name}</span>
-          <span className="text-[10px] text-gray-400 opacity-0 group-hover:opacity-100 transition-opacity">{fileCount}</span>
+          <span className="text-[10px] text-gray-400 opacity-0 group-hover:opacity-100 transition-opacity">
+            {folderCount > 0 && `${folderCount} folder${folderCount !== 1 ? "s" : ""} `}{fileCount > 0 && `${fileCount} file${fileCount !== 1 ? "s" : ""}`}
+            {folderCount === 0 && fileCount === 0 && "empty"}
+          </span>
         </div>
         {hasChildren && isExpanded && (
           <div>
@@ -231,7 +234,16 @@ export function DocumentsPage() {
             <div className="p-1.5 max-h-[600px] overflow-y-auto">
               {folderTree.map(node => renderTreeNode(node))}
               {folderTree.length === 0 && (
-                <p className="text-xs text-gray-400 text-center py-6">No folders yet</p>
+                <div className="text-center py-8">
+                  <Folder className="w-8 h-8 text-gray-300 mx-auto mb-2" />
+                  <p className="text-xs text-gray-400 mb-2">No folders yet</p>
+                  <button
+                    onClick={() => setShowNewFolder(true)}
+                    className="text-xs text-orange-600 font-medium hover:text-orange-700"
+                  >
+                    Create first folder →
+                  </button>
+                </div>
               )}
             </div>
           </div>
@@ -388,6 +400,9 @@ export function DocumentsPage() {
                 <p className="text-xs text-gray-400 mt-1.5">
                   Will be created inside: <strong>{projectFolders.find(f => f.id === selectedFolderId)?.name ?? "root"}</strong>
                 </p>
+              )}
+              {!selectedFolderId && (
+                <p className="text-xs text-gray-400 mt-1.5">Will be created at the root level</p>
               )}
             </div>
             <div className="flex justify-end gap-3">

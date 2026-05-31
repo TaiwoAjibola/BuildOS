@@ -6,6 +6,14 @@ import { getTasksByProject, getProjectById, fmtDate, ragColor, ragLabel, pctComp
 
 type ViewMode = "list" | "gantt";
 
+function calcDuration(start: string, end: string): number {
+  if (!start || !end) return 1;
+  const s = new Date(start);
+  const e = new Date(end);
+  const ms = e.getTime() - s.getTime();
+  return Math.max(1, Math.round(ms / (1000 * 60 * 60 * 24)) + 1);
+}
+
 function hasLevel4Descendant(taskId: string, taskList: Task[]): boolean {
   const children = taskList.filter(t => t.parentTaskId === taskId);
   if (children.some(t => t.level === 4)) return true;
@@ -29,6 +37,13 @@ const levelNames: Record<number, string> = {
   2: "Summary Task",
   3: "Sub-summary Task",
   4: "Work Package",
+};
+
+const dependencyLabels: Record<string, string> = {
+  FS: "Finish-to-Start (FS)",
+  FF: "Finish-to-Finish (FF)",
+  SS: "Start-to-Start (SS)",
+  SF: "Start-to-Finish (SF)",
 };
 
 export function SchedulePage() {
@@ -434,7 +449,7 @@ export function SchedulePage() {
 
       {/* Edit Task Side Panel */}
       {sidePanelTask && (
-        <EditTaskPanel task={sidePanelTask} onSave={handleSaveTask} onClose={() => setSelectedTask(null)} />
+        <EditTaskPanel task={sidePanelTask} allTasks={tasks} onSave={handleSaveTask} onClose={() => setSelectedTask(null)} />
       )}
 
       {/* Add Task Modal */}
@@ -450,9 +465,21 @@ export function SchedulePage() {
   );
 }
 
-function EditTaskPanel({ task, onSave, onClose }: { task: Task; onSave: (t: Task) => void; onClose: () => void }) {
+function EditTaskPanel({ task, allTasks, onSave, onClose }: { task: Task; allTasks: Task[]; onSave: (t: Task) => void; onClose: () => void }) {
   const [edit, setEdit] = useState({ ...task });
   const set = (k: keyof Task, v: unknown) => setEdit(prev => ({ ...prev, [k]: v }));
+
+  const level4Tasks = allTasks.filter(t => t.level === 4 && t.id !== task.id);
+
+  function handleDateChange(field: "plannedStart" | "plannedEnd", value: string) {
+    const next = { ...edit, [field]: value };
+    if (next.plannedStart && next.plannedEnd) {
+      next.plannedDuration = calcDuration(next.plannedStart, next.plannedEnd);
+    }
+    setEdit(next);
+  }
+
+  const predTask = edit.predecessorId ? allTasks.find(t => t.id === edit.predecessorId) : null;
 
   return (
     <div className="fixed inset-0 z-50 flex justify-end">
@@ -479,7 +506,7 @@ function EditTaskPanel({ task, onSave, onClose }: { task: Task; onSave: (t: Task
               <input
                 type="date"
                 value={edit.plannedStart}
-                onChange={e => set("plannedStart", e.target.value)}
+                onChange={e => handleDateChange("plannedStart", e.target.value)}
                 className="w-full border border-[#E2E8F0] rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#E8973A]"
               />
             </div>
@@ -488,9 +515,24 @@ function EditTaskPanel({ task, onSave, onClose }: { task: Task; onSave: (t: Task
               <input
                 type="date"
                 value={edit.plannedEnd}
-                onChange={e => set("plannedEnd", e.target.value)}
+                onChange={e => handleDateChange("plannedEnd", e.target.value)}
                 className="w-full border border-[#E2E8F0] rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#E8973A]"
               />
+            </div>
+          </div>
+          <div>
+            <label className="block text-xs font-medium text-gray-500 mb-1">
+              Duration <span className="text-gray-400 font-normal">(auto-calculated)</span>
+            </label>
+            <div className="flex items-center gap-2">
+              <input
+                type="number"
+                min={1}
+                value={edit.plannedDuration}
+                onChange={e => set("plannedDuration", Number(e.target.value))}
+                className="w-20 border border-[#E2E8F0] rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#E8973A]"
+              />
+              <span className="text-sm text-gray-500">days</span>
             </div>
           </div>
           <div>
@@ -536,32 +578,51 @@ function EditTaskPanel({ task, onSave, onClose }: { task: Task; onSave: (t: Task
             </div>
           </div>
           <div>
-            <label className="block text-xs font-medium text-gray-500 mb-1">Predecessor</label>
-            <input
+            <label className="block text-xs font-medium text-gray-500 mb-1">Predecessor Task</label>
+            <select
               value={edit.predecessorId || ""}
               onChange={e => set("predecessorId", e.target.value || null)}
-              placeholder="Task ID"
               className="w-full border border-[#E2E8F0] rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#E8973A]"
-            />
-            {edit.predecessorId && (
-              <p className="text-xs text-gray-400 mt-1">
-                Dependency: {edit.dependencyType || "FS"} / Lag: {edit.lagDays}d
-              </p>
-            )}
+            >
+              <option value="">None</option>
+              {level4Tasks.map(p => (
+                <option key={p.id} value={p.id}>{p.id} — {p.name}</option>
+              ))}
+            </select>
           </div>
-          <div>
-            <label className="block text-xs font-medium text-gray-500 mb-1">Duration</label>
-            <div className="flex items-center gap-2">
-              <input
-                type="number"
-                min={1}
-                value={edit.plannedDuration}
-                onChange={e => set("plannedDuration", Number(e.target.value))}
-                className="w-20 border border-[#E2E8F0] rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#E8973A]"
-              />
-              <span className="text-sm text-gray-500">days</span>
+          {edit.predecessorId && (
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="block text-xs font-medium text-gray-500 mb-1">Dependency Type</label>
+                <select
+                  value={edit.dependencyType || "FS"}
+                  onChange={e => set("dependencyType", e.target.value)}
+                  className="w-full border border-[#E2E8F0] rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#E8973A]"
+                >
+                  <option value="FS">FS</option>
+                  <option value="FF">FF</option>
+                  <option value="SS">SS</option>
+                  <option value="SF">SF</option>
+                </select>
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-gray-500 mb-1">Lag / Lead (days)</label>
+                <input
+                  type="number"
+                  value={edit.lagDays}
+                  onChange={e => set("lagDays", Number(e.target.value))}
+                  className="w-full border border-[#E2E8F0] rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#E8973A]"
+                />
+              </div>
             </div>
-          </div>
+          )}
+          {predTask && (
+            <div className="bg-gray-50 rounded-md p-3 text-xs text-gray-600 space-y-1">
+              <p><span className="font-medium text-gray-700">Predecessor:</span> {predTask.name}</p>
+              <p><span className="font-medium text-gray-700">Dates:</span> {fmtDate(predTask.plannedStart)} → {fmtDate(predTask.plannedEnd)}</p>
+              <p><span className="font-medium text-gray-700">Link:</span> {edit.dependencyType || "FS"} {edit.lagDays !== 0 ? `${edit.lagDays > 0 ? "+" : ""}${edit.lagDays}d` : ""}</p>
+            </div>
+          )}
           <div>
             <label className="block text-xs font-medium text-gray-500 mb-1">Notes</label>
             <textarea
@@ -598,9 +659,17 @@ function AddTaskModal({ projectId, tasks, onSave, onClose }: {
   const [name, setName] = useState("");
   const [level, setLevel] = useState<1 | 2 | 3 | 4>(4);
   const [parentId, setParentId] = useState("");
+  const [plannedStart, setPlannedStart] = useState(new Date().toISOString().split("T")[0]);
+  const [plannedEnd, setPlannedEnd] = useState(new Date(Date.now() + 30 * 86400000).toISOString().split("T")[0]);
+  const [predecessorId, setPredecessorId] = useState("");
+  const [dependencyType, setDependencyType] = useState<"FS" | "FF" | "SS" | "SF" | null>("FS");
+  const [lagDays, setLagDays] = useState(0);
+
+  const duration = calcDuration(plannedStart, plannedEnd);
 
   const levelLabel = levelNames[level];
   const validParents = tasks.filter(t => t.level < level && t.level >= 1);
+  const level4Tasks = tasks.filter(t => t.level === 4);
 
   const maxId = tasks.reduce((max, t) => {
     const num = parseInt(t.id.replace(/^\D+/, ""), 10);
@@ -614,26 +683,22 @@ function AddTaskModal({ projectId, tasks, onSave, onClose }: {
     const prefix = prefixMap[level];
     const newId = `${prefix}-${String(maxId + 1).padStart(3, "0")}`;
 
-    const parent = tasks.find(t => t.id === parentId);
-    const pStart = parent ? parent.plannedStart : new Date().toISOString().split("T")[0];
-    const pEnd = parent ? parent.plannedEnd : new Date(Date.now() + 30 * 86400000).toISOString().split("T")[0];
-
     const newTask: Task = {
       id: newId,
       projectId,
       parentTaskId: parentId || null,
       level,
       name: name.trim(),
-      plannedStart: pStart,
-      plannedEnd: pEnd,
+      plannedStart,
+      plannedEnd,
       actualStart: null,
       actualEnd: null,
-      plannedDuration: 30,
+      plannedDuration: duration,
       actualDuration: null,
       percentComplete: 0,
-      predecessorId: null,
-      dependencyType: null,
-      lagDays: 0,
+      predecessorId: predecessorId || null,
+      dependencyType: predecessorId ? dependencyType : null,
+      lagDays,
       vendorId: null,
       ragStatus: "on-track",
       ragOverride: false,
@@ -644,7 +709,7 @@ function AddTaskModal({ projectId, tasks, onSave, onClose }: {
 
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-xl shadow-2xl max-w-md w-full p-6">
+      <div className="bg-white rounded-xl shadow-2xl max-w-lg w-full p-6">
         <div className="flex items-center justify-between mb-5">
           <h2 className="text-lg font-semibold text-gray-900">Add Task</h2>
           <button onClick={onClose} className="p-1 rounded hover:bg-gray-100 text-gray-400 hover:text-gray-600">
@@ -692,6 +757,89 @@ function AddTaskModal({ projectId, tasks, onSave, onClose }: {
               </select>
             </div>
           )}
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Planned Start</label>
+              <input
+                type="date"
+                value={plannedStart}
+                onChange={e => {
+                  setPlannedStart(e.target.value);
+                  if (e.target.value > plannedEnd) setPlannedEnd(e.target.value);
+                }}
+                className="w-full border border-[#E2E8F0] rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#E8973A]"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Planned End</label>
+              <input
+                type="date"
+                value={plannedEnd}
+                onChange={e => {
+                  setPlannedEnd(e.target.value);
+                  if (e.target.value < plannedStart) setPlannedStart(e.target.value);
+                }}
+                className="w-full border border-[#E2E8F0] rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#E8973A]"
+              />
+            </div>
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Duration <span className="text-gray-400 font-normal">(auto-calculated: {duration} days)</span>
+            </label>
+            <div className="w-full bg-gray-100 rounded-md px-3 py-2 text-sm text-gray-600">
+              {plannedStart} → {plannedEnd} = <strong>{duration} day{duration !== 1 ? "s" : ""}</strong>
+            </div>
+          </div>
+          <div className="border-t border-[#E2E8F0] pt-4">
+            <h3 className="text-sm font-semibold text-gray-700 mb-3">Dependencies</h3>
+            <div className="space-y-3">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Predecessor Task</label>
+                <select
+                  value={predecessorId}
+                  onChange={e => {
+                    setPredecessorId(e.target.value);
+                    if (!e.target.value) setDependencyType(null);
+                    else if (!dependencyType) setDependencyType("FS");
+                  }}
+                  className="w-full border border-[#E2E8F0] rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#E8973A]"
+                >
+                  <option value="">None</option>
+                  {level4Tasks.map(p => (
+                    <option key={p.id} value={p.id}>{p.id} — {p.name}</option>
+                  ))}
+                </select>
+              </div>
+              {predecessorId && (
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Dependency Type</label>
+                    <select
+                      value={dependencyType || "FS"}
+                      onChange={e => setDependencyType(e.target.value as "FS" | "FF" | "SS" | "SF")}
+                      className="w-full border border-[#E2E8F0] rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#E8973A]"
+                    >
+                      <option value="FS">Finish-to-Start (FS)</option>
+                      <option value="FF">Finish-to-Finish (FF)</option>
+                      <option value="SS">Start-to-Start (SS)</option>
+                      <option value="SF">Start-to-Finish (SF)</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Lag / Lead (days)</label>
+                    <input
+                      type="number"
+                      value={lagDays}
+                      onChange={e => setLagDays(Number(e.target.value))}
+                      className="w-full border border-[#E2E8F0] rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#E8973A]"
+                    />
+                    <p className="text-xs text-gray-400 mt-0.5">Positive = lag, negative = lead</p>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
         </div>
         <div className="mt-6 flex gap-3">
           <button

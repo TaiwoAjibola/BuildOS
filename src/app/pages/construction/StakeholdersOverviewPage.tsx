@@ -1,5 +1,5 @@
 import { useNavigate } from "react-router";
-import { Users, Briefcase, ChevronRight, Search, Award } from "lucide-react";
+import { Users, Briefcase, ChevronRight, Search, Award, Plus, X } from "lucide-react";
 import { useState } from "react";
 import { projects, stakeholders } from "./mockData";
 
@@ -9,32 +9,106 @@ const LEVEL_STYLES: Record<string, { bg: string; text: string }> = {
   Low: { bg: "#E8F8EF", text: "#1B7A43" },
 };
 
+const ROLES = ["Client", "Contractor", "Consultant", "Regulator", "Community", "Financier", "Other"];
+
 export function StakeholdersOverviewPage() {
   const navigate = useNavigate();
   const [search, setSearch] = useState("");
+  const [localStakeholders, setLocalStakeholders] = useState(stakeholders);
+  const [showModal, setShowModal] = useState(false);
+  const [toastMsg, setToastMsg] = useState<string | null>(null);
 
-  const clients = stakeholders.filter(s => s.role === "Client");
-  const consultants = stakeholders.filter(s => s.role === "Consultant");
-  const regulators = stakeholders.filter(s => s.role === "Regulator");
+  const [form, setForm] = useState({
+    name: "",
+    organization: "",
+    role: "Client",
+    influenceLevel: "Medium" as "High" | "Medium" | "Low",
+    impactLevel: "Medium" as "High" | "Medium" | "Low",
+    notes: "",
+    projectId: projects[0]?.id ?? "",
+  });
+
+  const clients = localStakeholders.filter(s => s.role === "Client");
+  const consultants = localStakeholders.filter(s => s.role === "Consultant");
+  const regulators = localStakeholders.filter(s => s.role === "Regulator");
 
   const stats = [
-    { icon: Users, label: "Total Stakeholders", value: stakeholders.length },
+    { icon: Users, label: "Total Stakeholders", value: localStakeholders.length },
     { icon: Briefcase, label: "Clients", value: clients.length, color: "#E8973A" },
     { icon: Award, label: "Consultants", value: consultants.length, color: "#1A5BB3" },
     { icon: Award, label: "Regulators", value: regulators.length, color: "#27AE60" },
   ];
 
-  const filtered = stakeholders.filter(s =>
+  const filtered = localStakeholders.filter(s =>
     s.name.toLowerCase().includes(search.toLowerCase()) ||
     s.organization.toLowerCase().includes(search.toLowerCase()) ||
     s.role.toLowerCase().includes(search.toLowerCase())
   );
 
+  function showToast(msg: string) {
+    setToastMsg(msg);
+    setTimeout(() => setToastMsg(null), 3000);
+  }
+
+  function handleCreate() {
+    if (!form.name.trim()) return;
+    const newStakeholder = {
+      id: `SH-${Date.now()}`,
+      projectId: form.projectId,
+      name: form.name.trim(),
+      organization: form.organization.trim(),
+      role: form.role,
+      influenceLevel: form.influenceLevel,
+      impactLevel: form.impactLevel,
+      notes: form.notes.trim(),
+    };
+    setLocalStakeholders(prev => [...prev, newStakeholder]);
+    setShowModal(false);
+    setForm({
+      name: "",
+      organization: "",
+      role: "Client",
+      influenceLevel: "Medium",
+      impactLevel: "Medium",
+      notes: "",
+      projectId: projects[0]?.id ?? "",
+    });
+    showToast(`Stakeholder "${newStakeholder.name}" created`);
+  }
+
+  function closeModal() {
+    setShowModal(false);
+    setForm({
+      name: "",
+      organization: "",
+      role: "Client",
+      influenceLevel: "Medium",
+      impactLevel: "Medium",
+      notes: "",
+      projectId: projects[0]?.id ?? "",
+    });
+  }
+
   return (
     <div style={{ backgroundColor: "#F7F8FA" }} className="min-h-screen p-6 space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold" style={{ color: "#1A202C" }}>Stakeholders Overview</h1>
-        <p className="text-sm mt-1" style={{ color: "#718096" }}>Stakeholders across all projects</p>
+      {toastMsg && (
+        <div className="fixed bottom-6 right-6 z-50 bg-gray-900 text-white text-sm px-4 py-2.5 rounded-lg shadow-lg">
+          {toastMsg}
+        </div>
+      )}
+
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-2xl font-bold" style={{ color: "#1A202C" }}>Stakeholders Overview</h1>
+          <p className="text-sm mt-1" style={{ color: "#718096" }}>Stakeholders across all projects</p>
+        </div>
+        <button
+          onClick={() => setShowModal(true)}
+          className="flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-medium text-white"
+          style={{ backgroundColor: "#E8973A" }}
+        >
+          <Plus className="w-4 h-4" /> Add Stakeholder
+        </button>
       </div>
 
       <div className="grid grid-cols-4 gap-4">
@@ -117,6 +191,123 @@ export function StakeholdersOverviewPage() {
           </table>
         </div>
       </div>
+
+      {/* Add Stakeholder Modal */}
+      {showModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl shadow-2xl max-w-lg w-full p-6">
+            <div className="flex items-center justify-between mb-5">
+              <h3 className="text-lg font-semibold" style={{ color: "#1A202C" }}>Add Stakeholder</h3>
+              <button onClick={closeModal} className="text-gray-400 hover:text-gray-600">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium mb-1" style={{ color: "#4A5568" }}>Name *</label>
+                <input
+                  value={form.name}
+                  onChange={e => setForm(p => ({ ...p, name: e.target.value }))}
+                  placeholder="e.g. John Doe"
+                  className="w-full border rounded-lg px-3 py-2 text-sm outline-none"
+                  style={{ borderColor: "#E2E8F0", color: "#1A202C" }}
+                  autoFocus
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium mb-1" style={{ color: "#4A5568" }}>Organization</label>
+                <input
+                  value={form.organization}
+                  onChange={e => setForm(p => ({ ...p, organization: e.target.value }))}
+                  placeholder="e.g. BuildCorp Ltd"
+                  className="w-full border rounded-lg px-3 py-2 text-sm outline-none"
+                  style={{ borderColor: "#E2E8F0", color: "#1A202C" }}
+                />
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium mb-1" style={{ color: "#4A5568" }}>Role</label>
+                  <select
+                    value={form.role}
+                    onChange={e => setForm(p => ({ ...p, role: e.target.value }))}
+                    className="w-full border rounded-lg px-3 py-2 text-sm outline-none"
+                    style={{ borderColor: "#E2E8F0", color: "#1A202C" }}
+                  >
+                    {ROLES.map(r => <option key={r} value={r}>{r}</option>)}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium mb-1" style={{ color: "#4A5568" }}>Project</label>
+                  <select
+                    value={form.projectId}
+                    onChange={e => setForm(p => ({ ...p, projectId: e.target.value }))}
+                    className="w-full border rounded-lg px-3 py-2 text-sm outline-none"
+                    style={{ borderColor: "#E2E8F0", color: "#1A202C" }}
+                  >
+                    {projects.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
+                  </select>
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium mb-1" style={{ color: "#4A5568" }}>Influence Level</label>
+                  <select
+                    value={form.influenceLevel}
+                    onChange={e => setForm(p => ({ ...p, influenceLevel: e.target.value as "High" | "Medium" | "Low" }))}
+                    className="w-full border rounded-lg px-3 py-2 text-sm outline-none"
+                    style={{ borderColor: "#E2E8F0", color: "#1A202C" }}
+                  >
+                    <option value="High">High</option>
+                    <option value="Medium">Medium</option>
+                    <option value="Low">Low</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium mb-1" style={{ color: "#4A5568" }}>Impact Level</label>
+                  <select
+                    value={form.impactLevel}
+                    onChange={e => setForm(p => ({ ...p, impactLevel: e.target.value as "High" | "Medium" | "Low" }))}
+                    className="w-full border rounded-lg px-3 py-2 text-sm outline-none"
+                    style={{ borderColor: "#E2E8F0", color: "#1A202C" }}
+                  >
+                    <option value="High">High</option>
+                    <option value="Medium">Medium</option>
+                    <option value="Low">Low</option>
+                  </select>
+                </div>
+              </div>
+              <div>
+                <label className="block text-sm font-medium mb-1" style={{ color: "#4A5568" }}>Notes</label>
+                <textarea
+                  value={form.notes}
+                  onChange={e => setForm(p => ({ ...p, notes: e.target.value }))}
+                  rows={3}
+                  placeholder="Optional notes..."
+                  className="w-full border rounded-lg px-3 py-2 text-sm outline-none resize-none"
+                  style={{ borderColor: "#E2E8F0", color: "#1A202C" }}
+                />
+              </div>
+            </div>
+            <div className="flex justify-end gap-3 mt-6">
+              <button
+                onClick={closeModal}
+                className="px-4 py-2 border rounded-lg text-sm font-medium"
+                style={{ borderColor: "#E2E8F0", color: "#4A5568" }}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleCreate}
+                disabled={!form.name.trim()}
+                className="px-4 py-2 rounded-lg text-sm font-medium text-white disabled:opacity-40"
+                style={{ backgroundColor: "#E8973A" }}
+              >
+                Create Stakeholder
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
