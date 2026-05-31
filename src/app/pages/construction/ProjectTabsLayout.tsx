@@ -14,7 +14,9 @@ const tabs = [
   { label: "HSE", path: "hse", icon: "🛡️" },
   { label: "Documents", path: "documents", icon: "📁" },
   { label: "Costs", path: "costs", icon: "💰" },
+  { label: "Progress", path: "progress", icon: "📊" },
   { label: "Stakeholders", path: "stakeholders", icon: "👥" },
+  { label: "Setup", path: "setup", icon: "⚙️" },
 ];
 
 export function ProjectTabsLayout() {

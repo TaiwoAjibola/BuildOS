@@ -43,6 +43,8 @@ import { StakeholdersOverviewPage } from "./pages/construction/StakeholdersOverv
 import { StakeholdersPage } from "./pages/construction/StakeholdersPage";
 import { ResourcesPage } from "./pages/construction/ResourcesPage";
 import { ReportsPage } from "./pages/construction/ReportsPage";
+import { ProgressEarnedValuePage } from "./pages/construction/ProgressEarnedValuePage";
+import { ProjectSetupPage } from "./pages/construction/ProjectSetupPage";
 import { SettingsPage } from "./pages/construction/SettingsPage";
 
 // Finance App
@@ -228,6 +230,8 @@ export const router = createBrowserRouter([
                   { path: "documents", Component: DocumentsPage },
                   { path: "costs", Component: CostsPage },
                   { path: "stakeholders", Component: StakeholdersPage },
+                  { path: "progress", Component: ProgressEarnedValuePage },
+                  { path: "setup", Component: ProjectSetupPage },
                 ],
               },
             ],

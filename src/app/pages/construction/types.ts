@@ -22,6 +22,9 @@ export interface Project {
   spent: number;
   location: string;
   createdAt: string;
+  lastReportDate?: string;
+  setupComplete?: boolean;
+  setupProgress?: number;
 }
 
 export interface Task {
@@ -45,6 +48,13 @@ export interface Task {
   ragOverride: boolean;
   notes: string;
   expanded?: boolean;
+  isMilestone?: boolean;
+  wbsNumber?: string;
+  totalFloat?: number;
+  freeFloat?: number;
+  isCritical?: boolean;
+  baselinePlannedStart?: string;
+  baselinePlannedEnd?: string;
 }
 
 export interface Vendor {
@@ -258,6 +268,126 @@ export interface VisitorLog {
   organization: string;
   purpose: string;
   accompaniedById: string;
+}
+
+export interface ProjectBaseline {
+  id: string;
+  projectId: string;
+  version: 1 | 2 | 3;
+  label: string;
+  lockedAt: string;
+  lockedBy: string;
+  taskSnapshots: { taskId: string; plannedStart: string; plannedEnd: string }[];
+}
+
+export interface ProjectCalendar {
+  id: string;
+  projectId: string;
+  workingDays: number[]; // 0=Sun, 1=Mon ... 6=Sat
+  workingHoursStart: string; // e.g. "08:00"
+  workingHoursEnd: string; // e.g. "17:00"
+  holidays: { date: string; label: string }[];
+  shutdowns: { start: string; end: string; label: string }[];
+}
+
+export interface EarnedValueData {
+  period: string;
+  plannedValue: number;
+  earnedValue: number;
+  actualCost: number;
+}
+
+export interface ResourceAllocation {
+  vendorId: string;
+  weekStart: string;
+  plannedMandays: number;
+  actualMandays: number;
+  capacity: number;
+  isOverloaded: boolean;
+}
+
+export interface SetupStep {
+  id: string;
+  label: string;
+  completed: boolean;
+  required: boolean;
+}
+
+export function generateWBS(task: Task, parentWbs: string | null): string {
+  if (task.level === 1) return String(parseInt(task.id.replace(/\D/g, ""), 10));
+  const p = parentWbs ? `${parentWbs}.` : "";
+  return `${p}${parseInt(task.id.replace(/\D/g, ""), 10)}`;
+}
+
+export function calcFloat(tasks: Task[]): Task[] {
+  const updated = tasks.map(t => ({ ...t, totalFloat: 0, freeFloat: 0, isCritical: false }));
+  const l4 = updated.filter(t => t.level === 4);
+  const byId = new Map(updated.map(t => [t.id, t]));
+  const successors = new Map<string, string[]>();
+  l4.forEach(t => { if (t.predecessorId) { const arr = successors.get(t.predecessorId) || []; arr.push(t.id); successors.set(t.predecessorId, arr); } });
+
+  // Forward pass
+  const ef = new Map<string, number>();
+  l4.sort((a, b) => new Date(a.plannedStart).getTime() - new Date(b.plannedStart).getTime());
+  l4.forEach(t => {
+    let es = new Date(t.plannedStart).getTime();
+    if (t.predecessorId && ef.has(t.predecessorId)) {
+      const pred = byId.get(t.predecessorId);
+      let lag = t.lagDays || 0;
+      if (t.dependencyType === "FS") es = ef.get(t.predecessorId)! + lag * 86400000;
+      else if (t.dependencyType === "SS") es = new Date(pred!.plannedStart).getTime() + lag * 86400000;
+      else if (t.dependencyType === "FF") es = ef.get(t.predecessorId)! - t.plannedDuration * 86400000 + lag * 86400000;
+      else if (t.dependencyType === "SF") es = new Date(pred!.plannedStart).getTime() - t.plannedDuration * 86400000 + lag * 86400000;
+    }
+    ef.set(t.id, es + t.plannedDuration * 86400000);
+  });
+
+  // Backward pass
+  const projectEnd = Math.max(...Array.from(ef.values()), 0);
+  const lf = new Map<string, number>();
+  const ls = new Map<string, number>();
+  l4.reverse().forEach(t => {
+    const succs = successors.get(t.id) || [];
+    let lft = succs.length > 0 ? Math.min(...succs.map(s => ls.get(s) || projectEnd)) : projectEnd;
+    lf.set(t.id, lft);
+    ls.set(t.id, lft - t.plannedDuration * 86400000);
+  });
+
+  l4.forEach(t => {
+    const es = new Date(t.plannedStart).getTime();
+    const lft = lf.get(t.id) || projectEnd;
+    const eft = ef.get(t.id) || projectEnd;
+    const lst = ls.get(t.id) || projectEnd;
+    const idx = updated.findIndex(u => u.id === t.id);
+    if (idx >= 0) {
+      updated[idx].totalFloat = Math.round((lft - eft) / 86400000);
+      updated[idx].freeFloat = Math.round(((successors.get(t.id) || []).length > 0 ? Math.min(...(successors.get(t.id) || []).map(s => new Date(byId.get(s)?.plannedStart || "").getTime())) - eft : 0) / 86400000);
+      updated[idx].isCritical = (updated[idx].totalFloat || 0) <= 0;
+    }
+  });
+  return updated;
+}
+
+export function calcEarnedValue(tasks: Task[], budget: number, spent: number): { pv: number; ev: number; ac: number; sv: number; cv: number; spi: number; cpi: number; eac: number; vac: number } {
+  const totalDuration = tasks.filter(t => t.level === 1).reduce((s, t) => s + t.plannedDuration, 0) || 1;
+  const ev = tasks.filter(t => t.level === 4).reduce((s, t) => s + (t.percentComplete / 100) * (budget / (tasks.filter(x => x.level === 4).length || 1)), 0);
+  const pv = (new Date().getTime() - new Date(tasks[0]?.plannedStart || "").getTime()) / (new Date(tasks[tasks.length - 1]?.plannedEnd || "").getTime() - new Date(tasks[0]?.plannedStart || "").getTime() || 1) * budget;
+  const ac = spent;
+  const sv = ev - pv;
+  const cv = ev - ac;
+  const spi = pv > 0 ? ev / pv : 0;
+  const cpi = ac > 0 ? ev / ac : 0;
+  const eac = cpi > 0 ? budget / cpi : budget;
+  const vac = budget - eac;
+  return { pv: Math.round(pv), ev: Math.round(ev), ac, sv: Math.round(sv), cv: Math.round(cv), spi: Math.round(spi * 100) / 100, cpi: Math.round(cpi * 100) / 100, eac: Math.round(eac), vac: Math.round(vac) };
+}
+
+export interface ProjectSetupData {
+  basicInfoDone: boolean;
+  scheduleBuilt: boolean;
+  vendorsAdded: boolean;
+  calendarConfigured: boolean;
+  baselineLocked: boolean;
 }
 
 export interface QualityNCR {

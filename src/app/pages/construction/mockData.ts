@@ -2,17 +2,18 @@ import type {
   Project, Task, Vendor, DailyReport, Issue, ChangeRequest, Delay,
   DocumentFolder, DocumentFile, Stakeholder, QualityNCR, HSEMatrix,
   DailyManpower, DailyEquipment, DailyMaterial, DailyScope,
+  ProjectBaseline, ProjectCalendar, EarnedValueData, ResourceAllocation, ProjectSetupData,
 } from "./types";
 
 export const projects: Project[] = [
-  { id: "PRJ-001", name: "Lekki Tower A", siteAddress: "12B Admiralty Road, Lekki Phase 1", client: "Lekki Gardens Ltd", projectManager: "Emeka Okafor", mainContractor: "Princess Forge Construction", contractType: "Remeasurable", plannedStartDate: "2026-01-15", plannedEndDate: "2026-12-31", description: "22-storey commercial tower with retail podium and basement parking", blockCount: 1, clusterId: "Lekki-VI", status: "Active", ragStatus: "on-track", budget: 1_250_000_000, spent: 812_000_000, location: "Lekki, Lagos", createdAt: "2026-01-10" },
-  { id: "PRJ-002", name: "Riverside Estate Phase 2", siteAddress: "23 River Road, Ibeju-Lekki", client: "HomeKey Developers", projectManager: "Sarah Adeyemi", mainContractor: "JBN Construction Ltd", contractType: "Lump Sum", plannedStartDate: "2026-02-01", plannedEndDate: "2026-09-30", description: "120-unit residential estate with community amenities", blockCount: 8, clusterId: "Lekki-VI", status: "Active", ragStatus: "at-risk", budget: 820_000_000, spent: 410_000_000, location: "Ibeju-Lekki, Lagos", createdAt: "2026-01-28" },
-  { id: "PRJ-003", name: "Ikeja Mall Expansion", siteAddress: "42 Obafemi Awolowo Way, Ikeja", client: "RetailCo Nigeria", projectManager: "Tunde Balogun", mainContractor: "Cappa & D'Alberto", contractType: "Cost Plus", plannedStartDate: "2025-11-20", plannedEndDate: "2026-06-30", description: "Mall expansion with new food court and cinema complex", blockCount: 1, clusterId: "Ikeja", status: "Active", ragStatus: "delayed", budget: 1_840_000_000, spent: 1_656_000_000, location: "Ikeja, Lagos", createdAt: "2025-11-15" },
-  { id: "PRJ-004", name: "Apapa Port Access Road", siteAddress: "Apapa Port Road, Lagos", client: "Lagos State Govt", projectManager: "Chidi Nwosu", mainContractor: "Julius Berger", contractType: "Remeasurable", plannedStartDate: "2026-01-01", plannedEndDate: "2027-03-31", description: "3-layer highway interchange to decongest Apapa traffic", blockCount: 1, clusterId: "Apapa", status: "Active", ragStatus: "on-track", budget: 3_200_000_000, spent: 1_120_000_000, location: "Apapa, Lagos", createdAt: "2025-12-20" },
-  { id: "PRJ-005", name: "Banana Island Luxury Villas", siteAddress: "Plot 7-12, Banana Island", client: "Eko Atlantic Properties", projectManager: "Yemi Lawson", mainContractor: "Princess Forge Construction", contractType: "Lump Sum", plannedStartDate: "2026-05-01", plannedEndDate: "2028-04-30", description: "6 luxury waterfront villas with private jetties", blockCount: 6, clusterId: "Lekki-VI", status: "On Hold", ragStatus: "at-risk", budget: 2_400_000_000, spent: 480_000_000, location: "Banana Island, Lagos", createdAt: "2026-04-15" },
-  { id: "PRJ-006", name: "UNILAG Science Block", siteAddress: "University of Lagos, Akoka", client: "UNILAG", projectManager: "Dr. Ngozi Eze", mainContractor: "ITB Nigeria Ltd", contractType: "Lump Sum", plannedStartDate: "2026-03-01", plannedEndDate: "2027-01-31", description: "New 5-storey science faculty building with labs", blockCount: 1, clusterId: "Ikeja", status: "Active", ragStatus: "on-track", budget: 950_000_000, spent: 285_000_000, location: "Akoka, Lagos", createdAt: "2026-02-20" },
-  { id: "PRJ-007", name: "Lekki Free Zone Warehouse", siteAddress: "Lekki Free Trade Zone", client: "LogiPark Ltd", projectManager: "Mike Ogun", mainContractor: "JBN Construction Ltd", contractType: "Cost Plus", plannedStartDate: "2026-03-10", plannedEndDate: "2027-02-28", description: "50,000 sqft logistics warehouse with cold storage", blockCount: 1, clusterId: "Lekki-VI", status: "Active", ragStatus: "on-track", budget: 580_000_000, spent: 87_000_000, location: "Lekki, Lagos", createdAt: "2026-03-05" },
-  { id: "PRJ-008", name: "Third Mainland Bridge Repairs", siteAddress: "Third Mainland Bridge", client: "FMW Works", projectManager: "Kunle Adesina", mainContractor: "CCECC Nigeria", contractType: "Remeasurable", plannedStartDate: "2025-06-01", plannedEndDate: "2026-02-28", description: "Structural rehabilitation of bridge deck and pillars", blockCount: 1, clusterId: "Apapa", status: "Completed", ragStatus: "on-track", budget: 6_200_000_000, spent: 6_014_000_000, location: "Lagos Mainland", createdAt: "2025-05-15" },
+  { id: "PRJ-001", name: "Lekki Tower A", siteAddress: "12B Admiralty Road, Lekki Phase 1", client: "Lekki Gardens Ltd", projectManager: "Emeka Okafor", mainContractor: "Princess Forge Construction", contractType: "Remeasurable", plannedStartDate: "2026-01-15", plannedEndDate: "2026-12-31", description: "22-storey commercial tower with retail podium and basement parking", blockCount: 1, clusterId: "Lekki-VI", status: "Active", ragStatus: "on-track", budget: 1_250_000_000, spent: 812_000_000, location: "Lekki, Lagos", createdAt: "2026-01-10", lastReportDate: "2026-05-29", setupComplete: true, setupProgress: 100 },
+  { id: "PRJ-002", name: "Riverside Estate Phase 2", siteAddress: "23 River Road, Ibeju-Lekki", client: "HomeKey Developers", projectManager: "Sarah Adeyemi", mainContractor: "JBN Construction Ltd", contractType: "Lump Sum", plannedStartDate: "2026-02-01", plannedEndDate: "2026-09-30", description: "120-unit residential estate with community amenities", blockCount: 8, clusterId: "Lekki-VI", status: "Active", ragStatus: "at-risk", budget: 820_000_000, spent: 410_000_000, location: "Ibeju-Lekki, Lagos", createdAt: "2026-01-28", lastReportDate: "2026-05-26", setupComplete: false, setupProgress: 80 },
+  { id: "PRJ-003", name: "Ikeja Mall Expansion", siteAddress: "42 Obafemi Awolowo Way, Ikeja", client: "RetailCo Nigeria", projectManager: "Tunde Balogun", mainContractor: "Cappa & D'Alberto", contractType: "Cost Plus", plannedStartDate: "2025-11-20", plannedEndDate: "2026-06-30", description: "Mall expansion with new food court and cinema complex", blockCount: 1, clusterId: "Ikeja", status: "Active", ragStatus: "delayed", budget: 1_840_000_000, spent: 1_656_000_000, location: "Ikeja, Lagos", createdAt: "2025-11-15", lastReportDate: "2026-05-25", setupComplete: false, setupProgress: 20 },
+  { id: "PRJ-004", name: "Apapa Port Access Road", siteAddress: "Apapa Port Road, Lagos", client: "Lagos State Govt", projectManager: "Chidi Nwosu", mainContractor: "Julius Berger", contractType: "Remeasurable", plannedStartDate: "2026-01-01", plannedEndDate: "2027-03-31", description: "3-layer highway interchange to decongest Apapa traffic", blockCount: 1, clusterId: "Apapa", status: "Active", ragStatus: "on-track", budget: 3_200_000_000, spent: 1_120_000_000, location: "Apapa, Lagos", createdAt: "2025-12-20", lastReportDate: "2026-05-27", setupComplete: false, setupProgress: 40 },
+  { id: "PRJ-005", name: "Banana Island Luxury Villas", siteAddress: "Plot 7-12, Banana Island", client: "Eko Atlantic Properties", projectManager: "Yemi Lawson", mainContractor: "Princess Forge Construction", contractType: "Lump Sum", plannedStartDate: "2026-05-01", plannedEndDate: "2028-04-30", description: "6 luxury waterfront villas with private jetties", blockCount: 6, clusterId: "Lekki-VI", status: "On Hold", ragStatus: "at-risk", budget: 2_400_000_000, spent: 480_000_000, location: "Banana Island, Lagos", createdAt: "2026-04-15", setupComplete: false, setupProgress: 20 },
+  { id: "PRJ-006", name: "UNILAG Science Block", siteAddress: "University of Lagos, Akoka", client: "UNILAG", projectManager: "Dr. Ngozi Eze", mainContractor: "ITB Nigeria Ltd", contractType: "Lump Sum", plannedStartDate: "2026-03-01", plannedEndDate: "2027-01-31", description: "New 5-storey science faculty building with labs", blockCount: 1, clusterId: "Ikeja", status: "Active", ragStatus: "on-track", budget: 950_000_000, spent: 285_000_000, location: "Akoka, Lagos", createdAt: "2026-02-20", setupComplete: false, setupProgress: 80 },
+  { id: "PRJ-007", name: "Lekki Free Zone Warehouse", siteAddress: "Lekki Free Trade Zone", client: "LogiPark Ltd", projectManager: "Mike Ogun", mainContractor: "JBN Construction Ltd", contractType: "Cost Plus", plannedStartDate: "2026-03-10", plannedEndDate: "2027-02-28", description: "50,000 sqft logistics warehouse with cold storage", blockCount: 1, clusterId: "Lekki-VI", status: "Active", ragStatus: "on-track", budget: 580_000_000, spent: 87_000_000, location: "Lekki, Lagos", createdAt: "2026-03-05", setupComplete: false, setupProgress: 20 },
+  { id: "PRJ-008", name: "Third Mainland Bridge Repairs", siteAddress: "Third Mainland Bridge", client: "FMW Works", projectManager: "Kunle Adesina", mainContractor: "CCECC Nigeria", contractType: "Remeasurable", plannedStartDate: "2025-06-01", plannedEndDate: "2026-02-28", description: "Structural rehabilitation of bridge deck and pillars", blockCount: 1, clusterId: "Apapa", status: "Completed", ragStatus: "on-track", budget: 6_200_000_000, spent: 6_014_000_000, location: "Lagos Mainland", createdAt: "2025-05-15", setupComplete: true, setupProgress: 100 },
 ];
 
 export const clusters = ["Lekki-VI", "Ikeja", "Apapa"];
@@ -138,6 +139,50 @@ export const hseMatrix: HSEMatrix[] = [
   { id: "HSE-001", projectId: "PRJ-001", staffMember: "James Okafor", competency: "First Aid at Work", dateObtained: "2025-01-15", expiryDate: "2027-01-15", status: "Valid" },
   { id: "HSE-002", projectId: "PRJ-001", staffMember: "Sarah Adeyemi", competency: "Fire Marshal Training", dateObtained: "2024-03-10", expiryDate: "2026-03-10", status: "Expired" },
 ];
+
+export const baselines: ProjectBaseline[] = [
+  { id: "BL-001", projectId: "PRJ-001", version: 1, label: "Original Baseline", lockedAt: "2026-01-15", lockedBy: "Emeka Okafor",
+    taskSnapshots: tasks.filter(t => t.projectId === "PRJ-001").map(t => ({ taskId: t.id, plannedStart: t.plannedStart, plannedEnd: t.plannedEnd })) },
+];
+export const calendars: ProjectCalendar[] = [
+  { id: "CAL-001", projectId: "PRJ-001", workingDays: [1, 2, 3, 4, 5], workingHoursStart: "08:00", workingHoursEnd: "17:00",
+    holidays: [{ date: "2026-01-01", label: "New Year" }, { date: "2026-05-01", label: "Workers Day" }, { date: "2026-10-01", label: "Independence Day" }, { date: "2026-12-25", label: "Christmas" }, { date: "2026-12-26", label: "Boxing Day" }],
+    shutdowns: [{ start: "2026-12-20", end: "2026-12-31", label: "End of Year Shutdown" }] },
+  { id: "CAL-002", projectId: "PRJ-002", workingDays: [1, 2, 3, 4, 5, 6], workingHoursStart: "07:00", workingHoursEnd: "18:00",
+    holidays: [{ date: "2026-01-01", label: "New Year" }, { date: "2026-05-01", label: "Workers Day" }, { date: "2026-10-01", label: "Independence Day" }],
+    shutdowns: [] },
+];
+export const earnedValueHistory: EarnedValueData[] = [
+  { period: "Jan 2026", plannedValue: 0, earnedValue: 0, actualCost: 0 },
+  { period: "Feb 2026", plannedValue: 85_000_000, earnedValue: 78_000_000, actualCost: 72_000_000 },
+  { period: "Mar 2026", plannedValue: 210_000_000, earnedValue: 195_000_000, actualCost: 188_000_000 },
+  { period: "Apr 2026", plannedValue: 380_000_000, earnedValue: 360_000_000, actualCost: 350_000_000 },
+  { period: "May 2026", plannedValue: 520_000_000, earnedValue: 490_000_000, actualCost: 510_000_000 },
+  { period: "Jun 2026", plannedValue: 680_000_000, earnedValue: 0, actualCost: 0 },
+  { period: "Jul 2026", plannedValue: 810_000_000, earnedValue: 0, actualCost: 0 },
+  { period: "Aug 2026", plannedValue: 950_000_000, earnedValue: 0, actualCost: 0 },
+  { period: "Sep 2026", plannedValue: 1_080_000_000, earnedValue: 0, actualCost: 0 },
+  { period: "Oct 2026", plannedValue: 1_200_000_000, earnedValue: 0, actualCost: 0 },
+];
+export const resourceAllocations: ResourceAllocation[] = [
+  { vendorId: "V-001", weekStart: "2026-05-25", plannedMandays: 30, actualMandays: 28, capacity: 35, isOverloaded: false },
+  { vendorId: "V-001", weekStart: "2026-06-01", plannedMandays: 35, actualMandays: 0, capacity: 35, isOverloaded: false },
+  { vendorId: "V-001", weekStart: "2026-06-08", plannedMandays: 40, actualMandays: 0, capacity: 35, isOverloaded: true },
+  { vendorId: "V-002", weekStart: "2026-05-25", plannedMandays: 15, actualMandays: 12, capacity: 20, isOverloaded: false },
+  { vendorId: "V-002", weekStart: "2026-06-01", plannedMandays: 20, actualMandays: 0, capacity: 20, isOverloaded: false },
+  { vendorId: "V-003", weekStart: "2026-05-25", plannedMandays: 37, actualMandays: 35, capacity: 40, isOverloaded: false },
+  { vendorId: "V-003", weekStart: "2026-06-01", plannedMandays: 45, actualMandays: 0, capacity: 40, isOverloaded: true },
+];
+export const setupProgress: Record<string, ProjectSetupData> = {
+  "PRJ-001": { basicInfoDone: true, scheduleBuilt: true, vendorsAdded: true, calendarConfigured: true, baselineLocked: true },
+  "PRJ-002": { basicInfoDone: true, scheduleBuilt: true, vendorsAdded: true, calendarConfigured: true, baselineLocked: false },
+  "PRJ-003": { basicInfoDone: true, scheduleBuilt: false, vendorsAdded: false, calendarConfigured: false, baselineLocked: false },
+  "PRJ-004": { basicInfoDone: true, scheduleBuilt: true, vendorsAdded: false, calendarConfigured: false, baselineLocked: false },
+  "PRJ-005": { basicInfoDone: true, scheduleBuilt: false, vendorsAdded: false, calendarConfigured: false, baselineLocked: false },
+  "PRJ-006": { basicInfoDone: true, scheduleBuilt: true, vendorsAdded: true, calendarConfigured: true, baselineLocked: false },
+  "PRJ-007": { basicInfoDone: true, scheduleBuilt: false, vendorsAdded: false, calendarConfigured: false, baselineLocked: false },
+  "PRJ-008": { basicInfoDone: true, scheduleBuilt: true, vendorsAdded: true, calendarConfigured: true, baselineLocked: true },
+};
 
 export const staffList = [
   "Emeka Okafor", "Sarah Adeyemi", "Tunde Balogun", "Chidi Nwosu",

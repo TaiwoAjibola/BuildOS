@@ -1,10 +1,13 @@
 import { useParams } from "react-router";
 import { useState, useMemo } from "react";
-import { Calendar, ChevronRight, ChevronDown, Plus, Edit, Filter, List, BarChart3, GitBranch, X, Save, ArrowLeft, ArrowRight } from "lucide-react";
-import type { Task } from "./types";
-import { getTasksByProject, getProjectById, getVendorsByProject, fmtDate, ragColor, ragLabel, pctCompleteColor, tasks as allTasks } from "./mockData";
+import { Calendar, ChevronRight, ChevronDown, Plus, Edit, Filter, List, BarChart3, GitBranch, X, Save, ArrowLeft, ArrowRight, AlertTriangle, Diamond, CalendarDays, Clock, Sun, Users } from "lucide-react";
+import type { Task, ResourceAllocation, Vendor, ProjectCalendar } from "./types";
+import { calcFloat, generateWBS } from "./types";
+import { getTasksByProject, getProjectById, getVendorsByProject, fmtDate, ragColor, ragLabel, pctCompleteColor, tasks as allTasks, baselines, calendars, resourceAllocations, vendors } from "./mockData";
 
-type ViewMode = "list" | "gantt";
+type ViewMode = "list" | "gantt" | "baseline" | "resource";
+
+const dayNames = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
 
 function calcDuration(start: string, end: string): number {
   if (!start || !end) return 1;
@@ -46,18 +49,55 @@ const dependencyLabels: Record<string, string> = {
   SF: "Start-to-Finish (SF)",
 };
 
+function buildWbsMap(tasks: Task[]): Map<string, string> {
+  const wbsMap = new Map<string, string>();
+  const byId = new Map(tasks.map(t => [t.id, t]));
+
+  function compute(id: string): string {
+    if (wbsMap.has(id)) return wbsMap.get(id)!;
+    const task = byId.get(id);
+    if (!task) return "";
+    if (task.level === 1) {
+      const wbs = generateWBS(task, null);
+      wbsMap.set(id, wbs);
+      return wbs;
+    }
+    const parent = byId.get(task.parentTaskId || "");
+    const parentWbs = parent ? compute(parent.id) : null;
+    const wbs = generateWBS(task, parentWbs);
+    wbsMap.set(id, wbs);
+    return wbs;
+  }
+
+  tasks.forEach(t => compute(t.id));
+  return wbsMap;
+}
+
 export function SchedulePage() {
   const { id: projectId } = useParams<{ id: string }>();
   const project = getProjectById(projectId!);
 
-  const [tasks, setTasks] = useState<Task[]>(() => getTasksByProject(projectId!));
+  const rawTasks = useMemo(() => getTasksByProject(projectId!), [projectId]);
+  const [tasks, setTasks] = useState<Task[]>(() => calcFloat(rawTasks));
   const [viewMode, setViewMode] = useState<ViewMode>("list");
   const [expanded, setExpanded] = useState<Set<string>>(new Set(tasks.filter(t => t.level <= 1).map(t => t.id)));
   const [selectedTask, setSelectedTask] = useState<Task | null>(null);
   const [showAddModal, setShowAddModal] = useState(false);
   const [filterText, setFilterText] = useState("");
+  const [showCriticalPath, setShowCriticalPath] = useState(false);
+  const [showCalendarModal, setShowCalendarModal] = useState(false);
+
+  const wbsMap = useMemo(() => buildWbsMap(tasks), [tasks]);
+  const projectBaseline = useMemo(() => baselines.find(b => b.projectId === projectId), [projectId]);
+  const projectCalendar = useMemo(() => calendars.find(c => c.projectId === projectId), [projectId]);
 
   const rootTasks = useMemo(() => tasks.filter(t => t.level === 1).sort((a, b) => a.plannedStart.localeCompare(b.plannedStart)), [tasks]);
+
+  const filteredTasks = useMemo(() => {
+    if (!filterText) return tasks;
+    const lower = filterText.toLowerCase();
+    return tasks.filter(t => t.name.toLowerCase().includes(lower) || t.id.toLowerCase().includes(lower));
+  }, [tasks, filterText]);
 
   function toggleExpand(taskId: string) {
     setExpanded(prev => {
@@ -69,17 +109,19 @@ export function SchedulePage() {
   }
 
   function handleSaveTask(updated: Task) {
-    setTasks(prev => prev.map(t => t.id === updated.id ? updated : t));
+    const next = tasks.map(t => t.id === updated.id ? updated : t);
+    setTasks(calcFloat(next));
     setSelectedTask(null);
   }
 
   function handleAddTask(newTask: Task) {
-    setTasks(prev => [...prev, newTask]);
+    const next = [...tasks, newTask];
+    setTasks(calcFloat(next));
     setExpanded(prev => {
-      const next = new Set(prev);
-      next.add(newTask.id);
-      if (newTask.parentTaskId) next.add(newTask.parentTaskId);
-      return next;
+      const n = new Set(prev);
+      n.add(newTask.id);
+      if (newTask.parentTaskId) n.add(newTask.parentTaskId);
+      return n;
     });
     setShowAddModal(false);
   }
@@ -97,6 +139,8 @@ export function SchedulePage() {
       const childList = taskList.filter(t => t.parentTaskId === task.id);
       const hasKids = childList.length > 0;
       const paddingLeft = (task.level - 1) * 24;
+      const wbs = wbsMap.get(task.id) || "";
+      const isCrit = showCriticalPath && task.isCritical && task.level === 4;
 
       const row = (
         <div key={task.id}>
@@ -107,7 +151,7 @@ export function SchedulePage() {
                 : task.level <= 3
                   ? "bg-white font-medium text-gray-900"
                   : "bg-white font-normal text-gray-700 cursor-pointer hover:bg-amber-50"
-            }`}
+            } ${isCrit ? "border-l-4 border-l-red-500" : ""}`}
             style={{ paddingLeft: `${paddingLeft + 16}px` }}
             onClick={() => {
               if (task.level === 4) {
@@ -133,6 +177,14 @@ export function SchedulePage() {
                 {levelIcons[task.level]}
               </span>
             )}
+
+            {task.isMilestone && task.level === 4 && (
+              <span className="flex-shrink-0 text-amber-500" title="Milestone">
+                <Diamond className="w-3.5 h-3.5" />
+              </span>
+            )}
+
+            <span className="text-xs text-gray-400 w-20 flex-shrink-0 font-mono">{wbs}</span>
 
             <span className="flex-1 truncate">{task.name}</span>
 
@@ -338,6 +390,200 @@ export function SchedulePage() {
     );
   }
 
+  function renderBaseline() {
+    if (!projectBaseline) {
+      return (
+        <div className="bg-white rounded-lg border border-[#E2E8F0] p-12 text-center">
+          <Calendar className="w-10 h-10 text-gray-300 mx-auto mb-3" />
+          <p className="text-sm font-medium text-gray-500">No baseline found for this project</p>
+          <p className="text-xs text-gray-400 mt-1">Lock a baseline to compare planned vs baseline dates</p>
+        </div>
+      );
+    }
+
+    const baselineMap = new Map(projectBaseline.taskSnapshots.map(s => [s.taskId, s]));
+
+    const l4Tasks = tasks.filter(t => t.level === 4);
+
+    return (
+      <div className="bg-white rounded-lg border border-[#E2E8F0] overflow-hidden">
+        <div className="px-4 py-2.5 bg-gray-50 border-b border-[#E2E8F0] text-xs font-semibold text-gray-500 uppercase tracking-wider">
+          Baseline: {projectBaseline.label} (v{projectBaseline.version}) — Locked {fmtDate(projectBaseline.lockedAt)}
+        </div>
+        <div className="flex items-center gap-2 px-4 py-2 bg-gray-50 border-b border-[#E2E8F0] text-xs font-semibold text-gray-500 uppercase tracking-wider">
+          <span className="flex-1">Task Name</span>
+          <span className="w-28 flex-shrink-0 text-right">Planned Start</span>
+          <span className="w-28 flex-shrink-0 text-right">Planned End</span>
+          <span className="w-28 flex-shrink-0 text-right">Baseline Start</span>
+          <span className="w-28 flex-shrink-0 text-right">Baseline End</span>
+          <span className="w-20 flex-shrink-0 text-right">Variance</span>
+        </div>
+        {l4Tasks.map(task => {
+          const bl = baselineMap.get(task.id);
+          const varianceDays = bl ? calcDuration(bl.plannedStart, task.plannedStart) - calcDuration(bl.plannedStart, bl.plannedStart) : 0;
+          return (
+            <div key={task.id} className="flex items-center gap-2 px-4 py-2.5 border-b border-[#E2E8F0] text-sm text-gray-700 hover:bg-amber-50">
+              <span className="flex-1 truncate">{task.name}</span>
+              <span className="w-28 flex-shrink-0 text-right text-xs">{fmtDate(task.plannedStart)}</span>
+              <span className="w-28 flex-shrink-0 text-right text-xs">{fmtDate(task.plannedEnd)}</span>
+              <span className={`w-28 flex-shrink-0 text-right text-xs ${bl ? "" : "text-gray-300"}`}>
+                {bl ? fmtDate(bl.plannedStart) : "—"}
+              </span>
+              <span className={`w-28 flex-shrink-0 text-right text-xs ${bl ? "" : "text-gray-300"}`}>
+                {bl ? fmtDate(bl.plannedEnd) : "—"}
+              </span>
+              <span className={`w-20 flex-shrink-0 text-right text-xs font-medium ${
+                varianceDays > 0 ? "text-red-600" : varianceDays < 0 ? "text-green-600" : "text-gray-500"
+              }`}>
+                {bl ? `${varianceDays > 0 ? "+" : ""}${varianceDays}d` : "—"}
+              </span>
+            </div>
+          );
+        })}
+      </div>
+    );
+  }
+
+  function renderResourceView() {
+    const projectVendors = vendors.filter(v => v.projectId === projectId);
+    const projResources = resourceAllocations.filter(r => projectVendors.some(v => v.id === r.vendorId));
+    const weeks = [...new Set(projResources.map(r => r.weekStart))].sort();
+
+    return (
+      <div className="bg-white rounded-lg border border-[#E2E8F0] overflow-hidden">
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="bg-gray-50 border-b border-[#E2E8F0]">
+                <th className="text-left px-4 py-2.5 text-xs font-semibold text-gray-500 uppercase tracking-wider">Vendor</th>
+                <th className="text-left px-4 py-2.5 text-xs font-semibold text-gray-500 uppercase tracking-wider">Trade</th>
+                {weeks.map(w => (
+                  <th key={w} className="text-right px-3 py-2.5 text-xs font-semibold text-gray-500 uppercase tracking-wider whitespace-nowrap">
+                    {fmtDate(w)}
+                  </th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {projectVendors.map(v => {
+                const vendorResources = projResources.filter(r => r.vendorId === v.id);
+                return (
+                  <tr key={v.id} className="border-b border-[#E2E8F0] hover:bg-amber-50">
+                    <td className="px-4 py-2.5 font-medium text-gray-900">{v.name}</td>
+                    <td className="px-4 py-2.5 text-gray-500">{v.trade}</td>
+                    {weeks.map(w => {
+                      const alloc = vendorResources.find(r => r.weekStart === w);
+                      return (
+                        <td
+                          key={w}
+                          className={`px-3 py-2.5 text-right text-sm ${
+                            alloc?.isOverloaded
+                              ? "bg-red-100 text-red-700 font-bold"
+                              : "text-gray-700"
+                          }`}
+                        >
+                          {alloc ? alloc.plannedMandays : "—"}
+                        </td>
+                      );
+                    })}
+                  </tr>
+                );
+              })}
+              {projectVendors.length === 0 && (
+                <tr>
+                  <td colSpan={2 + weeks.length} className="px-4 py-8 text-center text-gray-400">
+                    No vendors assigned to this project
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    );
+  }
+
+  function renderCalendarModal() {
+    if (!showCalendarModal) return null;
+    const cal = projectCalendar;
+    return (
+      <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" onClick={() => setShowCalendarModal(false)}>
+        <div className="bg-white rounded-xl shadow-2xl max-w-lg w-full p-6" onClick={e => e.stopPropagation()}>
+          <div className="flex items-center justify-between mb-5">
+            <h2 className="text-lg font-semibold text-gray-900">Project Calendar</h2>
+            <button onClick={() => setShowCalendarModal(false)} className="p-1 rounded hover:bg-gray-100 text-gray-400 hover:text-gray-600">
+              <X className="w-5 h-5" />
+            </button>
+          </div>
+          {cal ? (
+            <div className="space-y-5">
+              <div>
+                <h3 className="text-sm font-semibold text-gray-700 mb-2 flex items-center gap-1.5">
+                  <Sun className="w-4 h-4 text-amber-500" /> Working Days
+                </h3>
+                <div className="flex flex-wrap gap-1.5">
+                  {dayNames.map((name, i) => {
+                    const isWorking = cal.workingDays.includes(i);
+                    return (
+                      <span
+                        key={i}
+                        className={`px-2.5 py-1 rounded text-xs font-medium ${
+                          isWorking ? "bg-green-100 text-green-700" : "bg-gray-100 text-gray-400"
+                        }`}
+                      >
+                        {name.substring(0, 3)}
+                      </span>
+                    );
+                  })}
+                </div>
+                <p className="text-xs text-gray-400 mt-1">Working hours: {cal.workingHoursStart} – {cal.workingHoursEnd}</p>
+              </div>
+              <div>
+                <h3 className="text-sm font-semibold text-gray-700 mb-2 flex items-center gap-1.5">
+                  <CalendarDays className="w-4 h-4 text-amber-500" /> Holidays
+                </h3>
+                {cal.holidays.length > 0 ? (
+                  <div className="space-y-1">
+                    {cal.holidays.map((h, i) => (
+                      <div key={i} className="flex items-center justify-between text-sm text-gray-700 bg-gray-50 rounded px-3 py-1.5">
+                        <span>{h.label}</span>
+                        <span className="text-xs text-gray-400">{fmtDate(h.date)}</span>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-sm text-gray-400">No holidays configured</p>
+                )}
+              </div>
+              <div>
+                <h3 className="text-sm font-semibold text-gray-700 mb-2 flex items-center gap-1.5">
+                  <Clock className="w-4 h-4 text-amber-500" /> Shutdowns
+                </h3>
+                {cal.shutdowns.length > 0 ? (
+                  <div className="space-y-1">
+                    {cal.shutdowns.map((s, i) => (
+                      <div key={i} className="flex items-center justify-between text-sm text-gray-700 bg-gray-50 rounded px-3 py-1.5">
+                        <span>{s.label}</span>
+                        <span className="text-xs text-gray-400">{fmtDate(s.start)} → {fmtDate(s.end)}</span>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-sm text-gray-400">No shutdowns scheduled</p>
+                )}
+              </div>
+            </div>
+          ) : (
+            <div className="py-8 text-center">
+              <Calendar className="w-10 h-10 text-gray-300 mx-auto mb-3" />
+              <p className="text-sm font-medium text-gray-500">No calendar configured for this project</p>
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  }
+
   if (!project) {
     return (
       <div className="text-center py-16">
@@ -354,23 +600,47 @@ export function SchedulePage() {
           <h1 className="text-2xl font-semibold text-gray-900">Schedule</h1>
           <p className="text-sm text-gray-500 mt-0.5">{project.name} — Project Schedule</p>
         </div>
-        <div className="flex items-center gap-2 bg-white rounded-lg border border-[#E2E8F0] p-1">
+        <div className="flex items-center gap-2">
           <button
-            onClick={() => setViewMode("list")}
-            className={`flex items-center gap-1.5 px-3 py-1.5 rounded text-sm font-medium transition-colors ${
-              viewMode === "list" ? "bg-[#E8973A] text-white shadow-sm" : "text-gray-500 hover:text-gray-700 hover:bg-gray-100"
-            }`}
+            onClick={() => setShowCalendarModal(true)}
+            className="flex items-center gap-1.5 px-3 py-1.5 border border-[#E2E8F0] text-gray-500 rounded-md text-sm hover:bg-gray-50 hover:text-gray-700"
           >
-            <List className="w-4 h-4" /> List
+            <CalendarDays className="w-4 h-4" /> Calendar
           </button>
-          <button
-            onClick={() => setViewMode("gantt")}
-            className={`flex items-center gap-1.5 px-3 py-1.5 rounded text-sm font-medium transition-colors ${
-              viewMode === "gantt" ? "bg-[#E8973A] text-white shadow-sm" : "text-gray-500 hover:text-gray-700 hover:bg-gray-100"
-            }`}
-          >
-            <BarChart3 className="w-4 h-4" /> Gantt
-          </button>
+          <div className="flex items-center gap-2 bg-white rounded-lg border border-[#E2E8F0] p-1">
+            <button
+              onClick={() => setViewMode("list")}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded text-sm font-medium transition-colors ${
+                viewMode === "list" ? "bg-[#E8973A] text-white shadow-sm" : "text-gray-500 hover:text-gray-700 hover:bg-gray-100"
+              }`}
+            >
+              <List className="w-4 h-4" /> List
+            </button>
+            <button
+              onClick={() => setViewMode("gantt")}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded text-sm font-medium transition-colors ${
+                viewMode === "gantt" ? "bg-[#E8973A] text-white shadow-sm" : "text-gray-500 hover:text-gray-700 hover:bg-gray-100"
+              }`}
+            >
+              <BarChart3 className="w-4 h-4" /> Gantt
+            </button>
+            <button
+              onClick={() => setViewMode("baseline")}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded text-sm font-medium transition-colors ${
+                viewMode === "baseline" ? "bg-[#E8973A] text-white shadow-sm" : "text-gray-500 hover:text-gray-700 hover:bg-gray-100"
+              }`}
+            >
+              <GitBranch className="w-4 h-4" /> Baseline
+            </button>
+            <button
+              onClick={() => setViewMode("resource")}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded text-sm font-medium transition-colors ${
+                viewMode === "resource" ? "bg-[#E8973A] text-white shadow-sm" : "text-gray-500 hover:text-gray-700 hover:bg-gray-100"
+              }`}
+            >
+              <Users className="w-4 h-4" /> Resource
+            </button>
+          </div>
         </div>
       </div>
 
@@ -402,6 +672,16 @@ export function SchedulePage() {
           </button>
         </div>
         <div className="flex items-center gap-2">
+          <button
+            onClick={() => setShowCriticalPath(!showCriticalPath)}
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm font-medium border transition-colors ${
+              showCriticalPath
+                ? "bg-red-50 border-red-300 text-red-700"
+                : "border-[#E2E8F0] text-gray-500 hover:bg-gray-50"
+            }`}
+          >
+            <AlertTriangle className="w-4 h-4" /> Critical Path
+          </button>
           <div className="relative">
             <Filter className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-400" />
             <input
@@ -415,12 +695,14 @@ export function SchedulePage() {
       </div>
 
       {/* Content */}
-      {viewMode === "list" ? (
+      {viewMode === "list" && (
         <div className="bg-white rounded-lg border border-[#E2E8F0] overflow-hidden">
           {/* Column headers */}
           <div className="flex items-center gap-2 px-4 py-2.5 bg-gray-50 border-b border-[#E2E8F0] text-xs font-semibold text-gray-500 uppercase tracking-wider">
             <span className="w-4 flex-shrink-0" />
             <span className="w-4 flex-shrink-0" />
+            <span className="w-4 flex-shrink-0" />
+            <span className="w-20 flex-shrink-0">WBS</span>
             <span className="flex-1">Task Name</span>
             <span className="w-28 flex-shrink-0 text-right">Planned Start</span>
             <span className="w-28 flex-shrink-0 text-right">Planned End</span>
@@ -431,25 +713,31 @@ export function SchedulePage() {
             <span className="w-8 flex-shrink-0" />
           </div>
           <div>
-            {renderListRows(tasks, null, 0)}
-            {tasks.length === 0 && (
+            {renderListRows(filteredTasks, null, 0)}
+            {filteredTasks.length === 0 && (
               <div className="py-16 text-center">
                 <Calendar className="w-10 h-10 text-gray-300 mx-auto mb-3" />
-                <p className="text-sm font-medium text-gray-500">No tasks found</p>
-                <button onClick={() => setShowAddModal(true)} className="mt-3 text-[#E8973A] text-sm font-medium hover:text-[#d4852a]">
-                  Create your first task →
-                </button>
+                <p className="text-sm font-medium text-gray-500">
+                  {filterText ? "No tasks match your filter" : "No tasks found"}
+                </p>
+                {!filterText && (
+                  <button onClick={() => setShowAddModal(true)} className="mt-3 text-[#E8973A] text-sm font-medium hover:text-[#d4852a]">
+                    Create your first task →
+                  </button>
+                )}
               </div>
             )}
           </div>
         </div>
-      ) : (
-        renderGantt()
       )}
+
+      {viewMode === "gantt" && renderGantt()}
+      {viewMode === "baseline" && renderBaseline()}
+      {viewMode === "resource" && renderResourceView()}
 
       {/* Edit Task Side Panel */}
       {sidePanelTask && (
-        <EditTaskPanel task={sidePanelTask} allTasks={tasks} onSave={handleSaveTask} onClose={() => setSelectedTask(null)} />
+        <EditTaskPanel task={sidePanelTask} allTasks={tasks} wbsMap={wbsMap} onSave={handleSaveTask} onClose={() => setSelectedTask(null)} />
       )}
 
       {/* Add Task Modal */}
@@ -461,11 +749,14 @@ export function SchedulePage() {
           onClose={() => setShowAddModal(false)}
         />
       )}
+
+      {/* Calendar Modal */}
+      {renderCalendarModal()}
     </div>
   );
 }
 
-function EditTaskPanel({ task, allTasks, onSave, onClose }: { task: Task; allTasks: Task[]; onSave: (t: Task) => void; onClose: () => void }) {
+function EditTaskPanel({ task, allTasks, wbsMap, onSave, onClose }: { task: Task; allTasks: Task[]; wbsMap: Map<string, string>; onSave: (t: Task) => void; onClose: () => void }) {
   const [edit, setEdit] = useState({ ...task });
   const set = (k: keyof Task, v: unknown) => setEdit(prev => ({ ...prev, [k]: v }));
 
@@ -480,6 +771,7 @@ function EditTaskPanel({ task, allTasks, onSave, onClose }: { task: Task; allTas
   }
 
   const predTask = edit.predecessorId ? allTasks.find(t => t.id === edit.predecessorId) : null;
+  const wbs = wbsMap.get(task.id) || "";
 
   return (
     <div className="fixed inset-0 z-50 flex justify-end">
@@ -492,13 +784,31 @@ function EditTaskPanel({ task, allTasks, onSave, onClose }: { task: Task; allTas
           </button>
         </div>
         <div className="p-5 space-y-4">
+          <div className="flex items-center gap-2">
+            <div className="flex-1">
+              <label className="block text-xs font-medium text-gray-500 mb-1">Task Name</label>
+              <input
+                value={edit.name}
+                onChange={e => set("name", e.target.value)}
+                className="w-full border border-[#E2E8F0] rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#E8973A]"
+              />
+            </div>
+          </div>
           <div>
-            <label className="block text-xs font-medium text-gray-500 mb-1">Task Name</label>
+            <label className="block text-xs font-medium text-gray-500 mb-1">WBS Number</label>
+            <div className="w-full bg-gray-50 border border-[#E2E8F0] rounded-md px-3 py-2 text-sm text-gray-600 font-mono">
+              {wbs}
+            </div>
+          </div>
+          <div className="flex items-center gap-2">
             <input
-              value={edit.name}
-              onChange={e => set("name", e.target.value)}
-              className="w-full border border-[#E2E8F0] rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#E8973A]"
+              type="checkbox"
+              id="isMilestone"
+              checked={edit.isMilestone || false}
+              onChange={e => set("isMilestone", e.target.checked)}
+              className="rounded border-gray-300 text-[#E8973A] focus:ring-[#E8973A]"
             />
+            <label htmlFor="isMilestone" className="text-sm text-gray-700 font-medium">Is Milestone</label>
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div>
@@ -627,6 +937,27 @@ function EditTaskPanel({ task, allTasks, onSave, onClose }: { task: Task; allTas
               <p><span className="font-medium text-gray-700">Link:</span> {edit.dependencyType || "FS"} {edit.lagDays !== 0 ? `${edit.lagDays > 0 ? "+" : ""}${edit.lagDays}d` : ""}</p>
             </div>
           )}
+          <div className="border-t border-[#E2E8F0] pt-4">
+            <h3 className="text-sm font-semibold text-gray-700 mb-3">Float & Critical Path</h3>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="bg-gray-50 rounded-md p-3">
+                <p className="text-xs text-gray-500">Total Float</p>
+                <p className={`text-lg font-bold ${(edit.totalFloat ?? 0) <= 0 ? "text-red-600" : "text-green-600"}`}>
+                  {edit.totalFloat ?? 0}d
+                </p>
+              </div>
+              <div className="bg-gray-50 rounded-md p-3">
+                <p className="text-xs text-gray-500">Free Float</p>
+                <p className={`text-lg font-bold ${(edit.freeFloat ?? 0) <= 0 ? "text-red-600" : "text-green-600"}`}>
+                  {edit.freeFloat ?? 0}d
+                </p>
+              </div>
+            </div>
+            <div className={`mt-2 flex items-center gap-1.5 text-sm font-medium ${edit.isCritical ? "text-red-600" : "text-green-600"}`}>
+              <span className={`w-2.5 h-2.5 rounded-full ${edit.isCritical ? "bg-red-500" : "bg-green-500"}`} />
+              {edit.isCritical ? "On Critical Path" : "Not on Critical Path"}
+            </div>
+          </div>
           <div>
             <label className="block text-xs font-medium text-gray-500 mb-1">Notes</label>
             <textarea
@@ -668,6 +999,7 @@ function AddTaskModal({ projectId, tasks, onSave, onClose }: {
   const [predecessorId, setPredecessorId] = useState("");
   const [dependencyType, setDependencyType] = useState<"FS" | "FF" | "SS" | "SF" | null>("FS");
   const [lagDays, setLagDays] = useState(0);
+  const [isMilestone, setIsMilestone] = useState(false);
 
   const duration = calcDuration(plannedStart, plannedEnd);
 
@@ -707,6 +1039,7 @@ function AddTaskModal({ projectId, tasks, onSave, onClose }: {
       ragStatus: "on-track",
       ragOverride: false,
       notes: "",
+      isMilestone,
     };
     onSave(newTask);
   }
@@ -743,6 +1076,16 @@ function AddTaskModal({ projectId, tasks, onSave, onClose }: {
               <option value={4}>Level 4 — {levelNames[4]}</option>
             </select>
             <p className="text-xs text-gray-400 mt-1">{levelLabel}</p>
+          </div>
+          <div className="flex items-center gap-2">
+            <input
+              type="checkbox"
+              id="addIsMilestone"
+              checked={isMilestone}
+              onChange={e => setIsMilestone(e.target.checked)}
+              className="rounded border-gray-300 text-[#E8973A] focus:ring-[#E8973A]"
+            />
+            <label htmlFor="addIsMilestone" className="text-sm text-gray-700 font-medium">Is Milestone</label>
           </div>
           {level > 1 && (
             <div>
