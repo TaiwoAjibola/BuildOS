@@ -3,6 +3,63 @@ export type RAGStatus = "on-track" | "at-risk" | "delayed";
 export type ContractType = "Lump Sum" | "Remeasurable" | "Cost Plus";
 export type Weather = "Sunny" | "Cloudy" | "Drizzle" | "Rainy";
 
+export type Sector =
+  | "Building & Construction"
+  | "Civil & Infrastructure"
+  | "Industrial & Facilities"
+  | "Interior & Fit-out"
+  | "Renovation & Maintenance"
+  | "Other";
+
+export const SECTOR_CATEGORIES: Record<Sector, string[]> = {
+  "Building & Construction": [
+    "Residential (single dwelling)",
+    "Residential (multi-unit / estate)",
+    "Commercial (office building)",
+    "Commercial (retail / shopping)",
+    "Mixed-use development",
+    "Institutional (school, hospital, church, government)",
+    "Industrial (warehouse, factory)",
+    "Hospitality (hotel, shortlet, event centre)",
+  ],
+  "Civil & Infrastructure": [
+    "Road construction",
+    "Bridge",
+    "Drainage & stormwater",
+    "Borehole & water supply",
+    "Fencing & external works",
+  ],
+  "Industrial & Facilities": [
+    "Factory fit-out",
+    "Warehouse construction",
+    "Plant installation",
+  ],
+  "Interior & Fit-out": [
+    "Office fit-out",
+    "Residential interior",
+    "Retail fit-out",
+    "Shortlet apartment fit-out",
+  ],
+  "Renovation & Maintenance": [
+    "Full renovation (structural)",
+    "Cosmetic renovation (finishing only)",
+    "Planned maintenance",
+    "Emergency repair",
+  ],
+  "Other": ["Other"],
+};
+
+export function getBlockLabel(sector: Sector | string, category: string): string {
+  if (!sector) return "Blocks / Units";
+  if (category.includes("multi-unit") || category.includes("estate")) return "Units";
+  if (category.includes("single dwelling")) return "Blocks";
+  if (sector === "Building & Construction") return "Blocks";
+  if (sector === "Civil & Infrastructure") return "Sections / Zones";
+  if (sector === "Interior & Fit-out") return "Units";
+  if (sector === "Renovation & Maintenance") return "Sections";
+  return "Blocks / Units";
+}
+
 export interface Project {
   id: string;
   name: string;
@@ -25,6 +82,9 @@ export interface Project {
   lastReportDate?: string;
   setupComplete?: boolean;
   setupProgress?: number;
+  sector?: Sector;
+  category?: string;
+  descriptor?: string;
 }
 
 export interface Task {

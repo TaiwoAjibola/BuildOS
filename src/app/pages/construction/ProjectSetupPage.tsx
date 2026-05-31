@@ -2,12 +2,14 @@ import { useParams } from "react-router";
 import { useState, useMemo } from "react";
 import {
   CheckCircle, Circle, ArrowRight, ArrowLeft, Lock, Calendar,
-  Building2, Users, Layers, FileText, Plus, X, Trash2, ChevronRight, ChevronDown
+  Building2, Users, Layers, FileText, Plus, X, Trash2, ChevronRight, ChevronDown, Tags
 } from "lucide-react";
 import { getProjectById, staffList, tradeTypes, clusters, tasks as allTasks, fmtDate, vendors as allVendors } from "./mockData";
-import type { Task, Vendor, ProjectCalendar } from "./types";
+import type { Task, Vendor, ProjectCalendar, Sector } from "./types";
+import { SECTOR_CATEGORIES, getBlockLabel } from "./types";
 
 const STEPS = [
+  { id: "project-type", label: "Project Type", icon: Tags },
   { id: "basic", label: "Basic Information", icon: FileText },
   { id: "schedule", label: "Schedule Builder", icon: Layers },
   { id: "vendors", label: "Vendor Registration", icon: Users },
@@ -16,7 +18,7 @@ const STEPS = [
 ];
 
 const DAY_LABELS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
-const DAY_INDICES = [1, 2, 3, 4, 5, 6, 0]; // type uses 0=Sun,1=Mon... so map Mon=1...Sun=0
+const DAY_INDICES = [1, 2, 3, 4, 5, 6, 0];
 
 const LEVEL_NAMES: Record<number, string> = {
   1: "Stage",
@@ -25,6 +27,15 @@ const LEVEL_NAMES: Record<number, string> = {
   4: "Work Package",
 };
 const LEVEL_PREFIX: Record<number, string> = { 1: "ST", 2: "SM", 3: "SS", 4: "WP" };
+
+const SECTORS: Sector[] = [
+  "Building & Construction",
+  "Civil & Infrastructure",
+  "Industrial & Facilities",
+  "Interior & Fit-out",
+  "Renovation & Maintenance",
+  "Other",
+];
 
 const EMPTY_VENDOR_FORM = {
   name: "", trade: "", contractType: "Labor-only" as Vendor["contractType"],
@@ -39,6 +50,13 @@ export function ProjectSetupPage() {
 
   const [currentStep, setCurrentStep] = useState(0);
   const [completedSteps, setCompletedSteps] = useState<Set<number>>(new Set());
+
+  // Step 0 — Project Type
+  const [projectSector, setProjectSector] = useState<Sector | "">(project?.sector || "");
+  const [projectCategory, setProjectCategory] = useState(project?.category || "");
+  const [projectDescriptor, setProjectDescriptor] = useState(project?.descriptor || "");
+
+  const blockLabel = useMemo(() => getBlockLabel(projectSector as Sector, projectCategory), [projectSector, projectCategory]);
 
   // Step 1 — Basic Information
   const [basicInfo, setBasicInfo] = useState({
@@ -270,7 +288,7 @@ export function ProjectSetupPage() {
   };
 
   const handleCompleteSetup = () => {
-    setCompletedSteps(prev => new Set([...prev, 4]));
+    setCompletedSteps(prev => new Set([...prev, 5]));
     setBaselineLocked(true);
   };
 
@@ -338,6 +356,101 @@ export function ProjectSetupPage() {
       })}
     </div>
   );
+
+  // Step 0 — Project Type Classification
+  const renderProjectType = () => {
+    const categories = projectSector ? SECTOR_CATEGORIES[projectSector as Sector] : [];
+    return (
+      <div className="rounded-xl border p-6 space-y-6" style={{ borderColor: "#E2E8F0", backgroundColor: "white" }}>
+        <div>
+          <h2 className="text-lg font-bold" style={{ color: "#1A202C" }}>Project Type Classification</h2>
+          <p className="text-sm mt-1" style={{ color: "#718096" }}>
+            Classify your project so the system can suggest the right schedule template, quality tests, HSE requirements, and vendor trades.
+          </p>
+        </div>
+
+        {/* Level 1 — Sector */}
+        <div>
+          <label className="block text-sm font-semibold mb-3" style={{ color: "#1A202C" }}>Level 1 — Sector</label>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+            {SECTORS.map(s => {
+              const selected = projectSector === s;
+              return (
+                <button
+                  key={s}
+                  onClick={() => { setProjectSector(s); setProjectCategory(""); }}
+                  className={`text-left px-4 py-3 rounded-xl border text-sm font-medium transition-all ${
+                    selected ? "text-white border-transparent" : "hover:border-gray-300"
+                  }`}
+                  style={{
+                    backgroundColor: selected ? "#E8973A" : "white",
+                    borderColor: selected ? "#E8973A" : "#E2E8F0",
+                    color: selected ? "white" : "#1A202C",
+                  }}
+                >
+                  {s}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* Level 2 — Category */}
+        {projectSector && categories.length > 0 && (
+          <div>
+            <label className="block text-sm font-semibold mb-3" style={{ color: "#1A202C" }}>Level 2 — Project Category</label>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+              {categories.map(c => {
+                const selected = projectCategory === c;
+                return (
+                  <button
+                    key={c}
+                    onClick={() => setProjectCategory(c)}
+                    className={`text-left px-4 py-2.5 rounded-lg border text-sm transition-all ${
+                      selected ? "text-white border-transparent" : "hover:bg-gray-50"
+                    }`}
+                    style={{
+                      backgroundColor: selected ? "#E8973A" : "white",
+                      borderColor: selected ? "#E8973A" : "#E2E8F0",
+                      color: selected ? "white" : "#1A202C",
+                    }}
+                  >
+                    {c}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
+        {/* Level 3 — Descriptor */}
+        {projectCategory && (
+          <div>
+            <label className="block text-sm font-semibold mb-1" style={{ color: "#1A202C" }}>
+              Level 3 — Specific Descriptor <span className="text-gray-400 font-normal">(optional)</span>
+            </label>
+            <input
+              type="text" value={projectDescriptor}
+              onChange={e => setProjectDescriptor(e.target.value)}
+              className="w-full px-3 py-2 rounded-lg border text-sm"
+              style={{ borderColor: "#E2E8F0", backgroundColor: "#F7F8FA" }}
+              placeholder="e.g. 22-storey commercial tower, 120-unit estate"
+            />
+          </div>
+        )}
+
+        {projectSector && projectCategory && (
+          <div className="rounded-lg p-4 text-sm" style={{ backgroundColor: "#FEF6E6", border: "1px solid #F4A623" }}>
+            <p className="font-semibold" style={{ color: "#B0780F" }}>Selected Classification</p>
+            <p style={{ color: "#B0780F" }}>
+              {projectSector} &rarr; {projectCategory}
+              {projectDescriptor ? ` — ${projectDescriptor}` : ""}
+            </p>
+          </div>
+        )}
+      </div>
+    );
+  };
 
   // Step 1 — Basic Information
   const renderBasicInfo = () => (
@@ -408,7 +521,7 @@ export function ProjectSetupPage() {
           />
         </div>
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">Block Count</label>
+          <label className="block text-sm font-medium text-gray-700 mb-1">{blockLabel}</label>
           <input
             type="number" min={1} value={basicInfo.blockCount}
             onChange={e => setBasicInfo({ ...basicInfo, blockCount: Number(e.target.value) })}
@@ -730,7 +843,7 @@ export function ProjectSetupPage() {
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Block Assignment</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">{blockLabel} Assignment</label>
                 <input
                   type="text" value={vendorForm.blockAssignment}
                   onChange={e => setVendorForm({ ...vendorForm, blockAssignment: e.target.value })}
@@ -797,7 +910,7 @@ export function ProjectSetupPage() {
           </div>
         </div>
 
-        {/* Stage Assignment — only after vendors are added */}
+        {/* Stage Assignment */}
         {projectVendors.length > 0 && stages.length > 0 && (
           <div className="rounded-xl border p-5" style={{ borderColor: "#E2E8F0", backgroundColor: "white" }}>
             <h3 className="text-base font-bold mb-4" style={{ color: "#1A202C" }}>Assign Vendors to Schedule Phases</h3>
@@ -888,7 +1001,6 @@ export function ProjectSetupPage() {
   // Step 4 — Calendar
   const renderCalendar = () => (
     <div className="space-y-4">
-      {/* Working Days */}
       <div className="rounded-xl border p-6" style={{ borderColor: "#E2E8F0", backgroundColor: "white" }}>
         <h2 className="text-lg font-bold mb-4" style={{ color: "#1A202C" }}>Working Days & Hours</h2>
         <div className="mb-4">
@@ -939,7 +1051,6 @@ export function ProjectSetupPage() {
         </div>
       </div>
 
-      {/* Holidays */}
       <div className="rounded-xl border p-6" style={{ borderColor: "#E2E8F0", backgroundColor: "white" }}>
         <h2 className="text-lg font-bold mb-4" style={{ color: "#1A202C" }}>Holidays</h2>
         <div className="flex items-end gap-3 mb-4">
@@ -988,7 +1099,6 @@ export function ProjectSetupPage() {
         )}
       </div>
 
-      {/* Shutdowns */}
       <div className="rounded-xl border p-6" style={{ borderColor: "#E2E8F0", backgroundColor: "white" }}>
         <h2 className="text-lg font-bold mb-4" style={{ color: "#1A202C" }}>Site Shutdowns</h2>
         <div className="grid grid-cols-3 gap-3 mb-4">
@@ -1079,6 +1189,15 @@ export function ProjectSetupPage() {
           </div>
         </div>
 
+        {/* Classification summary */}
+        {projectSector && projectCategory && (
+          <div className="mb-4 rounded-lg p-3 text-sm" style={{ backgroundColor: "#F7F8FA", border: "1px solid #E2E8F0" }}>
+            <span className="font-medium text-gray-700">Project Type: </span>
+            <span className="text-gray-600">{projectSector} &rarr; {projectCategory}</span>
+            {projectDescriptor && <span className="text-gray-400"> — {projectDescriptor}</span>}
+          </div>
+        )}
+
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
           <div className="rounded-lg border p-4 text-center" style={{ borderColor: "#E2E8F0", backgroundColor: "#F7F8FA" }}>
             <p className="text-2xl font-bold" style={{ color: "#1A202C" }}>{projectTasks.length}</p>
@@ -1157,7 +1276,6 @@ export function ProjectSetupPage() {
 
   return (
     <div style={{ backgroundColor: "#F7F8FA" }} className="min-h-screen p-6">
-      {/* Header */}
       <div className="flex items-center justify-between mb-6">
         <div className="flex items-center gap-3">
           <div className="w-10 h-10 rounded-lg flex items-center justify-center" style={{ backgroundColor: "#E8973A", color: "white" }}>
@@ -1172,21 +1290,19 @@ export function ProjectSetupPage() {
         </div>
       </div>
 
-      {/* Progress Indicator */}
       <div className="rounded-xl border p-6 mb-6" style={{ borderColor: "#E2E8F0", backgroundColor: "white" }}>
         {renderProgress()}
       </div>
 
-      {/* Step Content */}
       <div className="mb-6">
-        {currentStep === 0 && renderBasicInfo()}
-        {currentStep === 1 && renderScheduleBuilder()}
-        {currentStep === 2 && renderVendorRegistration()}
-        {currentStep === 3 && renderCalendar()}
-        {currentStep === 4 && renderBaseline()}
+        {currentStep === 0 && renderProjectType()}
+        {currentStep === 1 && renderBasicInfo()}
+        {currentStep === 2 && renderScheduleBuilder()}
+        {currentStep === 3 && renderVendorRegistration()}
+        {currentStep === 4 && renderCalendar()}
+        {currentStep === 5 && renderBaseline()}
       </div>
 
-      {/* Navigation Buttons */}
       <div className="rounded-xl border p-4 flex items-center justify-between" style={{ borderColor: "#E2E8F0", backgroundColor: "white" }}>
         <div>
           {!isFirstStep && (
@@ -1230,7 +1346,6 @@ export function ProjectSetupPage() {
         </div>
       </div>
 
-      {/* Bottom Setup Process Indicator */}
       <div className="mt-6">
         {renderBottomIndicator()}
       </div>
