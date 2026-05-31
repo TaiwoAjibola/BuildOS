@@ -19,6 +19,7 @@ export function DailyReportsPage() {
   const navigate = useNavigate();
   const project = getProjectById(projectId || "");
   const allReports = getReportsByProject(projectId || "");
+  const basePath = `/apps/construction/projects/${projectId}/daily-reports`;
 
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [dateFrom, setDateFrom] = useState("");
@@ -50,7 +51,7 @@ export function DailyReportsPage() {
           <p className="text-sm text-gray-500 mt-0.5">{project?.name || "Project"} · {allReports.length} reports</p>
         </div>
         <button
-          onClick={() => navigate("daily-reports/new")}
+          onClick={() => navigate(`${basePath}/new`)}
           className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium text-white hover:opacity-90 transition-opacity"
           style={{ backgroundColor: "#E8973A" }}
         >
@@ -143,7 +144,7 @@ export function DailyReportsPage() {
                   <FileText className="w-10 h-10 text-gray-300 mx-auto mb-3" />
                   <p className="text-sm text-gray-500 mb-2">No daily reports found</p>
                   <button
-                    onClick={() => navigate("daily-reports/new")}
+                    onClick={() => navigate(`${basePath}/new`)}
                     className="text-sm font-medium hover:underline"
                     style={{ color: "#E8973A" }}
                   >
@@ -155,7 +156,7 @@ export function DailyReportsPage() {
               filtered.map(r => (
                 <tr
                   key={r.id}
-                  onClick={() => navigate(`daily-reports/${r.id}`)}
+                  onClick={() => navigate(`${basePath}/${r.id}`)}
                   className="cursor-pointer hover:bg-gray-50/80 transition-colors"
                 >
                   <td className="px-4 py-3 text-sm font-medium text-gray-900">{fmtDate(r.reportDate)}</td>
@@ -176,14 +177,14 @@ export function DailyReportsPage() {
                   <td className="px-4 py-3 text-right">
                     <div className="flex items-center justify-end gap-1">
                       <button
-                        onClick={e => { e.stopPropagation(); navigate(`daily-reports/${r.id}`); }}
+                        onClick={e => { e.stopPropagation(); navigate(`${basePath}/${r.id}`); }}
                         className="p-1.5 rounded-md hover:bg-gray-100 text-gray-400 hover:text-gray-600 transition-colors"
                         title="View"
                       >
                         <Eye className="w-4 h-4" />
                       </button>
                       <button
-                        onClick={e => { e.stopPropagation(); navigate(`daily-reports/${r.id}/edit`); }}
+                        onClick={e => { e.stopPropagation(); navigate(`${basePath}/${r.id}/edit`); }}
                         className="p-1.5 rounded-md hover:bg-gray-100 text-gray-400 hover:text-gray-600 transition-colors"
                         title="Edit"
                       >
