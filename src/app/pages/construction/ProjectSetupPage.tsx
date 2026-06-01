@@ -997,13 +997,18 @@ export function ProjectSetupPage() {
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">{blockLabel} Assignment</label>
-                <input
-                  type="text" value={vendorForm.blockAssignment}
+                <select
+                  value={vendorForm.blockAssignment}
                   onChange={e => setVendorForm({ ...vendorForm, blockAssignment: e.target.value })}
                   className="w-full px-3 py-2 rounded-lg border text-sm"
                   style={{ borderColor: "#E2E8F0", backgroundColor: "#F7F8FA" }}
-                  placeholder="e.g. Tower A"
-                />
+                >
+                  <option value="">— Select —</option>
+                  {structureEntries.map(e => (
+                    <option key={e.id} value={e.name}>{e.name}</option>
+                  ))}
+                  <option value="All / Site-wide">All / Site-wide</option>
+                </select>
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div>

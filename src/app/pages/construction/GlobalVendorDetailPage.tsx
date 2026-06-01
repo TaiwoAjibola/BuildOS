@@ -142,8 +142,8 @@ export function GlobalVendorDetailPage() {
                 <p className="text-sm font-medium text-gray-900">{vendor.contractType}</p>
               </div>
               <div>
-                <p className="text-xs text-gray-500 mb-0.5">Block Assignment</p>
-                <p className="text-sm font-medium text-gray-900">{vendor.blockAssignment}</p>
+                <p className="text-xs text-gray-500 mb-0.5">Block / Section Assignment</p>
+                <p className="text-sm font-medium text-gray-900">{vendor.blockAssignment || "—"}</p>
               </div>
               <div>
                 <p className="text-xs text-gray-500 mb-0.5">Contract Sum</p>

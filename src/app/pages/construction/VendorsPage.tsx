@@ -55,6 +55,7 @@ export function VendorsPage() {
 
   const trades = [...new Set(vendors.map(v => v.trade))].sort();
   const workPackages: Task[] = projectId ? getTasksByProject(projectId).filter(t => t.level === 4) : [];
+  const structureNames = project?.structure?.map(s => s.name).filter(Boolean) ?? [];
 
   function handleAdd() {
     const newVendor: Vendor = {
@@ -231,7 +232,7 @@ export function VendorsPage() {
               </div>
               <div className="flex items-center gap-1">
                 <Briefcase className="w-3.5 h-3.5" />
-                <span>{vendor.blockAssignment}</span>
+                <span>{vendor.blockAssignment || "N/A"}</span>
               </div>
             </div>
 
@@ -347,14 +348,19 @@ export function VendorsPage() {
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Block Assignment</label>
-                <input
-                  type="text" value={form.blockAssignment}
+                <label className="block text-sm font-medium text-gray-700 mb-1">Block / Section Assignment</label>
+                <select
+                  value={form.blockAssignment}
                   onChange={e => setForm({ ...form, blockAssignment: e.target.value })}
                   className="w-full px-3 py-2 rounded-lg border text-sm"
                   style={{ borderColor: "#E2E8F0", backgroundColor: "#F7F8FA" }}
-                  placeholder="e.g. Tower A"
-                />
+                >
+                  <option value="">— Select —</option>
+                  {structureNames.map(name => (
+                    <option key={name} value={name}>{name}</option>
+                  ))}
+                  <option value="All / Site-wide">All / Site-wide</option>
+                </select>
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div>

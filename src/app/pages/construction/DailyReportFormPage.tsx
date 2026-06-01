@@ -1,5 +1,5 @@
 import { useParams, useNavigate } from "react-router";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { Save, Send, ArrowLeft, Plus, Trash2, Sun, Cloud, CloudDrizzle, CloudRain, AlertTriangle } from "lucide-react";
 import { getProjectById, getTasksByProject, getVendorsByProject, getReportsByProject, fmtDate, staffList } from "./mockData";
 import type { DailyReport, DailyManpower, DailyEquipment, DailyMaterial, DailyScope, Weather } from "./types";
@@ -98,6 +98,10 @@ export function DailyReportFormPage() {
 
   const summaryTasks = projectTasks.filter(t => t.level === 2);
   const workPackages = projectTasks.filter(t => t.level === 4);
+  const structureNames = useMemo(() => {
+    if (!project?.structure) return [];
+    return project.structure.map(s => s.name).filter(Boolean);
+  }, [project?.structure]);
   const existingDraft = reportId ? existingReports.find(r => r.id === reportId) : null;
 
   const prevReport = [...existingReports]
@@ -429,14 +433,18 @@ export function DailyReportFormPage() {
                     </div>
                     <div className="space-y-1">
                       <label className="text-xs text-gray-500">Block / Unit</label>
-                      <input
-                        type="text"
+                      <select
                         value={row.block}
                         onChange={e => updateManpowerRow(i, { block: e.target.value })}
-                        placeholder="e.g. Tower A, Block 3"
                         className="w-full border border-[#E2E8F0] rounded-md px-3 text-sm outline-none focus:border-[#E8973A]"
                         style={{ minHeight: 44 }}
-                      />
+                      >
+                        <option value="">Select structure...</option>
+                        {structureNames.map(name => (
+                          <option key={name} value={name}>{name}</option>
+                        ))}
+                        <option value="All">All / Site-wide</option>
+                      </select>
                     </div>
                     <div className="space-y-1">
                       <label className="text-xs text-gray-500">Summary Task</label>

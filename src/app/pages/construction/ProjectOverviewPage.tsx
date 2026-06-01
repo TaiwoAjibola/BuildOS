@@ -102,8 +102,16 @@ export function ProjectOverviewPage() {
     { label: "Planned Start", value: fmtDate(project.plannedStartDate) },
     { label: "Planned End", value: fmtDate(project.plannedEndDate) },
   ];
+  if (project.sector) {
+    const typeStr = project.category
+      ? `${project.sector} → ${project.category}${project.descriptor ? ` — ${project.descriptor}` : ""}`
+      : project.sector;
+    keyInfoRows.splice(0, 0, { label: "Project Type", value: <span className="text-xs font-medium px-2 py-0.5 rounded-full" style={{ backgroundColor: "#FEF6E6", color: "#B0780F" }}>{typeStr}</span> });
+  }
   if (project.structure && project.structure.length > 0) {
-    keyInfoRows.splice(2, 0, { label: "Buildings/Sections", value: project.structure.length });
+    const total = project.structure.length;
+    const innerTotal = project.structure.reduce((s, item) => s + (item.attributes?.floors ?? item.attributes?.segments ?? item.attributes?.bays ?? item.attributes?.rooms ?? item.attributes?.span ?? 0), 0);
+    keyInfoRows.splice(3, 0, { label: "Structure", value: `${total} item${total > 1 ? "s" : ""}${innerTotal > 0 ? ` (${innerTotal} sub-units)` : ""}` });
   }
   keyInfoRows.push({ label: "Cluster", value: project.clusterId });
 
