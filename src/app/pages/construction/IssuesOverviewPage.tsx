@@ -1,6 +1,6 @@
 import { useNavigate } from "react-router";
-import { AlertTriangle, CheckCircle, Clock, XCircle, ChevronRight, Search } from "lucide-react";
-import { useState } from "react";
+import { AlertTriangle, CheckCircle, Clock, XCircle, ChevronRight, Search, ArrowUpDown } from "lucide-react";
+import { useMemo, useState } from "react";
 import { projects, issues, fmtDate } from "./mockData";
 
 const STATUS_STYLES: Record<string, { bg: string; text: string }> = {
@@ -22,6 +22,13 @@ const IMPACT_COLORS: Record<string, { bg: string; text: string }> = {
 export function IssuesOverviewPage() {
   const navigate = useNavigate();
   const [search, setSearch] = useState("");
+  const [sortField, setSortField] = useState<string | null>(null);
+  const [sortDir, setSortDir] = useState<"asc" | "desc">("asc");
+
+  function toggleSort(field: string) {
+    if (sortField === field) setSortDir(d => d === "asc" ? "desc" : "asc");
+    else { setSortField(field); setSortDir("asc"); }
+  }
 
   const open = issues.filter(i => i.status === "Open");
   const inProgress = issues.filter(i => i.status === "In Progress" || i.status === "Under Investigation" || i.status === "Escalated");
@@ -34,10 +41,35 @@ export function IssuesOverviewPage() {
     { icon: CheckCircle, label: "Resolved/Closed", value: resolved.length, color: "#27AE60" },
   ];
 
-  const filtered = issues.filter(i =>
-    i.title.toLowerCase().includes(search.toLowerCase()) ||
-    i.id.toLowerCase().includes(search.toLowerCase())
-  );
+  const filtered = useMemo(() => {
+    let list = issues.filter(i =>
+      i.title.toLowerCase().includes(search.toLowerCase()) ||
+      i.id.toLowerCase().includes(search.toLowerCase())
+    );
+    if (sortField) {
+      list = [...list].sort((a, b) => {
+        let va: string | number, vb: string | number;
+        if (sortField === "project") {
+          va = projects.find(p => p.id === a.projectId)?.name ?? a.projectId;
+          vb = projects.find(p => p.id === b.projectId)?.name ?? b.projectId;
+        } else if (sortField === "daysOpen") {
+          va = Math.floor((Date.now() - new Date(a.dateRaised).getTime()) / 86400000);
+          vb = Math.floor((Date.now() - new Date(b.dateRaised).getTime()) / 86400000);
+        } else if (sortField === "impact") {
+          va = a.impactTypes.join(", ");
+          vb = b.impactTypes.join(", ");
+        } else {
+          va = (a as any)[sortField] ?? "";
+          vb = (b as any)[sortField] ?? "";
+        }
+        if (typeof va === "number" && typeof vb === "number") {
+          return sortDir === "asc" ? va - vb : vb - va;
+        }
+        return sortDir === "asc" ? String(va).localeCompare(String(vb)) : String(vb).localeCompare(String(va));
+      });
+    }
+    return list;
+  }, [search, sortField, sortDir]);
 
   return (
     <div style={{ backgroundColor: "#F7F8FA" }} className="min-h-screen p-6 space-y-6">
@@ -73,20 +105,34 @@ export function IssuesOverviewPage() {
         </div>
 
         <div className="overflow-x-auto">
-          <table className="w-full text-sm">
-            <thead>
-              <tr style={{ backgroundColor: "#F7F8FA", borderBottom: "1px solid #E2E8F0" }}>
-                <th className="text-left px-4 py-3 font-medium" style={{ color: "#718096" }}>Issue ID</th>
-                <th className="text-left px-4 py-3 font-medium" style={{ color: "#718096" }}>Project</th>
-                <th className="text-left px-4 py-3 font-medium" style={{ color: "#718096" }}>Title</th>
-                <th className="text-left px-4 py-3 font-medium" style={{ color: "#718096" }}>Impact</th>
-                <th className="text-left px-4 py-3 font-medium" style={{ color: "#718096" }}>Status</th>
-                <th className="text-left px-4 py-3 font-medium" style={{ color: "#718096" }}>Owner</th>
-                <th className="text-left px-4 py-3 font-medium" style={{ color: "#718096" }}>Target Date</th>
-                <th className="text-center px-4 py-3 font-medium" style={{ color: "#718096" }}>Days Open</th>
-                <th className="w-10" />
-              </tr>
-            </thead>
+              <table className="w-full text-sm">
+                <thead>
+                  <tr style={{ backgroundColor: "#F7F8FA", borderBottom: "1px solid #E2E8F0" }}>
+                    {[
+                      { key: "id", label: "Issue ID" },
+                      { key: "project", label: "Project" },
+                      { key: "title", label: "Title" },
+                      { key: "impact", label: "Impact" },
+                      { key: "status", label: "Status" },
+                      { key: "ownerId", label: "Owner" },
+                      { key: "targetDate", label: "Target Date" },
+                      { key: "daysOpen", label: "Days Open" },
+                    ].map(col => (
+                      <th
+                        key={col.key}
+                        onClick={() => toggleSort(col.key)}
+                        className={`px-4 py-3 font-medium cursor-pointer select-none hover:text-gray-900 transition-colors ${col.key === "daysOpen" ? "text-center" : "text-left"}`}
+                        style={{ color: "#718096" }}
+                      >
+                        <span className="inline-flex items-center gap-1">
+                          {col.label}
+                          <ArrowUpDown className="w-3 h-3 opacity-40" />
+                        </span>
+                      </th>
+                    ))}
+                    <th className="w-10" />
+                  </tr>
+                </thead>
             <tbody>
               {filtered.map((issue, i) => {
                 const project = projects.find(p => p.id === issue.projectId);

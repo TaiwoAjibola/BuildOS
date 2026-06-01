@@ -1,6 +1,6 @@
 import { useNavigate } from "react-router";
-import { Users, Briefcase, ChevronRight, Search, Award, Plus, X } from "lucide-react";
-import { useState } from "react";
+import { Users, Briefcase, ChevronRight, Search, Award, Plus, X, ArrowUpDown, Filter, ChevronDown } from "lucide-react";
+import { useMemo, useState } from "react";
 import { projects, stakeholders } from "./mockData";
 
 const LEVEL_STYLES: Record<string, { bg: string; text: string }> = {
@@ -11,12 +11,19 @@ const LEVEL_STYLES: Record<string, { bg: string; text: string }> = {
 
 const ROLES = ["Client", "Contractor", "Consultant", "Regulator", "Community", "Financier", "Other"];
 
+type SortField = "name" | "organization" | "project" | "role" | "influenceLevel" | "impactLevel";
+
 export function StakeholdersOverviewPage() {
   const navigate = useNavigate();
   const [search, setSearch] = useState("");
   const [localStakeholders, setLocalStakeholders] = useState(stakeholders);
   const [showModal, setShowModal] = useState(false);
   const [toastMsg, setToastMsg] = useState<string | null>(null);
+  const [projectFilter, setProjectFilter] = useState<string>("All");
+  const [roleFilter, setRoleFilter] = useState<string>("All");
+  const [showFilters, setShowFilters] = useState(false);
+  const [sortField, setSortField] = useState<SortField | null>(null);
+  const [sortDir, setSortDir] = useState<"asc" | "desc">("asc");
 
   const [form, setForm] = useState({
     name: "",
@@ -39,11 +46,53 @@ export function StakeholdersOverviewPage() {
     { icon: Award, label: "Regulators", value: regulators.length, color: "#27AE60" },
   ];
 
-  const filtered = localStakeholders.filter(s =>
-    s.name.toLowerCase().includes(search.toLowerCase()) ||
-    s.organization.toLowerCase().includes(search.toLowerCase()) ||
-    s.role.toLowerCase().includes(search.toLowerCase())
-  );
+  function toggleSort(field: SortField) {
+    if (sortField === field) setSortDir(d => d === "asc" ? "desc" : "asc");
+    else { setSortField(field); setSortDir("asc"); }
+  }
+
+  const filtered = useMemo(() => {
+    let list = localStakeholders;
+
+    // Search filter
+    if (search) {
+      const q = search.toLowerCase();
+      list = list.filter(s =>
+        s.name.toLowerCase().includes(q) ||
+        s.organization.toLowerCase().includes(q) ||
+        s.role.toLowerCase().includes(q)
+      );
+    }
+
+    // Project filter
+    if (projectFilter !== "All") {
+      list = list.filter(s => s.projectId === projectFilter);
+    }
+
+    // Role filter
+    if (roleFilter !== "All") {
+      list = list.filter(s => s.role === roleFilter);
+    }
+
+    // Sorting
+    if (sortField) {
+      list = [...list].sort((a, b) => {
+        let va: string, vb: string;
+        if (sortField === "project") {
+          const pa = projects.find(p => p.id === a.projectId);
+          const pb = projects.find(p => p.id === b.projectId);
+          va = pa?.name ?? a.projectId;
+          vb = pb?.name ?? b.projectId;
+        } else {
+          va = a[sortField];
+          vb = b[sortField];
+        }
+        return sortDir === "asc" ? va.localeCompare(vb) : vb.localeCompare(va);
+      });
+    }
+
+    return list;
+  }, [localStakeholders, search, projectFilter, roleFilter, sortField, sortDir]);
 
   function showToast(msg: string) {
     setToastMsg(msg);
@@ -127,29 +176,93 @@ export function StakeholdersOverviewPage() {
       </div>
 
       <div className="bg-white rounded-lg p-4" style={{ border: "1px solid #E2E8F0" }}>
-        <div className="relative mb-4">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4" style={{ color: "#718096" }} />
-          <input
-            type="text" placeholder="Search stakeholders..."
-            value={search} onChange={e => setSearch(e.target.value)}
-            className="w-full pl-9 pr-4 py-2 text-sm rounded-lg outline-none"
-            style={{ border: "1px solid #E2E8F0", color: "#1A202C" }}
-          />
+        <div className="flex items-center gap-3 mb-4">
+          <div className="relative flex-1 max-w-sm">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4" style={{ color: "#718096" }} />
+            <input
+              type="text" placeholder="Search stakeholders..."
+              value={search} onChange={e => setSearch(e.target.value)}
+              className="w-full pl-9 pr-4 py-2 text-sm rounded-lg outline-none"
+              style={{ border: "1px solid #E2E8F0", color: "#1A202C" }}
+            />
+          </div>
+          <button
+            onClick={() => setShowFilters(f => !f)}
+            className={`flex items-center gap-1.5 px-3 py-2 border rounded-md text-sm transition-colors ${
+              showFilters ? "border-amber-400 bg-amber-50 text-amber-700" : "border-gray-300 text-gray-700 hover:bg-gray-50"
+            }`}
+          >
+            <Filter className="w-4 h-4" />
+            Filters
+            <ChevronDown className={`w-3.5 h-3.5 transition-transform ${showFilters ? "rotate-180" : ""}`} />
+          </button>
+          <span className="text-sm" style={{ color: "#718096" }}>{filtered.length} result{filtered.length !== 1 ? "s" : ""}</span>
         </div>
 
+        {showFilters && (
+          <div className="flex gap-4 flex-wrap mb-4">
+            <div>
+              <label className="block text-xs font-medium" style={{ color: "#718096" }}>Project</label>
+              <select
+                value={projectFilter}
+                onChange={e => setProjectFilter(e.target.value)}
+                className="border rounded-md text-sm px-2 py-1.5 outline-none"
+                style={{ borderColor: "#E2E8F0", color: "#1A202C" }}
+              >
+                <option value="All">All Projects</option>
+                {projects.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
+              </select>
+            </div>
+            <div>
+              <label className="block text-xs font-medium" style={{ color: "#718096" }}>Role</label>
+              <select
+                value={roleFilter}
+                onChange={e => setRoleFilter(e.target.value)}
+                className="border rounded-md text-sm px-2 py-1.5 outline-none"
+                style={{ borderColor: "#E2E8F0", color: "#1A202C" }}
+              >
+                <option value="All">All Roles</option>
+                {ROLES.map(r => <option key={r} value={r}>{r}</option>)}
+              </select>
+            </div>
+            <button
+              onClick={() => { setProjectFilter("All"); setRoleFilter("All"); setSearch(""); }}
+              className="self-end text-xs font-medium" style={{ color: "#E8973A" }}
+            >
+              Clear all
+            </button>
+          </div>
+        )}
+
         <div className="overflow-x-auto">
-          <table className="w-full text-sm">
-            <thead>
-              <tr style={{ backgroundColor: "#F7F8FA", borderBottom: "1px solid #E2E8F0" }}>
-                <th className="text-left px-4 py-3 font-medium" style={{ color: "#718096" }}>Name</th>
-                <th className="text-left px-4 py-3 font-medium" style={{ color: "#718096" }}>Organization</th>
-                <th className="text-left px-4 py-3 font-medium" style={{ color: "#718096" }}>Project</th>
-                <th className="text-left px-4 py-3 font-medium" style={{ color: "#718096" }}>Role</th>
-                <th className="text-center px-4 py-3 font-medium" style={{ color: "#718096" }}>Influence</th>
-                <th className="text-center px-4 py-3 font-medium" style={{ color: "#718096" }}>Impact</th>
-                <th className="w-10" />
-              </tr>
-            </thead>
+            <table className="w-full text-sm">
+              <thead>
+                <tr style={{ backgroundColor: "#F7F8FA", borderBottom: "1px solid #E2E8F0" }}>
+                  {[
+                    { key: "name", label: "Name" },
+                    { key: "organization", label: "Organization" },
+                    { key: "project", label: "Project" },
+                    { key: "role", label: "Role" },
+                    { key: "influenceLevel", label: "Influence" },
+                    { key: "impactLevel", label: "Impact" },
+                  ].map(col => (
+                    <th
+                      key={col.key}
+                      onClick={() => toggleSort(col.key as SortField)}
+                      className="text-left px-4 py-3 font-medium cursor-pointer select-none hover:text-gray-900 transition-colors"
+                      style={{ color: "#718096" }}
+                    >
+                      <span className="flex items-center gap-1">
+                        {col.key === "influenceLevel" || col.key === "impactLevel" ? (
+                          <span className="flex-1 text-center">{col.label}</span>
+                        ) : col.label}
+                        <ArrowUpDown className="w-3 h-3 opacity-40" />
+                      </span>
+                    </th>
+                  ))}
+                  <th className="w-10" />
+                </tr>
+              </thead>
             <tbody>
               {filtered.map((s, i) => {
                 const project = projects.find(p => p.id === s.projectId);

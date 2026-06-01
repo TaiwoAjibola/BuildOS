@@ -30,7 +30,7 @@ const DEFAULT_FORM = {
   name: "", client: "", location: "", siteAddress: "", projectManager: "",
   contractType: "Lump Sum" as ContractType,
   plannedStartDate: "", plannedEndDate: "", description: "",
-  blockCount: 0, clusterId: "",
+  clusterId: "",
 };
 
 export function ProjectsListPage() {
@@ -306,7 +306,6 @@ export function ProjectsListPage() {
                   plannedStartDate: form.plannedStartDate,
                   plannedEndDate: form.plannedEndDate,
                   description: form.description,
-                  blockCount: form.blockCount,
                   clusterId: form.clusterId,
                   status: "Active" as ProjectStatus,
                   ragStatus: "on-track" as const,
@@ -355,10 +354,6 @@ export function ProjectsListPage() {
                     <option value="">Select PM</option>
                     {staffList.map(s => <option key={s} value={s}>{s}</option>)}
                   </select>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Blocks/Units</label>
-                  <input type="number" value={form.blockCount || ""} onChange={e => setForm(f => ({...f, blockCount: Number(e.target.value)}))} className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500" placeholder="0" />
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Start Date *</label>

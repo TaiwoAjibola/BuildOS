@@ -5,12 +5,12 @@ import {
   Building2, Users, Layers, FileText, Plus, X, Trash2, ChevronRight, ChevronDown, Tags
 } from "lucide-react";
 import { getProjectById, staffList, tradeTypes, clusters, tasks as allTasks, fmtDate, vendors as allVendors } from "./mockData";
-import type { Task, Vendor, ProjectCalendar, Sector } from "./types";
-import { SECTOR_CATEGORIES, getBlockLabel } from "./types";
+import type { Task, Vendor, ProjectCalendar, Sector, ProjectStructureItem } from "./types";
+import { SECTOR_CATEGORIES, getBlockLabel, getStructureConfig } from "./types";
 
 const STEPS = [
-  { id: "project-type", label: "Project Type", icon: Tags },
   { id: "basic", label: "Basic Information", icon: FileText },
+  { id: "project-type", label: "Project Type", icon: Tags },
   { id: "schedule", label: "Schedule Builder", icon: Layers },
   { id: "vendors", label: "Vendor Registration", icon: Users },
   { id: "calendar", label: "Calendar", icon: Calendar },
@@ -51,14 +51,7 @@ export function ProjectSetupPage() {
   const [currentStep, setCurrentStep] = useState(0);
   const [completedSteps, setCompletedSteps] = useState<Set<number>>(new Set());
 
-  // Step 0 — Project Type
-  const [projectSector, setProjectSector] = useState<Sector | "">(project?.sector || "");
-  const [projectCategory, setProjectCategory] = useState(project?.category || "");
-  const [projectDescriptor, setProjectDescriptor] = useState(project?.descriptor || "");
-
-  const blockLabel = useMemo(() => getBlockLabel(projectSector as Sector, projectCategory), [projectSector, projectCategory]);
-
-  // Step 1 — Basic Information
+  // Step 0 — Basic Information
   const [basicInfo, setBasicInfo] = useState({
     name: project?.name || "",
     client: project?.client || "",
@@ -66,12 +59,65 @@ export function ProjectSetupPage() {
     plannedStartDate: project?.plannedStartDate || "",
     plannedEndDate: project?.plannedEndDate || "",
     contractType: project?.contractType || "Lump Sum" as "Lump Sum" | "Remeasurable" | "Cost Plus",
-    blockCount: project?.blockCount || 1,
     clusterId: project?.clusterId || "",
     location: project?.location || "",
     siteAddress: project?.siteAddress || "",
     description: project?.description || "",
   });
+
+  // Step 1 — Project Type
+  const [projectSector, setProjectSector] = useState<Sector | "">(project?.sector || "");
+  const [projectCategory, setProjectCategory] = useState(project?.category || "");
+  const [projectDescriptor, setProjectDescriptor] = useState(project?.descriptor || "");
+
+  const blockLabel = useMemo(() => getBlockLabel(projectSector as Sector, projectCategory), [projectSector, projectCategory]);
+  const structureConfig = useMemo(() => projectCategory ? getStructureConfig(projectCategory) : null, [projectCategory]);
+
+  const [structureEntries, setStructureEntries] = useState<Array<{
+    id: string;
+    name: string;
+    innerUnitCount: number;
+    attributes: Record<string, string | number>;
+    innerAttributes: Record<string, string | number>;
+  }>>([]);
+
+  const addStructureEntry = () => {
+    const config = structureConfig;
+    if (!config) return;
+    const newEntry = {
+      id: `SE-${structureEntries.length + 1}`,
+      name: "",
+      innerUnitCount: 1,
+      attributes: {} as Record<string, string | number>,
+      innerAttributes: {} as Record<string, string | number>,
+    };
+    config.subUnitFields.forEach(f => {
+      newEntry.attributes[f.key] = f.type === "number" ? 0 : "";
+    });
+    config.innerFields.forEach(f => {
+      newEntry.innerAttributes[f.key] = f.type === "number" ? 0 : (f.options?.[0] ?? "");
+    });
+    setStructureEntries(prev => [...prev, newEntry]);
+  };
+
+  const updateStructureEntry = (id: string, field: string, value: string | number) => {
+    setStructureEntries(prev => prev.map(e => e.id === id ? { ...e, [field]: value } : e));
+  };
+
+  const updateStructureEntryAttr = (id: string, key: string, value: string | number) => {
+    setStructureEntries(prev => prev.map(e => e.id === id ? { ...e, attributes: { ...e.attributes, [key]: value } } : e));
+  };
+
+  const updateStructureEntryInnerAttr = (id: string, key: string, value: string | number) => {
+    setStructureEntries(prev => prev.map(e => e.id === id ? { ...e, innerAttributes: { ...e.innerAttributes, [key]: value } } : e));
+  };
+
+  const removeStructureEntry = (id: string) => {
+    setStructureEntries(prev => prev.filter(e => e.id !== id));
+  };
+
+  const totalSubUnits = structureEntries.length;
+  const totalInnerUnits = structureEntries.reduce((sum, e) => sum + (e.innerUnitCount || 0), 0);
 
   // Step 2 — Schedule Builder
   const [projectTasks, setProjectTasks] = useState<Task[]>([]);
@@ -357,7 +403,7 @@ export function ProjectSetupPage() {
     </div>
   );
 
-  // Step 0 — Project Type Classification
+  // Step 1 — Project Type Classification
   const renderProjectType = () => {
     const categories = projectSector ? SECTOR_CATEGORIES[projectSector as Sector] : [];
     return (
@@ -448,11 +494,127 @@ export function ProjectSetupPage() {
             </p>
           </div>
         )}
+
+        {/* Level 4 — Structure Breakdown */}
+        {structureConfig && (
+          <div className="rounded-xl border p-5 space-y-4" style={{ borderColor: "#E2E8F0", backgroundColor: "#F7F8FA" }}>
+            <div>
+              <h3 className="text-base font-bold" style={{ color: "#1A202C" }}>
+                Level 4 — Physical Structure Breakdown
+              </h3>
+              <p className="text-sm mt-1" style={{ color: "#718096" }}>
+                Define the {structureConfig.subUnitLabel}s and {structureConfig.innerUnitLabel}s that make up this project.
+              </p>
+            </div>
+
+            {structureEntries.length === 0 ? (
+              <div className="text-center py-6 text-gray-400">
+                <Building2 className="w-8 h-8 mx-auto mb-2 opacity-50" />
+                <p className="text-sm">No {structureConfig.subUnitLabel.toLowerCase()}s defined yet</p>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {structureEntries.map((entry, idx) => (
+                  <div key={entry.id} className="border rounded-lg p-4" style={{ borderColor: "#E2E8F0", backgroundColor: "white" }}>
+                    <div className="flex items-center justify-between mb-3">
+                      <span className="text-sm font-semibold" style={{ color: "#1A202C" }}>
+                        {structureConfig.subUnitLabel} {idx + 1}
+                      </span>
+                      <button onClick={() => removeStructureEntry(entry.id)} className="text-red-400 hover:text-red-600 p-1 rounded transition-colors">
+                        <X className="w-4 h-4" />
+                      </button>
+                    </div>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+                      <div>
+                        <label className="block text-xs font-medium text-gray-500 mb-1">{structureConfig.subUnitItemLabel}</label>
+                        <input
+                          type="text" value={entry.name}
+                          onChange={e => updateStructureEntry(entry.id, "name", e.target.value)}
+                          className="w-full px-3 py-2 rounded-lg border text-sm"
+                          style={{ borderColor: "#E2E8F0", backgroundColor: "#F7F8FA" }}
+                          placeholder={`e.g. ${structureConfig.subUnitLabel} A`}
+                        />
+                      </div>
+                      {structureConfig.subUnitFields.map(f => (
+                        <div key={f.key}>
+                          <label className="block text-xs font-medium text-gray-500 mb-1">{f.label}</label>
+                          {f.type === "number" ? (
+                            <input
+                              type="number" value={entry.attributes[f.key] ?? ""}
+                              onChange={e => updateStructureEntryAttr(entry.id, f.key, e.target.value === "" ? "" : Number(e.target.value))}
+                              className="w-full px-3 py-2 rounded-lg border text-sm"
+                              style={{ borderColor: "#E2E8F0", backgroundColor: "#F7F8FA" }}
+                            />
+                          ) : (
+                            <input
+                              type="text" value={entry.attributes[f.key] ?? ""}
+                              onChange={e => updateStructureEntryAttr(entry.id, f.key, e.target.value)}
+                              className="w-full px-3 py-2 rounded-lg border text-sm"
+                              style={{ borderColor: "#E2E8F0", backgroundColor: "#F7F8FA" }}
+                            />
+                          )}
+                        </div>
+                      ))}
+                      <div>
+                        <label className="block text-xs font-medium text-gray-500 mb-1">Number of {structureConfig.innerUnitLabel}s</label>
+                        <input
+                          type="number" min={1} value={entry.innerUnitCount}
+                          onChange={e => updateStructureEntry(entry.id, "innerUnitCount", Math.max(1, Number(e.target.value)))}
+                          className="w-full px-3 py-2 rounded-lg border text-sm"
+                          style={{ borderColor: "#E2E8F0", backgroundColor: "#F7F8FA" }}
+                        />
+                      </div>
+                      {structureConfig.innerFields.map(f => (
+                        <div key={f.key}>
+                          <label className="block text-xs font-medium text-gray-500 mb-1">{f.label} (per {structureConfig.innerUnitLabel})</label>
+                          {f.type === "select" && f.options ? (
+                            <select
+                              value={entry.innerAttributes[f.key] ?? ""}
+                              onChange={e => updateStructureEntryInnerAttr(entry.id, f.key, e.target.value)}
+                              className="w-full px-3 py-2 rounded-lg border text-sm"
+                              style={{ borderColor: "#E2E8F0", backgroundColor: "#F7F8FA" }}
+                            >
+                              {f.options.map(o => <option key={o} value={o}>{o}</option>)}
+                            </select>
+                          ) : (
+                            <input
+                              type={f.type === "number" ? "number" : "text"}
+                              value={entry.innerAttributes[f.key] ?? ""}
+                              onChange={e => updateStructureEntryInnerAttr(entry.id, f.key, f.type === "number" ? (e.target.value === "" ? "" : Number(e.target.value)) : e.target.value)}
+                              className="w-full px-3 py-2 rounded-lg border text-sm"
+                              style={{ borderColor: "#E2E8F0", backgroundColor: "#F7F8FA" }}
+                            />
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            <button
+              onClick={addStructureEntry}
+              className="flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-medium w-fit"
+              style={{ color: "#E8973A", border: "1px dashed #E8973A", backgroundColor: "#FFF8F0" }}
+            >
+              <Plus className="w-4 h-4" /> Add {structureConfig.subUnitLabel}
+            </button>
+
+            {structureEntries.length > 0 && (
+              <div className="rounded-lg p-3 border text-sm" style={{ borderColor: "#E2E8F0", backgroundColor: "white" }}>
+                <p className="font-medium text-gray-900">
+                  {totalSubUnits} {structureConfig.subUnitLabel}(s) &middot; {totalInnerUnits} Total {structureConfig.innerUnitLabel}s
+                </p>
+              </div>
+            )}
+          </div>
+        )}
       </div>
     );
   };
 
-  // Step 1 — Basic Information
+  // Step 0 — Basic Information
   const renderBasicInfo = () => (
     <div className="rounded-xl border p-6 space-y-5" style={{ borderColor: "#E2E8F0", backgroundColor: "white" }}>
       <h2 className="text-lg font-bold" style={{ color: "#1A202C" }}>Basic Information</h2>
@@ -516,15 +678,6 @@ export function ProjectSetupPage() {
           <input
             type="date" value={basicInfo.plannedEndDate}
             onChange={e => setBasicInfo({ ...basicInfo, plannedEndDate: e.target.value })}
-            className="w-full px-3 py-2 rounded-lg border text-sm"
-            style={{ borderColor: "#E2E8F0", backgroundColor: "#F7F8FA" }}
-          />
-        </div>
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">{blockLabel}</label>
-          <input
-            type="number" min={1} value={basicInfo.blockCount}
-            onChange={e => setBasicInfo({ ...basicInfo, blockCount: Number(e.target.value) })}
             className="w-full px-3 py-2 rounded-lg border text-sm"
             style={{ borderColor: "#E2E8F0", backgroundColor: "#F7F8FA" }}
           />
@@ -1295,8 +1448,8 @@ export function ProjectSetupPage() {
       </div>
 
       <div className="mb-6">
-        {currentStep === 0 && renderProjectType()}
-        {currentStep === 1 && renderBasicInfo()}
+        {currentStep === 0 && renderBasicInfo()}
+        {currentStep === 1 && renderProjectType()}
         {currentStep === 2 && renderScheduleBuilder()}
         {currentStep === 3 && renderVendorRegistration()}
         {currentStep === 4 && renderCalendar()}

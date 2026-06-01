@@ -1,6 +1,6 @@
 import { useNavigate } from "react-router";
-import { FileText, Sun, Cloud, CloudDrizzle, CloudRain, Eye, ChevronRight } from "lucide-react";
-import { useState } from "react";
+import { FileText, Sun, Cloud, CloudDrizzle, CloudRain, Eye, ChevronRight, ArrowUpDown } from "lucide-react";
+import { useMemo, useState } from "react";
 import { projects, dailyReports, fmtDate } from "./mockData";
 
 const WEATHER_ICON: Record<string, typeof Sun> = { Sunny: Sun, Cloudy: Cloud, Drizzle: CloudDrizzle, Rainy: CloudRain };
@@ -11,6 +11,13 @@ const STATUS_STYLES: Record<string, { bg: string; text: string }> = {
 
 export function DailyReportsOverviewPage() {
   const navigate = useNavigate();
+  const [sortField, setSortField] = useState<string | null>(null);
+  const [sortDir, setSortDir] = useState<"asc" | "desc">("asc");
+
+  function toggleSort(field: string) {
+    if (sortField === field) setSortDir(d => d === "asc" ? "desc" : "asc");
+    else { setSortField(field); setSortDir("asc"); }
+  }
 
   const now = new Date();
   const weekAgo = new Date(now.getTime() - 7 * 86400000);
@@ -23,7 +30,25 @@ export function DailyReportsOverviewPage() {
     { icon: Eye, label: "Reports this week", value: thisWeek.length, color: "#E8973A" },
   ];
 
-  const sorted = [...dailyReports].sort((a, b) => new Date(b.reportDate).getTime() - new Date(a.reportDate).getTime());
+  const sorted = useMemo(() => {
+    let list = [...dailyReports];
+    if (sortField) {
+      list.sort((a, b) => {
+        let va: string | number, vb: string | number;
+        if (sortField === "project") {
+          va = projects.find(p => p.id === a.projectId)?.name ?? a.projectId;
+          vb = projects.find(p => p.id === b.projectId)?.name ?? b.projectId;
+        } else {
+          va = (a as any)[sortField] ?? "";
+          vb = (b as any)[sortField] ?? "";
+        }
+        return sortDir === "asc" ? String(va).localeCompare(String(vb)) : String(vb).localeCompare(String(va));
+      });
+    } else {
+      list.sort((a, b) => new Date(b.reportDate).getTime() - new Date(a.reportDate).getTime());
+    }
+    return list;
+  }, [sortField, sortDir]);
 
   return (
     <div style={{ backgroundColor: "#F7F8FA" }} className="min-h-screen p-6 space-y-6">
@@ -49,17 +74,31 @@ export function DailyReportsOverviewPage() {
 
       <div className="bg-white rounded-lg overflow-hidden" style={{ border: "1px solid #E2E8F0" }}>
         <div className="overflow-x-auto">
-          <table className="w-full text-sm">
-            <thead>
-              <tr style={{ backgroundColor: "#F7F8FA", borderBottom: "1px solid #E2E8F0" }}>
-                <th className="text-left px-4 py-3 font-medium" style={{ color: "#718096" }}>Project</th>
-                <th className="text-left px-4 py-3 font-medium" style={{ color: "#718096" }}>Date</th>
-                <th className="text-left px-4 py-3 font-medium" style={{ color: "#718096" }}>Weather</th>
-                <th className="text-left px-4 py-3 font-medium" style={{ color: "#718096" }}>Submitted By</th>
-                <th className="text-left px-4 py-3 font-medium" style={{ color: "#718096" }}>Status</th>
-                <th className="w-10" />
-              </tr>
-            </thead>
+              <table className="w-full text-sm">
+                <thead>
+                  <tr style={{ backgroundColor: "#F7F8FA", borderBottom: "1px solid #E2E8F0" }}>
+                    {[
+                      { key: "project", label: "Project" },
+                      { key: "reportDate", label: "Date" },
+                      { key: "weather", label: "Weather" },
+                      { key: "submittedBy", label: "Submitted By" },
+                      { key: "status", label: "Status" },
+                    ].map(col => (
+                      <th
+                        key={col.key}
+                        onClick={() => toggleSort(col.key)}
+                        className="text-left px-4 py-3 font-medium cursor-pointer select-none hover:text-gray-900 transition-colors"
+                        style={{ color: "#718096" }}
+                      >
+                        <span className="inline-flex items-center gap-1">
+                          {col.label}
+                          <ArrowUpDown className="w-3 h-3 opacity-40" />
+                        </span>
+                      </th>
+                    ))}
+                    <th className="w-10" />
+                  </tr>
+                </thead>
             <tbody>
               {sorted.map((r, i) => {
                 const WeatherIcon = WEATHER_ICON[r.weather] ?? Sun;

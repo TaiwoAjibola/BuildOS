@@ -71,7 +71,7 @@ export interface Project {
   plannedStartDate: string;
   plannedEndDate: string;
   description: string;
-  blockCount: number;
+  blockCount?: number;
   clusterId: string;
   status: ProjectStatus;
   ragStatus: RAGStatus;
@@ -85,6 +85,7 @@ export interface Project {
   sector?: Sector;
   category?: string;
   descriptor?: string;
+  structure?: ProjectStructureItem[];
 }
 
 export interface Task {
@@ -448,6 +449,272 @@ export interface ProjectSetupData {
   vendorsAdded: boolean;
   calendarConfigured: boolean;
   baselineLocked: boolean;
+}
+
+export interface ProjectStructureItem {
+  id: string;
+  name: string;
+  type: string;
+  level: number;
+  parentId: string | null;
+  attributes: Record<string, string | number>;
+}
+
+export interface StructureField {
+  key: string;
+  label: string;
+  type: "text" | "number" | "select";
+  options?: string[];
+}
+
+export interface StructureSection {
+  label: string;
+  fields: StructureField[];
+}
+
+export interface CategoryStructureConfig {
+  subUnitLabel: string;
+  subUnitFields: StructureField[];
+  subUnitItemLabel: string;
+  innerUnitLabel: string;
+  innerFields: StructureField[];
+}
+
+const structureConfigs: Record<string, CategoryStructureConfig> = {
+  "Residential (multi-unit / estate)": {
+    subUnitLabel: "Building",
+    subUnitItemLabel: "Building Name",
+    subUnitFields: [],
+    innerUnitLabel: "Floor",
+    innerFields: [
+      { key: "unitsPerFloor", label: "Units per Floor", type: "number" },
+      { key: "unitType", label: "Unit Type", type: "select", options: ["Studio", "1-Bedroom", "2-Bedroom", "3-Bedroom", "4-Bedroom", "Duplex", "Penthouse"] },
+    ],
+  },
+  "Residential (single dwelling)": {
+    subUnitLabel: "Building",
+    subUnitItemLabel: "Building Name",
+    subUnitFields: [],
+    innerUnitLabel: "Room",
+    innerFields: [
+      { key: "roomCount", label: "Number of Rooms", type: "number" },
+      { key: "roomType", label: "Room Type", type: "select", options: ["1-Bedroom", "2-Bedroom", "3-Bedroom", "4-Bedroom", "Studio", "Living Room", "Dining", "Kitchen"] },
+    ],
+  },
+  "Commercial (office building)": {
+    subUnitLabel: "Floor",
+    subUnitItemLabel: "Floor Level",
+    subUnitFields: [{ key: "label", label: "Floor Label", type: "text" }],
+    innerUnitLabel: "Office Unit",
+    innerFields: [
+      { key: "unitCount", label: "Number of Units", type: "number" },
+      { key: "unitType", label: "Unit Type", type: "select", options: ["Open Plan", "Cubicle", "Private Office", "Meeting Room"] },
+    ],
+  },
+  "Commercial (retail / shopping)": {
+    subUnitLabel: "Floor",
+    subUnitItemLabel: "Floor Level",
+    subUnitFields: [{ key: "label", label: "Floor Label", type: "text" }],
+    innerUnitLabel: "Shop Unit",
+    innerFields: [
+      { key: "unitCount", label: "Number of Shops", type: "number" },
+    ],
+  },
+  "Mixed-use development": {
+    subUnitLabel: "Block",
+    subUnitItemLabel: "Block Name",
+    subUnitFields: [],
+    innerUnitLabel: "Floor",
+    innerFields: [
+      { key: "unitsPerFloor", label: "Units per Floor", type: "number" },
+      { key: "unitType", label: "Unit Type", type: "select", options: ["Residential", "Commercial", "Retail", "Office", "Parking"] },
+    ],
+  },
+  "Institutional (school, hospital, church, government)": {
+    subUnitLabel: "Building",
+    subUnitItemLabel: "Building Name",
+    subUnitFields: [],
+    innerUnitLabel: "Floor",
+    innerFields: [
+      { key: "roomsPerFloor", label: "Rooms per Floor", type: "number" },
+      { key: "function", label: "Function", type: "select", options: ["Classroom", "Laboratory", "Office", "Ward", "Lecture Hall", "Library", "Administration", "Worship Hall", "Auditorium"] },
+    ],
+  },
+  "Industrial (warehouse, factory)": {
+    subUnitLabel: "Section",
+    subUnitItemLabel: "Section Name",
+    subUnitFields: [{ key: "area", label: "Area (sqm)", type: "number" }],
+    innerUnitLabel: "Bay",
+    innerFields: [
+      { key: "bayCount", label: "Number of Bays", type: "number" },
+    ],
+  },
+  "Hospitality (hotel, shortlet, event centre)": {
+    subUnitLabel: "Building",
+    subUnitItemLabel: "Building Name",
+    subUnitFields: [],
+    innerUnitLabel: "Room",
+    innerFields: [
+      { key: "roomsPerFloor", label: "Rooms per Floor", type: "number" },
+      { key: "roomType", label: "Room Type", type: "select", options: ["Standard", "Deluxe", "Suite", "Presidential", "Conference Room", "Event Hall"] },
+    ],
+  },
+  "Road construction": {
+    subUnitLabel: "Section",
+    subUnitItemLabel: "Section Name",
+    subUnitFields: [{ key: "lengthKm", label: "Length (km)", type: "number" }],
+    innerUnitLabel: "Segment",
+    innerFields: [
+      { key: "segmentCount", label: "Number of Segments", type: "number" },
+    ],
+  },
+  "Bridge": {
+    subUnitLabel: "Span",
+    subUnitItemLabel: "Span Name",
+    subUnitFields: [{ key: "length", label: "Length (m)", type: "number" }],
+    innerUnitLabel: "Deck Section",
+    innerFields: [
+      { key: "deckCount", label: "Number of Deck Sections", type: "number" },
+    ],
+  },
+  "Drainage & stormwater": {
+    subUnitLabel: "Zone",
+    subUnitItemLabel: "Zone Name",
+    subUnitFields: [{ key: "length", label: "Length (m)", type: "number" }],
+    innerUnitLabel: "Segment",
+    innerFields: [
+      { key: "segmentCount", label: "Segments", type: "number" },
+    ],
+  },
+  "Borehole & water supply": {
+    subUnitLabel: "Station",
+    subUnitItemLabel: "Station Name",
+    subUnitFields: [{ key: "capacity", label: "Capacity (L/hr)", type: "number" }],
+    innerUnitLabel: "Line",
+    innerFields: [
+      { key: "lineCount", label: "Distribution Lines", type: "number" },
+    ],
+  },
+  "Fencing & external works": {
+    subUnitLabel: "Section",
+    subUnitItemLabel: "Section Name",
+    subUnitFields: [{ key: "length", label: "Length (m)", type: "number" }],
+    innerUnitLabel: "Segment",
+    innerFields: [
+      { key: "segmentCount", label: "Segments", type: "number" },
+    ],
+  },
+  "Factory fit-out": {
+    subUnitLabel: "Zone",
+    subUnitItemLabel: "Zone Name",
+    subUnitFields: [{ key: "area", label: "Area (sqm)", type: "number" }],
+    innerUnitLabel: "Line",
+    innerFields: [
+      { key: "productionLines", label: "Production Lines", type: "number" },
+    ],
+  },
+  "Warehouse construction": {
+    subUnitLabel: "Bay",
+    subUnitItemLabel: "Bay Name",
+    subUnitFields: [{ key: "capacity", label: "Capacity (tons)", type: "number" }],
+    innerUnitLabel: "Rack",
+    innerFields: [
+      { key: "rackCount", label: "Rack Count", type: "number" },
+    ],
+  },
+  "Plant installation": {
+    subUnitLabel: "Unit",
+    subUnitItemLabel: "Unit Name",
+    subUnitFields: [{ key: "power", label: "Power Rating (kW)", type: "number" }],
+    innerUnitLabel: "Component",
+    innerFields: [
+      { key: "componentCount", label: "Components", type: "number" },
+    ],
+  },
+  "Office fit-out": {
+    subUnitLabel: "Floor",
+    subUnitItemLabel: "Floor", subUnitFields: [],
+    innerUnitLabel: "Workspace",
+    innerFields: [
+      { key: "workspaces", label: "Workstations", type: "number" },
+    ],
+  },
+  "Residential interior": {
+    subUnitLabel: "Room",
+    subUnitItemLabel: "Room Name",
+    subUnitFields: [],
+    innerUnitLabel: "Finish Area",
+    innerFields: [
+      { key: "area", label: "Area (sqm)", type: "number" },
+    ],
+  },
+  "Retail fit-out": {
+    subUnitLabel: "Floor",
+    subUnitItemLabel: "Floor", subUnitFields: [],
+    innerUnitLabel: "Section",
+    innerFields: [
+      { key: "sectionCount", label: "Sections", type: "number" },
+    ],
+  },
+  "Shortlet apartment fit-out": {
+    subUnitLabel: "Unit",
+    subUnitItemLabel: "Unit Name",
+    subUnitFields: [],
+    innerUnitLabel: "Room",
+    innerFields: [
+      { key: "roomCount", label: "Rooms", type: "number" },
+      { key: "unitType", label: "Type", type: "select", options: ["Studio", "1-Bedroom", "2-Bedroom", "Penthouse"] },
+    ],
+  },
+  "Full renovation (structural)": {
+    subUnitLabel: "Area",
+    subUnitItemLabel: "Area Name",
+    subUnitFields: [{ key: "area", label: "Area (sqm)", type: "number" }],
+    innerUnitLabel: "Scope Item",
+    innerFields: [
+      { key: "itemCount", label: "Items", type: "number" },
+    ],
+  },
+  "Cosmetic renovation (finishing only)": {
+    subUnitLabel: "Room",
+    subUnitItemLabel: "Room Name",
+    subUnitFields: [{ key: "area", label: "Area (sqm)", type: "number" }],
+    innerUnitLabel: "Finish",
+    innerFields: [
+      { key: "finishCount", label: "Finish Types", type: "number" },
+    ],
+  },
+  "Planned maintenance": {
+    subUnitLabel: "Zone",
+    subUnitItemLabel: "Zone",
+    subUnitFields: [],
+    innerUnitLabel: "Task",
+    innerFields: [
+      { key: "taskCount", label: "Scheduled Tasks", type: "number" },
+    ],
+  },
+  "Emergency repair": {
+    subUnitLabel: "Location",
+    subUnitItemLabel: "Location",
+    subUnitFields: [],
+    innerUnitLabel: "Repair Item",
+    innerFields: [
+      { key: "itemCount", label: "Repair Items", type: "number" },
+    ],
+  },
+  "Other": {
+    subUnitLabel: "Section",
+    subUnitItemLabel: "Section Name",
+    subUnitFields: [],
+    innerUnitLabel: "Sub-section",
+    innerFields: [
+      { key: "count", label: "Count", type: "number" },
+    ],
+  },
+};
+
+export function getStructureConfig(category: string): CategoryStructureConfig | null {
+  return structureConfigs[category] ?? null;
 }
 
 export interface QualityNCR {

@@ -102,8 +102,8 @@ export function ProjectOverviewPage() {
     { label: "Planned Start", value: fmtDate(project.plannedStartDate) },
     { label: "Planned End", value: fmtDate(project.plannedEndDate) },
   ];
-  if (project.blockCount > 0) {
-    keyInfoRows.splice(2, 0, { label: "Blocks", value: project.blockCount });
+  if (project.structure && project.structure.length > 0) {
+    keyInfoRows.splice(2, 0, { label: "Buildings/Sections", value: project.structure.length });
   }
   keyInfoRows.push({ label: "Cluster", value: project.clusterId });
 
