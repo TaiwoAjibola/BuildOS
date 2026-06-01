@@ -215,7 +215,7 @@ export function VendorsPage() {
               </span>
               {vendor.isNominated && (
                 <span className="px-2 py-0.5 rounded text-xs font-medium bg-amber-100 text-amber-700">
-                  Nominated by House
+                  Nominated by HAUZ
                 </span>
               )}
             </div>
@@ -336,7 +336,7 @@ export function VendorsPage() {
                   className="rounded"
                   style={{ accentColor: "#E8973A" }}
                 />
-                <label htmlFor="isNominated" className="text-sm text-gray-700">Nominated by House</label>
+                <label htmlFor="isNominated" className="text-sm text-gray-700">Nominated by HAUZ</label>
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Contract Sum (₦)</label>

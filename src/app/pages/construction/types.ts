@@ -740,3 +740,143 @@ export interface HSEMatrix {
   expiryDate: string;
   status: "Valid" | "Expiring Soon" | "Expired";
 }
+
+// ── Resource types ──────────────────────────────────────────
+export type HumanResourceSource = "employee" | "individual-contractor" | "vendor";
+
+export interface HumanResource {
+  id: string;
+  projectId: string;
+  source: HumanResourceSource;
+  name: string;
+  trade: string;
+  contractType?: string;
+  isNominated?: boolean;
+  contractSum?: number;
+  // For individual contractors
+  payRate?: number;
+  payRateUnit?: "daily" | "weekly" | "monthly" | "lump-sum";
+  skilledCount?: number;
+  unskilledCount?: number;
+  // For vendors
+  vendorId?: string;
+  vendorMargin?: number;
+  // For employees
+  employeeId?: string;
+  dailyRate?: number;
+  // General
+  status: "Awarded" | "Active" | "Completed" | "Terminated";
+  assignedWorkPackages: string[];
+  blockAssignment: string;
+  mandaysEstimate: number;
+}
+
+export interface MaterialResource {
+  id: string;
+  projectId: string;
+  name: string;
+  category: string;
+  unit: string;
+  estimatedQty: number;
+  estimatedUnitCost: number;
+  totalEstimatedCost: number;
+  procurementSource: "internal" | "purchase";
+  supplierId?: string;
+}
+
+export interface EquipmentResource {
+  id: string;
+  projectId: string;
+  name: string;
+  category: string;
+  ownership: "company-owned" | "rented" | "client-supplied";
+  // For company-owned
+  internalCostPerDay?: number;
+  // For rented
+  rentalCostPerDay?: number;
+  rentalSupplier?: string;
+  // General
+  estimatedDays: number;
+  totalEstimatedCost: number;
+  status: "Available" | "Assigned" | "Under Maintenance";
+}
+
+export interface ResourceAssignment {
+  id: string;
+  taskId: string;
+  projectId: string;
+  resourceType: "human" | "material" | "equipment";
+  humanResourceId?: string;
+  materialResourceId?: string;
+  equipmentResourceId?: string;
+  plannedQty: number;
+  plannedCost: number;
+  actualQty?: number;
+  actualCost?: number;
+}
+
+// ── Schedule Level Config ───────────────────────────────────
+export interface ScheduleLevelConfig {
+  level: number;
+  name: string;
+  prefix: string;
+  canAssignResources: boolean;
+}
+
+// ── Weather Config ──────────────────────────────────────────
+export interface WeatherConfig {
+  value: Weather;
+  label: string;
+  enabled: boolean;
+}
+
+// ── Daily Expense ───────────────────────────────────────────
+export interface DailyExpense {
+  id: string;
+  projectId: string;
+  reportId?: string;
+  reportDate: string;
+  category: "human" | "material" | "equipment" | "other";
+  resourceId?: string;
+  description: string;
+  amount: number;
+  paidBy: "project-cash" | "finance-disbursement" | "petty-cash";
+  disbursementId?: string;
+  receiptRef?: string;
+}
+
+// ── Communication Log ───────────────────────────────────────
+export interface CommunicationLogEntry {
+  id: string;
+  projectId: string;
+  date: string;
+  from: string;
+  to: string;
+  channel: "email" | "phone" | "meeting" | "letter" | "memorandum" | "other";
+  subject: string;
+  summary: string;
+  followUpDate?: string;
+  status: "sent" | "received" | "draft" | "action-required";
+  createdBy: string;
+  createdAt: string;
+}
+
+// ── Disbursement ────────────────────────────────────────────
+export interface Disbursement {
+  id: string;
+  projectId: string;
+  taskId?: string;
+  amount: number;
+  date: string;
+  source: "finance" | "project-cash" | "client-direct";
+  reference: string;
+  notes: string;
+  allocatedTo: string[];
+}
+
+// ── Project Type Setting ────────────────────────────────────
+export interface ProjectTypeSetting {
+  sector: Sector;
+  categories: string[];
+  descriptors?: string[];
+}

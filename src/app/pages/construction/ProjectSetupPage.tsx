@@ -984,7 +984,7 @@ export function ProjectSetupPage() {
                   onChange={e => setVendorForm({ ...vendorForm, isNominated: e.target.checked })}
                   className="rounded" style={{ accentColor: "#E8973A" }}
                 />
-                <label htmlFor="vendorNominated" className="text-sm text-gray-700">Nominated by House</label>
+                <label htmlFor="vendorNominated" className="text-sm text-gray-700">Nominated by HAUZ</label>
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Contract Sum (₦)</label>

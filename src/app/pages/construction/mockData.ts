@@ -4,6 +4,9 @@ import type {
   DailyManpower, DailyEquipment, DailyMaterial, DailyScope,
   ProjectBaseline, ProjectCalendar, EarnedValueData, ResourceAllocation, ProjectSetupData,
   Sector, ProjectStructureItem,
+  HumanResource, MaterialResource, EquipmentResource, ResourceAssignment,
+  DailyExpense, CommunicationLogEntry, Disbursement,
+  ScheduleLevelConfig, WeatherConfig,
 } from "./types";
 
 export const projects: Project[] = [
@@ -264,3 +267,81 @@ export function ragLabel(rag: string): string {
     default: return rag;
   }
 }
+
+// ── Schedule Level Config (default) ─────────────
+export const defaultScheduleLevels: ScheduleLevelConfig[] = [
+  { level: 1, name: "Stage / Phase", prefix: "ST", canAssignResources: true },
+  { level: 2, name: "Summary Task", prefix: "SM", canAssignResources: true },
+  { level: 3, name: "Sub-summary Task", prefix: "SS", canAssignResources: true },
+  { level: 4, name: "Work Package", prefix: "WP", canAssignResources: true },
+];
+
+// ── Weather Config (default) ────────────────────
+export const defaultWeatherConfig: WeatherConfig[] = [
+  { value: "Sunny", label: "Sunny", enabled: true },
+  { value: "Cloudy", label: "Cloudy", enabled: true },
+  { value: "Drizzle", label: "Drizzle", enabled: true },
+  { value: "Rainy", label: "Rainy", enabled: true },
+];
+
+// ── Human Resources (mock) ──────────────────────
+export const humanResources: HumanResource[] = [
+  { id: "HR-001", projectId: "PRJ-001", source: "vendor", name: "Alhaji Masonry Services", trade: "Masonry", contractType: "Labor-only", isNominated: false, contractSum: 45_000_000, vendorId: "V-001", vendorMargin: 30, status: "Active", assignedWorkPackages: ["WP-001", "WP-002"], blockAssignment: "Tower A", mandaysEstimate: 540 },
+  { id: "HR-002", projectId: "PRJ-001", source: "individual-contractor", name: "Babatunde Welder", trade: "Welding", payRate: 25000, payRateUnit: "daily", skilledCount: 1, unskilledCount: 2, status: "Active", assignedWorkPackages: ["WP-003"], blockAssignment: "Tower A", mandaysEstimate: 45 },
+  { id: "HR-003", projectId: "PRJ-002", source: "employee", name: "Sarah Adeyemi", trade: "Project Management", employeeId: "EMP-002", dailyRate: 45000, status: "Active", assignedWorkPackages: [], blockAssignment: "All", mandaysEstimate: 0 },
+  { id: "HR-004", projectId: "PRJ-001", source: "vendor", name: "Chike Tiling Experts", trade: "Tiling", contractType: "Labor-only", contractSum: 28_000_000, vendorId: "V-002", vendorMargin: 25, status: "Active", assignedWorkPackages: ["WP-005"], blockAssignment: "Tower A", mandaysEstimate: 300 },
+];
+
+// ── Material Resources (mock) ───────────────────
+export const materialResources: MaterialResource[] = [
+  { id: "MR-001", projectId: "PRJ-001", name: "Cement (Grade 42.5)", category: "Aggregates", unit: "bags", estimatedQty: 5000, estimatedUnitCost: 5500, totalEstimatedCost: 27_500_000, procurementSource: "purchase" },
+  { id: "MR-002", projectId: "PRJ-001", name: "Rebars Y16", category: "Reinforcement", unit: "tonnes", estimatedQty: 120, estimatedUnitCost: 850_000, totalEstimatedCost: 102_000_000, procurementSource: "purchase" },
+  { id: "MR-003", projectId: "PRJ-001", name: "Sharp Sand", category: "Aggregates", unit: "tonnes", estimatedQty: 800, estimatedUnitCost: 3500, totalEstimatedCost: 2_800_000, procurementSource: "internal" },
+];
+
+// ── Equipment Resources (mock) ──────────────────
+export const equipmentResources: EquipmentResource[] = [
+  { id: "ER-001", projectId: "PRJ-001", name: "Tower Crane", category: "Lifting", ownership: "company-owned", internalCostPerDay: 150_000, estimatedDays: 180, totalEstimatedCost: 27_000_000, status: "Assigned" },
+  { id: "ER-002", projectId: "PRJ-001", name: "Excavator CAT 320D", category: "Earthwork", ownership: "rented", rentalCostPerDay: 120_000, rentalSupplier: "Mario Equipment Ltd", estimatedDays: 90, totalEstimatedCost: 10_800_000, status: "Available" },
+  { id: "ER-003", projectId: "PRJ-001", name: "Concrete Mixer", category: "Concreting", ownership: "company-owned", internalCostPerDay: 35_000, estimatedDays: 150, totalEstimatedCost: 5_250_000, status: "Available" },
+];
+
+// ── Resource Assignments (mock) ─────────────────
+export const resourceAssignments: ResourceAssignment[] = [
+  { id: "RA-001", taskId: "WP-001", projectId: "PRJ-001", resourceType: "human", humanResourceId: "HR-001", plannedQty: 30, plannedCost: 1_200_000, actualQty: 28, actualCost: 1_100_000 },
+  { id: "RA-002", taskId: "WP-003", projectId: "PRJ-001", resourceType: "human", humanResourceId: "HR-002", plannedQty: 15, plannedCost: 375_000 },
+  { id: "RA-003", taskId: "WP-003", projectId: "PRJ-001", resourceType: "material", materialResourceId: "MR-002", plannedQty: 10, plannedCost: 8_500_000 },
+  { id: "RA-004", taskId: "ST-001", projectId: "PRJ-001", resourceType: "equipment", equipmentResourceId: "ER-002", plannedQty: 45, plannedCost: 5_400_000 },
+  { id: "RA-005", taskId: "SS-002", projectId: "PRJ-001", resourceType: "human", humanResourceId: "HR-001", plannedQty: 20, plannedCost: 800_000 },
+];
+
+// ── Daily Expenses (mock) ───────────────────────
+export const dailyExpenses: DailyExpense[] = [
+  { id: "DE-001", projectId: "PRJ-001", reportDate: "2026-05-28", category: "human", description: "Masonry labor day rate", amount: 450_000, paidBy: "project-cash" },
+  { id: "DE-002", projectId: "PRJ-001", reportDate: "2026-05-28", category: "material", description: "Emergency cement purchase", amount: 275_000, paidBy: "petty-cash", receiptRef: "RCT-001" },
+  { id: "DE-003", projectId: "PRJ-001", reportDate: "2026-05-29", category: "equipment", description: "Excavator hire day rate", amount: 120_000, paidBy: "project-cash" },
+];
+
+// ── Communication Log (mock) ────────────────────
+export const communicationLog: CommunicationLogEntry[] = [
+  { id: "CL-001", projectId: "PRJ-001", date: "2026-05-20", from: "Emeka Okafor", to: "Tunde Balogun", channel: "email", subject: "Steel delivery delay", summary: "Email notification re: delayed Y16 rebars from supplier", followUpDate: "2026-05-30", status: "sent", createdBy: "Emeka Okafor", createdAt: "2026-05-20T10:30:00" },
+  { id: "CL-002", projectId: "PRJ-001", date: "2026-05-22", from: "Sarah Adeyemi", to: "All Site Supervisors", channel: "meeting", subject: "Weekly site coordination", summary: "Discussed basement dewatering plan and revised sequence for Block A", status: "action-required", createdBy: "Emeka Okafor", createdAt: "2026-05-22T14:00:00", followUpDate: "2026-05-29" },
+  { id: "CL-003", projectId: "PRJ-002", date: "2026-05-25", from: "Lagos State Govt Inspector", to: "Chidi Nwosu", channel: "letter", subject: "Road quality inspection notice", summary: "Formal notice of upcoming quality inspection for Section A of Apapa Road", followUpDate: "2026-06-01", status: "received", createdBy: "Chidi Nwosu", createdAt: "2026-05-25T09:00:00" },
+];
+
+// ── Disbursements (mock) ────────────────────────
+export const disbursements: Disbursement[] = [
+  { id: "DB-001", projectId: "PRJ-001", amount: 50_000_000, date: "2026-01-20", source: "finance", reference: "FIN-DIS-001", notes: "Initial project mobilization", allocatedTo: ["ST-001"] },
+  { id: "DB-002", projectId: "PRJ-001", amount: 25_000_000, date: "2026-03-15", source: "finance", reference: "FIN-DIS-002", notes: "Foundation works drawdown", allocatedTo: ["SM-001", "SM-002"] },
+  { id: "DB-003", projectId: "PRJ-001", amount: 5_000_000, date: "2026-05-10", source: "project-cash", reference: "PETTY-001", notes: "Site petty cash top-up", allocatedTo: ["ST-001", "ST-002"] },
+];
+
+// ── Default Project Types (for settings) ────────
+export const defaultProjectTypes = [
+  { sector: "Building & Construction" as Sector, categories: ["Residential (single dwelling)", "Residential (multi-unit / estate)", "Commercial (office building)", "Commercial (retail / shopping)", "Mixed-use development", "Institutional (school, hospital, church, government)", "Industrial (warehouse, factory)", "Hospitality (hotel, shortlet, event centre)"] },
+  { sector: "Civil & Infrastructure" as Sector, categories: ["Road construction", "Bridge", "Drainage & stormwater", "Borehole & water supply", "Fencing & external works"] },
+  { sector: "Industrial & Facilities" as Sector, categories: ["Factory fit-out", "Warehouse construction", "Plant installation"] },
+  { sector: "Interior & Fit-out" as Sector, categories: ["Office fit-out", "Residential interior", "Retail fit-out", "Shortlet apartment fit-out"] },
+  { sector: "Renovation & Maintenance" as Sector, categories: ["Full renovation (structural)", "Cosmetic renovation (finishing only)", "Planned maintenance", "Emergency repair"] },
+  { sector: "Other" as Sector, categories: ["Other"] },
+];

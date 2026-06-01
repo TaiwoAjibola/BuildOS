@@ -119,7 +119,7 @@ export function GlobalVendorDetailPage() {
               </span>
               {vendor.isNominated && (
                 <span className="px-2 py-0.5 rounded text-xs font-medium bg-amber-100 text-amber-700">
-                  Nominated by House
+                  Nominated by HAUZ
                 </span>
               )}
             </div>
