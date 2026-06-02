@@ -72,6 +72,10 @@ export function StakeholdersPage() {
   const [visitorLog, setVisitorLog] = useState(initialVisitorLog);
   const [showAddVisitor, setShowAddVisitor] = useState(false);
   const [showAddEngagement, setShowAddEngagement] = useState(false);
+  const [showLogCommunication, setShowLogCommunication] = useState(false);
+  const [commLogForm, setCommLogForm] = useState({
+    stakeholderId: "", commType: "", summary: "", outcome: "", followup: "",
+  });
 
   const projectStakeholders = useMemo(() => localStakeholders.filter(s => s.projectId === (id ?? "")), [localStakeholders, id]);
   const filteredStakeholders = projectStakeholders.filter(s =>
@@ -139,6 +143,23 @@ export function StakeholdersPage() {
     }]);
     setShowAddEngagement(false);
     setEngagementForm({ date: new Date().toISOString().split("T")[0], stakeholderId: "", commType: "", summary: "", outcome: "", followup: "" });
+  }
+
+  function handleLogCommunication() {
+    if (!commLogForm.stakeholderId || !commLogForm.summary) return;
+    const sh = localStakeholders.find(s => s.id === commLogForm.stakeholderId);
+    setEngagementLog(prev => [...prev, {
+      id: `EL-${Date.now()}`,
+      stakeholderId: commLogForm.stakeholderId,
+      stakeholderName: sh?.name ?? "Unknown",
+      date: new Date().toISOString().split("T")[0],
+      commType: commLogForm.commType,
+      summary: commLogForm.summary,
+      outcome: commLogForm.outcome,
+      followup: commLogForm.followup,
+    }]);
+    setShowLogCommunication(false);
+    setCommLogForm({ stakeholderId: "", commType: "", summary: "", outcome: "", followup: "" });
   }
 
   return (
@@ -234,10 +255,16 @@ export function StakeholdersPage() {
 
       {/* Communication Plan */}
       {activeTab === "comm-plan" && (
-        <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
-          <div className="px-5 py-4 border-b border-gray-100">
-            <h3 className="text-sm font-semibold text-gray-900">Communication Plan</h3>
+        <div className="space-y-4">
+          <div className="flex justify-end">
+            <button onClick={() => setShowLogCommunication(true)} className="flex items-center gap-1.5 px-3 py-2 bg-orange-600 text-white rounded-md text-sm font-medium hover:bg-orange-700">
+              <MessageSquare className="w-3.5 h-3.5" /> Log Communication
+            </button>
           </div>
+          <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
+            <div className="px-5 py-4 border-b border-gray-100">
+              <h3 className="text-sm font-semibold text-gray-900">Communication Plan</h3>
+            </div>
           <table className="w-full text-sm">
             <thead className="bg-gray-50 border-b border-gray-200">
               <tr>
@@ -262,6 +289,7 @@ export function StakeholdersPage() {
               ))}
             </tbody>
           </table>
+          </div>
         </div>
       )}
 
@@ -486,6 +514,61 @@ export function StakeholdersPage() {
             <div className="flex justify-end gap-3 mt-5">
               <button onClick={() => setShowAddEngagement(false)} className="px-4 py-2 border border-gray-300 rounded-md text-sm text-gray-700 hover:bg-gray-50">Cancel</button>
               <button onClick={handleAddEngagement} disabled={!engagementForm.stakeholderId || !engagementForm.summary} className="px-4 py-2 bg-orange-600 text-white rounded-md text-sm font-medium hover:bg-orange-700 disabled:opacity-40">Log</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Log Communication Modal */}
+      {showLogCommunication && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl shadow-2xl max-w-md w-full p-6">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-base font-semibold text-gray-900">Log Communication</h3>
+              <button onClick={() => setShowLogCommunication(false)} className="text-gray-400 hover:text-gray-600"><X className="w-5 h-5" /></button>
+            </div>
+            <div className="space-y-3">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Stakeholder *</label>
+                <select value={commLogForm.stakeholderId} onChange={e => setCommLogForm(f => ({ ...f, stakeholderId: e.target.value }))} className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange-500">
+                  <option value="">Select…</option>
+                  {localStakeholders.map(sh => (
+                    <option key={sh.id} value={sh.id}>{sh.name} — {sh.organization}</option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Communication Type</label>
+                <select value={commLogForm.commType} onChange={e => setCommLogForm(f => ({ ...f, commType: e.target.value }))} className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange-500">
+                  <option value="">Select type…</option>
+                  <option value="Progress Meeting">Progress Meeting</option>
+                  <option value="Status Report">Status Report</option>
+                  <option value="Design Review">Design Review</option>
+                  <option value="Inspection Notice">Inspection Notice</option>
+                  <option value="Phone Call">Phone Call</option>
+                  <option value="Email">Email</option>
+                  <option value="Site Visit">Site Visit</option>
+                  <option value="Other">Other</option>
+                </select>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Summary *</label>
+                <textarea rows={2} value={commLogForm.summary} onChange={e => setCommLogForm(f => ({ ...f, summary: e.target.value }))} className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange-500 resize-none" />
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Outcome</label>
+                  <input value={commLogForm.outcome} onChange={e => setCommLogForm(f => ({ ...f, outcome: e.target.value }))} className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange-500" />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Follow-up</label>
+                  <input value={commLogForm.followup} onChange={e => setCommLogForm(f => ({ ...f, followup: e.target.value }))} className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange-500" />
+                </div>
+              </div>
+            </div>
+            <div className="flex justify-end gap-3 mt-5">
+              <button onClick={() => setShowLogCommunication(false)} className="px-4 py-2 border border-gray-300 rounded-md text-sm text-gray-700 hover:bg-gray-50">Cancel</button>
+              <button onClick={handleLogCommunication} disabled={!commLogForm.stakeholderId || !commLogForm.summary} className="px-4 py-2 bg-orange-600 text-white rounded-md text-sm font-medium hover:bg-orange-700 disabled:opacity-40">Log</button>
             </div>
           </div>
         </div>

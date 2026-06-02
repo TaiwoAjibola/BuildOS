@@ -5,7 +5,7 @@ import {
   Building2, Users, Layers, FileText, Plus, X, Trash2, ChevronRight, ChevronDown, Tags
 } from "lucide-react";
 import { getProjectById, staffList, tradeTypes, clusters, tasks as allTasks, fmtDate, vendors as allVendors, defaultScheduleLevels } from "./mockData";
-import type { Task, Vendor, ProjectCalendar, Sector, ProjectStructureItem, ScheduleLevelConfig, HumanResource, HumanResourceSource, MaterialResource, EquipmentResource } from "./types";
+import type { Task, Vendor, ProjectCalendar, Sector, ProjectStructureItem, ScheduleLevelConfig, HumanResource, HumanResourceSource, MaterialResource, EquipmentResource, ResourceAssignment } from "./types";
 import { SECTOR_CATEGORIES, getBlockLabel, getStructureConfig, DEFAULT_WBS_LEVELS } from "./types";
 
 const STEPS = [
@@ -124,6 +124,11 @@ export function ProjectSetupPage() {
   });
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
 
+  // Resource assignments for Schedule Builder
+  const [resourceAssignments, setResourceAssignments] = useState<ResourceAssignment[]>([]);
+  const [assignModalTaskId, setAssignModalTaskId] = useState<string | null>(null);
+  const [assignForm, setAssignForm] = useState({ resourceType: "human" as "human" | "material" | "equipment", resourceId: "", plannedQty: 0, plannedCost: 0 });
+
   // Step 3 — Vendor Registration
   const [projectVendors, setProjectVendors] = useState<Vendor[]>([]);
   const [vendorForm, setVendorForm] = useState(EMPTY_VENDOR_FORM);
@@ -148,6 +153,10 @@ export function ProjectSetupPage() {
   const EMPTY_EQUIPMENT_FORM = { name: "", category: "", ownership: "company-owned" as "company-owned" | "rented" | "client-supplied", internalCostPerDay: 0, rentalCostPerDay: 0, rentalSupplier: "", estimatedDays: 0, status: "Available" as "Available" | "Assigned" | "Under Maintenance" };
   const [equipmentForm, setEquipmentForm] = useState(EMPTY_EQUIPMENT_FORM);
   const [projectEquipment, setProjectEquipment] = useState<EquipmentResource[]>([]);
+
+  // HR list UI state
+  const [hrSearch, setHrSearch] = useState("");
+  const [hrSectionOpen, setHrSectionOpen] = useState({ employee: true, contractor: true, vendor: true });
 
   // Step 4 — Calendar
   const emptyCalendar: ProjectCalendar = {
@@ -262,6 +271,7 @@ export function ProjectSetupPage() {
     };
     collect(id);
     setProjectTasks(prev => prev.filter(t => !idsToRemove.has(t.id)));
+    setResourceAssignments(prev => prev.filter(a => !idsToRemove.has(a.taskId)));
   };
 
   // Vendor helpers
@@ -878,6 +888,18 @@ export function ProjectSetupPage() {
               {fmtDate(task.plannedStart)} — {fmtDate(task.plannedEnd)}
             </span>
             <button
+              onClick={() => setAssignModalTaskId(task.id)}
+              className="p-1 rounded opacity-0 group-hover:opacity-100 hover:bg-orange-100 text-orange-600 transition-opacity relative"
+              title="Assign resources"
+            >
+              <Users className="w-3.5 h-3.5" />
+              {resourceAssignments.filter(a => a.taskId === task.id).length > 0 && (
+                <span className="absolute -top-1.5 -right-1.5 bg-orange-600 text-white text-[10px] font-bold rounded-full w-4 h-4 flex items-center justify-center">
+                  {resourceAssignments.filter(a => a.taskId === task.id).length}
+                </span>
+              )}
+            </button>
+            <button
               onClick={() => removeTask(task.id)}
               className="p-1 rounded opacity-0 group-hover:opacity-100 hover:bg-red-100 text-red-500 transition-opacity"
             >
@@ -1017,6 +1039,130 @@ export function ProjectSetupPage() {
               >
                 Add Task
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Assign Resources Modal */}
+      {assignModalTaskId && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+          <div className="rounded-xl w-full max-w-lg" style={{ backgroundColor: "white" }}>
+            <div className="flex items-center justify-between p-5 border-b" style={{ borderColor: "#E2E8F0" }}>
+              <h3 className="text-base font-bold" style={{ color: "#1A202C" }}>
+                Assign Resources — {projectTasks.find(t => t.id === assignModalTaskId)?.name}
+              </h3>
+              <button onClick={() => setAssignModalTaskId(null)} className="text-gray-400 hover:text-gray-600 text-xl leading-none">&times;</button>
+            </div>
+            <div className="p-5 space-y-4 max-h-[60vh] overflow-y-auto">
+              {/* Existing assignments */}
+              {resourceAssignments.filter(a => a.taskId === assignModalTaskId).length > 0 && (
+                <div>
+                  <h4 className="text-sm font-semibold text-gray-700 mb-2">Assigned Resources</h4>
+                  <div className="space-y-2">
+                    {resourceAssignments.filter(a => a.taskId === assignModalTaskId).map(ass => {
+                      const resName = ass.resourceType === "human"
+                        ? ([...projectStaff, ...projectContractors, ...projectVendors.map(v => ({ id: v.id, name: v.name, trade: v.trade }))] as { id: string; name: string; trade?: string }[]).find(r => r.id === (ass.humanResourceId || ass.materialResourceId || ass.equipmentResourceId))?.name || "Unknown"
+                        : ass.resourceType === "material"
+                          ? projectMaterials.find(m => m.id === ass.materialResourceId)?.name || "Unknown"
+                          : projectEquipment.find(e => e.id === ass.equipmentResourceId)?.name || "Unknown";
+                      return (
+                        <div key={ass.id} className="flex items-center justify-between px-3 py-2 bg-gray-50 rounded-lg text-sm">
+                          <div>
+                            <span className="font-medium text-gray-900">{resName}</span>
+                            <span className="ml-2 text-xs text-gray-500">({ass.resourceType})</span>
+                          </div>
+                          <div className="flex items-center gap-3">
+                            <span className="text-gray-600">Qty: {ass.plannedQty}</span>
+                            <span className="text-gray-600">Cost: ₦{(ass.plannedCost || 0).toLocaleString()}</span>
+                            <button onClick={() => setResourceAssignments(prev => prev.filter(a => a.id !== ass.id))} className="text-red-400 hover:text-red-600"><X className="w-3.5 h-3.5" /></button>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+
+              {/* Add new assignment */}
+              <div>
+                <h4 className="text-sm font-semibold text-gray-700 mb-2">Add Resource</h4>
+                <div className="space-y-3">
+                  <div>
+                    <label className="block text-xs font-medium text-gray-600 mb-1">Resource Type</label>
+                    <div className="flex gap-2">
+                      {(["human", "material", "equipment"] as const).map(rt => (
+                        <button
+                          key={rt}
+                          onClick={() => setAssignForm({ ...assignForm, resourceType: rt, resourceId: "" })}
+                          className={`px-3 py-1.5 rounded-lg text-xs font-medium border ${assignForm.resourceType === rt ? "bg-orange-50 border-orange-400 text-orange-700" : "bg-white border-gray-200 text-gray-600"}`}
+                        >
+                          {rt === "human" ? "Human" : rt === "material" ? "Material" : "Equipment"}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-gray-600 mb-1">Resource</label>
+                    <select
+                      value={assignForm.resourceId}
+                      onChange={e => setAssignForm({ ...assignForm, resourceId: e.target.value })}
+                      className="w-full px-3 py-2 rounded-lg border text-sm"
+                      style={{ borderColor: "#E2E8F0", backgroundColor: "#F7F8FA" }}
+                    >
+                      <option value="">Select…</option>
+                      {assignForm.resourceType === "human" && [...projectStaff, ...projectContractors, ...projectVendors].map(r => (
+                        <option key={r.id} value={r.id}>{"name" in r ? r.name : r.id} {"trade" in r && r.trade ? `— ${r.trade}` : ""}</option>
+                      ))}
+                      {assignForm.resourceType === "material" && projectMaterials.map(m => (
+                        <option key={m.id} value={m.id}>{m.name} ({m.category})</option>
+                      ))}
+                      {assignForm.resourceType === "equipment" && projectEquipment.map(e => (
+                        <option key={e.id} value={e.id}>{e.name} ({e.category})</option>
+                      ))}
+                    </select>
+                    {assignForm.resourceType === "human" && projectStaff.length + projectContractors.length + projectVendors.length === 0 && <p className="text-xs text-gray-400 mt-1">No human resources registered. Go to Resources step first.</p>}
+                    {assignForm.resourceType === "material" && projectMaterials.length === 0 && <p className="text-xs text-gray-400 mt-1">No materials registered. Go to Resources step first.</p>}
+                    {assignForm.resourceType === "equipment" && projectEquipment.length === 0 && <p className="text-xs text-gray-400 mt-1">No equipment registered. Go to Resources step first.</p>}
+                  </div>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="block text-xs font-medium text-gray-600 mb-1">Planned Quantity</label>
+                      <input type="number" min={0} value={assignForm.plannedQty} onChange={e => setAssignForm({ ...assignForm, plannedQty: Number(e.target.value) })} className="w-full px-3 py-2 rounded-lg border text-sm" style={{ borderColor: "#E2E8F0", backgroundColor: "#F7F8FA" }} />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-medium text-gray-600 mb-1">Planned Cost (₦)</label>
+                      <input type="number" min={0} value={assignForm.plannedCost} onChange={e => setAssignForm({ ...assignForm, plannedCost: Number(e.target.value) })} className="w-full px-3 py-2 rounded-lg border text-sm" style={{ borderColor: "#E2E8F0", backgroundColor: "#F7F8FA" }} />
+                    </div>
+                  </div>
+                  <button
+                    onClick={() => {
+                      if (!assignForm.resourceId || !assignModalTaskId) return;
+                      const newAssignment: ResourceAssignment = {
+                        id: `RA-${Date.now()}`,
+                        taskId: assignModalTaskId,
+                        projectId: projectId || "",
+                        resourceType: assignForm.resourceType,
+                        ...(assignForm.resourceType === "human" ? { humanResourceId: assignForm.resourceId } : {}),
+                        ...(assignForm.resourceType === "material" ? { materialResourceId: assignForm.resourceId } : {}),
+                        ...(assignForm.resourceType === "equipment" ? { equipmentResourceId: assignForm.resourceId } : {}),
+                        plannedQty: assignForm.plannedQty,
+                        plannedCost: assignForm.plannedCost,
+                      };
+                      setResourceAssignments(prev => [...prev, newAssignment]);
+                      setAssignForm({ resourceType: "human", resourceId: "", plannedQty: 0, plannedCost: 0 });
+                    }}
+                    disabled={!assignForm.resourceId}
+                    className="w-full px-4 py-2 rounded-lg text-sm text-white font-medium disabled:opacity-40"
+                    style={{ backgroundColor: "#E8973A" }}
+                  >
+                    Add to Task
+                  </button>
+                </div>
+              </div>
+            </div>
+            <div className="flex justify-end p-5 border-t" style={{ borderColor: "#E2E8F0" }}>
+              <button onClick={() => setAssignModalTaskId(null)} className="px-4 py-2 rounded-lg border text-sm text-gray-600" style={{ borderColor: "#E2E8F0" }}>Close</button>
             </div>
           </div>
         </div>
@@ -1359,56 +1505,101 @@ export function ProjectSetupPage() {
           {/* Registered list — show all human resources */}
           {allHumanResources.length > 0 && (
             <div className="rounded-xl border" style={{ borderColor: "#E2E8F0", backgroundColor: "white" }}>
-              <div className="px-5 py-3 border-b flex items-center justify-between" style={{ borderColor: "#E2E8F0" }}>
+              <div className="px-5 py-3 border-b flex items-center justify-between gap-3 flex-wrap" style={{ borderColor: "#E2E8F0" }}>
                 <h3 className="text-sm font-semibold" style={{ color: "#1A202C" }}>
                   Registered Human Resources ({allHumanResources.length})
                 </h3>
+                <input type="text" value={hrSearch} onChange={e => setHrSearch(e.target.value)} placeholder="Search resources..." className="px-3 py-1.5 rounded-lg border text-xs" style={{ borderColor: "#E2E8F0", backgroundColor: "#F7F8FA", maxWidth: 200 }} />
               </div>
               <div className="divide-y" style={{ borderColor: "#E2E8F0" }}>
-                {projectStaff.map(s => (
-                  <div key={s.id} className="flex items-center justify-between px-5 py-3 text-sm">
-                    <div className="flex items-center gap-3">
-                      <div className="w-8 h-8 rounded-full flex items-center justify-center text-white text-xs font-bold" style={{ backgroundColor: "#3B82F6" }}>{s.name.charAt(0)}</div>
-                      <div>
-                        <p className="font-medium text-gray-900">{s.name}</p>
-                        <p className="text-xs text-gray-500">{s.trade} · Employee{s.dailyRate ? ` · ₦${s.dailyRate.toLocaleString()}/day` : ""}</p>
-                      </div>
+                {/* Section: Employees */}
+                {projectStaff.filter(s => !hrSearch || s.name.toLowerCase().includes(hrSearch.toLowerCase()) || s.trade.toLowerCase().includes(hrSearch.toLowerCase())).length > 0 && (
+                  <div>
+                    <div className="px-5 py-2 bg-gray-50 flex items-center gap-2 cursor-pointer select-none" onClick={() => setHrSection(!hrSectionOpen.employee)}>
+                      <span className="text-xs font-semibold uppercase tracking-wider text-blue-600 flex items-center gap-1">
+                        <Users className="w-3 h-3" /> Employees
+                      </span>
+                      <span className="text-[10px] bg-blue-100 text-blue-700 px-1.5 py-0.5 rounded-full font-medium">{projectStaff.length}</span>
+                      {hrSectionOpen.employee ? <ChevronDown className="w-3 h-3 text-gray-400 ml-auto" /> : <ChevronRight className="w-3 h-3 text-gray-400 ml-auto" />}
                     </div>
-                    <button onClick={() => removeStaff(s.id)} className="p-1.5 rounded-lg hover:bg-red-50 text-red-400 hover:text-red-600 transition-colors"><Trash2 className="w-4 h-4" /></button>
-                  </div>
-                ))}
-                {projectContractors.map(c => (
-                  <div key={c.id} className="flex items-center justify-between px-5 py-3 text-sm">
-                    <div className="flex items-center gap-3">
-                      <div className="w-8 h-8 rounded-full flex items-center justify-center text-white text-xs font-bold" style={{ backgroundColor: "#8B5CF6" }}>{c.name.charAt(0)}</div>
-                      <div>
-                        <p className="font-medium text-gray-900">{c.name}</p>
-                        <p className="text-xs text-gray-500">{c.trade} · Contractor · {c.payRate ? `₦${c.payRate.toLocaleString()}/${c.payRateUnit}` : "Rate TBD"}</p>
-                      </div>
-                    </div>
-                    <button onClick={() => removeContractor(c.id)} className="p-1.5 rounded-lg hover:bg-red-50 text-red-400 hover:text-red-600 transition-colors"><Trash2 className="w-4 h-4" /></button>
-                  </div>
-                ))}
-                {projectVendors.map(v => {
-                  const assignedStages = (vendorStageAssignments[v.id] || [])
-                    .map(sid => stages.find(s => s.id === sid))
-                    .filter(Boolean);
-                  return (
-                    <div key={v.id} className="flex items-center justify-between px-5 py-3 text-sm">
-                      <div className="flex items-center gap-3">
-                        <div className="w-8 h-8 rounded-full flex items-center justify-center text-white text-xs font-bold" style={{ backgroundColor: "#E8973A" }}>{v.name.charAt(0)}</div>
-                        <div>
-                          <p className="font-medium text-gray-900">{v.name}</p>
-                          <p className="text-xs text-gray-500">{v.trade} · {v.contractType}</p>
-                          {assignedStages.length > 0 && (
-                            <p className="text-xs text-gray-400 mt-0.5">Stages: {assignedStages.map(s => s!.name).join(", ")}</p>
-                          )}
+                    {hrSectionOpen.employee && projectStaff.filter(s => !hrSearch || s.name.toLowerCase().includes(hrSearch.toLowerCase()) || s.trade.toLowerCase().includes(hrSearch.toLowerCase())).map(s => (
+                      <div key={s.id} className="flex items-center justify-between px-5 py-2.5 text-sm pl-10">
+                        <div className="flex items-center gap-3">
+                          <div className="w-7 h-7 rounded-full flex items-center justify-center text-white text-[10px] font-bold" style={{ backgroundColor: "#3B82F6" }}>{s.name.charAt(0)}</div>
+                          <div>
+                            <p className="font-medium text-gray-900 text-sm">{s.name}</p>
+                            <p className="text-[11px] text-gray-500">{s.trade}{s.dailyRate ? ` · ₦${s.dailyRate.toLocaleString()}/day` : ""}</p>
+                          </div>
                         </div>
+                        <button onClick={() => removeStaff(s.id)} className="p-1 rounded hover:bg-red-50 text-red-400 hover:text-red-600"><Trash2 className="w-3.5 h-3.5" /></button>
                       </div>
-                      <button onClick={() => removeVendor(v.id)} className="p-1.5 rounded-lg hover:bg-red-50 text-red-400 hover:text-red-600 transition-colors"><Trash2 className="w-4 h-4" /></button>
+                    ))}
+                  </div>
+                )}
+                {/* Section: Individual Contractors */}
+                {projectContractors.filter(c => !hrSearch || c.name.toLowerCase().includes(hrSearch.toLowerCase()) || c.trade.toLowerCase().includes(hrSearch.toLowerCase())).length > 0 && (
+                  <div>
+                    <div className="px-5 py-2 bg-gray-50 flex items-center gap-2 cursor-pointer select-none" onClick={() => setHrSection(!hrSectionOpen.contractor)}>
+                      <span className="text-xs font-semibold uppercase tracking-wider text-purple-600 flex items-center gap-1">
+                        <Users className="w-3 h-3" /> Contractors
+                      </span>
+                      <span className="text-[10px] bg-purple-100 text-purple-700 px-1.5 py-0.5 rounded-full font-medium">{projectContractors.length}</span>
+                      {hrSectionOpen.contractor ? <ChevronDown className="w-3 h-3 text-gray-400 ml-auto" /> : <ChevronRight className="w-3 h-3 text-gray-400 ml-auto" />}
                     </div>
-                  );
-                })}
+                    {hrSectionOpen.contractor && projectContractors.filter(c => !hrSearch || c.name.toLowerCase().includes(hrSearch.toLowerCase()) || c.trade.toLowerCase().includes(hrSearch.toLowerCase())).map(c => (
+                      <div key={c.id} className="flex items-center justify-between px-5 py-2.5 text-sm pl-10">
+                        <div className="flex items-center gap-3">
+                          <div className="w-7 h-7 rounded-full flex items-center justify-center text-white text-[10px] font-bold" style={{ backgroundColor: "#8B5CF6" }}>{c.name.charAt(0)}</div>
+                          <div>
+                            <p className="font-medium text-gray-900 text-sm">{c.name}</p>
+                            <p className="text-[11px] text-gray-500">{c.trade}{c.payRate ? ` · ₦${c.payRate.toLocaleString()}/${c.payRateUnit}` : ""} · {c.skilledCount + c.unskilledCount} workers</p>
+                          </div>
+                        </div>
+                        <button onClick={() => removeContractor(c.id)} className="p-1 rounded hover:bg-red-50 text-red-400 hover:text-red-600"><Trash2 className="w-3.5 h-3.5" /></button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+                {/* Section: Vendors */}
+                {projectVendors.filter(v => !hrSearch || v.name.toLowerCase().includes(hrSearch.toLowerCase()) || v.trade.toLowerCase().includes(hrSearch.toLowerCase())).length > 0 && (
+                  <div>
+                    <div className="px-5 py-2 bg-gray-50 flex items-center gap-2 cursor-pointer select-none" onClick={() => setHrSection(!hrSectionOpen.vendor)}>
+                      <span className="text-xs font-semibold uppercase tracking-wider text-orange-600 flex items-center gap-1">
+                        <Building2 className="w-3 h-3" /> Vendors
+                      </span>
+                      <span className="text-[10px] bg-orange-100 text-orange-700 px-1.5 py-0.5 rounded-full font-medium">{projectVendors.length}</span>
+                      {hrSectionOpen.vendor ? <ChevronDown className="w-3 h-3 text-gray-400 ml-auto" /> : <ChevronRight className="w-3 h-3 text-gray-400 ml-auto" />}
+                    </div>
+                    {hrSectionOpen.vendor && projectVendors.filter(v => !hrSearch || v.name.toLowerCase().includes(hrSearch.toLowerCase()) || v.trade.toLowerCase().includes(hrSearch.toLowerCase())).map(v => {
+                      const assignedStages = (vendorStageAssignments[v.id] || [])
+                        .map(sid => stages.find(s => s.id === sid))
+                        .filter(Boolean);
+                      return (
+                        <div key={v.id} className="flex items-center justify-between px-5 py-2.5 text-sm pl-10">
+                          <div className="flex items-center gap-3">
+                            <div className="w-7 h-7 rounded-full flex items-center justify-center text-white text-[10px] font-bold" style={{ backgroundColor: "#E8973A" }}>{v.name.charAt(0)}</div>
+                            <div>
+                              <p className="font-medium text-gray-900 text-sm">{v.name}</p>
+                              <p className="text-[11px] text-gray-500">{v.trade} · {v.contractType}</p>
+                              {assignedStages.length > 0 && (
+                                <p className="text-[10px] text-gray-400 mt-0.5 flex gap-1 flex-wrap">
+                                  {assignedStages.map(s => (
+                                    <span key={s!.id} className="inline-block px-1.5 py-0.5 bg-gray-100 rounded text-gray-500">{s!.name}</span>
+                                  ))}
+                                </p>
+                              )}
+                            </div>
+                          </div>
+                          <button onClick={() => removeVendor(v.id)} className="p-1 rounded hover:bg-red-50 text-red-400 hover:text-red-600"><Trash2 className="w-3.5 h-3.5" /></button>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+                {/* Empty search */}
+                {allHumanResources.length > 0 && projectStaff.filter(s => !hrSearch || s.name.toLowerCase().includes(hrSearch.toLowerCase())).length === 0 && projectContractors.filter(c => !hrSearch || c.name.toLowerCase().includes(hrSearch.toLowerCase())).length === 0 && projectVendors.filter(v => !hrSearch || v.name.toLowerCase().includes(hrSearch.toLowerCase())).length === 0 && (
+                  <div className="px-5 py-6 text-center text-sm text-gray-400">No resources match your search.</div>
+                )}
               </div>
             </div>
           )}
@@ -1931,8 +2122,8 @@ export function ProjectSetupPage() {
         {currentStep === 0 && renderBasicInfo()}
         {currentStep === 1 && renderProjectType()}
         {currentStep === 2 && renderResourceRegistration()}
-        {currentStep === 3 && renderScheduleBuilder()}
-        {currentStep === 4 && renderCalendar()}
+        {currentStep === 3 && renderCalendar()}
+        {currentStep === 4 && renderScheduleBuilder()}
         {currentStep === 5 && renderSummary()}
       </div>
 

@@ -50,6 +50,7 @@ import { SettingsPage } from "./pages/construction/SettingsPage";
 import { DisbursementsPage } from "./pages/construction/DisbursementsPage";
 import { CommunicationLogPage } from "./pages/construction/CommunicationLogPage";
 import { FundingPage } from "./pages/construction/FundingPage";
+import { FinancialsPage } from "./pages/construction/FinancialsPage";
 
 // Finance App
 import { FinanceApprovalsPage } from "./pages/finance/FinanceApprovalsPage";
@@ -236,13 +237,10 @@ export const router = createBrowserRouter([
                   { path: "quality", Component: QualityPage },
                   { path: "hse", Component: HSEPage },
                   { path: "documents", Component: DocumentsPage },
-                  { path: "costs", Component: CostsPage },
-                  { path: "funding", Component: FundingPage },
+                  { path: "financials", Component: FinancialsPage },
                   { path: "stakeholders", Component: StakeholdersPage },
                   { path: "progress", Component: ProgressEarnedValuePage },
                   { path: "setup", Component: ProjectSetupPage },
-                  { path: "disbursements", Component: DisbursementsPage },
-                  { path: "communications", Component: CommunicationLogPage },
                 ],
               },
             ],
