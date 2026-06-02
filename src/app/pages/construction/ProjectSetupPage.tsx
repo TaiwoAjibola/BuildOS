@@ -5,7 +5,7 @@ import {
   Building2, Users, Layers, FileText, Plus, X, Trash2, ChevronRight, ChevronDown, Tags
 } from "lucide-react";
 import { getProjectById, staffList, tradeTypes, clusters, tasks as allTasks, fmtDate, vendors as allVendors, defaultScheduleLevels } from "./mockData";
-import type { Task, Vendor, ProjectCalendar, Sector, ProjectStructureItem, ScheduleLevelConfig } from "./types";
+import type { Task, Vendor, ProjectCalendar, Sector, ProjectStructureItem, ScheduleLevelConfig, HumanResource, HumanResourceSource, MaterialResource, EquipmentResource } from "./types";
 import { SECTOR_CATEGORIES, getBlockLabel, getStructureConfig, DEFAULT_WBS_LEVELS } from "./types";
 
 const STEPS = [
@@ -131,6 +131,23 @@ export function ProjectSetupPage() {
   const [vendorStageAssignments, setVendorStageAssignments] = useState<Record<string, string[]>>({});
   const [resourceTab, setResourceTab] = useState<"human" | "material" | "equipment">("human");
   const [isNewVendor, setIsNewVendor] = useState(false);
+  const [humanSubType, setHumanSubType] = useState<HumanResourceSource>("vendor");
+
+  const EMPTY_STAFF_FORM = { name: "", trade: "", employeeId: "", dailyRate: 0, status: "Active" as const };
+  const [staffForm, setStaffForm] = useState(EMPTY_STAFF_FORM);
+  const [projectStaff, setProjectStaff] = useState<HumanResource[]>([]);
+
+  const EMPTY_CONTRACTOR_FORM = { name: "", trade: "", payRate: 0, payRateUnit: "daily" as "daily" | "weekly" | "monthly" | "lump-sum", skilledCount: 0, unskilledCount: 0, mandaysEstimate: 0, status: "Awarded" as const };
+  const [contractorForm, setContractorForm] = useState(EMPTY_CONTRACTOR_FORM);
+  const [projectContractors, setProjectContractors] = useState<HumanResource[]>([]);
+
+  const EMPTY_MATERIAL_FORM = { name: "", category: "", unit: "", estimatedQty: 0, estimatedUnitCost: 0, procurementSource: "internal" as "internal" | "purchase", supplierName: "" };
+  const [materialForm, setMaterialForm] = useState(EMPTY_MATERIAL_FORM);
+  const [projectMaterials, setProjectMaterials] = useState<MaterialResource[]>([]);
+
+  const EMPTY_EQUIPMENT_FORM = { name: "", category: "", ownership: "company-owned" as "company-owned" | "rented" | "client-supplied", internalCostPerDay: 0, rentalCostPerDay: 0, rentalSupplier: "", estimatedDays: 0, status: "Available" as "Available" | "Assigned" | "Under Maintenance" };
+  const [equipmentForm, setEquipmentForm] = useState(EMPTY_EQUIPMENT_FORM);
+  const [projectEquipment, setProjectEquipment] = useState<EquipmentResource[]>([]);
 
   // Step 4 — Calendar
   const emptyCalendar: ProjectCalendar = {
@@ -313,6 +330,102 @@ export function ProjectSetupPage() {
       return next;
     });
   };
+
+  // Staff helpers
+  const addStaff = () => {
+    if (!staffForm.name || !staffForm.trade) return;
+    const newStaff: HumanResource = {
+      id: `STF-${String(projectStaff.length + 1).padStart(3, "0")}`,
+      projectId: projectId!,
+      source: "employee",
+      name: staffForm.name,
+      trade: staffForm.trade,
+      employeeId: staffForm.employeeId || undefined,
+      dailyRate: staffForm.dailyRate || undefined,
+      status: "Active",
+      assignedWorkPackages: [],
+      blockAssignment: "",
+      mandaysEstimate: 0,
+    };
+    setProjectStaff(prev => [...prev, newStaff]);
+    setStaffForm(EMPTY_STAFF_FORM);
+  };
+  const removeStaff = (id: string) => setProjectStaff(prev => prev.filter(s => s.id !== id));
+
+  // Contractor helpers
+  const addContractor = () => {
+    if (!contractorForm.name || !contractorForm.trade) return;
+    const newCon: HumanResource = {
+      id: `CON-${String(projectContractors.length + 1).padStart(3, "0")}`,
+      projectId: projectId!,
+      source: "individual-contractor",
+      name: contractorForm.name,
+      trade: contractorForm.trade,
+      payRate: contractorForm.payRate || undefined,
+      payRateUnit: contractorForm.payRateUnit,
+      skilledCount: contractorForm.skilledCount,
+      unskilledCount: contractorForm.unskilledCount,
+      mandaysEstimate: contractorForm.mandaysEstimate,
+      status: contractorForm.status,
+      assignedWorkPackages: [],
+      blockAssignment: "",
+    };
+    setProjectContractors(prev => [...prev, newCon]);
+    setContractorForm(EMPTY_CONTRACTOR_FORM);
+  };
+  const removeContractor = (id: string) => setProjectContractors(prev => prev.filter(c => c.id !== id));
+
+  // Stage assignment toggle (unified for all human resources)
+  const [resourceStageAssignments, setResourceStageAssignments] = useState<Record<string, string[]>>({});
+  const toggleResourceStage = (resourceId: string, stageId: string) => {
+    setResourceStageAssignments(prev => {
+      const current = prev[resourceId] || [];
+      return { ...prev, [resourceId]: current.includes(stageId) ? current.filter(s => s !== stageId) : [...current, stageId] };
+    });
+  };
+
+  // Material helpers
+  const addMaterial = () => {
+    if (!materialForm.name || !materialForm.category || !materialForm.unit) return;
+    const newMat: MaterialResource = {
+      id: `MAT-${String(projectMaterials.length + 1).padStart(3, "0")}`,
+      projectId: projectId!,
+      name: materialForm.name,
+      category: materialForm.category,
+      unit: materialForm.unit,
+      estimatedQty: materialForm.estimatedQty,
+      estimatedUnitCost: materialForm.estimatedUnitCost,
+      totalEstimatedCost: materialForm.estimatedQty * materialForm.estimatedUnitCost,
+      procurementSource: materialForm.procurementSource,
+      supplierId: materialForm.supplierName || undefined,
+    };
+    setProjectMaterials(prev => [...prev, newMat]);
+    setMaterialForm(EMPTY_MATERIAL_FORM);
+  };
+  const removeMaterial = (id: string) => setProjectMaterials(prev => prev.filter(m => m.id !== id));
+
+  // Equipment helpers
+  const addEquipment = () => {
+    if (!equipmentForm.name || !equipmentForm.category) return;
+    const isCompanyOwned = equipmentForm.ownership === "company-owned";
+    const costPerDay = isCompanyOwned ? equipmentForm.internalCostPerDay : equipmentForm.rentalCostPerDay;
+    const newEquip: EquipmentResource = {
+      id: `EQ-${String(projectEquipment.length + 1).padStart(3, "0")}`,
+      projectId: projectId!,
+      name: equipmentForm.name,
+      category: equipmentForm.category,
+      ownership: equipmentForm.ownership,
+      internalCostPerDay: isCompanyOwned ? equipmentForm.internalCostPerDay || undefined : undefined,
+      rentalCostPerDay: !isCompanyOwned ? equipmentForm.rentalCostPerDay || undefined : undefined,
+      rentalSupplier: !isCompanyOwned ? equipmentForm.rentalSupplier || undefined : undefined,
+      estimatedDays: equipmentForm.estimatedDays,
+      totalEstimatedCost: (costPerDay || 0) * equipmentForm.estimatedDays,
+      status: equipmentForm.status,
+    };
+    setProjectEquipment(prev => [...prev, newEquip]);
+    setEquipmentForm(EMPTY_EQUIPMENT_FORM);
+  };
+  const removeEquipment = (id: string) => setProjectEquipment(prev => prev.filter(e => e.id !== id));
 
   // Navigation
   const goNext = () => {
@@ -915,6 +1028,28 @@ export function ProjectSetupPage() {
   const renderResourceRegistration = () => {
     const stages = projectTasks.filter(t => t.level === 1);
 
+    const allHumanResources = [
+      ...projectStaff.map(s => ({ ...s, _subtype: "Employee" as const })),
+      ...projectContractors.map(c => ({ ...c, _subtype: "Contractor" as const })),
+      ...projectVendors.map(v => ({ ...v, id: v.id, name: v.name, trade: v.trade, _subtype: "Vendor" as const, extra: v.contractType })),
+    ];
+
+    const materialCategories = ["Aggregates", "Reinforcement", "Concrete", "Steel", "Finishing", "Plumbing", "Electrical", "Roofing", "Lumber / Formwork", "Hardware", "Paint & Coatings", "Waterproofing", "Insulation", "Other"];
+    const materialUnits = ["bags", "tonnes", "kg", "litres", "gallons", "m³", "m²", "linear metres", "pieces", "rolls", "sheets", "pails", "drums"];
+
+    const equipmentCategories = ["Earthwork", "Lifting", "Concreting", "Compaction", "Piling", "Transport", "Generators / Power", "Pumping", "Safety", "Other"];
+    const equipmentStatuses = ["Available", "Assigned", "Under Maintenance"];
+
+    const SubPill = ({ label, value }: { label: string; value: HumanResourceSource }) => (
+      <button onClick={() => setHumanSubType(value)}
+        className={`px-3 py-1.5 text-xs font-medium rounded-md transition-colors ${
+          humanSubType === value ? "bg-white text-gray-900 shadow-sm border" : "text-gray-500 hover:text-gray-700 border border-transparent"
+        }`}
+      >
+        {label}
+      </button>
+    );
+
     return (
       <div className="space-y-4">
         {/* Resource Type Tabs */}
@@ -930,259 +1065,569 @@ export function ProjectSetupPage() {
           ))}
         </div>
 
+        {/* ──── HUMAN RESOURCES ──── */}
         {resourceTab === "human" && (<>
-          <div className="rounded-xl border p-6" style={{ borderColor: "#E2E8F0", backgroundColor: "white" }}>
-          <h2 className="text-lg font-bold mb-4" style={{ color: "#1A202C" }}>
-            {isNewVendor ? "Register New Resource" : "Select Resource"}
-          </h2>
-
-          <div className="mb-4">
-            <label className="block text-sm font-medium text-gray-700 mb-1">Choose Resource</label>
-            <select
-              value={selectedExistingVendor}
-              onChange={e => handleSelectExistingVendor(e.target.value)}
-              className="w-full px-3 py-2 rounded-lg border text-sm"
-              style={{ borderColor: "#E2E8F0", backgroundColor: "#F7F8FA" }}
-            >
-              <option value="">— Select Resource —</option>
-              {uniqueVendors.map(v => (
-                <option key={v.id} value={v.id}>{v.name} — {v.trade}</option>
-              ))}
-              <option value="__new__">Register New Resource</option>
-            </select>
+          {/* Sub-type pills */}
+          <div className="flex gap-1.5">
+            <SubPill label="Employees" value="employee" />
+            <SubPill label="Individual Contractors" value="individual-contractor" />
+            <SubPill label="Vendors" value="vendor" />
           </div>
 
-          {selectedExistingVendor && (
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Resource Name</label>
-                <input
-                  type="text" value={vendorForm.name}
-                  onChange={e => setVendorForm({ ...vendorForm, name: e.target.value })}
-                  className="w-full px-3 py-2 rounded-lg border text-sm"
-                  style={{ borderColor: "#E2E8F0", backgroundColor: "#F7F8FA" }}
-                  placeholder="e.g. Alhaji Masonry Services"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Trade</label>
-                <select
-                  value={vendorForm.trade}
-                  onChange={e => setVendorForm({ ...vendorForm, trade: e.target.value })}
-                  className="w-full px-3 py-2 rounded-lg border text-sm"
-                  style={{ borderColor: "#E2E8F0", backgroundColor: "#F7F8FA" }}
-                >
-                  <option value="">Select trade</option>
-                  {tradeTypes.map(t => <option key={t} value={t}>{t}</option>)}
-                </select>
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Contract Type</label>
-                <select
-                  value={vendorForm.contractType}
-                  onChange={e => setVendorForm({ ...vendorForm, contractType: e.target.value as Vendor["contractType"] })}
-                  className="w-full px-3 py-2 rounded-lg border text-sm"
-                  style={{ borderColor: "#E2E8F0", backgroundColor: "#F7F8FA" }}
-                >
-                  <option value="Labor-only">Labor-only</option>
-                  <option value="Supply & Install">Supply & Install</option>
-                  <option value="Nominated Subcontractor">Nominated Subcontractor</option>
-                </select>
-              </div>
-              <div className="flex items-center gap-2 pt-6">
-                <input
-                  type="checkbox" id="vendorNominated" checked={vendorForm.isNominated}
-                  onChange={e => setVendorForm({ ...vendorForm, isNominated: e.target.checked })}
-                  className="rounded" style={{ accentColor: "#E8973A" }}
-                />
-                <label htmlFor="vendorNominated" className="text-sm text-gray-700">Nominated by HAUZ</label>
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Contract Sum (₦)</label>
-                <input
-                  type="number" value={vendorForm.contractSum}
-                  onChange={e => setVendorForm({ ...vendorForm, contractSum: Number(e.target.value) })}
-                  className="w-full px-3 py-2 rounded-lg border text-sm"
-                  style={{ borderColor: "#E2E8F0", backgroundColor: "#F7F8FA" }}
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">{blockLabel} Assignment</label>
-                <select
-                  value={vendorForm.blockAssignment}
-                  onChange={e => setVendorForm({ ...vendorForm, blockAssignment: e.target.value })}
-                  className="w-full px-3 py-2 rounded-lg border text-sm"
-                  style={{ borderColor: "#E2E8F0", backgroundColor: "#F7F8FA" }}
-                >
-                  <option value="">— Select —</option>
-                  {structureEntries.map(e => (
-                    <option key={e.id} value={e.name}>{e.name}</option>
-                  ))}
-                  <option value="All / Site-wide">All / Site-wide</option>
-                </select>
-              </div>
-              <div className="grid grid-cols-2 gap-3">
+          {/* ── Employee Form ── */}
+          {humanSubType === "employee" && (
+            <div className="rounded-xl border p-6" style={{ borderColor: "#E2E8F0", backgroundColor: "white" }}>
+              <h2 className="text-lg font-bold mb-4" style={{ color: "#1A202C" }}>Register Staff / Employee</h2>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Skilled Workers</label>
-                  <input
-                    type="number" value={vendorForm.skilledCount}
-                    onChange={e => setVendorForm({ ...vendorForm, skilledCount: Number(e.target.value) })}
-                    className="w-full px-3 py-2 rounded-lg border text-sm"
-                    style={{ borderColor: "#E2E8F0", backgroundColor: "#F7F8FA" }}
-                  />
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Full Name</label>
+                  <input type="text" value={staffForm.name}
+                    onChange={e => setStaffForm({ ...staffForm, name: e.target.value })}
+                    className="w-full px-3 py-2 rounded-lg border text-sm" style={{ borderColor: "#E2E8F0", backgroundColor: "#F7F8FA" }}
+                    placeholder="e.g. James Okafor" />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Unskilled Workers</label>
-                  <input
-                    type="number" value={vendorForm.unskilledCount}
-                    onChange={e => setVendorForm({ ...vendorForm, unskilledCount: Number(e.target.value) })}
-                    className="w-full px-3 py-2 rounded-lg border text-sm"
-                    style={{ borderColor: "#E2E8F0", backgroundColor: "#F7F8FA" }}
-                  />
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Trade / Role</label>
+                  <select value={staffForm.trade}
+                    onChange={e => setStaffForm({ ...staffForm, trade: e.target.value })}
+                    className="w-full px-3 py-2 rounded-lg border text-sm" style={{ borderColor: "#E2E8F0", backgroundColor: "#F7F8FA" }}>
+                    <option value="">Select role</option>
+                    {tradeTypes.map(t => <option key={t} value={t}>{t}</option>)}
+                    <option value="Project Management">Project Management</option>
+                    <option value="Site Supervision">Site Supervision</option>
+                    <option value="QA/QC">QA/QC</option>
+                    <option value="HSE">HSE</option>
+                    <option value="Administration">Administration</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Employee ID</label>
+                  <input type="text" value={staffForm.employeeId}
+                    onChange={e => setStaffForm({ ...staffForm, employeeId: e.target.value })}
+                    className="w-full px-3 py-2 rounded-lg border text-sm" style={{ borderColor: "#E2E8F0", backgroundColor: "#F7F8FA" }}
+                    placeholder="e.g. EMP-010" />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Daily Rate (₦)</label>
+                  <input type="number" value={staffForm.dailyRate || ""}
+                    onChange={e => setStaffForm({ ...staffForm, dailyRate: Number(e.target.value) })}
+                    className="w-full px-3 py-2 rounded-lg border text-sm" style={{ borderColor: "#E2E8F0", backgroundColor: "#F7F8FA" }}
+                    placeholder="e.g. 45000" />
                 </div>
               </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Man-days Estimate</label>
-                <input
-                  type="number" value={vendorForm.mandaysEstimate}
-                  onChange={e => setVendorForm({ ...vendorForm, mandaysEstimate: Number(e.target.value) })}
-                  className="w-full px-3 py-2 rounded-lg border text-sm"
-                  style={{ borderColor: "#E2E8F0", backgroundColor: "#F7F8FA" }}
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Status</label>
-                <select
-                  value={vendorForm.status}
-                  onChange={e => setVendorForm({ ...vendorForm, status: e.target.value as Vendor["status"] })}
-                  className="w-full px-3 py-2 rounded-lg border text-sm"
-                  style={{ borderColor: "#E2E8F0", backgroundColor: "#F7F8FA" }}
-                >
-                  <option value="Awarded">Awarded</option>
-                  <option value="Active">Active</option>
-                  <option value="Completed">Completed</option>
-                  <option value="Terminated">Terminated</option>
-                </select>
+              <div className="flex justify-end mt-4">
+                <button onClick={addStaff} disabled={!staffForm.name || !staffForm.trade}
+                  className="flex items-center gap-1.5 px-4 py-2 rounded-lg text-white text-sm font-medium disabled:opacity-50"
+                  style={{ backgroundColor: "#E8973A" }}>
+                  <Plus className="w-4 h-4" /> Add Employee
+                </button>
               </div>
             </div>
           )}
 
+          {/* ── Individual Contractor Form ── */}
+          {humanSubType === "individual-contractor" && (
+            <div className="rounded-xl border p-6" style={{ borderColor: "#E2E8F0", backgroundColor: "white" }}>
+              <h2 className="text-lg font-bold mb-4" style={{ color: "#1A202C" }}>Register Individual Contractor</h2>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Full Name</label>
+                  <input type="text" value={contractorForm.name}
+                    onChange={e => setContractorForm({ ...contractorForm, name: e.target.value })}
+                    className="w-full px-3 py-2 rounded-lg border text-sm" style={{ borderColor: "#E2E8F0", backgroundColor: "#F7F8FA" }}
+                    placeholder="e.g. Babatunde Welder" />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Trade</label>
+                  <select value={contractorForm.trade}
+                    onChange={e => setContractorForm({ ...contractorForm, trade: e.target.value })}
+                    className="w-full px-3 py-2 rounded-lg border text-sm" style={{ borderColor: "#E2E8F0", backgroundColor: "#F7F8FA" }}>
+                    <option value="">Select trade</option>
+                    {tradeTypes.map(t => <option key={t} value={t}>{t}</option>)}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Pay Rate (₦)</label>
+                  <input type="number" value={contractorForm.payRate || ""}
+                    onChange={e => setContractorForm({ ...contractorForm, payRate: Number(e.target.value) })}
+                    className="w-full px-3 py-2 rounded-lg border text-sm" style={{ borderColor: "#E2E8F0", backgroundColor: "#F7F8FA" }}
+                    placeholder="e.g. 25000" />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Rate Unit</label>
+                  <select value={contractorForm.payRateUnit}
+                    onChange={e => setContractorForm({ ...contractorForm, payRateUnit: e.target.value as "daily" | "weekly" | "monthly" | "lump-sum" })}
+                    className="w-full px-3 py-2 rounded-lg border text-sm" style={{ borderColor: "#E2E8F0", backgroundColor: "#F7F8FA" }}>
+                    <option value="daily">Per Day</option>
+                    <option value="weekly">Per Week</option>
+                    <option value="monthly">Per Month</option>
+                    <option value="lump-sum">Lump Sum</option>
+                  </select>
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Skilled Workers</label>
+                    <input type="number" value={contractorForm.skilledCount || ""}
+                      onChange={e => setContractorForm({ ...contractorForm, skilledCount: Number(e.target.value) })}
+                      className="w-full px-3 py-2 rounded-lg border text-sm" style={{ borderColor: "#E2E8F0", backgroundColor: "#F7F8FA" }} />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Unskilled Workers</label>
+                    <input type="number" value={contractorForm.unskilledCount || ""}
+                      onChange={e => setContractorForm({ ...contractorForm, unskilledCount: Number(e.target.value) })}
+                      className="w-full px-3 py-2 rounded-lg border text-sm" style={{ borderColor: "#E2E8F0", backgroundColor: "#F7F8FA" }} />
+                  </div>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Man-days Estimate</label>
+                  <input type="number" value={contractorForm.mandaysEstimate || ""}
+                    onChange={e => setContractorForm({ ...contractorForm, mandaysEstimate: Number(e.target.value) })}
+                    className="w-full px-3 py-2 rounded-lg border text-sm" style={{ borderColor: "#E2E8F0", backgroundColor: "#F7F8FA" }} />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Status</label>
+                  <select value={contractorForm.status}
+                    onChange={e => setContractorForm({ ...contractorForm, status: e.target.value as "Awarded" | "Active" | "Completed" | "Terminated" })}
+                    className="w-full px-3 py-2 rounded-lg border text-sm" style={{ borderColor: "#E2E8F0", backgroundColor: "#F7F8FA" }}>
+                    <option value="Awarded">Awarded</option>
+                    <option value="Active">Active</option>
+                    <option value="Completed">Completed</option>
+                    <option value="Terminated">Terminated</option>
+                  </select>
+                </div>
+              </div>
+              <div className="flex justify-end mt-4">
+                <button onClick={addContractor} disabled={!contractorForm.name || !contractorForm.trade}
+                  className="flex items-center gap-1.5 px-4 py-2 rounded-lg text-white text-sm font-medium disabled:opacity-50"
+                  style={{ backgroundColor: "#E8973A" }}>
+                  <Plus className="w-4 h-4" /> Add Contractor
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* ── Vendor Form (existing) ── */}
+          {humanSubType === "vendor" && (
+            <div className="rounded-xl border p-6" style={{ borderColor: "#E2E8F0", backgroundColor: "white" }}>
+              <h2 className="text-lg font-bold mb-4" style={{ color: "#1A202C" }}>
+                {isNewVendor ? "Register New Vendor" : "Select Vendor"}
+              </h2>
+              <div className="mb-4">
+                <label className="block text-sm font-medium text-gray-700 mb-1">Choose Vendor</label>
+                <select value={selectedExistingVendor}
+                  onChange={e => handleSelectExistingVendor(e.target.value)}
+                  className="w-full px-3 py-2 rounded-lg border text-sm" style={{ borderColor: "#E2E8F0", backgroundColor: "#F7F8FA" }}>
+                  <option value="">— Select Vendor —</option>
+                  {uniqueVendors.map(v => (
+                    <option key={v.id} value={v.id}>{v.name} — {v.trade}</option>
+                  ))}
+                  <option value="__new__">Register New Vendor</option>
+                </select>
+              </div>
+              {selectedExistingVendor && (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Vendor Name</label>
+                    <input type="text" value={vendorForm.name}
+                      onChange={e => setVendorForm({ ...vendorForm, name: e.target.value })}
+                      className="w-full px-3 py-2 rounded-lg border text-sm" style={{ borderColor: "#E2E8F0", backgroundColor: "#F7F8FA" }}
+                      placeholder="e.g. Alhaji Masonry Services" />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Trade</label>
+                    <select value={vendorForm.trade}
+                      onChange={e => setVendorForm({ ...vendorForm, trade: e.target.value })}
+                      className="w-full px-3 py-2 rounded-lg border text-sm" style={{ borderColor: "#E2E8F0", backgroundColor: "#F7F8FA" }}>
+                      <option value="">Select trade</option>
+                      {tradeTypes.map(t => <option key={t} value={t}>{t}</option>)}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Contract Type</label>
+                    <select value={vendorForm.contractType}
+                      onChange={e => setVendorForm({ ...vendorForm, contractType: e.target.value as Vendor["contractType"] })}
+                      className="w-full px-3 py-2 rounded-lg border text-sm" style={{ borderColor: "#E2E8F0", backgroundColor: "#F7F8FA" }}>
+                      <option value="Labor-only">Labor-only</option>
+                      <option value="Supply & Install">Supply & Install</option>
+                      <option value="Nominated Subcontractor">Nominated Subcontractor</option>
+                    </select>
+                  </div>
+                  <div className="flex items-center gap-2 pt-6">
+                    <input type="checkbox" id="vendorNominated" checked={vendorForm.isNominated}
+                      onChange={e => setVendorForm({ ...vendorForm, isNominated: e.target.checked })}
+                      className="rounded" style={{ accentColor: "#E8973A" }} />
+                    <label htmlFor="vendorNominated" className="text-sm text-gray-700">Nominated Subcontractor</label>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Contract Sum (₦)</label>
+                    <input type="number" value={vendorForm.contractSum}
+                      onChange={e => setVendorForm({ ...vendorForm, contractSum: Number(e.target.value) })}
+                      className="w-full px-3 py-2 rounded-lg border text-sm" style={{ borderColor: "#E2E8F0", backgroundColor: "#F7F8FA" }} />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">{blockLabel} Assignment</label>
+                    <select value={vendorForm.blockAssignment}
+                      onChange={e => setVendorForm({ ...vendorForm, blockAssignment: e.target.value })}
+                      className="w-full px-3 py-2 rounded-lg border text-sm" style={{ borderColor: "#E2E8F0", backgroundColor: "#F7F8FA" }}>
+                      <option value="">— Select —</option>
+                      {structureEntries.map(e => (
+                        <option key={e.id} value={e.name}>{e.name}</option>
+                      ))}
+                      <option value="All / Site-wide">All / Site-wide</option>
+                    </select>
+                  </div>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Skilled Workers</label>
+                      <input type="number" value={vendorForm.skilledCount}
+                        onChange={e => setVendorForm({ ...vendorForm, skilledCount: Number(e.target.value) })}
+                        className="w-full px-3 py-2 rounded-lg border text-sm" style={{ borderColor: "#E2E8F0", backgroundColor: "#F7F8FA" }} />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Unskilled Workers</label>
+                      <input type="number" value={vendorForm.unskilledCount}
+                        onChange={e => setVendorForm({ ...vendorForm, unskilledCount: Number(e.target.value) })}
+                        className="w-full px-3 py-2 rounded-lg border text-sm" style={{ borderColor: "#E2E8F0", backgroundColor: "#F7F8FA" }} />
+                    </div>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Man-days Estimate</label>
+                    <input type="number" value={vendorForm.mandaysEstimate}
+                      onChange={e => setVendorForm({ ...vendorForm, mandaysEstimate: Number(e.target.value) })}
+                      className="w-full px-3 py-2 rounded-lg border text-sm" style={{ borderColor: "#E2E8F0", backgroundColor: "#F7F8FA" }} />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Status</label>
+                    <select value={vendorForm.status}
+                      onChange={e => setVendorForm({ ...vendorForm, status: e.target.value as Vendor["status"] })}
+                      className="w-full px-3 py-2 rounded-lg border text-sm" style={{ borderColor: "#E2E8F0", backgroundColor: "#F7F8FA" }}>
+                      <option value="Awarded">Awarded</option>
+                      <option value="Active">Active</option>
+                      <option value="Completed">Completed</option>
+                      <option value="Terminated">Terminated</option>
+                    </select>
+                  </div>
+                </div>
+              )}
+              <div className="flex justify-end mt-4">
+                <button onClick={addVendor} disabled={!vendorForm.name || !vendorForm.trade}
+                  className="flex items-center gap-1.5 px-4 py-2 rounded-lg text-white text-sm font-medium disabled:opacity-50"
+                  style={{ backgroundColor: "#E8973A" }}>
+                  <Plus className="w-4 h-4" /> Add Vendor
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* Stage Assignment — only when humanSubType === "vendor" */}
+          {humanSubType === "vendor" && projectVendors.length > 0 && stages.length > 0 && (
+            <div className="rounded-xl border p-5" style={{ borderColor: "#E2E8F0", backgroundColor: "white" }}>
+              <h3 className="text-base font-bold mb-4" style={{ color: "#1A202C" }}>Assign Resources to Schedule Phases</h3>
+              <p className="text-sm text-gray-500 mb-4">For each resource, select which stages of the schedule they will work on.</p>
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr style={{ backgroundColor: "#F7F8FA", borderBottom: "1px solid #E2E8F0" }}>
+                      <th className="text-left px-3 py-2.5 font-medium text-gray-500">Vendor</th>
+                      {stages.map(s => (
+                        <th key={s.id} className="text-center px-3 py-2.5 font-medium text-gray-500 min-w-[120px]">{s.name}</th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {projectVendors.map(v => (
+                      <tr key={v.id} style={{ borderBottom: "1px solid #E2E8F0" }}>
+                        <td className="px-3 py-2.5 font-medium text-gray-900">{v.name}</td>
+                        {stages.map(s => {
+                          const assigned = vendorStageAssignments[v.id] || [];
+                          return (
+                            <td key={s.id} className="text-center px-3 py-2.5">
+                              <input type="checkbox" checked={assigned.includes(s.id)}
+                                onChange={() => toggleStageForVendor(v.id, s.id)}
+                                className="w-4 h-4 rounded" style={{ accentColor: "#E8973A" }} />
+                            </td>
+                          );
+                        })}
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
+
+          {/* Registered list — show all human resources */}
+          {allHumanResources.length > 0 && (
+            <div className="rounded-xl border" style={{ borderColor: "#E2E8F0", backgroundColor: "white" }}>
+              <div className="px-5 py-3 border-b flex items-center justify-between" style={{ borderColor: "#E2E8F0" }}>
+                <h3 className="text-sm font-semibold" style={{ color: "#1A202C" }}>
+                  Registered Human Resources ({allHumanResources.length})
+                </h3>
+              </div>
+              <div className="divide-y" style={{ borderColor: "#E2E8F0" }}>
+                {projectStaff.map(s => (
+                  <div key={s.id} className="flex items-center justify-between px-5 py-3 text-sm">
+                    <div className="flex items-center gap-3">
+                      <div className="w-8 h-8 rounded-full flex items-center justify-center text-white text-xs font-bold" style={{ backgroundColor: "#3B82F6" }}>{s.name.charAt(0)}</div>
+                      <div>
+                        <p className="font-medium text-gray-900">{s.name}</p>
+                        <p className="text-xs text-gray-500">{s.trade} · Employee{s.dailyRate ? ` · ₦${s.dailyRate.toLocaleString()}/day` : ""}</p>
+                      </div>
+                    </div>
+                    <button onClick={() => removeStaff(s.id)} className="p-1.5 rounded-lg hover:bg-red-50 text-red-400 hover:text-red-600 transition-colors"><Trash2 className="w-4 h-4" /></button>
+                  </div>
+                ))}
+                {projectContractors.map(c => (
+                  <div key={c.id} className="flex items-center justify-between px-5 py-3 text-sm">
+                    <div className="flex items-center gap-3">
+                      <div className="w-8 h-8 rounded-full flex items-center justify-center text-white text-xs font-bold" style={{ backgroundColor: "#8B5CF6" }}>{c.name.charAt(0)}</div>
+                      <div>
+                        <p className="font-medium text-gray-900">{c.name}</p>
+                        <p className="text-xs text-gray-500">{c.trade} · Contractor · {c.payRate ? `₦${c.payRate.toLocaleString()}/${c.payRateUnit}` : "Rate TBD"}</p>
+                      </div>
+                    </div>
+                    <button onClick={() => removeContractor(c.id)} className="p-1.5 rounded-lg hover:bg-red-50 text-red-400 hover:text-red-600 transition-colors"><Trash2 className="w-4 h-4" /></button>
+                  </div>
+                ))}
+                {projectVendors.map(v => {
+                  const assignedStages = (vendorStageAssignments[v.id] || [])
+                    .map(sid => stages.find(s => s.id === sid))
+                    .filter(Boolean);
+                  return (
+                    <div key={v.id} className="flex items-center justify-between px-5 py-3 text-sm">
+                      <div className="flex items-center gap-3">
+                        <div className="w-8 h-8 rounded-full flex items-center justify-center text-white text-xs font-bold" style={{ backgroundColor: "#E8973A" }}>{v.name.charAt(0)}</div>
+                        <div>
+                          <p className="font-medium text-gray-900">{v.name}</p>
+                          <p className="text-xs text-gray-500">{v.trade} · {v.contractType}</p>
+                          {assignedStages.length > 0 && (
+                            <p className="text-xs text-gray-400 mt-0.5">Stages: {assignedStages.map(s => s!.name).join(", ")}</p>
+                          )}
+                        </div>
+                      </div>
+                      <button onClick={() => removeVendor(v.id)} className="p-1.5 rounded-lg hover:bg-red-50 text-red-400 hover:text-red-600 transition-colors"><Trash2 className="w-4 h-4" /></button>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+        </>
+      )}
+
+      {/* ──── MATERIALS ──── */}
+      {resourceTab === "material" && (<>
+        <div className="rounded-xl border p-6" style={{ borderColor: "#E2E8F0", backgroundColor: "white" }}>
+          <h2 className="text-lg font-bold mb-4" style={{ color: "#1A202C" }}>Register Material Resource</h2>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Material Name</label>
+              <input type="text" value={materialForm.name}
+                onChange={e => setMaterialForm({ ...materialForm, name: e.target.value })}
+                className="w-full px-3 py-2 rounded-lg border text-sm" style={{ borderColor: "#E2E8F0", backgroundColor: "#F7F8FA" }}
+                placeholder="e.g. Cement (Grade 42.5)" />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Category</label>
+              <select value={materialForm.category}
+                onChange={e => setMaterialForm({ ...materialForm, category: e.target.value })}
+                className="w-full px-3 py-2 rounded-lg border text-sm" style={{ borderColor: "#E2E8F0", backgroundColor: "#F7F8FA" }}>
+                <option value="">Select category</option>
+                {materialCategories.map(c => <option key={c} value={c}>{c}</option>)}
+              </select>
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Unit of Measure</label>
+              <select value={materialForm.unit}
+                onChange={e => setMaterialForm({ ...materialForm, unit: e.target.value })}
+                className="w-full px-3 py-2 rounded-lg border text-sm" style={{ borderColor: "#E2E8F0", backgroundColor: "#F7F8FA" }}>
+                <option value="">Select unit</option>
+                {materialUnits.map(u => <option key={u} value={u}>{u}</option>)}
+              </select>
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Estimated Quantity</label>
+              <input type="number" value={materialForm.estimatedQty || ""}
+                onChange={e => setMaterialForm({ ...materialForm, estimatedQty: Number(e.target.value) })}
+                className="w-full px-3 py-2 rounded-lg border text-sm" style={{ borderColor: "#E2E8F0", backgroundColor: "#F7F8FA" }}
+                placeholder="e.g. 5000" />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Estimated Unit Cost (₦)</label>
+              <input type="number" value={materialForm.estimatedUnitCost || ""}
+                onChange={e => setMaterialForm({ ...materialForm, estimatedUnitCost: Number(e.target.value) })}
+                className="w-full px-3 py-2 rounded-lg border text-sm" style={{ borderColor: "#E2E8F0", backgroundColor: "#F7F8FA" }}
+                placeholder="e.g. 5500" />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Procurement Source</label>
+              <select value={materialForm.procurementSource}
+                onChange={e => setMaterialForm({ ...materialForm, procurementSource: e.target.value as "internal" | "purchase" })}
+                className="w-full px-3 py-2 rounded-lg border text-sm" style={{ borderColor: "#E2E8F0", backgroundColor: "#F7F8FA" }}>
+                <option value="purchase">Purchase</option>
+                <option value="internal">Internal / Client-supplied</option>
+              </select>
+            </div>
+            {materialForm.procurementSource === "purchase" && (
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Supplier Name</label>
+                <input type="text" value={materialForm.supplierName}
+                  onChange={e => setMaterialForm({ ...materialForm, supplierName: e.target.value })}
+                  className="w-full px-3 py-2 rounded-lg border text-sm" style={{ borderColor: "#E2E8F0", backgroundColor: "#F7F8FA" }}
+                  placeholder="e.g. Dangote Cement" />
+              </div>
+            )}
+          </div>
+          {materialForm.estimatedQty > 0 && materialForm.estimatedUnitCost > 0 && (
+            <p className="text-sm text-gray-500 mt-3">
+              Estimated Total: <span className="font-semibold text-gray-900">₦{(materialForm.estimatedQty * materialForm.estimatedUnitCost).toLocaleString()}</span>
+            </p>
+          )}
           <div className="flex justify-end mt-4">
-            <button
-              onClick={addVendor}
-              disabled={!vendorForm.name || !vendorForm.trade}
+            <button onClick={addMaterial} disabled={!materialForm.name || !materialForm.category || !materialForm.unit}
               className="flex items-center gap-1.5 px-4 py-2 rounded-lg text-white text-sm font-medium disabled:opacity-50"
-              style={{ backgroundColor: "#E8973A" }}
-            >
-              <Plus className="w-4 h-4" /> Add to Project
+              style={{ backgroundColor: "#E8973A" }}>
+              <Plus className="w-4 h-4" /> Add Material
             </button>
           </div>
         </div>
 
-        {/* Stage Assignment */}
-        {projectVendors.length > 0 && stages.length > 0 && (
-          <div className="rounded-xl border p-5" style={{ borderColor: "#E2E8F0", backgroundColor: "white" }}>
-
-            <h3 className="text-base font-bold mb-4" style={{ color: "#1A202C" }}>Assign Resources to Schedule Phases</h3>
-            <p className="text-sm text-gray-500 mb-4">For each resource, select which stages of the schedule they will work on.</p>
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead>
-                  <tr style={{ backgroundColor: "#F7F8FA", borderBottom: "1px solid #E2E8F0" }}>
-                    <th className="text-left px-3 py-2.5 font-medium text-gray-500">Vendor</th>
-                    {stages.map(s => (
-                      <th key={s.id} className="text-center px-3 py-2.5 font-medium text-gray-500 min-w-[120px]">{s.name}</th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody>
-                  {projectVendors.map(v => (
-                    <tr key={v.id} style={{ borderBottom: "1px solid #E2E8F0" }}>
-                      <td className="px-3 py-2.5 font-medium text-gray-900">{v.name}</td>
-                      {stages.map(s => {
-                        const assigned = vendorStageAssignments[v.id] || [];
-                        const isChecked = assigned.includes(s.id);
-                        return (
-                          <td key={s.id} className="text-center px-3 py-2.5">
-                            <input
-                              type="checkbox"
-                              checked={isChecked}
-                              onChange={() => toggleStageForVendor(v.id, s.id)}
-                              className="w-4 h-4 rounded"
-                              style={{ accentColor: "#E8973A" }}
-                            />
-                          </td>
-                        );
-                      })}
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </div>
-        )}
-
-        {/* Registered Vendors List */}
-        {projectVendors.length > 0 && (
+        {/* Registered Materials List */}
+        {projectMaterials.length > 0 && (
           <div className="rounded-xl border" style={{ borderColor: "#E2E8F0", backgroundColor: "white" }}>
             <div className="px-5 py-3 border-b flex items-center justify-between" style={{ borderColor: "#E2E8F0" }}>
-              <h3 className="text-sm font-semibold" style={{ color: "#1A202C" }}>
-                Registered Vendors ({projectVendors.length})
-              </h3>
+              <h3 className="text-sm font-semibold" style={{ color: "#1A202C" }}>Registered Materials ({projectMaterials.length})</h3>
             </div>
             <div className="divide-y" style={{ borderColor: "#E2E8F0" }}>
-              {projectVendors.map(v => {
-                const assignedStages = (vendorStageAssignments[v.id] || [])
-                  .map(sid => stages.find(s => s.id === sid))
-                  .filter(Boolean);
-                return (
-                  <div key={v.id} className="flex items-center justify-between px-5 py-3 text-sm">
-                    <div className="flex items-center gap-3">
-                      <div className="w-8 h-8 rounded-full flex items-center justify-center text-white text-xs font-bold"
-                        style={{ backgroundColor: "#E8973A" }}>
-                        {v.name.charAt(0)}
-                      </div>
-                      <div>
-                        <p className="font-medium text-gray-900">{v.name}</p>
-                        <p className="text-xs text-gray-500">{v.trade} · {v.contractType}</p>
-                        {assignedStages.length > 0 && (
-                          <p className="text-xs text-gray-400 mt-0.5">
-                            Stages: {assignedStages.map(s => s!.name).join(", ")}
-                          </p>
-                        )}
-                      </div>
+              {projectMaterials.map(m => (
+                <div key={m.id} className="flex items-center justify-between px-5 py-3 text-sm">
+                  <div className="flex items-center gap-3">
+                    <div className="w-8 h-8 rounded-full flex items-center justify-center text-white text-xs font-bold" style={{ backgroundColor: "#10B981" }}>{m.name.charAt(0)}</div>
+                    <div>
+                      <p className="font-medium text-gray-900">{m.name}</p>
+                      <p className="text-xs text-gray-500">{m.category} · {m.estimatedQty} {m.unit} · ₦{m.estimatedUnitCost.toLocaleString()}/{m.unit}</p>
+                      <p className="text-xs text-gray-400 mt-0.5">Total: ₦{m.totalEstimatedCost.toLocaleString()} · {m.procurementSource === "purchase" ? "Purchased" : "Internal"}</p>
                     </div>
-                    <button
-                      onClick={() => removeVendor(v.id)}
-                      className="p-1.5 rounded-lg hover:bg-red-50 text-red-400 hover:text-red-600 transition-colors"
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </button>
                   </div>
-                );
-              })}
+                  <button onClick={() => removeMaterial(m.id)} className="p-1.5 rounded-lg hover:bg-red-50 text-red-400 hover:text-red-600 transition-colors"><Trash2 className="w-4 h-4" /></button>
+                </div>
+              ))}
             </div>
           </div>
         )}
-        </>
-      )}
-      
-      {resourceTab === "material" && (
-          <div className="rounded-xl border p-6" style={{ borderColor: "#E2E8F0", backgroundColor: "white" }}>
-            <h2 className="text-lg font-bold mb-4" style={{ color: "#1A202C" }}>Register Material Resources</h2>
-            <p className="text-sm text-gray-500 mb-4">Track construction materials required for this project — consumables, construction materials, etc.</p>
-            <p className="text-xs text-gray-400 italic">Material registration form goes here (Aggregates, Concrete, Steel, Finishing categories)</p>
-          </div>
-        )}
+      </>)}
 
-        {resourceTab === "equipment" && (
-          <div className="rounded-xl border p-6" style={{ borderColor: "#E2E8F0", backgroundColor: "white" }}>
-            <h2 className="text-lg font-bold mb-4" style={{ color: "#1A202C" }}>Register Equipment Resources</h2>
-            <p className="text-sm text-gray-500 mb-4">Track equipment required for this project — owned, rented, or client-supplied.</p>
-            <p className="text-xs text-gray-400 italic">Equipment registration form goes here (Earthwork, Lifting, Concreting categories)</p>
+      {/* ──── EQUIPMENT ──── */}
+      {resourceTab === "equipment" && (<>
+        <div className="rounded-xl border p-6" style={{ borderColor: "#E2E8F0", backgroundColor: "white" }}>
+          <h2 className="text-lg font-bold mb-4" style={{ color: "#1A202C" }}>Register Equipment Resource</h2>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Equipment Name</label>
+              <input type="text" value={equipmentForm.name}
+                onChange={e => setEquipmentForm({ ...equipmentForm, name: e.target.value })}
+                className="w-full px-3 py-2 rounded-lg border text-sm" style={{ borderColor: "#E2E8F0", backgroundColor: "#F7F8FA" }}
+                placeholder="e.g. Tower Crane" />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Category</label>
+              <select value={equipmentForm.category}
+                onChange={e => setEquipmentForm({ ...equipmentForm, category: e.target.value })}
+                className="w-full px-3 py-2 rounded-lg border text-sm" style={{ borderColor: "#E2E8F0", backgroundColor: "#F7F8FA" }}>
+                <option value="">Select category</option>
+                {equipmentCategories.map(c => <option key={c} value={c}>{c}</option>)}
+              </select>
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Ownership</label>
+              <select value={equipmentForm.ownership}
+                onChange={e => setEquipmentForm({ ...equipmentForm, ownership: e.target.value as "company-owned" | "rented" | "client-supplied" })}
+                className="w-full px-3 py-2 rounded-lg border text-sm" style={{ borderColor: "#E2E8F0", backgroundColor: "#F7F8FA" }}>
+                <option value="company-owned">Company-owned</option>
+                <option value="rented">Rented / Hired</option>
+                <option value="client-supplied">Client-supplied</option>
+              </select>
+            </div>
+            {equipmentForm.ownership === "company-owned" && (
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Internal Cost per Day (₦)</label>
+                <input type="number" value={equipmentForm.internalCostPerDay || ""}
+                  onChange={e => setEquipmentForm({ ...equipmentForm, internalCostPerDay: Number(e.target.value) })}
+                  className="w-full px-3 py-2 rounded-lg border text-sm" style={{ borderColor: "#E2E8F0", backgroundColor: "#F7F8FA" }}
+                  placeholder="e.g. 150000" />
+              </div>
+            )}
+            {equipmentForm.ownership === "rented" && (<>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Rental Cost per Day (₦)</label>
+                <input type="number" value={equipmentForm.rentalCostPerDay || ""}
+                  onChange={e => setEquipmentForm({ ...equipmentForm, rentalCostPerDay: Number(e.target.value) })}
+                  className="w-full px-3 py-2 rounded-lg border text-sm" style={{ borderColor: "#E2E8F0", backgroundColor: "#F7F8FA" }}
+                  placeholder="e.g. 120000" />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Rental Supplier</label>
+                <input type="text" value={equipmentForm.rentalSupplier}
+                  onChange={e => setEquipmentForm({ ...equipmentForm, rentalSupplier: e.target.value })}
+                  className="w-full px-3 py-2 rounded-lg border text-sm" style={{ borderColor: "#E2E8F0", backgroundColor: "#F7F8FA" }}
+                  placeholder="e.g. Mario Equipment Ltd" />
+              </div>
+            </>)}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Estimated Days on Site</label>
+              <input type="number" value={equipmentForm.estimatedDays || ""}
+                onChange={e => setEquipmentForm({ ...equipmentForm, estimatedDays: Number(e.target.value) })}
+                className="w-full px-3 py-2 rounded-lg border text-sm" style={{ borderColor: "#E2E8F0", backgroundColor: "#F7F8FA" }}
+                placeholder="e.g. 180" />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Status</label>
+              <select value={equipmentForm.status}
+                onChange={e => setEquipmentForm({ ...equipmentForm, status: e.target.value as "Available" | "Assigned" | "Under Maintenance" })}
+                className="w-full px-3 py-2 rounded-lg border text-sm" style={{ borderColor: "#E2E8F0", backgroundColor: "#F7F8FA" }}>
+                {equipmentStatuses.map(s => <option key={s} value={s}>{s}</option>)}
+              </select>
+            </div>
+          </div>
+          {equipmentForm.estimatedDays > 0 && (equipmentForm.internalCostPerDay > 0 || equipmentForm.rentalCostPerDay > 0) && (
+            <p className="text-sm text-gray-500 mt-3">
+              Estimated Total: <span className="font-semibold text-gray-900">₦{((equipmentForm.ownership === "company-owned" ? equipmentForm.internalCostPerDay : equipmentForm.rentalCostPerDay) * equipmentForm.estimatedDays).toLocaleString()}</span>
+            </p>
+          )}
+          <div className="flex justify-end mt-4">
+            <button onClick={addEquipment} disabled={!equipmentForm.name || !equipmentForm.category}
+              className="flex items-center gap-1.5 px-4 py-2 rounded-lg text-white text-sm font-medium disabled:opacity-50"
+              style={{ backgroundColor: "#E8973A" }}>
+              <Plus className="w-4 h-4" /> Add Equipment
+            </button>
+          </div>
+        </div>
+
+        {/* Registered Equipment List */}
+        {projectEquipment.length > 0 && (
+          <div className="rounded-xl border" style={{ borderColor: "#E2E8F0", backgroundColor: "white" }}>
+            <div className="px-5 py-3 border-b flex items-center justify-between" style={{ borderColor: "#E2E8F0" }}>
+              <h3 className="text-sm font-semibold" style={{ color: "#1A202C" }}>Registered Equipment ({projectEquipment.length})</h3>
+            </div>
+            <div className="divide-y" style={{ borderColor: "#E2E8F0" }}>
+              {projectEquipment.map(e => (
+                <div key={e.id} className="flex items-center justify-between px-5 py-3 text-sm">
+                  <div className="flex items-center gap-3">
+                    <div className="w-8 h-8 rounded-full flex items-center justify-center text-white text-xs font-bold" style={{ backgroundColor: "#F59E0B" }}>{e.name.charAt(0)}</div>
+                    <div>
+                      <p className="font-medium text-gray-900">{e.name}</p>
+                      <p className="text-xs text-gray-500">{e.category} · {e.ownership === "company-owned" ? "Company-owned" : e.ownership === "rented" ? "Rented" : "Client-supplied"}{e.estimatedDays ? ` · ${e.estimatedDays} days` : ""}</p>
+                      <p className="text-xs text-gray-400 mt-0.5">{e.totalEstimatedCost ? `Est. Total: ₦${e.totalEstimatedCost.toLocaleString()}` : ""} · {e.status}</p>
+                    </div>
+                  </div>
+                  <button onClick={() => removeEquipment(e.id)} className="p-1.5 rounded-lg hover:bg-red-50 text-red-400 hover:text-red-600 transition-colors"><Trash2 className="w-4 h-4" /></button>
+                </div>
+              ))}
+            </div>
           </div>
         )}
-      </div>
+      </>)}
+    </div>
     );
   };
 
