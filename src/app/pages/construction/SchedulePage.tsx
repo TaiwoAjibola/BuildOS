@@ -309,6 +309,8 @@ export function SchedulePage() {
               </span>
             )}
 
+            <span className="text-xs text-gray-400 w-14 flex-shrink-0 font-mono">L{task.level}</span>
+
             <span className="text-xs text-gray-400 w-20 flex-shrink-0 font-mono">{wbs}</span>
 
             <span className="flex-1 truncate">{task.name}</span>
@@ -319,6 +321,10 @@ export function SchedulePage() {
 
             <span className="text-xs text-gray-400 w-28 flex-shrink-0 text-right">
               {fmtDate(task.plannedEnd)}
+            </span>
+
+            <span className="text-xs text-gray-400 w-20 flex-shrink-0 text-right">
+              {task.plannedDuration}d
             </span>
 
             <div className="w-24 flex-shrink-0">
@@ -332,6 +338,14 @@ export function SchedulePage() {
               </div>
             </div>
 
+            <span className="text-xs text-right w-24 flex-shrink-0 font-medium text-gray-600">
+              {project ? fmtCurrency(Math.round(project.budget * task.plannedDuration / projectTasks.reduce((s, t) => s + t.plannedDuration, 0) || 1)) : "—"}
+            </span>
+
+            <span className="text-xs text-right w-24 flex-shrink-0 font-medium text-gray-500">
+              {project ? fmtCurrency(Math.round((project.budget * task.plannedDuration / projectTasks.reduce((s, t) => s + t.plannedDuration, 0) || 1) * task.percentComplete / 100)) : "—"}
+            </span>
+
             {task.level === 4 && task.vendorId ? (
               <span className="text-xs text-gray-500 w-28 flex-shrink-0 truncate text-right">
                 {task.vendorId}
@@ -340,13 +354,9 @@ export function SchedulePage() {
               <span className="w-28 flex-shrink-0" />
             )}
 
-            <div className="w-20 flex-shrink-0 flex justify-center">
+            <div className="w-16 flex-shrink-0 flex justify-center">
               <span className={`w-2.5 h-2.5 rounded-full ${ragColor(task.ragStatus)}`} title={ragLabel(task.ragStatus)} />
             </div>
-
-            <span className="text-xs text-gray-400 w-16 flex-shrink-0 text-right">
-              {task.plannedDuration}d
-            </span>
 
             {task.level === 4 && (
               <button
@@ -831,14 +841,17 @@ export function SchedulePage() {
             <span className="w-4 flex-shrink-0" />
             <span className="w-4 flex-shrink-0" />
             <span className="w-4 flex-shrink-0" />
+            <span className="w-14 flex-shrink-0">Level</span>
             <span className="w-20 flex-shrink-0">WBS</span>
             <span className="flex-1">Task Name</span>
             <span className="w-28 flex-shrink-0 text-right">Planned Start</span>
             <span className="w-28 flex-shrink-0 text-right">Planned End</span>
+            <span className="w-20 flex-shrink-0 text-right">Duration</span>
             <span className="w-24 flex-shrink-0 text-right">% Complete</span>
+            <span className="w-24 flex-shrink-0 text-right">Planned Cost</span>
+            <span className="w-24 flex-shrink-0 text-right">Actual Cost</span>
             <span className="w-28 flex-shrink-0 text-right">Resource</span>
-            <span className="w-20 flex-shrink-0 text-center">RAG</span>
-            <span className="w-16 flex-shrink-0 text-right">Dur.</span>
+            <span className="w-16 flex-shrink-0 text-center">RAG</span>
             <span className="w-8 flex-shrink-0" />
           </div>
           <div>
