@@ -129,6 +129,7 @@ export function ProjectSetupPage() {
   const [vendorForm, setVendorForm] = useState(EMPTY_VENDOR_FORM);
   const [selectedExistingVendor, setSelectedExistingVendor] = useState("");
   const [vendorStageAssignments, setVendorStageAssignments] = useState<Record<string, string[]>>({});
+  const [resourceTab, setResourceTab] = useState<"human" | "material" | "equipment">("human");
   const [isNewVendor, setIsNewVendor] = useState(false);
 
   // Step 4 — Calendar
@@ -916,7 +917,21 @@ export function ProjectSetupPage() {
 
     return (
       <div className="space-y-4">
-        <div className="rounded-xl border p-6" style={{ borderColor: "#E2E8F0", backgroundColor: "white" }}>
+        {/* Resource Type Tabs */}
+        <div className="flex gap-1 bg-gray-100 rounded-lg p-1 max-w-md">
+          {(["human", "material", "equipment"] as const).map(tab => (
+            <button key={tab} onClick={() => setResourceTab(tab)}
+              className={`flex-1 px-4 py-2 text-sm font-medium rounded-md transition-colors capitalize ${
+                resourceTab === tab ? "bg-white text-gray-900 shadow-sm" : "text-gray-500 hover:text-gray-700"
+              }`}
+            >
+              {tab === "human" ? "Human Resources" : tab === "material" ? "Materials" : "Equipment"}
+            </button>
+          ))}
+        </div>
+
+        {resourceTab === "human" && (<>
+          <div className="rounded-xl border p-6" style={{ borderColor: "#E2E8F0", backgroundColor: "white" }}>
           <h2 className="text-lg font-bold mb-4" style={{ color: "#1A202C" }}>
             {isNewVendor ? "Register New Resource" : "Select Resource"}
           </h2>
@@ -1067,6 +1082,7 @@ export function ProjectSetupPage() {
         {/* Stage Assignment */}
         {projectVendors.length > 0 && stages.length > 0 && (
           <div className="rounded-xl border p-5" style={{ borderColor: "#E2E8F0", backgroundColor: "white" }}>
+
             <h3 className="text-base font-bold mb-4" style={{ color: "#1A202C" }}>Assign Resources to Schedule Phases</h3>
             <p className="text-sm text-gray-500 mb-4">For each resource, select which stages of the schedule they will work on.</p>
             <div className="overflow-x-auto">
@@ -1146,6 +1162,24 @@ export function ProjectSetupPage() {
                 );
               })}
             </div>
+          </div>
+        )}
+        </>
+      )}
+      
+      {resourceTab === "material" && (
+          <div className="rounded-xl border p-6" style={{ borderColor: "#E2E8F0", backgroundColor: "white" }}>
+            <h2 className="text-lg font-bold mb-4" style={{ color: "#1A202C" }}>Register Material Resources</h2>
+            <p className="text-sm text-gray-500 mb-4">Track construction materials required for this project — consumables, construction materials, etc.</p>
+            <p className="text-xs text-gray-400 italic">Material registration form goes here (Aggregates, Concrete, Steel, Finishing categories)</p>
+          </div>
+        )}
+
+        {resourceTab === "equipment" && (
+          <div className="rounded-xl border p-6" style={{ borderColor: "#E2E8F0", backgroundColor: "white" }}>
+            <h2 className="text-lg font-bold mb-4" style={{ color: "#1A202C" }}>Register Equipment Resources</h2>
+            <p className="text-sm text-gray-500 mb-4">Track equipment required for this project — owned, rented, or client-supplied.</p>
+            <p className="text-xs text-gray-400 italic">Equipment registration form goes here (Earthwork, Lifting, Concreting categories)</p>
           </div>
         )}
       </div>

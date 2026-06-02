@@ -3,7 +3,7 @@ import { useState, useMemo } from "react";
 import { Calendar, ChevronRight, ChevronDown, Plus, Edit, Filter, List, BarChart3, GitBranch, X, Save, ArrowLeft, ArrowRight, AlertTriangle, Diamond, CalendarDays, Clock, Sun, Users, GripVertical } from "lucide-react";
 import type { Task, ResourceAllocation, Vendor, ProjectCalendar } from "./types";
 import { calcFloat, generateWBS } from "./types";
-import { getTasksByProject, getProjectById, getVendorsByProject, fmtDate, ragColor, ragLabel, pctCompleteColor, tasks as allTasks, baselines, calendars, resourceAllocations, vendors } from "./mockData";
+import { getTasksByProject, getProjectById, getVendorsByProject, fmtDate, fmtCurrency, ragColor, ragLabel, pctCompleteColor, tasks as allTasks, baselines, calendars, resourceAllocations, vendors } from "./mockData";
 
 type ViewMode = "list" | "gantt" | "baseline" | "resource";
 
