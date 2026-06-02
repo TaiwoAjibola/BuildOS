@@ -902,3 +902,33 @@ export interface ProjectTypeSetting {
   categories: string[];
   descriptors?: string[];
 }
+
+// ── Funding ─────────────────────────────────────────────────
+export interface FundingAllocation {
+  id: string;
+  projectId: string;
+  source: string;
+  totalAllocated: number;
+  dateAllocated: string;
+  reference: string;
+  notes: string;
+}
+
+export interface FundingRelease {
+  id: string;
+  allocationId: string;
+  projectId: string;
+  amount: number;
+  dateReleased: string;
+  reference: string;
+  releasedTo: string;
+}
+
+export interface ProjectFundingSummary {
+  totalAllocated: number;
+  totalReleased: number;
+  totalUtilized: number;
+  remainingBalance: number;
+  allocations: FundingAllocation[];
+  releases: FundingRelease[];
+}

@@ -49,6 +49,7 @@ import { ProjectSetupPage } from "./pages/construction/ProjectSetupPage";
 import { SettingsPage } from "./pages/construction/SettingsPage";
 import { DisbursementsPage } from "./pages/construction/DisbursementsPage";
 import { CommunicationLogPage } from "./pages/construction/CommunicationLogPage";
+import { FundingPage } from "./pages/construction/FundingPage";
 
 // Finance App
 import { FinanceApprovalsPage } from "./pages/finance/FinanceApprovalsPage";
@@ -210,6 +211,7 @@ export const router = createBrowserRouter([
               { path: "hse", Component: HSEOverviewPage },
               { path: "documents", Component: DocumentsOverviewPage },
               { path: "costs", Component: CostsOverviewPage },
+              { path: "funding", Component: FundingPage },
               { path: "stakeholders", Component: StakeholdersOverviewPage },
               { path: "reports", Component: ReportsPage },
               { path: "resource-hub", Component: ResourceHubPage },
@@ -235,6 +237,7 @@ export const router = createBrowserRouter([
                   { path: "hse", Component: HSEPage },
                   { path: "documents", Component: DocumentsPage },
                   { path: "costs", Component: CostsPage },
+                  { path: "funding", Component: FundingPage },
                   { path: "stakeholders", Component: StakeholdersPage },
                   { path: "progress", Component: ProgressEarnedValuePage },
                   { path: "setup", Component: ProjectSetupPage },

@@ -14,6 +14,7 @@ const tabs = [
   { label: "HSE", path: "hse", icon: "🛡️" },
   { label: "Documents", path: "documents", icon: "📁" },
   { label: "Costs", path: "costs", icon: "💰" },
+  { label: "Funding", path: "funding", icon: "🏦" },
   { label: "Disbursements", path: "disbursements", icon: "💵" },
   { label: "Communications", path: "communications", icon: "💬" },
   { label: "Progress", path: "progress", icon: "📊" },

@@ -6,7 +6,7 @@ import {
   LayoutDashboard, FolderKanban, Users, BarChart3, Settings,
   Calendar, FileText, Truck, AlertTriangle, GitCompare,
   Clock, CheckSquare, ShieldCheck, FileSpreadsheet, Briefcase,
-  DollarSign, MessageSquare,
+  DollarSign, MessageSquare, Banknote,
 } from "lucide-react";
 
 export function ConstructionLayout() {
@@ -37,6 +37,7 @@ export function ConstructionLayout() {
         { label: "HSE", href: "/apps/construction/hse", icon: <ShieldCheck className="w-4 h-4" />, end: true },
         { label: "Documents", href: "/apps/construction/documents", icon: <FolderKanban className="w-4 h-4" />, end: true },
         { label: "Costs", href: "/apps/construction/costs", icon: <FileSpreadsheet className="w-4 h-4" />, end: true },
+        { label: "Funding", href: "/apps/construction/funding", icon: <Banknote className="w-4 h-4" />, end: true },
         { label: "Disbursements", href: "/apps/construction/disbursements", icon: <DollarSign className="w-4 h-4" />, end: true },
         { label: "Communications", href: "/apps/construction/communications", icon: <MessageSquare className="w-4 h-4" />, end: true },
         { label: "Stakeholders", href: "/apps/construction/stakeholders", icon: <Briefcase className="w-4 h-4" />, end: true },

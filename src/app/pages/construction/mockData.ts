@@ -6,6 +6,7 @@ import type {
   Sector, ProjectStructureItem,
   HumanResource, MaterialResource, EquipmentResource, ResourceAssignment,
   DailyExpense, CommunicationLogEntry, Disbursement,
+  FundingAllocation, FundingRelease,
   ScheduleLevelConfig, WeatherConfig,
 } from "./types";
 
@@ -330,6 +331,21 @@ export const communicationLog: CommunicationLogEntry[] = [
 ];
 
 // ── Disbursements (mock) ────────────────────────
+// ── Funding (mock) ─────────────────────────────
+export const fundingAllocations: FundingAllocation[] = [
+  { id: "FA-001", projectId: "PRJ-001", source: "Lekki Gardens Ltd (Client)", totalAllocated: 1_250_000_000, dateAllocated: "2025-12-15", reference: "FIN-ALLOC-001", notes: "Full project budget allocation" },
+  { id: "FA-002", projectId: "PRJ-002", source: "HomeKey Developers", totalAllocated: 820_000_000, dateAllocated: "2026-01-20", reference: "FIN-ALLOC-002", notes: "Phase 2 budget" },
+  { id: "FA-003", projectId: "PRJ-003", source: "RetailCo Nigeria", totalAllocated: 1_840_000_000, dateAllocated: "2025-10-01", reference: "FIN-ALLOC-003", notes: "Mall expansion allocation" },
+];
+
+export const fundingReleases: FundingRelease[] = [
+  { id: "FR-001", allocationId: "FA-001", projectId: "PRJ-001", amount: 500_000_000, dateReleased: "2026-01-10", reference: "FIN-REL-001", releasedTo: "Project Account" },
+  { id: "FR-002", allocationId: "FA-001", projectId: "PRJ-001", amount: 300_000_000, dateReleased: "2026-03-01", reference: "FIN-REL-002", releasedTo: "Project Account" },
+  { id: "FR-003", allocationId: "FA-001", projectId: "PRJ-001", amount: 200_000_000, dateReleased: "2026-05-15", reference: "FIN-REL-003", releasedTo: "Project Account" },
+  { id: "FR-004", allocationId: "FA-002", projectId: "PRJ-002", amount: 410_000_000, dateReleased: "2026-02-01", reference: "FIN-REL-004", releasedTo: "Project Account" },
+  { id: "FR-005", allocationId: "FA-003", projectId: "PRJ-003", amount: 1_000_000_000, dateReleased: "2025-11-01", reference: "FIN-REL-005", releasedTo: "Project Account" },
+];
+
 export const disbursements: Disbursement[] = [
   { id: "DB-001", projectId: "PRJ-001", amount: 50_000_000, date: "2026-01-20", source: "finance", reference: "FIN-DIS-001", notes: "Initial project mobilization", allocatedTo: ["ST-001"] },
   { id: "DB-002", projectId: "PRJ-001", amount: 25_000_000, date: "2026-03-15", source: "finance", reference: "FIN-DIS-002", notes: "Foundation works drawdown", allocatedTo: ["SM-001", "SM-002"] },
