@@ -3,6 +3,7 @@ import { ArrowLeft, MapPin, Calendar, Users, DollarSign, Building2, FileText, Al
 import { useState } from "react";
 import type { Project } from "./types";
 import { getProjectById, getTasksByProject, getVendorsByProject, getReportsByProject, getIssuesByProject, fmtCurrency, fmtDate, ragColor, ragLabel, tasks } from "./mockData";
+import { ProcessGuidance } from "../../components/ProcessGuidance";
 
 const RAG_HEX: Record<string, { dot: string; bg: string; text: string }> = {
   "bg-green-500": { dot: "#27AE60", bg: "#E8F8EF", text: "#1B7A43" },
@@ -148,6 +149,23 @@ export function ProjectOverviewPage() {
           </div>
         </div>
       </div>
+
+      {/* Workflow Process Guidance */}
+      <ProcessGuidance
+        title="Project Workflow"
+        currentStatus={project.setupComplete ? "Active" : "Setup In Progress"}
+        steps={[
+          { id: "basic", label: "Basic Information", status: project.setupProgress !== undefined && project.setupProgress >= 20 ? "completed" : "current" },
+          { id: "type", label: "Project Classification", status: project.sector ? "completed" : project.setupProgress ? "current" : "pending" },
+          { id: "resources", label: "Resource Registration", status: project.setupComplete ? "completed" : project.setupProgress && project.setupProgress >= 40 ? "current" : "pending" },
+          { id: "schedule", label: "Schedule & Calendar", status: project.setupComplete ? "completed" : project.setupProgress && project.setupProgress >= 60 ? "current" : "pending" },
+          { id: "baseline", label: "Baseline Locked", status: project.setupComplete ? "completed" : "pending" },
+        ]}
+        nextStep={project.setupComplete ? "Submit Daily Reports" : "Continue Setup"}
+        responsible={project.projectManager}
+        dueDate={project.plannedEndDate ? fmtDate(project.plannedEndDate) : undefined}
+        variant="compact"
+      />
 
       {/* Project Info Bar — 4 cards */}
       <div className="grid grid-cols-4 gap-4">

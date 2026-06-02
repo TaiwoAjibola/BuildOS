@@ -90,6 +90,8 @@ export function SchedulePage() {
   const [dragId, setDragId] = useState<string | null>(null);
   const [dropTarget, setDropTarget] = useState<string | null>(null);
   const [dropPosition, setDropPosition] = useState<"before" | "after" | null>(null);
+  const [editingTaskId, setEditingTaskId] = useState<string | null>(null);
+  const [editingValues, setEditingValues] = useState<Partial<Task>>({});
 
   const wbsMap = useMemo(() => buildWbsMap(tasks), [tasks]);
   const projectBaseline = useMemo(() => baselines.find(b => b.projectId === projectId), [projectId]);
@@ -237,6 +239,23 @@ export function SchedulePage() {
     setDropPosition(null);
   }
 
+  function startInlineEdit(task: Task) {
+    setEditingTaskId(task.id);
+    setEditingValues({ name: task.name, plannedStart: task.plannedStart, plannedEnd: task.plannedEnd, percentComplete: task.percentComplete });
+  }
+
+  function saveInlineEdit() {
+    if (!editingTaskId) return;
+    setTasks(prev => prev.map(t => t.id === editingTaskId ? { ...t, ...editingValues } : t));
+    setEditingTaskId(null);
+    setEditingValues({});
+  }
+
+  function cancelInlineEdit() {
+    setEditingTaskId(null);
+    setEditingValues({});
+  }
+
   function renderListRows(taskList: Task[], parentId: string | null, depth: number): React.ReactNode[] {
     const children = taskList.filter(t => t.parentTaskId === parentId);
     if (children.length === 0 && depth === 0) {
@@ -313,29 +332,58 @@ export function SchedulePage() {
 
             <span className="text-xs text-gray-400 w-20 flex-shrink-0 font-mono">{wbs}</span>
 
-            <span className="flex-1 truncate">{task.name}</span>
+            {editingTaskId === task.id ? (
+              <input value={editingValues.name || ""} onChange={e => setEditingValues(prev => ({ ...prev, name: e.target.value }))}
+                className="flex-1 text-sm border border-orange-500 rounded px-1.5 py-0.5 focus:outline-none" autoFocus
+                onKeyDown={e => { if (e.key === "Enter") saveInlineEdit(); if (e.key === "Escape") cancelInlineEdit(); }}
+                onClick={e => e.stopPropagation()}
+              />
+            ) : (
+              <span className="flex-1 truncate cursor-pointer hover:text-orange-600" onDoubleClick={() => startInlineEdit(task)}>{task.name}</span>
+            )}
 
-            <span className="text-xs text-gray-400 w-28 flex-shrink-0 text-right">
-              {fmtDate(task.plannedStart)}
-            </span>
+            {editingTaskId === task.id ? (
+              <input type="date" value={editingValues.plannedStart || ""} onChange={e => setEditingValues(prev => ({ ...prev, plannedStart: e.target.value }))}
+                className="text-xs w-28 flex-shrink-0 text-right border border-orange-500 rounded px-1 py-0.5 focus:outline-none"
+                onClick={e => e.stopPropagation()} />
+            ) : (
+              <span className="text-xs text-gray-400 w-28 flex-shrink-0 text-right cursor-pointer" onDoubleClick={() => startInlineEdit(task)}>
+                {fmtDate(task.plannedStart)}
+              </span>
+            )}
 
-            <span className="text-xs text-gray-400 w-28 flex-shrink-0 text-right">
-              {fmtDate(task.plannedEnd)}
-            </span>
+            {editingTaskId === task.id ? (
+              <input type="date" value={editingValues.plannedEnd || ""} onChange={e => setEditingValues(prev => ({ ...prev, plannedEnd: e.target.value }))}
+                className="text-xs w-28 flex-shrink-0 text-right border border-orange-500 rounded px-1 py-0.5 focus:outline-none"
+                onClick={e => e.stopPropagation()} />
+            ) : (
+              <span className="text-xs text-gray-400 w-28 flex-shrink-0 text-right cursor-pointer" onDoubleClick={() => startInlineEdit(task)}>
+                {fmtDate(task.plannedEnd)}
+              </span>
+            )}
 
             <span className="text-xs text-gray-400 w-20 flex-shrink-0 text-right">
               {task.plannedDuration}d
             </span>
 
             <div className="w-24 flex-shrink-0">
-              <div className="flex items-center gap-1.5">
-                <div className="flex-1 bg-gray-200 rounded-full h-1.5 overflow-hidden">
-                  <div className={`h-full rounded-full ${pctCompleteColor(task.percentComplete)}`} style={{ width: `${task.percentComplete}%` }} />
+              {editingTaskId === task.id ? (
+                <div className="flex items-center gap-1.5" onClick={e => e.stopPropagation()}>
+                  <input type="range" min={0} max={100} value={editingValues.percentComplete ?? 0}
+                    onChange={e => setEditingValues(prev => ({ ...prev, percentComplete: Number(e.target.value) }))}
+                    className="flex-1 h-1.5 accent-orange-500" />
+                  <span className="text-xs font-medium text-orange-600 w-8 text-right">{editingValues.percentComplete ?? 0}%</span>
                 </div>
-                <span className={`text-xs font-medium ${task.percentComplete >= 100 ? "text-green-600" : task.percentComplete >= 60 ? "text-amber-600" : "text-orange-600"}`}>
-                  {task.percentComplete}%
-                </span>
-              </div>
+              ) : (
+                <div className="flex items-center gap-1.5 cursor-pointer" onDoubleClick={() => startInlineEdit(task)}>
+                  <div className="flex-1 bg-gray-200 rounded-full h-1.5 overflow-hidden">
+                    <div className={`h-full rounded-full ${pctCompleteColor(task.percentComplete)}`} style={{ width: `${task.percentComplete}%` }} />
+                  </div>
+                  <span className={`text-xs font-medium ${task.percentComplete >= 100 ? "text-green-600" : task.percentComplete >= 60 ? "text-amber-600" : "text-orange-600"}`}>
+                    {task.percentComplete}%
+                  </span>
+                </div>
+              )}
             </div>
 
             <span className="text-xs text-right w-24 flex-shrink-0 font-medium text-gray-600">

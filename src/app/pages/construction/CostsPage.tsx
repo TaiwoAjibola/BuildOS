@@ -1,7 +1,8 @@
 import { useParams } from "react-router";
-import { useMemo, useState } from "react";
-import { DollarSign, BarChart3, TrendingUp, TrendingDown, PieChart, ArrowUpRight, ArrowDownRight, FileSpreadsheet } from "lucide-react";
-import { getProjectById, getTasksByProject, getVendorsByProject, fmtCurrency, tasks as allTasks } from "./mockData";
+import { useMemo, useState, Fragment } from "react";
+import { DollarSign, BarChart3, TrendingUp, TrendingDown, PieChart, ArrowUpRight, ArrowDownRight, FileSpreadsheet, ChevronDown, ChevronRight, Landmark, Wallet, PiggyBank } from "lucide-react";
+import { getProjectById, getTasksByProject, getVendorsByProject, fmtCurrency, tasks as allTasks, fundingAllocations as allAllocations, fundingReleases as allReleases, disbursements as allDisbursements } from "./mockData";
+import { TableControls, exportToCSV } from "../../components/TableControls";
 
 const budgetCategories = [
   { name: "Materials", pct: 35, color: "bg-orange-500" },
@@ -17,6 +18,15 @@ export function CostsPage() {
   const projectTasks = useMemo(() => getTasksByProject(id ?? ""), [id]);
   const projectVendors = useMemo(() => getVendorsByProject(id ?? ""), [id]);
   const [activeSection, setActiveSection] = useState("overview");
+  const [expandedStage, setExpandedStage] = useState<string | null>(null);
+  const [stageColumns, setStageColumns] = useState([
+    { key: "stage", label: "Stage", visible: true },
+    { key: "budget", label: "Budget", visible: true },
+    { key: "spent", label: "Spent", visible: true },
+    { key: "variance", label: "Variance (₦)", visible: true },
+    { key: "variancePct", label: "Variance (%)", visible: true },
+    { key: "progress", label: "Progress", visible: true },
+  ]);
 
   const stages = useMemo(() => projectTasks.filter(t => t.level === 1), [projectTasks]);
   const stageBudgets = useMemo(() => {
@@ -36,6 +46,11 @@ export function CostsPage() {
   const totalSpent = project?.spent ?? 0;
   const totalVariance = totalBudget - totalSpent;
   const totalVariancePct = totalBudget > 0 ? (totalVariance / totalBudget) * 100 : 0;
+
+  const projectAllocations = useMemo(() => allAllocations.filter(a => a.projectId === id).reduce((s, a) => s + a.totalAllocated, 0), [id]);
+  const projectReleases = useMemo(() => allReleases.filter(r => r.projectId === id).reduce((s, r) => s + r.amount, 0), [id]);
+  const projectDisbursements = useMemo(() => allDisbursements.filter(d => d.projectId === id).reduce((s, d) => s + d.amount, 0), [id]);
+  const remainingFunding = projectReleases - projectDisbursements;
 
   const sections = [
     { id: "overview", label: "Overview", icon: <PieChart className="w-3.5 h-3.5" /> },
@@ -92,6 +107,40 @@ export function CostsPage() {
         </div>
       </div>
 
+      {/* Funding summary row */}
+      {projectAllocations > 0 && (
+        <div className="grid grid-cols-4 gap-4">
+          <div className="bg-white rounded-lg border border-gray-200 p-4">
+            <div className="flex items-center gap-2 text-blue-600 mb-1">
+              <Landmark className="w-4 h-4" />
+              <span className="text-xs font-medium uppercase tracking-wider">Funding Allocated</span>
+            </div>
+            <p className="text-xl font-bold text-blue-700">{fmtCurrency(projectAllocations)}</p>
+          </div>
+          <div className="bg-white rounded-lg border border-gray-200 p-4">
+            <div className="flex items-center gap-2 text-green-600 mb-1">
+              <Wallet className="w-4 h-4" />
+              <span className="text-xs font-medium uppercase tracking-wider">Funding Released</span>
+            </div>
+            <p className="text-xl font-bold text-green-700">{fmtCurrency(projectReleases)}</p>
+          </div>
+          <div className="bg-white rounded-lg border border-gray-200 p-4">
+            <div className="flex items-center gap-2 text-orange-600 mb-1">
+              <DollarSign className="w-4 h-4" />
+              <span className="text-xs font-medium uppercase tracking-wider">Disbursed</span>
+            </div>
+            <p className="text-xl font-bold" style={{ color: "#E8973A" }}>{fmtCurrency(projectDisbursements)}</p>
+          </div>
+          <div className="bg-white rounded-lg border border-gray-200 p-4">
+            <div className="flex items-center gap-2 text-purple-600 mb-1">
+              <PiggyBank className="w-4 h-4" />
+              <span className="text-xs font-medium uppercase tracking-wider">Remaining Funding</span>
+            </div>
+            <p className={`text-xl font-bold ${remainingFunding >= 0 ? "text-purple-700" : "text-red-600"}`}>{fmtCurrency(remainingFunding)}</p>
+          </div>
+        </div>
+      )}
+
       {/* Section tabs */}
       <div className="flex border-b border-gray-200">
         {sections.map(s => (
@@ -136,8 +185,23 @@ export function CostsPage() {
 
           {/* Budget by Stage table */}
           <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
-            <div className="px-5 py-4 border-b border-gray-100">
+            <div className="px-5 py-4 border-b border-gray-100 flex items-center justify-between">
               <h3 className="text-sm font-semibold text-gray-900">Budget by Stage</h3>
+              <TableControls
+                columns={stageColumns}
+                onColumnsChange={setStageColumns}
+                onExportCSV={() => exportToCSV(
+                  stageBudgets.map(sb => ({
+                    Stage: sb.stage.name,
+                    Budget: sb.budget,
+                    Spent: sb.spent,
+                    Variance: sb.variance,
+                    "Variance %": sb.variancePct.toFixed(1),
+                    Progress: `${sb.stage.percentComplete}%`,
+                  })),
+                  `${project?.name || "project"}-budget-by-stage`
+                )}
+              />
             </div>
             <table className="w-full text-sm">
               <thead className="bg-gray-50 border-b border-gray-200">
@@ -153,29 +217,57 @@ export function CostsPage() {
               <tbody className="divide-y divide-gray-100">
                 {stageBudgets.map(sb => {
                   const varIsPos = sb.variance >= 0;
+                  const isExpanded = expandedStage === sb.stage.id;
+                  const subTasks = projectTasks.filter(t => t.parentTaskId === sb.stage.id);
+                  const totalSubDuration = subTasks.reduce((s, t) => s + t.plannedDuration, 0);
                   return (
-                    <tr key={sb.stage.id} className="hover:bg-gray-50">
-                      <td className="px-5 py-3 font-medium text-gray-900">{sb.stage.name}</td>
-                      <td className="px-5 py-3 text-right text-gray-900">{fmtCurrency(sb.budget)}</td>
-                      <td className="px-5 py-3 text-right text-gray-700">{fmtCurrency(sb.spent)}</td>
-                      <td className={`px-5 py-3 text-right font-medium ${varIsPos ? "text-green-600" : "text-red-600"}`}>
-                        <div className="flex items-center justify-end gap-1">
-                          {varIsPos ? <ArrowUpRight className="w-3 h-3" /> : <ArrowDownRight className="w-3 h-3" />}
-                          {fmtCurrency(Math.abs(sb.variance))}
-                        </div>
-                      </td>
-                      <td className={`px-5 py-3 text-right font-medium ${varIsPos ? "text-green-600" : "text-red-600"}`}>
-                        {varIsPos ? "+" : ""}{sb.variancePct.toFixed(1)}%
-                      </td>
-                      <td className="px-5 py-3 text-right">
-                        <div className="flex items-center justify-end gap-2">
-                          <div className="w-20 bg-gray-200 rounded-full h-1.5">
-                            <div className="bg-orange-500 h-1.5 rounded-full" style={{ width: `${sb.stage.percentComplete}%` }} />
+                    <Fragment key={sb.stage.id}>
+                      <tr className="hover:bg-gray-50 cursor-pointer" onClick={() => setExpandedStage(isExpanded ? null : sb.stage.id)}>
+                        <td className="px-5 py-3">
+                          <div className="flex items-center gap-2">
+                            {subTasks.length > 0 && (
+                              <span className="text-gray-400">{isExpanded ? <ChevronDown className="w-3.5 h-3.5" /> : <ChevronRight className="w-3.5 h-3.5" />}</span>
+                            )}
+                            <span className="font-medium text-gray-900">{sb.stage.name}</span>
                           </div>
-                          <span className="text-xs text-gray-500">{sb.stage.percentComplete}%</span>
-                        </div>
-                      </td>
-                    </tr>
+                        </td>
+                        <td className="px-5 py-3 text-right text-gray-900">{fmtCurrency(sb.budget)}</td>
+                        <td className="px-5 py-3 text-right text-gray-700">{fmtCurrency(sb.spent)}</td>
+                        <td className={`px-5 py-3 text-right font-medium ${varIsPos ? "text-green-600" : "text-red-600"}`}>
+                          <div className="flex items-center justify-end gap-1">
+                            {varIsPos ? <ArrowUpRight className="w-3 h-3" /> : <ArrowDownRight className="w-3 h-3" />}
+                            {fmtCurrency(Math.abs(sb.variance))}
+                          </div>
+                        </td>
+                        <td className={`px-5 py-3 text-right font-medium ${varIsPos ? "text-green-600" : "text-red-600"}`}>
+                          {varIsPos ? "+" : ""}{sb.variancePct.toFixed(1)}%
+                        </td>
+                        <td className="px-5 py-3 text-right">
+                          <div className="flex items-center justify-end gap-2">
+                            <div className="w-20 bg-gray-200 rounded-full h-1.5">
+                              <div className="bg-orange-500 h-1.5 rounded-full" style={{ width: `${sb.stage.percentComplete}%` }} />
+                            </div>
+                            <span className="text-xs text-gray-500">{sb.stage.percentComplete}%</span>
+                          </div>
+                        </td>
+                      </tr>
+                      {isExpanded && subTasks.map(st => {
+                        const stPct = totalSubDuration > 0 ? st.plannedDuration / totalSubDuration : 0;
+                        const stBudget = Math.round(totalBudget * (sb.stage.plannedDuration / projectTasks.reduce((s, t) => s + t.plannedDuration, 1)) * stPct);
+                        const stSpent = Math.round(stBudget * st.percentComplete / 100);
+                        const stVar = stBudget - stSpent;
+                        return (
+                          <tr key={st.id} className="bg-gray-50/50 text-sm">
+                            <td className="px-5 py-2 pl-12 text-gray-600">{st.name}</td>
+                            <td className="px-5 py-2 text-right text-gray-600">{fmtCurrency(stBudget)}</td>
+                            <td className="px-5 py-2 text-right text-gray-600">{fmtCurrency(stSpent)}</td>
+                            <td className={`px-5 py-2 text-right font-medium ${stVar >= 0 ? "text-green-500" : "text-red-500"}`}>{fmtCurrency(stVar)}</td>
+                            <td className={`px-5 py-2 text-right ${stVar >= 0 ? "text-green-500" : "text-red-500"}`}>{stVar >= 0 ? "+" : ""}{(totalBudget > 0 ? (stVar / totalBudget) * 100 : 0).toFixed(1)}%</td>
+                            <td className="px-5 py-2 text-right text-xs text-gray-500">{st.percentComplete}%</td>
+                          </tr>
+                        );
+                      })}
+                    </Fragment>
                   );
                 })}
               </tbody>
