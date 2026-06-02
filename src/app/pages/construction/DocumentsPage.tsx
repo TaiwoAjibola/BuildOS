@@ -42,6 +42,9 @@ export function DocumentsPage() {
   const [localFiles, setLocalFiles] = useState(documentFiles);
   const [toastMsg, setToastMsg] = useState<string | null>(null);
   const [openMenu, setOpenMenu] = useState<string | null>(null);
+  const [editingFolderId, setEditingFolderId] = useState<string | null>(null);
+  const [editingFolderName, setEditingFolderName] = useState("");
+  const [confirmDeleteFolder, setConfirmDeleteFolder] = useState<string | null>(null);
 
   const projectFolders = useMemo(() => localFolders.filter(f => f.projectId === (id ?? "")), [localFolders, id]);
   const projectFiles = useMemo(() => localFiles.filter(f => f.projectId === (id ?? "")), [localFiles, id]);
@@ -94,6 +97,29 @@ export function DocumentsPage() {
     showToast(`Folder "${newFolderName.trim()}" created`);
   }
 
+  function handleRenameFolder() {
+    if (!editingFolderName.trim() || !editingFolderId) return;
+    setLocalFolders(prev => prev.map(f => f.id === editingFolderId ? { ...f, name: editingFolderName.trim() } : f));
+    setEditingFolderId(null);
+    setEditingFolderName("");
+    setOpenMenu(null);
+    showToast("Folder renamed");
+  }
+
+  function handleDeleteFolder(folderId: string) {
+    const idsToRemove = new Set<string>();
+    const collect = (pid: string) => {
+      idsToRemove.add(pid);
+      localFolders.filter(f => f.parentFolderId === pid).forEach(c => collect(c.id));
+    };
+    collect(folderId);
+    setLocalFolders(prev => prev.filter(f => !idsToRemove.has(f.id)));
+    setLocalFiles(prev => prev.filter(f => !idsToRemove.has(f.folderId)));
+    setConfirmDeleteFolder(null);
+    if (selectedFolderId && idsToRemove.has(selectedFolderId)) setSelectedFolderId(null);
+    showToast("Folder deleted");
+  }
+
   function handleFileUpload(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     if (!file || !selectedFolderId) return;
@@ -144,6 +170,7 @@ export function DocumentsPage() {
     const isExpanded = expandedFolders.has(node.id);
     const isSelected = selectedFolderId === node.id;
     const hasChildren = node.children.length > 0;
+    const isEditing = editingFolderId === node.id;
     const fileCount = projectFiles.filter(f => {
       let ids = [node.id];
       const collect = (pid: string) => {
@@ -162,8 +189,10 @@ export function DocumentsPage() {
           }`}
           style={{ paddingLeft: `${12 + depth * 16}px` }}
           onClick={() => {
-            setSelectedFolderId(node.id);
-            if (hasChildren) toggleExpand(node.id);
+            if (!isEditing) {
+              setSelectedFolderId(node.id);
+              if (hasChildren) toggleExpand(node.id);
+            }
           }}
         >
           {hasChildren ? (
@@ -178,11 +207,50 @@ export function DocumentsPage() {
           ) : (
             <Folder className="w-4 h-4 text-gray-400 flex-shrink-0" />
           )}
-          <span className="truncate flex-1">{node.name}</span>
+          {isEditing ? (
+            <input
+              value={editingFolderName}
+              onChange={e => setEditingFolderName(e.target.value)}
+              onBlur={handleRenameFolder}
+              onKeyDown={e => { if (e.key === "Enter") handleRenameFolder(); if (e.key === "Escape") setEditingFolderId(null); }}
+              className="flex-1 text-sm border border-orange-500 rounded px-1 py-0.5 focus:outline-none"
+              autoFocus
+              onClick={e => e.stopPropagation()}
+            />
+          ) : (
+            <span className="truncate flex-1">{node.name}</span>
+          )}
           <span className="text-[10px] text-gray-400 opacity-0 group-hover:opacity-100 transition-opacity">
             {folderCount > 0 && `${folderCount} folder${folderCount !== 1 ? "s" : ""} `}{fileCount > 0 && `${fileCount} file${fileCount !== 1 ? "s" : ""}`}
             {folderCount === 0 && fileCount === 0 && "empty"}
           </span>
+          {!isEditing && (
+            <div className="relative opacity-0 group-hover:opacity-100 transition-opacity">
+              <button
+                onClick={e => { e.stopPropagation(); setOpenMenu(openMenu === node.id ? null : node.id); }}
+                className="p-0.5 rounded hover:bg-gray-200 text-gray-400"
+              >
+                <MoreHorizontal className="w-3 h-3" />
+              </button>
+              {openMenu === node.id && (
+                <div className="absolute right-0 top-full mt-1 w-36 bg-white border border-gray-200 rounded-lg shadow-lg z-10 py-1">
+                  <button
+                    onClick={e => { e.stopPropagation(); setEditingFolderId(node.id); setEditingFolderName(node.name); setOpenMenu(null); }}
+                    className="flex items-center gap-2 w-full px-3 py-2 text-sm text-gray-700 hover:bg-gray-50"
+                  >
+                    <Edit className="w-3.5 h-3.5" /> Rename
+                  </button>
+                  <hr className="my-1 border-gray-100" />
+                  <button
+                    onClick={e => { e.stopPropagation(); setConfirmDeleteFolder(node.id); setOpenMenu(null); }}
+                    className="flex items-center gap-2 w-full px-3 py-2 text-sm text-red-600 hover:bg-red-50"
+                  >
+                    <Trash2 className="w-3.5 h-3.5" /> Delete
+                  </button>
+                </div>
+              )}
+            </div>
+          )}
         </div>
         {hasChildren && isExpanded && (
           <div>
@@ -408,6 +476,29 @@ export function DocumentsPage() {
             <div className="flex justify-end gap-3">
               <button onClick={() => { setShowNewFolder(false); setNewFolderName(""); }} className="px-4 py-2 border border-gray-300 rounded-md text-sm text-gray-700 hover:bg-gray-50">Cancel</button>
               <button onClick={handleCreateFolder} disabled={!newFolderName.trim()} className="px-4 py-2 bg-orange-600 text-white rounded-md text-sm font-medium hover:bg-orange-700 disabled:opacity-40">Create</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Delete Folder Confirmation */}
+      {confirmDeleteFolder && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl shadow-2xl max-w-sm w-full p-6">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="w-10 h-10 rounded-full bg-red-100 flex items-center justify-center flex-shrink-0">
+                <Trash2 className="w-5 h-5 text-red-600" />
+              </div>
+              <div>
+                <h3 className="text-base font-semibold text-gray-900">Delete Folder?</h3>
+                <p className="text-sm text-gray-500 mt-0.5">
+                  This will permanently delete <strong>{localFolders.find(f => f.id === confirmDeleteFolder)?.name}</strong> and all its contents.
+                </p>
+              </div>
+            </div>
+            <div className="flex justify-end gap-3">
+              <button onClick={() => setConfirmDeleteFolder(null)} className="px-4 py-2 border border-gray-300 rounded-md text-sm text-gray-700 hover:bg-gray-50">Cancel</button>
+              <button onClick={() => handleDeleteFolder(confirmDeleteFolder)} className="px-4 py-2 bg-red-600 text-white rounded-md text-sm font-medium hover:bg-red-700">Delete</button>
             </div>
           </div>
         </div>
