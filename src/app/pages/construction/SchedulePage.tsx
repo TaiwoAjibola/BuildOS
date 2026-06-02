@@ -285,7 +285,7 @@ export function SchedulePage() {
             onDragOver={e => handleDragOver(e, task.id)}
             onDragLeave={handleDragLeave}
             onDrop={() => dragId && handleDrop(dragId, task.id)}
-            className={`flex items-center gap-2 px-4 py-2.5 border-b border-[#E2E8F0] text-sm transition-colors ${
+            className={`flex items-center px-4 py-2.5 border-b border-[#E2E8F0] text-sm transition-colors ${
               task.level === 1
                 ? "bg-[#1C2333] text-white font-bold"
                 : task.level <= 3
@@ -301,72 +301,76 @@ export function SchedulePage() {
               }
             }}
           >
-            <span className="flex-shrink-0 text-gray-300 hover:text-gray-500 cursor-grab active:cursor-grabbing" onClick={e => e.stopPropagation()}>
+            <span className="flex-shrink-0 text-gray-300 hover:text-gray-500 cursor-grab active:cursor-grabbing w-[14px] mr-2 flex items-center justify-center" onClick={e => e.stopPropagation()}>
               <GripVertical className="w-3.5 h-3.5" />
             </span>
 
-            {hasKids ? (
-              <button
-                onClick={e => { e.stopPropagation(); toggleExpand(task.id); }}
-                className="flex-shrink-0 text-gray-400 hover:text-gray-600"
-              >
-                {isExpanded ? <ChevronDown className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
-              </button>
-            ) : (
-              <span className="w-4 flex-shrink-0" />
-            )}
+            <span className="w-4 flex-shrink-0 mr-2 flex items-center justify-center">
+              {hasKids ? (
+                <button
+                  onClick={e => { e.stopPropagation(); toggleExpand(task.id); }}
+                  className="text-gray-400 hover:text-gray-600"
+                >
+                  {isExpanded ? <ChevronDown className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
+                </button>
+              ) : null}
+            </span>
 
-            {levelIcons[task.level] && (
-              <span className={`flex-shrink-0 ${task.level === 1 ? "text-amber-400" : "text-gray-400"}`}>
-                {levelIcons[task.level]}
-              </span>
-            )}
+            <span className="w-[14px] flex-shrink-0 mr-2 flex items-center justify-center">
+              {levelIcons[task.level] && (
+                <span className={`${task.level === 1 ? "text-amber-400" : "text-gray-400"}`}>
+                  {levelIcons[task.level]}
+                </span>
+              )}
+            </span>
 
-            {task.isMilestone && task.level === 4 && (
-              <span className="flex-shrink-0 text-amber-500" title="Milestone">
-                <Diamond className="w-3.5 h-3.5" />
-              </span>
-            )}
+            <span className="w-[14px] flex-shrink-0 mr-2 flex items-center justify-center">
+              {task.isMilestone && task.level === 4 ? (
+                <span className="text-amber-500" title="Milestone">
+                  <Diamond className="w-3.5 h-3.5" />
+                </span>
+              ) : null}
+            </span>
 
-            <span className="text-xs text-gray-400 w-14 flex-shrink-0 font-mono">L{task.level}</span>
+            <span className="text-xs text-gray-400 w-14 flex-shrink-0 mr-2 font-mono">L{task.level}</span>
 
-            <span className="text-xs text-gray-400 w-20 flex-shrink-0 font-mono">{wbs}</span>
+            <span className="text-xs text-gray-400 w-20 flex-shrink-0 mr-2 font-mono">{wbs}</span>
 
             {editingTaskId === task.id ? (
               <input value={editingValues.name || ""} onChange={e => setEditingValues(prev => ({ ...prev, name: e.target.value }))}
-                className="flex-1 text-sm border border-orange-500 rounded px-1.5 py-0.5 focus:outline-none" autoFocus
+                className="flex-1 text-sm border border-orange-500 rounded px-1.5 py-0.5 focus:outline-none mr-2" autoFocus
                 onKeyDown={e => { if (e.key === "Enter") saveInlineEdit(); if (e.key === "Escape") cancelInlineEdit(); }}
                 onClick={e => e.stopPropagation()}
               />
             ) : (
-              <span className="flex-1 truncate cursor-pointer hover:text-orange-600" onDoubleClick={() => startInlineEdit(task)}>{task.name}</span>
+              <span className="flex-1 truncate cursor-pointer hover:text-orange-600 mr-2" onDoubleClick={() => startInlineEdit(task)}>{task.name}</span>
             )}
 
             {editingTaskId === task.id ? (
               <input type="date" value={editingValues.plannedStart || ""} onChange={e => setEditingValues(prev => ({ ...prev, plannedStart: e.target.value }))}
-                className="text-xs w-28 flex-shrink-0 text-right border border-orange-500 rounded px-1 py-0.5 focus:outline-none"
+                className="text-xs w-28 flex-shrink-0 text-right border border-orange-500 rounded px-1 py-0.5 focus:outline-none mr-2"
                 onClick={e => e.stopPropagation()} />
             ) : (
-              <span className="text-xs text-gray-400 w-28 flex-shrink-0 text-right cursor-pointer" onDoubleClick={() => startInlineEdit(task)}>
+              <span className="text-xs text-gray-400 w-28 flex-shrink-0 text-right mr-2 cursor-pointer" onDoubleClick={() => startInlineEdit(task)}>
                 {fmtDate(task.plannedStart)}
               </span>
             )}
 
             {editingTaskId === task.id ? (
               <input type="date" value={editingValues.plannedEnd || ""} onChange={e => setEditingValues(prev => ({ ...prev, plannedEnd: e.target.value }))}
-                className="text-xs w-28 flex-shrink-0 text-right border border-orange-500 rounded px-1 py-0.5 focus:outline-none"
+                className="text-xs w-28 flex-shrink-0 text-right border border-orange-500 rounded px-1 py-0.5 focus:outline-none mr-2"
                 onClick={e => e.stopPropagation()} />
             ) : (
-              <span className="text-xs text-gray-400 w-28 flex-shrink-0 text-right cursor-pointer" onDoubleClick={() => startInlineEdit(task)}>
+              <span className="text-xs text-gray-400 w-28 flex-shrink-0 text-right mr-2 cursor-pointer" onDoubleClick={() => startInlineEdit(task)}>
                 {fmtDate(task.plannedEnd)}
               </span>
             )}
 
-            <span className="text-xs text-gray-400 w-20 flex-shrink-0 text-right">
+            <span className="text-xs text-gray-400 w-20 flex-shrink-0 text-right mr-2">
               {task.plannedDuration}d
             </span>
 
-            <div className="w-24 flex-shrink-0">
+            <div className="w-24 flex-shrink-0 mr-2">
               {editingTaskId === task.id ? (
                 <div className="flex items-center gap-1.5" onClick={e => e.stopPropagation()}>
                   <input type="range" min={0} max={100} value={editingValues.percentComplete ?? 0}
@@ -386,34 +390,32 @@ export function SchedulePage() {
               )}
             </div>
 
-            <span className="text-xs text-right w-24 flex-shrink-0 font-medium text-gray-600">
+            <span className="text-xs text-right w-24 flex-shrink-0 font-medium text-gray-600 mr-2">
               {project ? fmtCurrency(Math.round(project.budget * task.plannedDuration / tasks.reduce((s, t) => s + t.plannedDuration, 0) || 1)) : "—"}
             </span>
 
-            <span className="text-xs text-right w-24 flex-shrink-0 font-medium text-gray-500">
+            <span className="text-xs text-right w-24 flex-shrink-0 font-medium text-gray-500 mr-2">
               {project ? fmtCurrency(Math.round((project.budget * task.plannedDuration / tasks.reduce((s, t) => s + t.plannedDuration, 0) || 1) * task.percentComplete / 100)) : "—"}
             </span>
 
-            {task.level === 4 && task.vendorId ? (
-              <span className="text-xs text-gray-500 w-28 flex-shrink-0 truncate text-right">
-                {task.vendorId}
-              </span>
-            ) : (
-              <span className="w-28 flex-shrink-0" />
-            )}
+            <span className="text-xs text-gray-500 w-28 flex-shrink-0 truncate text-right mr-2">
+              {task.level === 4 && task.vendorId ? task.vendorId : "—"}
+            </span>
 
-            <div className="w-16 flex-shrink-0 flex justify-center">
+            <span className="w-[14px] flex-shrink-0 mr-2 flex items-center justify-center">
               <span className={`w-2.5 h-2.5 rounded-full ${ragColor(task.ragStatus)}`} title={ragLabel(task.ragStatus)} />
-            </div>
+            </span>
 
-            {task.level === 4 && (
-              <button
-                onClick={e => { e.stopPropagation(); setSelectedTask(task); }}
-                className="p-1 rounded hover:bg-gray-200 text-gray-400 hover:text-gray-600 opacity-0 group-hover:opacity-100 transition-opacity"
-              >
-                <Edit className="w-3.5 h-3.5" />
-              </button>
-            )}
+            <span className="w-[14px] flex-shrink-0 flex items-center justify-center">
+              {task.level === 4 ? (
+                <button
+                  onClick={e => { e.stopPropagation(); setSelectedTask(task); }}
+                  className="p-0.5 rounded hover:bg-gray-200 text-gray-400 hover:text-gray-600"
+                >
+                  <Edit className="w-3.5 h-3.5" />
+                </button>
+              ) : null}
+            </span>
           </div>
 
           {hasKids && isExpanded && renderListRows(taskList, task.id, depth + 1)}
@@ -885,22 +887,23 @@ export function SchedulePage() {
       {viewMode === "list" && (
         <div className="bg-white rounded-lg border border-[#E2E8F0] overflow-hidden">
           {/* Column headers */}
-          <div className="flex items-center gap-2 px-4 py-2.5 bg-gray-50 border-b border-[#E2E8F0] text-xs font-semibold text-gray-500 uppercase tracking-wider">
-            <span className="w-4 flex-shrink-0" />
-            <span className="w-4 flex-shrink-0" />
-            <span className="w-4 flex-shrink-0" />
-            <span className="w-14 flex-shrink-0">Level</span>
-            <span className="w-20 flex-shrink-0">WBS</span>
-            <span className="flex-1">Task Name</span>
-            <span className="w-28 flex-shrink-0 text-right">Planned Start</span>
-            <span className="w-28 flex-shrink-0 text-right">Planned End</span>
-            <span className="w-20 flex-shrink-0 text-right">Duration</span>
-            <span className="w-24 flex-shrink-0 text-right">% Complete</span>
-            <span className="w-24 flex-shrink-0 text-right">Planned Cost</span>
-            <span className="w-24 flex-shrink-0 text-right">Actual Cost</span>
-            <span className="w-28 flex-shrink-0 text-right">Resource</span>
-            <span className="w-16 flex-shrink-0 text-center">RAG</span>
-            <span className="w-8 flex-shrink-0" />
+          <div className="flex items-center px-4 py-2.5 bg-gray-50 border-b border-[#E2E8F0] text-xs font-semibold text-gray-500 uppercase tracking-wider">
+            <span className="w-[14px] flex-shrink-0 mr-2" />
+            <span className="w-4 flex-shrink-0 mr-2" />
+            <span className="w-[14px] flex-shrink-0 mr-2" />
+            <span className="w-[14px] flex-shrink-0 mr-2" />
+            <span className="w-14 flex-shrink-0 mr-2">Level</span>
+            <span className="w-20 flex-shrink-0 mr-2">WBS</span>
+            <span className="flex-1 mr-2">Task Name</span>
+            <span className="w-28 flex-shrink-0 text-right mr-2">Planned Start</span>
+            <span className="w-28 flex-shrink-0 text-right mr-2">Planned End</span>
+            <span className="w-20 flex-shrink-0 text-right mr-2">Duration</span>
+            <span className="w-24 flex-shrink-0 mr-2">% Complete</span>
+            <span className="w-24 flex-shrink-0 text-right mr-2">Planned Cost</span>
+            <span className="w-24 flex-shrink-0 text-right mr-2">Actual Cost</span>
+            <span className="w-28 flex-shrink-0 text-right mr-2">Resource</span>
+            <span className="w-[14px] flex-shrink-0 text-center mr-2">R</span>
+            <span className="w-[14px] flex-shrink-0" />
           </div>
           <div>
             {renderListRows(filteredTasks, null, 0)}
