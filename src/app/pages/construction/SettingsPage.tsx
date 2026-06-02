@@ -20,7 +20,7 @@ const defaultReportSettings: ReportSetting[] = [
   { id: "rs1", key: "auto_generate_weekly", label: "Auto-generate weekly progress report", enabled: true },
   { id: "rs2", key: "rag_summary", label: "Include RAG summary in reports", enabled: true },
   { id: "rs3", key: "cost_breakdown", label: "Include cost breakdown", enabled: true },
-  { id: "rs4", key: "vendor_performance", label: "Include resource performance metrics", enabled: false },
+  { id: "rs4", key: "resource_performance", label: "Include resource performance metrics", enabled: false },
   { id: "rs5", key: "schedule_gantt", label: "Include schedule Gantt chart", enabled: true },
   { id: "rs6", key: "daily_report_reminder", label: "Daily report submission reminder", enabled: true },
 ];
