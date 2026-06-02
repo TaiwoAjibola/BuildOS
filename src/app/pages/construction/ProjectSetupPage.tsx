@@ -911,7 +911,7 @@ export function ProjectSetupPage() {
   );
 
   // Step 3 — Vendor Registration & Stage Assignment
-  const renderVendorRegistration = () => {
+  const renderResourceRegistration = () => {
     const stages = projectTasks.filter(t => t.level === 1);
 
     return (
@@ -1315,7 +1315,7 @@ export function ProjectSetupPage() {
   );
 
   // Step 5 — Baseline
-  const renderBaseline = () => {
+  const renderSummary = () => {
     const taskDates = projectTasks.length > 0
       ? (() => {
           const starts = projectTasks.map(t => new Date(t.plannedStart).getTime());
@@ -1451,10 +1451,10 @@ export function ProjectSetupPage() {
       <div className="mb-6">
         {currentStep === 0 && renderBasicInfo()}
         {currentStep === 1 && renderProjectType()}
-        {currentStep === 2 && renderScheduleBuilder()}
-        {currentStep === 3 && renderVendorRegistration()}
+        {currentStep === 2 && renderResourceRegistration()}
+        {currentStep === 3 && renderScheduleBuilder()}
         {currentStep === 4 && renderCalendar()}
-        {currentStep === 5 && renderBaseline()}
+        {currentStep === 5 && renderSummary()}
       </div>
 
       <div className="rounded-xl border p-4 flex items-center justify-between" style={{ borderColor: "#E2E8F0", backgroundColor: "white" }}>
