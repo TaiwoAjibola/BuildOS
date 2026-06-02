@@ -267,12 +267,12 @@ export function CostsPage() {
         <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
           <div className="px-5 py-4 border-b border-gray-100">
             <h3 className="text-sm font-semibold text-gray-900">Subcontract Cost Tracker</h3>
-            <p className="text-xs text-gray-400 mt-0.5">Per vendor contract sum, certified amount, paid amount, and balance</p>
+            <p className="text-xs text-gray-400 mt-0.5">Per resource contract sum, certified amount, paid amount, and balance</p>
           </div>
           <table className="w-full text-sm">
             <thead className="bg-gray-50 border-b border-gray-200">
               <tr>
-                <th className="px-5 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wide">Vendor</th>
+                <th className="px-5 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wide">Resource</th>
                 <th className="px-5 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wide">Trade</th>
                 <th className="px-5 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wide">Contract Sum</th>
                 <th className="px-5 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wide">Certified</th>
@@ -310,7 +310,7 @@ export function CostsPage() {
               })}
               {projectVendors.length === 0 && (
                 <tr>
-                  <td colSpan={7} className="px-5 py-8 text-center text-sm text-gray-400">No vendors assigned to this project</td>
+                  <td colSpan={7} className="px-5 py-8 text-center text-sm text-gray-400">No resources assigned to this project</td>
                 </tr>
               )}
             </tbody>

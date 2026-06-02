@@ -10,14 +10,14 @@ const vendorActivity = [
   { vendor: "Chike Tiling Experts", action: "Weekly progress report", project: "Lekki Tower A", time: "3 days ago" },
 ];
 
-export function ResourcesPage() {
+export function ResourceHubPage() {
   const navigate = useNavigate();
   const activeProjects = projects.filter(p => p.status === "Active");
 
   const stats = [
     { label: "Active Projects", value: activeProjects.length, icon: <Building className="w-5 h-5" />, color: "text-orange-600 bg-orange-50" },
     { label: "Total Projects", value: projects.length, icon: <BookOpen className="w-5 h-5" />, color: "text-blue-600 bg-blue-50" },
-    { label: "Registered Vendors", value: vendors.length, icon: <Truck className="w-5 h-5" />, color: "text-purple-600 bg-purple-50" },
+    { label: "Registered Contractors", value: vendors.length, icon: <Truck className="w-5 h-5" />, color: "text-purple-600 bg-purple-50" },
     { label: "Staff Members", value: staffList.length, icon: <Users className="w-5 h-5" />, color: "text-green-600 bg-green-50" },
   ];
 
@@ -77,10 +77,10 @@ export function ResourcesPage() {
           </div>
         </div>
 
-        {/* Recent vendor activity */}
+        {/* Recent resource activity */}
         <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
           <div className="px-5 py-4 border-b border-gray-100">
-            <h3 className="text-sm font-semibold text-gray-900">Recent Vendor Activity</h3>
+            <h3 className="text-sm font-semibold text-gray-900">Recent Resource Activity</h3>
           </div>
           <div className="divide-y divide-gray-100">
             {vendorActivity.map((va, i) => (
@@ -103,7 +103,7 @@ export function ResourcesPage() {
           </div>
           <div className="px-5 py-3 border-t border-gray-100">
             <button onClick={() => navigate("/apps/procurement")} className="text-xs text-orange-600 font-medium hover:text-orange-700">
-              View all vendor activity →
+              View all resource activity →
             </button>
           </div>
         </div>
@@ -130,7 +130,7 @@ export function ResourcesPage() {
       <div className="grid grid-cols-3 gap-4">
         {[
           { label: "Resource Planning", desc: "Assign and manage workforce across projects", link: "/apps/construction/resource-planning", icon: <Users className="w-4 h-4" /> },
-          { label: "Vendors & Subcontractors", desc: "Manage vendor contracts and performance", link: "/apps/procurement", icon: <Truck className="w-4 h-4" /> },
+          { label: "Contractors & Subcontractors", desc: "Manage vendor contracts and performance", link: "/apps/procurement", icon: <Truck className="w-4 h-4" /> },
           { label: "Staff & Payroll", desc: "Staff records, attendance and timesheets", link: "/apps/hr", icon: <HardHat className="w-4 h-4" /> },
         ].map(r => (
           <button

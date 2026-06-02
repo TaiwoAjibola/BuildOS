@@ -1,6 +1,6 @@
 import { useParams } from "react-router";
 import { useState, useMemo } from "react";
-import { Calendar, ChevronRight, ChevronDown, Plus, Edit, Filter, List, BarChart3, GitBranch, X, Save, ArrowLeft, ArrowRight, AlertTriangle, Diamond, CalendarDays, Clock, Sun, Users } from "lucide-react";
+import { Calendar, ChevronRight, ChevronDown, Plus, Edit, Filter, List, BarChart3, GitBranch, X, Save, ArrowLeft, ArrowRight, AlertTriangle, Diamond, CalendarDays, Clock, Sun, Users, GripVertical } from "lucide-react";
 import type { Task, ResourceAllocation, Vendor, ProjectCalendar } from "./types";
 import { calcFloat, generateWBS } from "./types";
 import { getTasksByProject, getProjectById, getVendorsByProject, fmtDate, ragColor, ragLabel, pctCompleteColor, tasks as allTasks, baselines, calendars, resourceAllocations, vendors } from "./mockData";
@@ -87,6 +87,10 @@ export function SchedulePage() {
   const [showCriticalPath, setShowCriticalPath] = useState(false);
   const [showCalendarModal, setShowCalendarModal] = useState(false);
 
+  const [dragId, setDragId] = useState<string | null>(null);
+  const [dropTarget, setDropTarget] = useState<string | null>(null);
+  const [dropPosition, setDropPosition] = useState<"before" | "after" | null>(null);
+
   const wbsMap = useMemo(() => buildWbsMap(tasks), [tasks]);
   const projectBaseline = useMemo(() => baselines.find(b => b.projectId === projectId), [projectId]);
   const projectCalendar = useMemo(() => calendars.find(c => c.projectId === projectId), [projectId]);
@@ -128,6 +132,111 @@ export function SchedulePage() {
 
   const sidePanelTask = selectedTask && selectedTask.level === 4 ? selectedTask : null;
 
+  function flattenVisible(taskList: Task[], parentId: string | null): Task[] {
+    const result: Task[] = [];
+    const children = taskList.filter(t => t.parentTaskId === parentId);
+    if (children.length === 0 && parentId === null) {
+      rootTasks.forEach(t => result.push(...flattenVisible(taskList, t.id)));
+      return result;
+    }
+    for (const child of children) {
+      result.push(child);
+      if (expanded.has(child.id)) {
+        result.push(...flattenVisible(taskList, child.id));
+      }
+    }
+    return result;
+  }
+  const visibleTasks = useMemo(() => flattenVisible(filteredTasks, null), [filteredTasks, expanded, rootTasks]);
+
+  function renumberWbs(taskList: Task[]): Task[] {
+    const sorted = taskList.map(t => ({ ...t }));
+    const levelOrder = [1, 2, 3, 4];
+    const counters: Record<number, number> = { 1: 0, 2: 0, 3: 0, 4: 0 };
+    const prefixMap: Record<number, string> = { 1: "ST", 2: "SM", 3: "SS", 4: "WP" };
+    const newIds = new Map<string, string>();
+    const visible = flattenVisible(taskList, null);
+    visible.forEach(t => {
+      counters[t.level] += 1;
+      const newId = `${prefixMap[t.level]}-${String(counters[t.level]).padStart(3, "0")}`;
+      newIds.set(t.id, newId);
+    });
+    return sorted.map(t => {
+      const newId = newIds.get(t.id) || t.id;
+      const newParentId = t.parentTaskId ? (newIds.get(t.parentTaskId) || t.parentTaskId) : null;
+      const newPredecessorId = t.predecessorId ? (newIds.get(t.predecessorId) || t.predecessorId) : null;
+      return { ...t, id: newId, parentTaskId: newParentId, predecessorId: newPredecessorId };
+    });
+  }
+
+  function handleIndent() {
+    if (!selectedTask || selectedTask.level >= 4) return;
+    const sorted = [...tasks].sort((a, b) => a.plannedStart.localeCompare(b.plannedStart));
+    const idx = sorted.findIndex(t => t.id === selectedTask.id);
+    if (idx <= 0) return;
+    const prevSibling = sorted.slice(0, idx).reverse().find(t => t.parentTaskId === selectedTask.parentTaskId && t.id !== selectedTask.id);
+    if (!prevSibling) return;
+    const next = tasks.map(t => t.id === selectedTask.id ? { ...t, parentTaskId: prevSibling.id, level: Math.min(t.level + 1, 4) as 1|2|3|4 } : t);
+    setTasks(calcFloat(next));
+  }
+
+  function handleOutdent() {
+    if (!selectedTask || selectedTask.level <= 1) return;
+    let newParentId: string | null = null;
+    let newLevel = selectedTask.level - 1;
+    if (selectedTask.parentTaskId) {
+      const parent = tasks.find(t => t.id === selectedTask.parentTaskId);
+      if (parent) {
+        if (parent.level > 1) {
+          newParentId = parent.parentTaskId;
+        }
+        newLevel = parent.level as 1|2|3|4;
+      }
+    }
+    const next = tasks.map(t => t.id === selectedTask.id ? { ...t, parentTaskId: newParentId, level: Math.max(newLevel, 1) as 1|2|3|4 } : t);
+    setTasks(calcFloat(next));
+  }
+
+  function handleDrop(draggedId: string, targetId: string) {
+    if (draggedId === targetId) return;
+    const dragged = tasks.find(t => t.id === draggedId);
+    const target = tasks.find(t => t.id === targetId);
+    if (!dragged || !target) return;
+
+    const visible = flattenVisible(tasks, null);
+    const draggedIdx = visible.findIndex(t => t.id === draggedId);
+    const targetIdx = visible.findIndex(t => t.id === targetId);
+
+    const reordered = tasks.filter(t => t.id !== draggedId);
+    const insertAt = tasks.findIndex(t => t.id === targetId);
+    const updated: Task = { ...dragged, parentTaskId: target.parentTaskId, level: target.level };
+
+    const result = [...reordered.slice(0, insertAt), updated, ...reordered.slice(insertAt)];
+    setTasks(calcFloat(result));
+    setDropTarget(null);
+    setDropPosition(null);
+  }
+
+  function handleDragStart(e: React.DragEvent, taskId: string) {
+    setDragId(taskId);
+    e.dataTransfer.effectAllowed = "move";
+    e.dataTransfer.setData("text/plain", taskId);
+  }
+
+  function handleDragOver(e: React.DragEvent, taskId: string) {
+    e.preventDefault();
+    if (taskId === dragId) return;
+    const rect = e.currentTarget.getBoundingClientRect();
+    const y = e.clientY - rect.top;
+    setDropTarget(taskId);
+    setDropPosition(y < rect.height / 2 ? "before" : "after");
+  }
+
+  function handleDragLeave() {
+    setDropTarget(null);
+    setDropPosition(null);
+  }
+
   function renderListRows(taskList: Task[], parentId: string | null, depth: number): React.ReactNode[] {
     const children = taskList.filter(t => t.parentTaskId === parentId);
     if (children.length === 0 && depth === 0) {
@@ -142,17 +251,29 @@ export function SchedulePage() {
       const wbs = wbsMap.get(task.id) || "";
       const isCrit = showCriticalPath && task.isCritical && task.level === 4;
 
+      const isDropTarget = dropTarget === task.id;
+      const dropClass = isDropTarget
+        ? dropPosition === "before"
+          ? "border-t-2 border-t-orange-500"
+          : "border-b-2 border-b-orange-500"
+        : "";
+
       const row = (
         <div key={task.id}>
           <div
+            draggable
+            onDragStart={e => handleDragStart(e, task.id)}
+            onDragOver={e => handleDragOver(e, task.id)}
+            onDragLeave={handleDragLeave}
+            onDrop={() => dragId && handleDrop(dragId, task.id)}
             className={`flex items-center gap-2 px-4 py-2.5 border-b border-[#E2E8F0] text-sm transition-colors ${
               task.level === 1
                 ? "bg-[#1C2333] text-white font-bold"
                 : task.level <= 3
                   ? "bg-white font-medium text-gray-900"
                   : "bg-white font-normal text-gray-700 cursor-pointer hover:bg-amber-50"
-            } ${isCrit ? "border-l-4 border-l-red-500" : ""}`}
-            style={{ paddingLeft: `${paddingLeft + 16}px` }}
+            } ${isCrit ? "border-l-4 border-l-red-500" : ""} ${isDropTarget ? dropClass : ""} ${dragId === task.id ? "opacity-50" : ""}`}
+            style={{ paddingLeft: `${paddingLeft + 8}px` }}
             onClick={() => {
               if (task.level === 4) {
                 setSelectedTask(task);
@@ -161,6 +282,10 @@ export function SchedulePage() {
               }
             }}
           >
+            <span className="flex-shrink-0 text-gray-300 hover:text-gray-500 cursor-grab active:cursor-grabbing" onClick={e => e.stopPropagation()}>
+              <GripVertical className="w-3.5 h-3.5" />
+            </span>
+
             {hasKids ? (
               <button
                 onClick={e => { e.stopPropagation(); toggleExpand(task.id); }}
@@ -455,7 +580,7 @@ export function SchedulePage() {
           <table className="w-full text-sm">
             <thead>
               <tr className="bg-gray-50 border-b border-[#E2E8F0]">
-                <th className="text-left px-4 py-2.5 text-xs font-semibold text-gray-500 uppercase tracking-wider">Vendor</th>
+                <th className="text-left px-4 py-2.5 text-xs font-semibold text-gray-500 uppercase tracking-wider">Resource</th>
                 <th className="text-left px-4 py-2.5 text-xs font-semibold text-gray-500 uppercase tracking-wider">Trade</th>
                 {weeks.map(w => (
                   <th key={w} className="text-right px-3 py-2.5 text-xs font-semibold text-gray-500 uppercase tracking-wider whitespace-nowrap">
@@ -492,7 +617,7 @@ export function SchedulePage() {
               {projectVendors.length === 0 && (
                 <tr>
                   <td colSpan={2 + weeks.length} className="px-4 py-8 text-center text-gray-400">
-                    No vendors assigned to this project
+                    No resources assigned to this project
                   </td>
                 </tr>
               )}
@@ -656,13 +781,17 @@ export function SchedulePage() {
           <div className="w-px h-5 bg-[#E2E8F0] mx-1" />
           <button
             title="Indent task"
-            className="flex items-center gap-1 px-2.5 py-1.5 border border-[#E2E8F0] text-gray-500 rounded-md text-sm hover:bg-gray-50 hover:text-gray-700"
+            onClick={handleIndent}
+            disabled={!selectedTask || selectedTask.level >= 4}
+            className="flex items-center gap-1 px-2.5 py-1.5 border border-[#E2E8F0] text-gray-500 rounded-md text-sm hover:bg-gray-50 hover:text-gray-700 disabled:opacity-30 disabled:cursor-not-allowed"
           >
             <ArrowRight className="w-4 h-4" />
           </button>
           <button
             title="Outdent task"
-            className="flex items-center gap-1 px-2.5 py-1.5 border border-[#E2E8F0] text-gray-500 rounded-md text-sm hover:bg-gray-50 hover:text-gray-700"
+            onClick={handleOutdent}
+            disabled={!selectedTask || selectedTask.level <= 1}
+            className="flex items-center gap-1 px-2.5 py-1.5 border border-[#E2E8F0] text-gray-500 rounded-md text-sm hover:bg-gray-50 hover:text-gray-700 disabled:opacity-30 disabled:cursor-not-allowed"
           >
             <ArrowLeft className="w-4 h-4" />
           </button>
@@ -707,7 +836,7 @@ export function SchedulePage() {
             <span className="w-28 flex-shrink-0 text-right">Planned Start</span>
             <span className="w-28 flex-shrink-0 text-right">Planned End</span>
             <span className="w-24 flex-shrink-0 text-right">% Complete</span>
-            <span className="w-28 flex-shrink-0 text-right">Vendor</span>
+            <span className="w-28 flex-shrink-0 text-right">Resource</span>
             <span className="w-20 flex-shrink-0 text-center">RAG</span>
             <span className="w-16 flex-shrink-0 text-right">Dur.</span>
             <span className="w-8 flex-shrink-0" />

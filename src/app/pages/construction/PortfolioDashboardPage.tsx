@@ -3,7 +3,7 @@ import { useState, useMemo } from "react";
 import {
   LayoutDashboard, FolderKanban, MapPin, Calendar, Users,
   DollarSign, Search, Filter, ChevronRight, TrendingUp,
-  AlertTriangle, CheckCircle,
+  AlertTriangle, CheckCircle, PieChart, BarChart3, ArrowUpRight, ArrowDownRight,
 } from "lucide-react";
 import {
   projects, fmtCurrency, fmtDate, ragColor, ragLabel,
@@ -129,6 +129,63 @@ export function PortfolioDashboardPage() {
             </div>
           </div>
         ))}
+      </div>
+
+      {/* Charts row */}
+      <div className="grid grid-cols-2 gap-4">
+        {/* RAG Distribution */}
+        <div className="bg-white rounded-lg border p-5" style={{ borderColor: "#E2E8F0" }}>
+          <h3 className="text-sm font-semibold mb-4" style={{ color: "#1A202C" }}>Project Health (RAG)</h3>
+          {(["on-track", "at-risk", "delayed"] as const).map(r => {
+            const count = activeProjects.filter(p => p.ragStatus === r).length;
+            const pct = Math.round((count / Math.max(activeProjects.length, 1)) * 100);
+            return (
+              <div key={r} className="flex items-center gap-3 mb-2">
+                <span className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ backgroundColor: RAG_HEX[r] }} />
+                <span className="text-sm flex-1" style={{ color: "#718096" }}>{(r === "on-track" ? "On Track" : r === "at-risk" ? "At Risk" : "Delayed")}</span>
+                <span className="text-sm font-medium" style={{ color: "#1A202C" }}>{count}</span>
+                <div className="w-24 bg-gray-100 rounded-full h-2 overflow-hidden">
+                  <div className="h-full rounded-full" style={{ width: `${pct}%`, backgroundColor: RAG_HEX[r] }} />
+                </div>
+                <span className="text-xs" style={{ color: "#718096" }}>{pct}%</span>
+              </div>
+            );
+          })}
+        </div>
+        {/* Budget vs Spend Summary */}
+        <div className="bg-white rounded-lg border p-5" style={{ borderColor: "#E2E8F0" }}>
+          <h3 className="text-sm font-semibold mb-4" style={{ color: "#1A202C" }}>Budget vs Spend</h3>
+          {(() => {
+            const totalBudget = projects.reduce((s, p) => s + p.budget, 0);
+            const totalSpent = projects.reduce((s, p) => s + p.spent, 0);
+            const pct = Math.round((totalSpent / totalBudget) * 100);
+            const remaining = totalBudget - totalSpent;
+            return (
+              <>
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-sm" style={{ color: "#718096" }}>Total Budget</span>
+                  <span className="text-sm font-bold" style={{ color: "#1A202C" }}>{fmtCurrency(totalBudget)}</span>
+                </div>
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-sm" style={{ color: "#718096" }}>Spent to Date</span>
+                  <span className="text-sm font-bold" style={{ color: "#3B82F6" }}>{fmtCurrency(totalSpent)}</span>
+                </div>
+                <div className="flex items-center justify-between mb-3">
+                  <span className="text-sm" style={{ color: "#718096" }}>Remaining</span>
+                  <span className="text-sm font-bold" style={{ color: remaining >= 0 ? "#27AE60" : "#E74C3C" }}>{fmtCurrency(remaining)}</span>
+                </div>
+                <div className="w-full bg-gray-100 rounded-full h-3 overflow-hidden">
+                  <div className="h-full rounded-full" style={{ width: `${Math.min(pct, 100)}%`, backgroundColor: pct > 90 ? "#E74C3C" : pct > 75 ? "#F4A623" : "#27AE60" }} />
+                </div>
+                <div className="flex justify-between text-xs mt-1" style={{ color: "#718096" }}>
+                  <span>0%</span>
+                  <span>{pct}% utilised</span>
+                  <span>100%</span>
+                </div>
+              </>
+            );
+          })()}
+        </div>
       </div>
 
       {/* Filter bar */}

@@ -27,7 +27,7 @@ const emptyVendor = {
   status: "Awarded" as Vendor["status"],
 };
 
-export function VendorsPage() {
+export function ProjectResourcesPage() {
   const { id: projectId } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const project = getProjectById(projectId!);
@@ -118,8 +118,8 @@ export function VendorsPage() {
             <Truck className="w-5 h-5" />
           </div>
           <div>
-            <h1 className="text-xl font-bold text-gray-900">Vendors</h1>
-            <p className="text-sm text-gray-500">{vendors.length} vendors assigned to {project?.name || projectId}</p>
+            <h1 className="text-xl font-bold text-gray-900">Resources</h1>
+            <p className="text-sm text-gray-500">{vendors.length} resources assigned to {project?.name || projectId}</p>
           </div>
         </div>
         <button
@@ -128,7 +128,7 @@ export function VendorsPage() {
           style={{ backgroundColor: "#E8973A" }}
         >
           <Plus className="w-4 h-4" />
-          Add Vendor
+          Add Resource
         </button>
       </div>
 
@@ -138,7 +138,7 @@ export function VendorsPage() {
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
           <input
             type="text"
-            placeholder="Search vendors..."
+            placeholder="Search resources..."
             value={search}
             onChange={e => setSearch(e.target.value)}
             className="w-full pl-10 pr-4 py-2 rounded-lg border text-sm"
@@ -243,7 +243,7 @@ export function VendorsPage() {
               </div>
               <div className="flex items-center justify-between">
                 <button
-                  onClick={(e) => { e.stopPropagation(); navigate(`/apps/construction/vendors/${vendor.id}`); }}
+                  onClick={(e) => { e.stopPropagation(); navigate(`/apps/construction/resources/${vendor.id}`); }}
                   className="flex items-center gap-1 text-xs hover:underline" style={{ color: "#E8973A" }}
                 >
                   <Eye className="w-3.5 h-3.5" />
@@ -264,23 +264,23 @@ export function VendorsPage() {
         {filtered.length === 0 && (
           <div className="col-span-full text-center py-16 text-gray-400">
             <Truck className="w-12 h-12 mx-auto mb-3 opacity-50" />
-            <p className="text-lg font-medium">No vendors found</p>
+            <p className="text-lg font-medium">No resources found</p>
             <p className="text-sm">Try adjusting your filters or add a new vendor</p>
           </div>
         )}
       </div>
 
-      {/* Add Vendor Modal */}
+      {/* Add Resource Modal */}
       {showAddModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
           <div className="rounded-xl w-full max-w-lg max-h-[90vh] overflow-y-auto" style={{ backgroundColor: "white" }}>
             <div className="flex items-center justify-between p-5 border-b" style={{ borderColor: "#E2E8F0" }}>
-              <h2 className="text-lg font-bold text-gray-900">Add Vendor</h2>
+              <h2 className="text-lg font-bold text-gray-900">Add Resource</h2>
               <button onClick={() => setShowAddModal(false)} className="text-gray-400 hover:text-gray-600 text-xl leading-none">&times;</button>
             </div>
             <div className="p-5 space-y-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Select existing vendor</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Select existing resource</label>
                 <select
                   value={selectedVendorId}
                   onChange={e => handleVendorSelect(e.target.value)}
@@ -293,11 +293,11 @@ export function VendorsPage() {
                       {v.name} — {getProjectById(v.projectId)?.name || v.projectId} ({v.trade})
                     </option>
                   ))}
-                  <option value="__new__">Register New Vendor</option>
+                  <option value="__new__">Register New Resource</option>
                 </select>
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Vendor Name</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Resource Name</label>
                 <input
                   type="text" value={form.name}
                   onChange={e => setForm({ ...form, name: e.target.value })}
@@ -416,7 +416,7 @@ export function VendorsPage() {
                 className="px-4 py-2 rounded-lg text-sm text-white font-medium"
                 style={{ backgroundColor: "#E8973A" }}
               >
-                Add Vendor
+                Add Resource
               </button>
             </div>
           </div>

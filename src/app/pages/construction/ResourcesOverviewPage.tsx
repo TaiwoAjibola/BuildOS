@@ -12,7 +12,7 @@ const STATUS_STYLES: Record<string, { bg: string; text: string }> = {
 
 type SortField = "name" | "project" | "trade" | "contractType" | "status" | "contractSum";
 
-export function VendorsOverviewPage() {
+export function ResourcesOverviewPage() {
   const navigate = useNavigate();
   const [search, setSearch] = useState("");
   const [sortField, setSortField] = useState<SortField | null>(null);
@@ -28,7 +28,7 @@ export function VendorsOverviewPage() {
   const totalSum = vendors.reduce((s, v) => s + v.contractSum, 0);
 
   const stats = [
-    { icon: Truck, label: "Total Vendors", value: vendors.length },
+    { icon: Truck, label: "Total Resources", value: vendors.length },
     { icon: Award, label: "Active", value: active.length, color: "#27AE60" },
     { icon: Users, label: "Nominated Subcontractors", value: nominated.length, color: "#E8973A" },
     { icon: DollarSign, label: "Total Contract Sum", value: fmtCurrency(totalSum), color: "#27AE60" },
@@ -61,8 +61,8 @@ export function VendorsOverviewPage() {
   return (
     <div style={{ backgroundColor: "#F7F8FA" }} className="min-h-screen p-6 space-y-6">
       <div>
-        <h1 className="text-2xl font-bold" style={{ color: "#1A202C" }}>Vendors Overview</h1>
-        <p className="text-sm mt-1" style={{ color: "#718096" }}>All vendors across projects</p>
+        <h1 className="text-2xl font-bold" style={{ color: "#1A202C" }}>Resources Overview</h1>
+        <p className="text-sm mt-1" style={{ color: "#718096" }}>All resources across projects</p>
       </div>
 
       <div className="grid grid-cols-4 gap-4">
@@ -84,7 +84,7 @@ export function VendorsOverviewPage() {
         <div className="relative mb-4">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4" style={{ color: "#718096" }} />
           <input
-            type="text" placeholder="Search vendors or trades..."
+            type="text" placeholder="Search resources or trades..."
             value={search} onChange={e => setSearch(e.target.value)}
             className="w-full pl-9 pr-4 py-2 text-sm rounded-lg outline-none"
             style={{ border: "1px solid #E2E8F0", color: "#1A202C" }}
@@ -96,7 +96,7 @@ export function VendorsOverviewPage() {
                 <thead>
                   <tr style={{ backgroundColor: "#F7F8FA", borderBottom: "1px solid #E2E8F0" }}>
                     {[
-                      { key: "name", label: "Vendor" },
+                      { key: "name", label: "Resource" },
                       { key: "project", label: "Project" },
                       { key: "trade", label: "Trade" },
                       { key: "contractType", label: "Contract Type" },
@@ -129,7 +129,7 @@ export function VendorsOverviewPage() {
                     key={v.id}
                     className="cursor-pointer hover:opacity-80 transition-opacity"
                     style={{ borderBottom: i < filtered.length - 1 ? "1px solid #E2E8F0" : "none" }}
-                    onClick={() => navigate(`/apps/construction/vendors/${v.id}`)}
+                    onClick={() => navigate(`/apps/construction/resources/${v.id}`)}
                   >
                     <td className="px-4 py-3 font-medium" style={{ color: "#1A202C" }}>{v.name}</td>
                     <td className="px-4 py-3" style={{ color: "#718096" }}>{project?.name ?? v.projectId}</td>
@@ -146,7 +146,7 @@ export function VendorsOverviewPage() {
                 );
               })}
               {filtered.length === 0 && (
-                <tr><td colSpan={7} className="text-center py-8 text-sm" style={{ color: "#718096" }}>No vendors found</td></tr>
+                <tr><td colSpan={7} className="text-center py-8 text-sm" style={{ color: "#718096" }}>No resources found</td></tr>
               )}
             </tbody>
           </table>

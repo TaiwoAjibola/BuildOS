@@ -11,7 +11,7 @@ const statusStyles: Record<string, { badge: string; label: string }> = {
   Terminated: { badge: "bg-red-100 text-red-700", label: "Terminated" },
 };
 
-export function VendorDetailPage() {
+export function ResourceDetailPage() {
   const { id, vendorId } = useParams<{ id: string; vendorId: string }>();
   const projectId = id;
   const navigate = useNavigate();
@@ -39,24 +39,24 @@ export function VendorDetailPage() {
       <div style={{ backgroundColor: "#F7F8FA" }} className="min-h-screen p-6 flex items-center justify-center">
         <div className="text-center text-gray-400">
           <Briefcase className="w-16 h-16 mx-auto mb-4 opacity-50" />
-          <p className="text-xl font-medium">Vendor not found</p>
-          <p className="text-sm">The vendor you're looking for doesn't exist in this project.</p>
+          <p className="text-xl font-medium">Resource not found</p>
+          <p className="text-sm">The resource you're looking for doesn't exist in this project.</p>
           <div className="flex items-center justify-center gap-3 mt-4">
             <button
-              onClick={() => navigate(`/apps/construction/projects/${projectId}/vendors`)}
+              onClick={() => navigate(`/apps/construction/projects/${projectId}/resources`)}
               className="inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium border"
               style={{ borderColor: "#E2E8F0", backgroundColor: "white", color: "#374151" }}
             >
               <ArrowLeft className="w-4 h-4" />
-              Back to Vendors
+              Back to Resources
             </button>
             <button
-              onClick={() => navigate(`/apps/construction/projects/${projectId}/vendors`)}
+              onClick={() => navigate(`/apps/construction/projects/${projectId}/resources`)}
               className="inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium text-white"
               style={{ backgroundColor: "#E8973A" }}
             >
               <Plus className="w-4 h-4" />
-              Create Vendor
+              Create Resource
             </button>
           </div>
         </div>
@@ -119,7 +119,7 @@ export function VendorDetailPage() {
       <div className="flex items-center justify-between mb-6">
         <div className="flex items-center gap-4">
           <button
-            onClick={() => navigate(`/apps/construction/projects/${projectId}/vendors`)}
+            onClick={() => navigate(`/apps/construction/projects/${projectId}/resources`)}
             className="w-9 h-9 rounded-lg flex items-center justify-center border"
             style={{ borderColor: "#E2E8F0", backgroundColor: "white" }}
           >
@@ -161,7 +161,7 @@ export function VendorDetailPage() {
         <div className="lg:col-span-2 space-y-6">
           {/* Vendor Info Card */}
           <div className="rounded-xl border p-5" style={{ borderColor: "#E2E8F0", backgroundColor: "white" }}>
-            <h2 className="text-base font-bold text-gray-900 mb-4">Vendor Information</h2>
+            <h2 className="text-base font-bold text-gray-900 mb-4">Resource Information</h2>
             <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
               <div>
                 <p className="text-xs text-gray-500 mb-0.5">Trade</p>
@@ -350,7 +350,7 @@ export function VendorDetailPage() {
                 </div>
               </div>
               <div>
-                <label className="block text-xs text-gray-500 mb-0.5">Vendor Margin (%)</label>
+                <label className="block text-xs text-gray-500 mb-0.5">Resource Margin (%)</label>
                 <input
                   type="number" value={margin}
                   onChange={e => setMargin(Number(e.target.value))}

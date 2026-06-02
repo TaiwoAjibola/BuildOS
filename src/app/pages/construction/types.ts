@@ -154,6 +154,8 @@ export interface DailyReport {
   equipment: DailyEquipment[];
   materials: DailyMaterial[];
   scope: DailyScope[];
+  expenses: DailyExpense[];
+  communicationLog: CommunicationLogEntry[];
 }
 
 export interface DailyManpower {

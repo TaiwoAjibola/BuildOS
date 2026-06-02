@@ -11,7 +11,7 @@ const statusStyles: Record<string, { badge: string; label: string }> = {
   Terminated: { badge: "bg-red-100 text-red-700", label: "Terminated" },
 };
 
-export function GlobalVendorDetailPage() {
+export function GlobalResourceDetailPage() {
   const { vendorId } = useParams<{ vendorId: string }>();
   const navigate = useNavigate();
   const vendor = allVendors.find(v => v.id === vendorId);
@@ -35,15 +35,15 @@ export function GlobalVendorDetailPage() {
       <div style={{ backgroundColor: "#F7F8FA" }} className="min-h-screen p-6 flex items-center justify-center">
         <div className="text-center text-gray-400">
           <Briefcase className="w-16 h-16 mx-auto mb-4 opacity-50" />
-          <p className="text-xl font-medium">Vendor not found</p>
-          <p className="text-sm">The vendor you're looking for doesn't exist.</p>
+          <p className="text-xl font-medium">Resource not found</p>
+          <p className="text-sm">The resource you're looking for doesn't exist.</p>
           <button
-            onClick={() => navigate(`/apps/construction/vendors`)}
+            onClick={() => navigate(`/apps/construction/resources`)}
             className="mt-4 inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium text-white"
             style={{ backgroundColor: "#E8973A" }}
           >
             <ArrowLeft className="w-4 h-4" />
-            Back to Vendors
+            Back to Resources
           </button>
         </div>
       </div>
@@ -105,7 +105,7 @@ export function GlobalVendorDetailPage() {
       <div className="flex items-center justify-between mb-6">
         <div className="flex items-center gap-4">
           <button
-            onClick={() => navigate(`/apps/construction/vendors`)}
+            onClick={() => navigate(`/apps/construction/resources`)}
             className="w-9 h-9 rounded-lg flex items-center justify-center border"
             style={{ borderColor: "#E2E8F0", backgroundColor: "white" }}
           >
@@ -131,7 +131,7 @@ export function GlobalVendorDetailPage() {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <div className="lg:col-span-2 space-y-6">
           <div className="rounded-xl border p-5" style={{ borderColor: "#E2E8F0", backgroundColor: "white" }}>
-            <h2 className="text-base font-bold text-gray-900 mb-4">Vendor Information</h2>
+            <h2 className="text-base font-bold text-gray-900 mb-4">Resource Information</h2>
             <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
               <div>
                 <p className="text-xs text-gray-500 mb-0.5">Trade</p>
@@ -166,7 +166,7 @@ export function GlobalVendorDetailPage() {
                 <p className="text-sm font-medium text-gray-900">{vendor.status}</p>
               </div>
               <div>
-                <p className="text-xs text-gray-500 mb-0.5">Vendor Margin</p>
+                <p className="text-xs text-gray-500 mb-0.5">Resource Margin</p>
                 <p className="text-sm font-medium text-gray-900">{vendor.vendorMargin ?? 30}%</p>
               </div>
             </div>
@@ -187,7 +187,7 @@ export function GlobalVendorDetailPage() {
                       key={p.id}
                       className="flex items-center justify-between px-4 py-3 rounded-lg text-sm cursor-pointer hover:bg-gray-50"
                       style={{ backgroundColor: "#F7F8FA" }}
-                      onClick={() => navigate(`/apps/construction/projects/${p.id}/vendors`)}
+                      onClick={() => navigate(`/apps/construction/projects/${p.id}/resources`)}
                     >
                       <div className="flex items-center gap-3">
                         <div className="w-2 h-2 rounded-full" style={{ backgroundColor: "#E8973A" }} />
@@ -311,7 +311,7 @@ export function GlobalVendorDetailPage() {
                 </div>
               </div>
               <div>
-                <label className="block text-xs text-gray-500 mb-0.5">Vendor Margin (%)</label>
+                <label className="block text-xs text-gray-500 mb-0.5">Resource Margin (%)</label>
                 <input
                   type="number" value={margin}
                   onChange={e => setMargin(Number(e.target.value))}

@@ -91,7 +91,7 @@ export function ProjectOverviewPage() {
 
   const quickStats = [
     { icon: CheckSquare, label: "Work Packages", value: workPackageCount },
-    { icon: Truck, label: "Vendors", value: projectVendors.length },
+    { icon: Truck, label: "Resources", value: projectVendors.length },
     { icon: Clock, label: "% Complete", value: `${avgPercentComplete}%` },
     { icon: FileText, label: "Last Report", value: lastReport ? fmtDate(lastReport.reportDate) : "N/A" },
   ];
@@ -118,7 +118,7 @@ export function ProjectOverviewPage() {
   const quickActions = [
     { label: "View Schedule", path: "schedule", icon: Calendar },
     { label: "New Daily Report", path: "daily-reports/new", icon: FileText },
-    { label: "View Vendors", path: "vendors", icon: Truck },
+    { label: "View Resources", path: "resources", icon: Truck },
     { label: "View Issues", path: "issues", icon: AlertTriangle },
   ];
 

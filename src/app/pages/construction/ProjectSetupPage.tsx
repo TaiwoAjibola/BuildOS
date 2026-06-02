@@ -12,7 +12,7 @@ const STEPS = [
   { id: "basic", label: "Basic Information", icon: FileText },
   { id: "project-type", label: "Project Type", icon: Tags },
   { id: "schedule", label: "Schedule Builder", icon: Layers },
-  { id: "vendors", label: "Vendor Registration", icon: Users },
+  { id: "resources", label: "Resource Registration", icon: Users },
   { id: "calendar", label: "Calendar", icon: Calendar },
   { id: "baseline", label: "Baseline", icon: Lock },
 ];
@@ -922,29 +922,29 @@ export function ProjectSetupPage() {
       <div className="space-y-4">
         <div className="rounded-xl border p-6" style={{ borderColor: "#E2E8F0", backgroundColor: "white" }}>
           <h2 className="text-lg font-bold mb-4" style={{ color: "#1A202C" }}>
-            {isNewVendor ? "Register New Vendor" : "Select Vendor"}
+            {isNewVendor ? "Register New Resource" : "Select Resource"}
           </h2>
 
           <div className="mb-4">
-            <label className="block text-sm font-medium text-gray-700 mb-1">Choose Vendor</label>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Choose Resource</label>
             <select
               value={selectedExistingVendor}
               onChange={e => handleSelectExistingVendor(e.target.value)}
               className="w-full px-3 py-2 rounded-lg border text-sm"
               style={{ borderColor: "#E2E8F0", backgroundColor: "#F7F8FA" }}
             >
-              <option value="">— Select Vendor —</option>
+              <option value="">— Select Resource —</option>
               {uniqueVendors.map(v => (
                 <option key={v.id} value={v.id}>{v.name} — {v.trade}</option>
               ))}
-              <option value="__new__">Register New Vendor</option>
+              <option value="__new__">Register New Resource</option>
             </select>
           </div>
 
           {selectedExistingVendor && (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Vendor Name</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Resource Name</label>
                 <input
                   type="text" value={vendorForm.name}
                   onChange={e => setVendorForm({ ...vendorForm, name: e.target.value })}
@@ -1071,8 +1071,8 @@ export function ProjectSetupPage() {
         {/* Stage Assignment */}
         {projectVendors.length > 0 && stages.length > 0 && (
           <div className="rounded-xl border p-5" style={{ borderColor: "#E2E8F0", backgroundColor: "white" }}>
-            <h3 className="text-base font-bold mb-4" style={{ color: "#1A202C" }}>Assign Vendors to Schedule Phases</h3>
-            <p className="text-sm text-gray-500 mb-4">For each vendor, select which stages of the schedule they will work on.</p>
+            <h3 className="text-base font-bold mb-4" style={{ color: "#1A202C" }}>Assign Resources to Schedule Phases</h3>
+            <p className="text-sm text-gray-500 mb-4">For each resource, select which stages of the schedule they will work on.</p>
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
                 <thead>

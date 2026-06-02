@@ -22,10 +22,10 @@ import { SchedulePage } from "./pages/construction/SchedulePage";
 import { DailyReportsOverviewPage } from "./pages/construction/DailyReportsOverviewPage";
 import { DailyReportsPage } from "./pages/construction/DailyReportsPage";
 import { DailyReportFormPage } from "./pages/construction/DailyReportFormPage";
-import { VendorsOverviewPage } from "./pages/construction/VendorsOverviewPage";
-import { VendorsPage } from "./pages/construction/VendorsPage";
-import { VendorDetailPage } from "./pages/construction/VendorDetailPage";
-import { GlobalVendorDetailPage } from "./pages/construction/GlobalVendorDetailPage";
+import { ResourcesOverviewPage } from "./pages/construction/ResourcesOverviewPage";
+import { ProjectResourcesPage } from "./pages/construction/ProjectResourcesPage";
+import { ResourceDetailPage } from "./pages/construction/ResourceDetailPage";
+import { GlobalResourceDetailPage } from "./pages/construction/GlobalResourceDetailPage";
 import { IssuesOverviewPage } from "./pages/construction/IssuesOverviewPage";
 import { IssuesPage } from "./pages/construction/IssuesPage";
 import { ChangeRequestsOverviewPage } from "./pages/construction/ChangeRequestsOverviewPage";
@@ -42,11 +42,13 @@ import { CostsOverviewPage } from "./pages/construction/CostsOverviewPage";
 import { CostsPage } from "./pages/construction/CostsPage";
 import { StakeholdersOverviewPage } from "./pages/construction/StakeholdersOverviewPage";
 import { StakeholdersPage } from "./pages/construction/StakeholdersPage";
-import { ResourcesPage } from "./pages/construction/ResourcesPage";
+import { ResourceHubPage } from "./pages/construction/ResourceHubPage";
 import { ReportsPage } from "./pages/construction/ReportsPage";
 import { ProgressEarnedValuePage } from "./pages/construction/ProgressEarnedValuePage";
 import { ProjectSetupPage } from "./pages/construction/ProjectSetupPage";
 import { SettingsPage } from "./pages/construction/SettingsPage";
+import { DisbursementsPage } from "./pages/construction/DisbursementsPage";
+import { CommunicationLogPage } from "./pages/construction/CommunicationLogPage";
 
 // Finance App
 import { FinanceApprovalsPage } from "./pages/finance/FinanceApprovalsPage";
@@ -199,8 +201,8 @@ export const router = createBrowserRouter([
               { path: "dashboard", Component: PortfolioDashboardPage },
               { path: "schedule", Component: ScheduleOverviewPage },
               { path: "daily-reports", Component: DailyReportsOverviewPage },
-              { path: "vendors", Component: VendorsOverviewPage },
-              { path: "vendors/:vendorId", Component: GlobalVendorDetailPage },
+              { path: "resources", Component: ResourcesOverviewPage },
+              { path: "resources/:resourceId", Component: GlobalResourceDetailPage },
               { path: "issues", Component: IssuesOverviewPage },
               { path: "change-requests", Component: ChangeRequestsOverviewPage },
               { path: "delays", Component: DelaysOverviewPage },
@@ -210,8 +212,10 @@ export const router = createBrowserRouter([
               { path: "costs", Component: CostsOverviewPage },
               { path: "stakeholders", Component: StakeholdersOverviewPage },
               { path: "reports", Component: ReportsPage },
-              { path: "resources", Component: ResourcesPage },
+              { path: "resource-hub", Component: ResourceHubPage },
               { path: "settings", Component: SettingsPage },
+              { path: "disbursements", Component: DisbursementsPage },
+              { path: "communications", Component: CommunicationLogPage },
               {
                 path: "projects/:id",
                 Component: ProjectTabsLayout,
@@ -222,8 +226,8 @@ export const router = createBrowserRouter([
                   { path: "daily-reports", Component: DailyReportsPage },
                   { path: "daily-reports/new", Component: DailyReportFormPage },
                   { path: "daily-reports/:reportId", Component: DailyReportFormPage },
-                  { path: "vendors", Component: VendorsPage },
-                  { path: "vendors/:vendorId", Component: VendorDetailPage },
+                  { path: "resources", Component: ProjectResourcesPage },
+                  { path: "resources/:resourceId", Component: ResourceDetailPage },
                   { path: "issues", Component: IssuesPage },
                   { path: "change-requests", Component: ChangeRequestsPage },
                   { path: "delays", Component: DelaysPage },
@@ -234,6 +238,8 @@ export const router = createBrowserRouter([
                   { path: "stakeholders", Component: StakeholdersPage },
                   { path: "progress", Component: ProgressEarnedValuePage },
                   { path: "setup", Component: ProjectSetupPage },
+                  { path: "disbursements", Component: DisbursementsPage },
+                  { path: "communications", Component: CommunicationLogPage },
                 ],
               },
             ],

@@ -1,6 +1,6 @@
 import { useNavigate } from "react-router";
 import { useState } from "react";
-import { BarChart3, FileText, Download, Calendar, TrendingUp, PieChart, CheckCircle, ChevronRight, Eye } from "lucide-react";
+import { BarChart3, FileText, Download, Calendar, TrendingUp, PieChart, CheckCircle, ChevronRight, Eye, Users } from "lucide-react";
 import { projects, fmtCurrency } from "./mockData";
 
 interface ReportTemplate {
@@ -22,7 +22,12 @@ const reportTemplates: ReportTemplate[] = [
   { id: "rag", title: "RAG Status Report", description: "Project health overview — on-track, at-risk, and delayed projects with key metrics.", icon: <BarChart3 className="w-5 h-5" />, color: "text-orange-600 bg-orange-50", type: "rag" },
   { id: "schedule", title: "Schedule Report", description: "Timeline adherence, milestone completion, and schedule variance analysis.", icon: <Calendar className="w-5 h-5" />, color: "text-purple-600 bg-purple-50", type: "schedule" },
   { id: "cost", title: "Cost Report", description: "Budget utilisation, cost variance, and expenditure forecasting by project.", icon: <FileText className="w-5 h-5" />, color: "text-green-600 bg-green-50", type: "cost" },
+  { id: "resource", title: "Resource Report", description: "Resource allocation, utilisation, and cost across projects.", icon: <Users className="w-5 h-5" />, color: "text-teal-600 bg-teal-50", type: "resource" },
+  { id: "daily", title: "Daily Reports Summary", description: "Report submission rates, manpower trends, and daily activity metrics.", icon: <FileText className="w-5 h-5" />, color: "text-indigo-600 bg-indigo-50", type: "daily" },
 ];
+
+const RAG_LABELS: Record<string, string> = { "on-track": "On Track", "at-risk": "At Risk", "delayed": "Delayed" };
+const RAG_COLORS: Record<string, string> = { "on-track": "#27AE60", "at-risk": "#F4A623", "delayed": "#E74C3C" };
 
 function generatePreview(type: string): PreviewData {
   switch (type) {
@@ -53,6 +58,16 @@ function generatePreview(type: string): PreviewData {
         datasets: [
           { label: "Utilisation %", values: projects.map(p => Math.round((p.spent / p.budget) * 100)), color: "#E8973A" },
         ],
+      };
+    case "resource":
+      return {
+        labels: ["Labour", "Materials", "Equipment", "Subcontractors"],
+        datasets: [{ label: "Cost (₦M)", values: [28, 35, 15, 22], color: "#14B8A6" }],
+      };
+    case "daily":
+      return {
+        labels: ["Week 1", "Week 2", "Week 3", "Week 4"],
+        datasets: [{ label: "Reports", values: [12, 15, 10, 18], color: "#6366F1" }],
       };
     default:
       return { labels: [], datasets: [] };
@@ -190,6 +205,38 @@ export function ReportsPage() {
             </div>
           );
         })}
+      </div>
+
+      {/* RAG Health Breakdown */}
+      <div className="bg-white rounded-xl overflow-hidden" style={{ border: "1px solid #E2E8F0" }}>
+        <div className="px-5 py-4 border-b flex items-center gap-2" style={{ borderColor: "#E2E8F0" }}>
+          <BarChart3 className="w-4 h-4" style={{ color: "#E8973A" }} />
+          <h3 className="text-sm font-semibold" style={{ color: "#1A202C" }}>RAG Health Breakdown</h3>
+        </div>
+        <div className="p-5">
+          <div className="grid grid-cols-3 gap-4 mb-4">
+            {(["on-track", "at-risk", "delayed"] as const).map(r => {
+              const count = projects.filter(p => p.ragStatus === r && p.status === "Active").length;
+              const pct = Math.round((count / Math.max(projects.filter(p => p.status === "Active").length, 1)) * 100);
+              return (
+                <div key={r} className="text-center p-4 rounded-lg" style={{ backgroundColor: `${RAG_COLORS[r]}15` }}>
+                  <p className="text-2xl font-bold" style={{ color: RAG_COLORS[r] }}>{count}</p>
+                  <p className="text-xs font-medium mt-1" style={{ color: RAG_COLORS[r] }}>{RAG_LABELS[r]} — {pct}%</p>
+                </div>
+              );
+            })}
+          </div>
+          <div className="flex rounded-full h-3 overflow-hidden">
+            {(["on-track", "at-risk", "delayed"] as const).map(r => {
+              const count = projects.filter(p => p.ragStatus === r && p.status === "Active").length;
+              const pct = (count / Math.max(projects.filter(p => p.status === "Active").length, 1)) * 100;
+              if (pct === 0) return null;
+              return (
+                <div key={r} style={{ width: `${pct}%`, backgroundColor: RAG_COLORS[r], minWidth: 4 }} title={`${RAG_LABELS[r]}: ${count}`} />
+              );
+            })}
+          </div>
+        </div>
       </div>
 
       {/* Project summary table */}

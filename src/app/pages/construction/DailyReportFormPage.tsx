@@ -1,8 +1,8 @@
 import { useParams, useNavigate } from "react-router";
 import { useState, useEffect, useMemo } from "react";
-import { Save, Send, ArrowLeft, Plus, Trash2, Sun, Cloud, CloudDrizzle, CloudRain, AlertTriangle } from "lucide-react";
+import { Save, Send, ArrowLeft, Plus, Trash2, Sun, Cloud, CloudDrizzle, CloudRain, AlertTriangle, DollarSign, MessageSquare, Phone, Mail } from "lucide-react";
 import { getProjectById, getTasksByProject, getVendorsByProject, getReportsByProject, fmtDate, staffList } from "./mockData";
-import type { DailyReport, DailyManpower, DailyEquipment, DailyMaterial, DailyScope, Weather } from "./types";
+import type { DailyReport, DailyManpower, DailyEquipment, DailyMaterial, DailyScope, DailyExpense, CommunicationLogEntry, Weather } from "./types";
 
 const equipmentCategories = [
   "Earthwork", "Lifting", "Concreting", "Transportation",
@@ -88,6 +88,23 @@ function newScopeRow(): DailyScope {
   };
 }
 
+function newExpenseRow(projectId: string): DailyExpense {
+  return {
+    id: nextId("DE"), projectId, reportDate: todayStr,
+    category: "other", description: "", amount: 0,
+    paidBy: "petty-cash", receiptRef: "",
+  };
+}
+
+function newCommLogRow(projectId: string): CommunicationLogEntry {
+  return {
+    id: nextId("CL"), projectId, date: todayStr,
+    from: staffList[0], to: "", channel: "email",
+    subject: "", summary: "", status: "sent",
+    createdBy: staffList[0], createdAt: new Date().toISOString(),
+  };
+}
+
 export function DailyReportFormPage() {
   const { id: projectId, reportId } = useParams<{ id: string; reportId?: string }>();
   const navigate = useNavigate();
@@ -130,6 +147,12 @@ export function DailyReportFormPage() {
   );
   const [scopeRows, setScopeRows] = useState<DailyScope[]>(
     existingDraft?.scope.length ? existingDraft.scope : [newScopeRow()]
+  );
+  const [expenseRows, setExpenseRows] = useState<DailyExpense[]>(
+    existingDraft?.expenses?.length ? existingDraft.expenses : []
+  );
+  const [commLogRows, setCommLogRows] = useState<CommunicationLogEntry[]>(
+    existingDraft?.communicationLog?.length ? existingDraft.communicationLog : []
   );
 
   const [saving, setSaving] = useState(false);
@@ -247,6 +270,8 @@ export function DailyReportFormPage() {
       equipment: equipmentRows,
       materials: materialRows,
       scope: scopeRows,
+      expenses: expenseRows,
+      communicationLog: commLogRows,
     };
     setTimeout(() => {
       setSaving(false);
@@ -264,6 +289,8 @@ export function DailyReportFormPage() {
     { label: "Equipment", count: equipmentRows.length },
     { label: "Materials", count: materialRows.length },
     { label: "Scope & Delivery", count: scopeRows.length },
+    { label: "Expenses", count: expenseRows.length },
+    { label: "Communications", count: commLogRows.length },
   ];
 
   const progressPct = ((step + 1) / steps.length) * 100;
@@ -392,14 +419,14 @@ export function DailyReportFormPage() {
                 className="flex items-center gap-1.5 px-3 py-2 rounded-md text-sm font-medium text-white hover:opacity-90 transition-opacity"
                 style={{ backgroundColor: "#E8973A", minHeight: 44 }}
               >
-                <Plus className="w-4 h-4" /> Add Vendor
+                <Plus className="w-4 h-4" /> Add Resource
               </button>
             </div>
             <div className="space-y-4">
               {manpowerRows.map((row, i) => (
                 <div key={row.id} className="border border-[#E2E8F0] rounded-lg p-4 space-y-3">
                   <div className="flex items-center justify-between">
-                    <span className="text-xs font-medium text-gray-400 uppercase tracking-wide">Vendor #{i + 1}</span>
+                    <span className="text-xs font-medium text-gray-400 uppercase tracking-wide">Resource #{i + 1}</span>
                     {manpowerRows.length > 1 && (
                       <button onClick={() => removeManpowerRow(i)} className="p-1.5 rounded-md hover:bg-red-50 text-red-400 hover:text-red-600 transition-colors">
                         <Trash2 className="w-4 h-4" />
@@ -408,14 +435,14 @@ export function DailyReportFormPage() {
                   </div>
                   <div className="grid grid-cols-2 gap-3">
                     <div className="space-y-1">
-                      <label className="text-xs text-gray-500">Vendor</label>
+                      <label className="text-xs text-gray-500">Resource</label>
                       <select
                         value={row.vendorId}
                         onChange={e => updateManpowerRow(i, { vendorId: e.target.value })}
                         className="w-full border border-[#E2E8F0] rounded-md px-3 text-sm outline-none focus:border-[#E8973A]"
                         style={{ minHeight: 44 }}
                       >
-                        <option value="">Select vendor...</option>
+                        <option value="">Select resource...</option>
                         {projectVendors.map(v => (
                           <option key={v.id} value={v.id}>{v.name}</option>
                         ))}
@@ -869,6 +896,226 @@ export function DailyReportFormPage() {
                 </div>
               ))}
             </div>
+          </div>
+        )}
+
+        {/* SECTION E: Expenses */}
+        {step === 4 && (
+          <div className="bg-white rounded-lg border border-[#E2E8F0] p-4">
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center gap-2">
+                <DollarSign className="w-4 h-4" style={{ color: "#E8973A" }} />
+                <h2 className="text-base font-semibold text-gray-900">Section E: Expenses</h2>
+              </div>
+              <button
+                onClick={() => setExpenseRows(prev => [...prev, newExpenseRow(projectId || "")])}
+                className="flex items-center gap-1.5 px-3 py-2 rounded-md text-sm font-medium text-white hover:opacity-90 transition-opacity"
+                style={{ backgroundColor: "#E8973A", minHeight: 44 }}
+              >
+                <Plus className="w-4 h-4" /> Add Expense
+              </button>
+            </div>
+            {expenseRows.length === 0 ? (
+              <p className="text-sm text-gray-400 text-center py-8">No expenses recorded. Add a daily expense entry.</p>
+            ) : (
+              <div className="space-y-3">
+                {expenseRows.map((row, i) => (
+                  <div key={row.id} className="border border-[#E2E8F0] rounded-lg p-4 space-y-3">
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs font-medium text-gray-400 uppercase tracking-wide">Expense #{i + 1}</span>
+                      <button onClick={() => setExpenseRows(prev => prev.filter((_, idx) => idx !== i))} className="p-1.5 rounded-md hover:bg-red-50 text-red-400 hover:text-red-600 transition-colors">
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    </div>
+                    <div className="grid grid-cols-2 gap-3">
+                      <div className="space-y-1">
+                        <label className="text-xs text-gray-500">Category</label>
+                        <select
+                          value={row.category}
+                          onChange={e => setExpenseRows(prev => prev.map((r, idx) => idx === i ? { ...r, category: e.target.value as DailyExpense["category"] } : r))}
+                          className="w-full border border-[#E2E8F0] rounded-md px-3 text-sm outline-none focus:border-[#E8973A]"
+                          style={{ minHeight: 44 }}
+                        >
+                          <option value="human">Labour / Human</option>
+                          <option value="material">Material</option>
+                          <option value="equipment">Equipment</option>
+                          <option value="other">Other</option>
+                        </select>
+                      </div>
+                      <div className="space-y-1">
+                        <label className="text-xs text-gray-500">Paid By</label>
+                        <select
+                          value={row.paidBy}
+                          onChange={e => setExpenseRows(prev => prev.map((r, idx) => idx === i ? { ...r, paidBy: e.target.value as DailyExpense["paidBy"] } : r))}
+                          className="w-full border border-[#E2E8F0] rounded-md px-3 text-sm outline-none focus:border-[#E8973A]"
+                          style={{ minHeight: 44 }}
+                        >
+                          <option value="petty-cash">Petty Cash</option>
+                          <option value="project-cash">Project Cash</option>
+                          <option value="finance-disbursement">Finance Disbursement</option>
+                        </select>
+                      </div>
+                      <div className="space-y-1">
+                        <label className="text-xs text-gray-500">Description</label>
+                        <input
+                          type="text" value={row.description}
+                          onChange={e => setExpenseRows(prev => prev.map((r, idx) => idx === i ? { ...r, description: e.target.value } : r))}
+                          placeholder="e.g. Transport to site" className="w-full border border-[#E2E8F0] rounded-md px-3 text-sm outline-none focus:border-[#E8973A]"
+                          style={{ minHeight: 44 }}
+                        />
+                      </div>
+                      <div className="space-y-1">
+                        <label className="text-xs text-gray-500">Amount (₦)</label>
+                        <input
+                          type="number" min={0} value={row.amount || ""}
+                          onChange={e => setExpenseRows(prev => prev.map((r, idx) => idx === i ? { ...r, amount: Number(e.target.value) } : r))}
+                          className="w-full border border-[#E2E8F0] rounded-md px-3 text-sm outline-none focus:border-[#E8973A]"
+                          style={{ minHeight: 44 }}
+                        />
+                      </div>
+                      <div className="space-y-1">
+                        <label className="text-xs text-gray-500">Receipt Reference</label>
+                        <input
+                          type="text" value={row.receiptRef || ""}
+                          onChange={e => setExpenseRows(prev => prev.map((r, idx) => idx === i ? { ...r, receiptRef: e.target.value } : r))}
+                          placeholder="e.g. RCPT-001" className="w-full border border-[#E2E8F0] rounded-md px-3 text-sm outline-none focus:border-[#E8973A]"
+                          style={{ minHeight: 44 }}
+                        />
+                      </div>
+                      <div className="space-y-1">
+                        <label className="text-xs text-gray-500">Date</label>
+                        <input
+                          type="date" value={row.reportDate}
+                          onChange={e => setExpenseRows(prev => prev.map((r, idx) => idx === i ? { ...r, reportDate: e.target.value } : r))}
+                          className="w-full border border-[#E2E8F0] rounded-md px-3 text-sm outline-none focus:border-[#E8973A]"
+                          style={{ minHeight: 44 }}
+                        />
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+            {expenseRows.length > 0 && (
+              <div className="mt-4 pt-3 border-t border-[#E2E8F0] flex items-center justify-between text-sm">
+                <span className="text-gray-500 font-medium">Total Expenses</span>
+                <span className="font-bold" style={{ color: "#E8973A" }}>
+                  ₦{expenseRows.reduce((s, r) => s + r.amount, 0).toLocaleString()}
+                </span>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* SECTION F: Communications */}
+        {step === 5 && (
+          <div className="bg-white rounded-lg border border-[#E2E8F0] p-4">
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center gap-2">
+                <MessageSquare className="w-4 h-4" style={{ color: "#E8973A" }} />
+                <h2 className="text-base font-semibold text-gray-900">Section F: Communications Log</h2>
+              </div>
+              <button
+                onClick={() => setCommLogRows(prev => [...prev, newCommLogRow(projectId || "")])}
+                className="flex items-center gap-1.5 px-3 py-2 rounded-md text-sm font-medium text-white hover:opacity-90 transition-opacity"
+                style={{ backgroundColor: "#E8973A", minHeight: 44 }}
+              >
+                <Plus className="w-4 h-4" /> Add Communication
+              </button>
+            </div>
+            {commLogRows.length === 0 ? (
+              <p className="text-sm text-gray-400 text-center py-8">No communications logged. Add a communication entry.</p>
+            ) : (
+              <div className="space-y-3">
+                {commLogRows.map((row, i) => (
+                  <div key={row.id} className="border border-[#E2E8F0] rounded-lg p-4 space-y-3">
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs font-medium text-gray-400 uppercase tracking-wide">Communication #{i + 1}</span>
+                      <button onClick={() => setCommLogRows(prev => prev.filter((_, idx) => idx !== i))} className="p-1.5 rounded-md hover:bg-red-50 text-red-400 hover:text-red-600 transition-colors">
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    </div>
+                    <div className="grid grid-cols-2 gap-3">
+                      <div className="space-y-1">
+                        <label className="text-xs text-gray-500">Channel</label>
+                        <select
+                          value={row.channel}
+                          onChange={e => setCommLogRows(prev => prev.map((r, idx) => idx === i ? { ...r, channel: e.target.value as CommunicationLogEntry["channel"] } : r))}
+                          className="w-full border border-[#E2E8F0] rounded-md px-3 text-sm outline-none focus:border-[#E8973A]"
+                          style={{ minHeight: 44 }}
+                        >
+                          <option value="email"><Mail className="w-3 h-3 inline" /> Email</option>
+                          <option value="phone"><Phone className="w-3 h-3 inline" /> Phone</option>
+                          <option value="meeting">Meeting</option>
+                          <option value="letter">Letter</option>
+                          <option value="memorandum">Memorandum</option>
+                          <option value="other">Other</option>
+                        </select>
+                      </div>
+                      <div className="space-y-1">
+                        <label className="text-xs text-gray-500">Status</label>
+                        <select
+                          value={row.status}
+                          onChange={e => setCommLogRows(prev => prev.map((r, idx) => idx === i ? { ...r, status: e.target.value as CommunicationLogEntry["status"] } : r))}
+                          className="w-full border border-[#E2E8F0] rounded-md px-3 text-sm outline-none focus:border-[#E8973A]"
+                          style={{ minHeight: 44 }}
+                        >
+                          <option value="sent">Sent</option>
+                          <option value="received">Received</option>
+                          <option value="draft">Draft</option>
+                          <option value="action-required">Action Required</option>
+                        </select>
+                      </div>
+                      <div className="space-y-1">
+                        <label className="text-xs text-gray-500">From</label>
+                        <input
+                          type="text" value={row.from}
+                          onChange={e => setCommLogRows(prev => prev.map((r, idx) => idx === i ? { ...r, from: e.target.value } : r))}
+                          placeholder="Sender name" className="w-full border border-[#E2E8F0] rounded-md px-3 text-sm outline-none focus:border-[#E8973A]"
+                          style={{ minHeight: 44 }}
+                        />
+                      </div>
+                      <div className="space-y-1">
+                        <label className="text-xs text-gray-500">To</label>
+                        <input
+                          type="text" value={row.to}
+                          onChange={e => setCommLogRows(prev => prev.map((r, idx) => idx === i ? { ...r, to: e.target.value } : r))}
+                          placeholder="Recipient name" className="w-full border border-[#E2E8F0] rounded-md px-3 text-sm outline-none focus:border-[#E8973A]"
+                          style={{ minHeight: 44 }}
+                        />
+                      </div>
+                      <div className="space-y-1">
+                        <label className="text-xs text-gray-500">Subject</label>
+                        <input
+                          type="text" value={row.subject}
+                          onChange={e => setCommLogRows(prev => prev.map((r, idx) => idx === i ? { ...r, subject: e.target.value } : r))}
+                          placeholder="Subject line" className="w-full border border-[#E2E8F0] rounded-md px-3 text-sm outline-none focus:border-[#E8973A]"
+                          style={{ minHeight: 44 }}
+                        />
+                      </div>
+                      <div className="space-y-1">
+                        <label className="text-xs text-gray-500">Date</label>
+                        <input
+                          type="date" value={row.date}
+                          onChange={e => setCommLogRows(prev => prev.map((r, idx) => idx === i ? { ...r, date: e.target.value } : r))}
+                          className="w-full border border-[#E2E8F0] rounded-md px-3 text-sm outline-none focus:border-[#E8973A]"
+                          style={{ minHeight: 44 }}
+                        />
+                      </div>
+                      <div className="col-span-2 space-y-1">
+                        <label className="text-xs text-gray-500">Summary</label>
+                        <textarea
+                          rows={2} value={row.summary}
+                          onChange={e => setCommLogRows(prev => prev.map((r, idx) => idx === i ? { ...r, summary: e.target.value } : r))}
+                          placeholder="Brief summary of the communication..." className="w-full border border-[#E2E8F0] rounded-md px-3 text-sm outline-none focus:border-[#E8973A] resize-none"
+                          style={{ minHeight: 44 }}
+                        />
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         )}
 
