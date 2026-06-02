@@ -60,6 +60,24 @@ export function getBlockLabel(sector: Sector | string, category: string): string
   return "Blocks / Units";
 }
 
+// ── WBS Level Definition (configurable) ─────────────────────
+export interface WBSLevelDefinition {
+  id: string;
+  name: string;
+  prefix: string;
+  position: number;
+  parentLevelId: string | null;
+  canAssignResources: boolean;
+  canHaveChildren: boolean;
+}
+
+export const DEFAULT_WBS_LEVELS: WBSLevelDefinition[] = [
+  { id: "lvl-1", name: "Stage / Phase", prefix: "ST", position: 1, parentLevelId: null, canAssignResources: true, canHaveChildren: true },
+  { id: "lvl-2", name: "Summary Task", prefix: "SM", position: 2, parentLevelId: "lvl-1", canAssignResources: true, canHaveChildren: true },
+  { id: "lvl-3", name: "Sub-summary Task", prefix: "SS", position: 3, parentLevelId: "lvl-2", canAssignResources: true, canHaveChildren: true },
+  { id: "lvl-4", name: "Work Package", prefix: "WP", position: 4, parentLevelId: "lvl-3", canAssignResources: true, canHaveChildren: false },
+];
+
 export interface Project {
   id: string;
   name: string;
@@ -92,7 +110,8 @@ export interface Task {
   id: string;
   projectId: string;
   parentTaskId: string | null;
-  level: 1 | 2 | 3 | 4;
+  level: number;
+  wbsLevelId?: string;
   name: string;
   plannedStart: string;
   plannedEnd: string;
@@ -823,6 +842,7 @@ export interface ScheduleLevelConfig {
   name: string;
   prefix: string;
   canAssignResources: boolean;
+  parentLevel?: number | null;
 }
 
 // ── Weather Config ──────────────────────────────────────────

@@ -4,29 +4,21 @@ import {
   CheckCircle, Circle, ArrowRight, ArrowLeft, Lock, Calendar,
   Building2, Users, Layers, FileText, Plus, X, Trash2, ChevronRight, ChevronDown, Tags
 } from "lucide-react";
-import { getProjectById, staffList, tradeTypes, clusters, tasks as allTasks, fmtDate, vendors as allVendors } from "./mockData";
-import type { Task, Vendor, ProjectCalendar, Sector, ProjectStructureItem } from "./types";
-import { SECTOR_CATEGORIES, getBlockLabel, getStructureConfig } from "./types";
+import { getProjectById, staffList, tradeTypes, clusters, tasks as allTasks, fmtDate, vendors as allVendors, defaultScheduleLevels } from "./mockData";
+import type { Task, Vendor, ProjectCalendar, Sector, ProjectStructureItem, ScheduleLevelConfig } from "./types";
+import { SECTOR_CATEGORIES, getBlockLabel, getStructureConfig, DEFAULT_WBS_LEVELS } from "./types";
 
 const STEPS = [
   { id: "basic", label: "Basic Information", icon: FileText },
   { id: "project-type", label: "Project Type", icon: Tags },
-  { id: "schedule", label: "Schedule Builder", icon: Layers },
-  { id: "resources", label: "Resource Registration", icon: Users },
+  { id: "resources", label: "Resources", icon: Users },
   { id: "calendar", label: "Calendar", icon: Calendar },
-  { id: "baseline", label: "Baseline", icon: Lock },
+  { id: "schedule", label: "Schedule Builder", icon: Layers },
+  { id: "summary", label: "Summary", icon: Lock },
 ];
 
 const DAY_LABELS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 const DAY_INDICES = [1, 2, 3, 4, 5, 6, 0];
-
-const LEVEL_NAMES: Record<number, string> = {
-  1: "Stage",
-  2: "Summary Task",
-  3: "Sub-summary Task",
-  4: "Work Package",
-};
-const LEVEL_PREFIX: Record<number, string> = { 1: "ST", 2: "SM", 3: "SS", 4: "WP" };
 
 const SECTORS: Sector[] = [
   "Building & Construction",
@@ -36,6 +28,10 @@ const SECTORS: Sector[] = [
   "Renovation & Maintenance",
   "Other",
 ];
+
+const LEVEL_NAMES: Record<number, string> = {};
+const LEVEL_PREFIX: Record<number, string> = {};
+defaultScheduleLevels.forEach(l => { LEVEL_NAMES[l.level] = l.name; LEVEL_PREFIX[l.level] = l.prefix; });
 
 const EMPTY_VENDOR_FORM = {
   name: "", trade: "", contractType: "Labor-only" as Vendor["contractType"],

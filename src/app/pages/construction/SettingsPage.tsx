@@ -45,6 +45,7 @@ export function SettingsPage() {
   const [projectTypes, setProjectTypes] = useState(defaultProjectTypes);
   const [newSector, setNewSector] = useState("");
   const [newCategory, setNewCategory] = useState("");
+  const [newDescriptor, setNewDescriptor] = useState("");
 
   // Resource categories
   const [humanSources] = useState<string[]>(humanSourceTypes);
@@ -86,7 +87,7 @@ export function SettingsPage() {
     setTradeTypes(prev => prev.filter(x => x !== t));
   }
 
-  function updateScheduleLevel(idx: number, field: keyof ScheduleLevelConfig, val: string | boolean) {
+  function updateScheduleLevel(idx: number, field: keyof ScheduleLevelConfig, val: string | boolean | number | null) {
     setScheduleLevels(prev => prev.map((l, i) => i === idx ? { ...l, [field]: val } : l));
   }
 
@@ -116,9 +117,19 @@ export function SettingsPage() {
 
   function addSector() {
     if (!newSector.trim() || projectTypes.some(pt => pt.sector === newSector.trim())) return;
-    setProjectTypes(prev => [...prev, { sector: newSector.trim() as Sector, categories: [newCategory.trim() || "General"] }]);
+    setProjectTypes(prev => [...prev, { sector: newSector.trim() as Sector, categories: [newCategory.trim() || "General"], descriptors: [] }]);
     setNewSector("");
     setNewCategory("");
+  }
+
+  function addDescriptor(sector: string) {
+    if (!newDescriptor.trim()) return;
+    setProjectTypes(prev => prev.map(pt => pt.sector === sector ? { ...pt, descriptors: [...(pt.descriptors || []), newDescriptor.trim()] } : pt));
+    setNewDescriptor("");
+  }
+
+  function removeDescriptor(sector: string, desc: string) {
+    setProjectTypes(prev => prev.map(pt => pt.sector === sector ? { ...pt, descriptors: (pt.descriptors || []).filter(d => d !== desc) } : pt));
   }
 
   function removeSector(sector: string) {
@@ -188,6 +199,7 @@ export function SettingsPage() {
                   <span className="text-sm font-semibold text-gray-900">{pt.sector}</span>
                   <button onClick={() => removeSector(pt.sector)} className="text-red-400 hover:text-red-600 p-1"><X className="w-3.5 h-3.5" /></button>
                 </div>
+                <p className="text-xs text-gray-400 font-medium mb-1.5">Categories</p>
                 <div className="flex flex-wrap gap-1.5 mb-2">
                   {pt.categories.map(c => (
                     <span key={c} className="inline-flex items-center gap-1 bg-amber-50 text-amber-700 text-xs px-2 py-0.5 rounded-full">
@@ -196,10 +208,24 @@ export function SettingsPage() {
                     </span>
                   ))}
                 </div>
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2 mb-2">
                   <input value={newCategory} onChange={e => setNewCategory(e.target.value)} placeholder="Add category..." className="flex-1 max-w-xs border border-gray-300 rounded-md px-2 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-orange-500"
                     onKeyDown={e => e.key === "Enter" && addCategory(pt.sector)} />
                   <button onClick={() => addCategory(pt.sector)} disabled={!newCategory.trim()} className="text-xs px-2 py-1 bg-orange-600 text-white rounded hover:bg-orange-700 disabled:opacity-40"><Plus className="w-3 h-3" /></button>
+                </div>
+                <p className="text-xs text-gray-400 font-medium mb-1.5">Descriptors</p>
+                <div className="flex flex-wrap gap-1.5 mb-1">
+                  {(pt.descriptors || []).map(d => (
+                    <span key={d} className="inline-flex items-center gap-1 bg-blue-50 text-blue-700 text-xs px-2 py-0.5 rounded-full">
+                      {d}
+                      <button onClick={() => removeDescriptor(pt.sector, d)} className="hover:text-red-600"><X className="w-3 h-3" /></button>
+                    </span>
+                  ))}
+                </div>
+                <div className="flex items-center gap-2">
+                  <input value={newDescriptor} onChange={e => setNewDescriptor(e.target.value)} placeholder="Add descriptor..." className="flex-1 max-w-xs border border-gray-300 rounded-md px-2 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-orange-500"
+                    onKeyDown={e => e.key === "Enter" && addDescriptor(pt.sector)} />
+                  <button onClick={() => addDescriptor(pt.sector)} disabled={!newDescriptor.trim()} className="text-xs px-2 py-1 bg-orange-600 text-white rounded hover:bg-orange-700 disabled:opacity-40"><Plus className="w-3 h-3" /></button>
                 </div>
               </div>
             ))}
@@ -218,14 +244,21 @@ export function SettingsPage() {
           </div>
           <p className="text-xs text-gray-400 mb-4">Configure the task hierarchy levels used in the schedule builder. Each level can have resources assigned.</p>
           <div className="space-y-2 mb-3">
-            <div className="grid grid-cols-[auto_1fr_auto_auto] gap-3 text-xs font-medium text-gray-500 px-3 py-1">
-              <span>Level</span> <span>Name</span> <span>Prefix</span> <span>Assign Resources</span>
+            <div className="grid grid-cols-[auto_1fr_auto_auto_auto] gap-3 text-xs font-medium text-gray-500 px-3 py-1">
+              <span>Level</span> <span>Name</span> <span>Prefix</span> <span>Parent</span> <span>Resources</span>
             </div>
             {scheduleLevels.map((l, i) => (
-              <div key={l.level} className="grid grid-cols-[auto_1fr_auto_auto] gap-3 items-center px-3 py-2 rounded-lg bg-gray-50">
+              <div key={l.level} className="grid grid-cols-[auto_1fr_auto_auto_auto] gap-3 items-center px-3 py-2 rounded-lg bg-gray-50">
                 <span className="text-xs font-mono text-gray-400 w-6">L{l.level}</span>
                 <input value={l.name} onChange={e => updateScheduleLevel(i, "name", e.target.value)} className="text-sm border border-gray-200 rounded px-2 py-1 focus:outline-none focus:ring-1 focus:ring-orange-500" />
                 <input value={l.prefix} onChange={e => updateScheduleLevel(i, "prefix", e.target.value)} className="text-sm w-16 border border-gray-200 rounded px-2 py-1 focus:outline-none focus:ring-1 focus:ring-orange-500 font-mono" />
+                <select value={String(l.parentLevel ?? "")} onChange={e => updateScheduleLevel(i, "parentLevel", e.target.value ? Number(e.target.value) : null)}
+                  className="text-xs border border-gray-200 rounded px-1.5 py-1 focus:outline-none focus:ring-1 focus:ring-orange-500">
+                  <option value="">None</option>
+                  {scheduleLevels.slice(0, i).map(pl => (
+                    <option key={pl.level} value={pl.level}>L{pl.level} ({pl.name})</option>
+                  ))}
+                </select>
                 <div className="flex items-center gap-1">
                   <button onClick={() => updateScheduleLevel(i, "canAssignResources", !l.canAssignResources)} className={`text-xs px-2 py-1 rounded font-medium ${l.canAssignResources ? "bg-green-100 text-green-700" : "bg-gray-200 text-gray-500"}`}>{l.canAssignResources ? "Yes" : "No"}</button>
                   <button onClick={() => removeScheduleLevel(i)} className="text-red-400 hover:text-red-600 p-1"><X className="w-3.5 h-3.5" /></button>

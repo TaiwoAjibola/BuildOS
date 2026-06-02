@@ -270,10 +270,10 @@ export function ragLabel(rag: string): string {
 
 // ── Schedule Level Config (default) ─────────────
 export const defaultScheduleLevels: ScheduleLevelConfig[] = [
-  { level: 1, name: "Stage / Phase", prefix: "ST", canAssignResources: true },
-  { level: 2, name: "Summary Task", prefix: "SM", canAssignResources: true },
-  { level: 3, name: "Sub-summary Task", prefix: "SS", canAssignResources: true },
-  { level: 4, name: "Work Package", prefix: "WP", canAssignResources: true },
+  { level: 1, name: "Stage / Phase", prefix: "ST", canAssignResources: true, parentLevel: null },
+  { level: 2, name: "Summary Task", prefix: "SM", canAssignResources: true, parentLevel: 1 },
+  { level: 3, name: "Sub-summary Task", prefix: "SS", canAssignResources: true, parentLevel: 2 },
+  { level: 4, name: "Work Package", prefix: "WP", canAssignResources: true, parentLevel: 3 },
 ];
 
 // ── Weather Config (default) ────────────────────
