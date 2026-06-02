@@ -387,11 +387,11 @@ export function SchedulePage() {
             </div>
 
             <span className="text-xs text-right w-24 flex-shrink-0 font-medium text-gray-600">
-              {project ? fmtCurrency(Math.round(project.budget * task.plannedDuration / projectTasks.reduce((s, t) => s + t.plannedDuration, 0) || 1)) : "—"}
+              {project ? fmtCurrency(Math.round(project.budget * task.plannedDuration / tasks.reduce((s, t) => s + t.plannedDuration, 0) || 1)) : "—"}
             </span>
 
             <span className="text-xs text-right w-24 flex-shrink-0 font-medium text-gray-500">
-              {project ? fmtCurrency(Math.round((project.budget * task.plannedDuration / projectTasks.reduce((s, t) => s + t.plannedDuration, 0) || 1) * task.percentComplete / 100)) : "—"}
+              {project ? fmtCurrency(Math.round((project.budget * task.plannedDuration / tasks.reduce((s, t) => s + t.plannedDuration, 0) || 1) * task.percentComplete / 100)) : "—"}
             </span>
 
             {task.level === 4 && task.vendorId ? (
