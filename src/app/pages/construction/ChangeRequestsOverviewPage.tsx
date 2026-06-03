@@ -1,7 +1,8 @@
 import { useNavigate } from "react-router";
-import { GitCompare, CheckCircle, XCircle, Clock, ChevronRight, Search, DollarSign } from "lucide-react";
+import { GitCompare, CheckCircle, XCircle, Clock, ChevronRight, Search, DollarSign, Download } from "lucide-react";
 import { useState } from "react";
 import { projects, changeRequests, fmtDate, fmtCurrency } from "./mockData";
+import { exportCSV } from "../../utils/exportCSV";
 
 const STATUS_STYLES: Record<string, { bg: string; text: string }> = {
   Proposed: { bg: "#F1F5F9", text: "#475569" },
@@ -62,14 +63,28 @@ export function ChangeRequestsOverviewPage() {
       </div>
 
       <div className="bg-white rounded-lg p-4" style={{ border: "1px solid #E2E8F0" }}>
-        <div className="relative mb-4">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4" style={{ color: "#718096" }} />
-          <input
-            type="text" placeholder="Search change requests..."
-            value={search} onChange={e => setSearch(e.target.value)}
-            className="w-full pl-9 pr-4 py-2 text-sm rounded-lg outline-none"
-            style={{ border: "1px solid #E2E8F0", color: "#1A202C" }}
-          />
+        <div className="flex items-center gap-3 mb-4">
+          <div className="relative flex-1 max-w-sm">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4" style={{ color: "#718096" }} />
+            <input
+              type="text" placeholder="Search change requests..."
+              value={search} onChange={e => setSearch(e.target.value)}
+              className="w-full pl-9 pr-4 py-2 text-sm rounded-lg outline-none"
+              style={{ border: "1px solid #E2E8F0", color: "#1A202C" }}
+            />
+          </div>
+          <button
+            onClick={() => {
+              const rows = filtered.map(cr => {
+                const proj = projects.find(p => p.id === cr.projectId);
+                return [cr.crNumber, proj?.name ?? cr.projectId, cr.changeTypes.join(", "), cr.description, cr.status, fmtCurrency(cr.costImpact), fmtDate(cr.dateRaised)];
+              });
+              exportCSV("change-requests", ["CR ID", "Project", "Type", "Description", "Status", "Cost Impact", "Date"], rows);
+            }}
+            className="flex items-center gap-1.5 px-3 py-2 border border-gray-300 text-gray-600 rounded-md text-sm font-medium hover:bg-gray-50"
+          >
+            <Download className="w-3.5 h-3.5" /> Export CSV
+          </button>
         </div>
 
         <div className="overflow-x-auto">

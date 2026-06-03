@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Save, CheckCircle, Clock, Users, Banknote, Settings2, Mail } from "lucide-react";
+import { Save, CheckCircle, Clock, Users, Banknote, Settings2, Mail, Building2, ArrowRight } from "lucide-react";
 
 interface FieldProps {
   label: string;
@@ -143,6 +143,22 @@ export function HRGeneralSetupPage() {
             <Field label="Notification Email (optional)" value={form.notificationEmail} onChange={f("notificationEmail")} type="text" />
             <Field label="System Sender Email" value={form.senderEmail} onChange={f("senderEmail")} type="text" />
           </div>
+        </div>
+
+        {/* Organizational Structure */}
+        <div className="col-span-2 bg-white rounded-xl border border-gray-200 p-5 space-y-4">
+          <h2 className="text-sm font-semibold text-gray-900 flex items-center gap-2">
+            <Building2 className="w-4 h-4 text-indigo-600" /> Organizational Structure
+          </h2>
+          <p className="text-xs text-gray-500">
+            Configure your organizational hierarchy, including levels (Collegium / Cluster / Crew), supporting structures (Crafts, Circles),
+            and employee assignments. Level names can be customized to match your organization's terminology.
+          </p>
+          <a href="/apps/hr/org-structure"
+            className="inline-flex items-center gap-1.5 px-4 py-2 bg-indigo-600 text-white rounded-md text-sm font-medium hover:bg-indigo-700 transition-colors"
+          >
+            Manage Organizational Structure <ArrowRight className="w-4 h-4" />
+          </a>
         </div>
       </div>
     </div>

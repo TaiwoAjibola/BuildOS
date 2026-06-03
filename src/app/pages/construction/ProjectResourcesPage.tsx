@@ -77,8 +77,14 @@ export function ProjectResourcesPage() {
   const [form, setForm] = useState(emptyVendor);
   const [selectedVendorId, setSelectedVendorId] = useState("");
 
+  // Individual Contractors
+  const [projectContractors, setProjectContractors] = useState<{ id: string; name: string; trade: string; payRate: number; payRateUnit: string; skilledCount: number; unskilledCount: number; mandaysEstimate: number; status: string }[]>([]);
+  const [showAddContractor, setShowAddContractor] = useState(false);
+  const [contractorForm, setContractorForm] = useState({ name: "", trade: "", payRate: 0, payRateUnit: "daily", skilledCount: 0, unskilledCount: 0, mandaysEstimate: 0, status: "Awarded" });
+
   const filteredVendors = vendors.filter(v => !search || v.name.toLowerCase().includes(search.toLowerCase()) || v.trade.toLowerCase().includes(search.toLowerCase()));
   const filteredEmployees = hrEmployees.filter(s => !search || s.firstName.toLowerCase().includes(search.toLowerCase()) || s.lastName.toLowerCase().includes(search.toLowerCase()) || s.role.toLowerCase().includes(search.toLowerCase()));
+  const filteredContractors = projectContractors.filter(c => !search || c.name.toLowerCase().includes(search.toLowerCase()) || c.trade.toLowerCase().includes(search.toLowerCase()));
   const filteredMaterials = stubMaterials.filter(m => !search || m.name.toLowerCase().includes(search.toLowerCase()) || m.category.toLowerCase().includes(search.toLowerCase()));
   const filteredEquipment = stubEquipment.filter(e => !search || e.name.toLowerCase().includes(search.toLowerCase()) || e.category.toLowerCase().includes(search.toLowerCase()));
 
@@ -106,6 +112,21 @@ export function ProjectResourcesPage() {
       const v = allVendors.find(v => v.id === id);
       if (v) setForm({ ...form, name: v.name, trade: v.trade, contractType: v.contractType, isNominated: v.isNominated });
     }
+  }
+
+  function addContractor() {
+    if (!contractorForm.name.trim() || !contractorForm.trade) return;
+    const newContractor = {
+      id: `CTR-${String(projectContractors.length + 1).padStart(3, "0")}`,
+      ...contractorForm,
+    };
+    setProjectContractors(prev => [...prev, newContractor]);
+    setContractorForm({ name: "", trade: "", payRate: 0, payRateUnit: "daily", skilledCount: 0, unskilledCount: 0, mandaysEstimate: 0, status: "Awarded" });
+    setShowAddContractor(false);
+  }
+
+  function removeContractor(id: string) {
+    setProjectContractors(prev => prev.filter(c => c.id !== id));
   }
 
   function exportHumanCSV() {
@@ -262,15 +283,58 @@ export function ProjectResourcesPage() {
 
           {/* Contractors (editable within project) */}
           {humanSubTab === "contractors" && (
-            <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
-              <div className="px-5 py-3 border-b border-gray-100 flex items-center justify-between">
-                <h3 className="text-sm font-semibold text-gray-900">Individual Contractors</h3>
-                <span className="text-[10px] bg-purple-100 text-purple-700 px-2 py-0.5 rounded-full font-medium">Managed in Project</span>
+            <div className="space-y-4">
+              <div className="flex justify-end">
+                <button onClick={() => setShowAddContractor(true)}
+                  className="flex items-center gap-2 px-4 py-2 rounded-lg text-white text-sm font-medium" style={{ backgroundColor: "#E8973A" }}>
+                  <Plus className="w-4 h-4" /> Add Contractor
+                </button>
               </div>
-              <div className="text-center py-10 text-gray-400">
-                <UserCog className="w-8 h-8 mx-auto mb-2 opacity-50" />
-                <p className="text-sm font-medium">No individual contractors yet</p>
-                <p className="text-xs mt-1">Individual contractors can be created and managed within this project</p>
+              <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
+                <div className="px-5 py-3 border-b border-gray-100 flex items-center justify-between">
+                  <h3 className="text-sm font-semibold text-gray-900">Individual Contractors</h3>
+                  <span className="text-[10px] bg-purple-100 text-purple-700 px-2 py-0.5 rounded-full font-medium">Managed in Project</span>
+                </div>
+                {filteredContractors.length > 0 ? (
+                  <table className="w-full text-sm">
+                    <thead className="bg-gray-50 border-b border-gray-200">
+                      <tr>
+                        <th className="px-4 py-2.5 text-left text-xs font-medium text-gray-500 uppercase">Name</th>
+                        <th className="px-4 py-2.5 text-left text-xs font-medium text-gray-500 uppercase">Trade</th>
+                        <th className="px-4 py-2.5 text-right text-xs font-medium text-gray-500 uppercase">Pay Rate</th>
+                        <th className="px-4 py-2.5 text-left text-xs font-medium text-gray-500 uppercase">Rate Unit</th>
+                        <th className="px-4 py-2.5 text-center text-xs font-medium text-gray-500 uppercase">Workers</th>
+                        <th className="px-4 py-2.5 text-right text-xs font-medium text-gray-500 uppercase">Mandays</th>
+                        <th className="px-4 py-2.5 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
+                        <th className="w-16" />
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-gray-100">
+                      {filteredContractors.map(c => (
+                        <tr key={c.id} className="hover:bg-gray-50">
+                          <td className="px-4 py-2.5 font-medium text-gray-900">{c.name}</td>
+                          <td className="px-4 py-2.5 text-gray-600">{c.trade}</td>
+                          <td className="px-4 py-2.5 text-right font-medium text-gray-900">{c.payRate ? fmtCurrency(c.payRate) : "—"}</td>
+                          <td className="px-4 py-2.5 text-gray-500 text-sm">{c.payRateUnit || "—"}</td>
+                          <td className="px-4 py-2.5 text-center text-gray-500">{c.skilledCount}S / {c.unskilledCount}U</td>
+                          <td className="px-4 py-2.5 text-right text-gray-700">{c.mandaysEstimate}</td>
+                          <td className="px-4 py-2.5">
+                            <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${c.status === "Active" ? "bg-green-100 text-green-700" : c.status === "Completed" ? "bg-gray-100 text-gray-600" : "bg-blue-100 text-blue-700"}`}>{c.status}</span>
+                          </td>
+                          <td className="px-4 py-2.5">
+                            <button onClick={() => removeContractor(c.id)} className="p-1 rounded hover:bg-red-50 text-red-400 hover:text-red-600" title="Remove"><X className="w-3.5 h-3.5" /></button>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                ) : (
+                  <div className="text-center py-10 text-gray-400">
+                    <UserCog className="w-8 h-8 mx-auto mb-2 opacity-50" />
+                    <p className="text-sm font-medium">No individual contractors yet</p>
+                    <p className="text-xs mt-1">Add contractors to assign them to project tasks</p>
+                  </div>
+                )}
               </div>
             </div>
           )}
@@ -523,6 +587,82 @@ export function ProjectResourcesPage() {
               <button onClick={() => setShowAddModal(false)} className="px-4 py-2 rounded-lg border text-sm text-gray-600" style={{ borderColor: "#E2E8F0" }}>Cancel</button>
               <button onClick={handleAdd} disabled={!form.name || !form.trade}
                 className="px-4 py-2 rounded-lg text-sm text-white font-medium disabled:opacity-50" style={{ backgroundColor: "#E8973A" }}>Add Vendor</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Add Contractor Modal */}
+      {showAddContractor && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+          <div className="rounded-xl w-full max-w-lg max-h-[90vh] overflow-y-auto" style={{ backgroundColor: "white" }}>
+            <div className="flex items-center justify-between p-5 border-b" style={{ borderColor: "#E2E8F0" }}>
+              <h2 className="text-lg font-bold text-gray-900">Add Individual Contractor</h2>
+              <button onClick={() => setShowAddContractor(false)} className="text-gray-400 hover:text-gray-600 text-xl leading-none">&times;</button>
+            </div>
+            <div className="p-5 space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Full Name</label>
+                <input type="text" value={contractorForm.name} onChange={e => setContractorForm({ ...contractorForm, name: e.target.value })}
+                  className="w-full px-3 py-2 rounded-lg border text-sm" style={{ borderColor: "#E2E8F0", backgroundColor: "#F7F8FA" }}
+                  placeholder="e.g. Babatunde Welder" />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Trade</label>
+                <select value={contractorForm.trade} onChange={e => setContractorForm({ ...contractorForm, trade: e.target.value })}
+                  className="w-full px-3 py-2 rounded-lg border text-sm" style={{ borderColor: "#E2E8F0", backgroundColor: "#F7F8FA" }}>
+                  <option value="">Select trade</option>
+                  {tradeTypes.map(t => <option key={t} value={t}>{t}</option>)}
+                </select>
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Pay Rate (₦)</label>
+                  <input type="number" value={contractorForm.payRate} onChange={e => setContractorForm({ ...contractorForm, payRate: Number(e.target.value) })}
+                    className="w-full px-3 py-2 rounded-lg border text-sm" style={{ borderColor: "#E2E8F0", backgroundColor: "#F7F8FA" }} />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Rate Unit</label>
+                  <select value={contractorForm.payRateUnit} onChange={e => setContractorForm({ ...contractorForm, payRateUnit: e.target.value })}
+                    className="w-full px-3 py-2 rounded-lg border text-sm" style={{ borderColor: "#E2E8F0", backgroundColor: "#F7F8FA" }}>
+                    <option value="daily">Per Day</option>
+                    <option value="weekly">Per Week</option>
+                    <option value="monthly">Per Month</option>
+                    <option value="lump-sum">Lump Sum</option>
+                  </select>
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Skilled Workers</label>
+                  <input type="number" value={contractorForm.skilledCount} onChange={e => setContractorForm({ ...contractorForm, skilledCount: Number(e.target.value) })}
+                    className="w-full px-3 py-2 rounded-lg border text-sm" style={{ borderColor: "#E2E8F0", backgroundColor: "#F7F8FA" }} />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Unskilled Workers</label>
+                  <input type="number" value={contractorForm.unskilledCount} onChange={e => setContractorForm({ ...contractorForm, unskilledCount: Number(e.target.value) })}
+                    className="w-full px-3 py-2 rounded-lg border text-sm" style={{ borderColor: "#E2E8F0", backgroundColor: "#F7F8FA" }} />
+                </div>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Man-days Estimate</label>
+                <input type="number" value={contractorForm.mandaysEstimate} onChange={e => setContractorForm({ ...contractorForm, mandaysEstimate: Number(e.target.value) })}
+                  className="w-full px-3 py-2 rounded-lg border text-sm" style={{ borderColor: "#E2E8F0", backgroundColor: "#F7F8FA" }} />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Status</label>
+                <select value={contractorForm.status} onChange={e => setContractorForm({ ...contractorForm, status: e.target.value })}
+                  className="w-full px-3 py-2 rounded-lg border text-sm" style={{ borderColor: "#E2E8F0", backgroundColor: "#F7F8FA" }}>
+                  <option value="Awarded">Awarded</option>
+                  <option value="Active">Active</option>
+                  <option value="Completed">Completed</option>
+                </select>
+              </div>
+            </div>
+            <div className="flex items-center justify-end gap-3 p-5 border-t" style={{ borderColor: "#E2E8F0" }}>
+              <button onClick={() => setShowAddContractor(false)} className="px-4 py-2 rounded-lg border text-sm text-gray-600" style={{ borderColor: "#E2E8F0" }}>Cancel</button>
+              <button onClick={addContractor} disabled={!contractorForm.name.trim() || !contractorForm.trade}
+                className="px-4 py-2 rounded-lg text-sm text-white font-medium disabled:opacity-50" style={{ backgroundColor: "#E8973A" }}>Add Contractor</button>
             </div>
           </div>
         </div>

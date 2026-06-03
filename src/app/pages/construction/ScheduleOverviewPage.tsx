@@ -1,10 +1,12 @@
 import { useNavigate } from "react-router";
-import { Calendar, ChevronRight, Clock, CheckSquare, AlertTriangle } from "lucide-react";
+import { Calendar, ChevronRight, Clock, CheckSquare, AlertTriangle, Search, Download } from "lucide-react";
 import { useState } from "react";
 import { projects, tasks, fmtDate, ragColor, ragLabel } from "./mockData";
+import { exportCSV } from "../../utils/exportCSV";
 
 export function ScheduleOverviewPage() {
   const navigate = useNavigate();
+  const [search, setSearch] = useState("");
 
   const taskCountsByProject = projects.map(p => {
     const pt = tasks.filter(t => t.projectId === p.id && t.level === 4);
@@ -13,6 +15,11 @@ export function ScheduleOverviewPage() {
     const delayed = pt.filter(t => t.ragStatus === "delayed").length;
     return { project: p, total: pt.length, completed, inProgress, delayed, rag: p.ragStatus };
   });
+
+  const filtered = taskCountsByProject.filter(r =>
+    r.project.name.toLowerCase().includes(search.toLowerCase()) ||
+    r.project.id.toLowerCase().includes(search.toLowerCase())
+  );
 
   const totalWp = taskCountsByProject.reduce((s, r) => s + r.total, 0);
   const totalCompleted = taskCountsByProject.reduce((s, r) => s + r.completed, 0);
@@ -49,6 +56,26 @@ export function ScheduleOverviewPage() {
       </div>
 
       <div className="bg-white rounded-lg overflow-hidden" style={{ border: "1px solid #E2E8F0" }}>
+        <div className="flex items-center gap-3 p-4 pb-0">
+          <div className="relative flex-1 max-w-sm">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4" style={{ color: "#718096" }} />
+            <input
+              type="text" placeholder="Search projects..."
+              value={search} onChange={e => setSearch(e.target.value)}
+              className="w-full pl-9 pr-4 py-2 text-sm rounded-lg outline-none"
+              style={{ border: "1px solid #E2E8F0", color: "#1A202C" }}
+            />
+          </div>
+          <button
+            onClick={() => {
+              const rows = filtered.map(r => [r.project.name, String(r.total), String(r.completed), String(r.inProgress), String(r.delayed), ragLabel(r.rag)]);
+              exportCSV("schedule", ["Project", "Tasks", "Completed", "In Progress", "Delayed", "Overall RAG"], rows);
+            }}
+            className="flex items-center gap-1.5 px-3 py-2 border border-gray-300 text-gray-600 rounded-md text-sm font-medium hover:bg-gray-50"
+          >
+            <Download className="w-3.5 h-3.5" /> Export CSV
+          </button>
+        </div>
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
@@ -63,13 +90,13 @@ export function ScheduleOverviewPage() {
               </tr>
             </thead>
             <tbody>
-              {taskCountsByProject.map((r, i) => {
+              {filtered.map((r, i) => {
                 const ragClass = ragColor(r.rag);
                 return (
                   <tr
                     key={r.project.id}
                     className="cursor-pointer hover:opacity-80 transition-opacity"
-                    style={{ borderBottom: i < taskCountsByProject.length - 1 ? "1px solid #E2E8F0" : "none" }}
+                    style={{ borderBottom: i < filtered.length - 1 ? "1px solid #E2E8F0" : "none" }}
                     onClick={() => navigate(`/apps/construction/projects/${r.project.id}/schedule`)}
                   >
                     <td className="px-4 py-3">
@@ -91,6 +118,9 @@ export function ScheduleOverviewPage() {
                   </tr>
                 );
               })}
+              {filtered.length === 0 && (
+                <tr><td colSpan={7} className="text-center py-8 text-sm" style={{ color: "#718096" }}>No schedule data found</td></tr>
+              )}
             </tbody>
           </table>
         </div>

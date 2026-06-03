@@ -1,7 +1,8 @@
 import { useNavigate } from "react-router";
-import { Users, Briefcase, ChevronRight, Search, Award, Plus, X, ArrowUpDown, Filter, ChevronDown } from "lucide-react";
+import { Users, Briefcase, ChevronRight, Search, Award, Plus, X, ArrowUpDown, Filter, ChevronDown, Download } from "lucide-react";
 import { useMemo, useState } from "react";
 import { projects, stakeholders } from "./mockData";
+import { exportCSV } from "../../utils/exportCSV";
 
 const LEVEL_STYLES: Record<string, { bg: string; text: string }> = {
   High: { bg: "#FDE8E6", text: "#B33A2E" },
@@ -186,6 +187,18 @@ export function StakeholdersOverviewPage() {
               style={{ border: "1px solid #E2E8F0", color: "#1A202C" }}
             />
           </div>
+          <button
+            onClick={() => {
+              const rows = filtered.map(s => {
+                const proj = projects.find(p => p.id === s.projectId);
+                return [s.name, s.organization, proj?.name ?? s.projectId, s.role, s.influenceLevel, s.impactLevel];
+              });
+              exportCSV("stakeholders", ["Name", "Organization", "Project", "Role", "Influence", "Impact"], rows);
+            }}
+            className="flex items-center gap-1.5 px-3 py-2 border border-gray-300 text-gray-600 rounded-md text-sm font-medium hover:bg-gray-50"
+          >
+            <Download className="w-3.5 h-3.5" /> Export CSV
+          </button>
           <button
             onClick={() => setShowFilters(f => !f)}
             className={`flex items-center gap-1.5 px-3 py-2 border rounded-md text-sm transition-colors ${

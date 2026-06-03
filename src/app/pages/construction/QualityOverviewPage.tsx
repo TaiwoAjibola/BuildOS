@@ -1,7 +1,8 @@
 import { useNavigate } from "react-router";
-import { CheckSquare, AlertTriangle, XCircle, ChevronRight, ClipboardList } from "lucide-react";
+import { CheckSquare, AlertTriangle, XCircle, ChevronRight, ClipboardList, Search, Download } from "lucide-react";
 import { useState } from "react";
 import { projects, qualityNCRs, fmtDate } from "./mockData";
+import { exportCSV } from "../../utils/exportCSV";
 
 const STATUS_STYLES: Record<string, { bg: string; text: string }> = {
   Open: { bg: "#FDE8E6", text: "#B33A2E" },
@@ -11,11 +12,17 @@ const STATUS_STYLES: Record<string, { bg: string; text: string }> = {
 
 export function QualityOverviewPage() {
   const navigate = useNavigate();
+  const [search, setSearch] = useState("");
 
   const openNcrs = qualityNCRs.filter(n => n.status === "Open");
   const inProgressNcrs = qualityNCRs.filter(n => n.status === "In Progress");
   const closedNcrs = qualityNCRs.filter(n => n.status === "Closed");
   const complianceRate = qualityNCRs.length > 0 ? Math.round((closedNcrs.length / qualityNCRs.length) * 100) : 100;
+
+  const filtered = qualityNCRs.filter(n =>
+    n.ncrId.toLowerCase().includes(search.toLowerCase()) ||
+    n.description.toLowerCase().includes(search.toLowerCase())
+  );
 
   const stats = [
     { icon: ClipboardList, label: "Total NCRs", value: qualityNCRs.length },
@@ -48,6 +55,29 @@ export function QualityOverviewPage() {
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
         <div className="lg:col-span-2 bg-white rounded-lg overflow-hidden" style={{ border: "1px solid #E2E8F0" }}>
+          <div className="flex items-center gap-3 p-4 pb-0">
+            <div className="relative flex-1 max-w-sm">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4" style={{ color: "#718096" }} />
+              <input
+                type="text" placeholder="Search NCRs..."
+                value={search} onChange={e => setSearch(e.target.value)}
+                className="w-full pl-9 pr-4 py-2 text-sm rounded-lg outline-none"
+                style={{ border: "1px solid #E2E8F0", color: "#1A202C" }}
+              />
+            </div>
+            <button
+              onClick={() => {
+                const rows = filtered.map(n => {
+                  const proj = projects.find(p => p.id === n.projectId);
+                  return [n.ncrId, proj?.name ?? n.projectId, fmtDate(n.date), n.description, n.raisedBy, n.status];
+                });
+                exportCSV("quality", ["NCR ID", "Project", "Date", "Description", "Raised By", "Status"], rows);
+              }}
+              className="flex items-center gap-1.5 px-3 py-2 border border-gray-300 text-gray-600 rounded-md text-sm font-medium hover:bg-gray-50"
+            >
+              <Download className="w-3.5 h-3.5" /> Export CSV
+            </button>
+          </div>
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
@@ -62,14 +92,14 @@ export function QualityOverviewPage() {
                 </tr>
               </thead>
               <tbody>
-                {qualityNCRs.map((ncr, i) => {
+                {filtered.map((ncr, i) => {
                   const project = projects.find(p => p.id === ncr.projectId);
                   const st = STATUS_STYLES[ncr.status] ?? { bg: "#F1F5F9", text: "#475569" };
                   return (
                     <tr
                       key={ncr.id}
                       className="cursor-pointer hover:opacity-80 transition-opacity"
-                      style={{ borderBottom: i < qualityNCRs.length - 1 ? "1px solid #E2E8F0" : "none" }}
+                      style={{ borderBottom: i < filtered.length - 1 ? "1px solid #E2E8F0" : "none" }}
                       onClick={() => navigate(`/apps/construction/projects/${ncr.projectId}/quality`)}
                     >
                       <td className="px-4 py-3 font-medium" style={{ color: "#1A202C" }}>{ncr.ncrId}</td>
@@ -86,7 +116,7 @@ export function QualityOverviewPage() {
                     </tr>
                   );
                 })}
-                {qualityNCRs.length === 0 && (
+                {filtered.length === 0 && (
                   <tr><td colSpan={7} className="text-center py-8 text-sm" style={{ color: "#718096" }}>No NCRs found</td></tr>
                 )}
               </tbody>

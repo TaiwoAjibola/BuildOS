@@ -311,6 +311,7 @@ export const router = createBrowserRouter([
               { path: "leave-requests", Component: LeaveRequestsPage },
               { path: "leave-balances", Component: LeaveBalancesPage },
               { path: "hr-general-setup", Component: HRGeneralSetupPage },
+              { path: "org-structure", lazy: () => import("./pages/hr/OrgStructurePage").then(m => ({ Component: m.OrgStructurePage })) },
               { path: "payroll-periods", Component: PayrollPeriodPage },
               { path: "bank-names", Component: BankNamesPage },
               { path: "leave-type-setup", Component: LeaveTypeSetupPage },

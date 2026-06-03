@@ -1,7 +1,8 @@
 import { useNavigate } from "react-router";
-import { Clock, AlertTriangle, CheckCircle, ChevronRight } from "lucide-react";
+import { Clock, AlertTriangle, CheckCircle, ChevronRight, Search, Download } from "lucide-react";
 import { useState } from "react";
 import { projects, delays, fmtDate } from "./mockData";
+import { exportCSV } from "../../utils/exportCSV";
 
 const STATUS_STYLES: Record<string, { bg: string; text: string }> = {
   Open: { bg: "#FDE8E6", text: "#B33A2E" },
@@ -11,10 +12,16 @@ const STATUS_STYLES: Record<string, { bg: string; text: string }> = {
 
 export function DelaysOverviewPage() {
   const navigate = useNavigate();
+  const [search, setSearch] = useState("");
 
   const open = delays.filter(d => d.status === "Open");
   const recovery = delays.filter(d => d.status === "Recovery Underway");
   const resolved = delays.filter(d => d.status === "Resolved");
+
+  const filtered = delays.filter(d =>
+    d.taskName.toLowerCase().includes(search.toLowerCase()) ||
+    d.rootCause.toLowerCase().includes(search.toLowerCase())
+  );
 
   const stats = [
     { icon: Clock, label: "Total Delays", value: delays.length },
@@ -46,6 +53,29 @@ export function DelaysOverviewPage() {
       </div>
 
       <div className="bg-white rounded-lg overflow-hidden" style={{ border: "1px solid #E2E8F0" }}>
+        <div className="flex items-center gap-3 p-4 pb-0">
+          <div className="relative flex-1 max-w-sm">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4" style={{ color: "#718096" }} />
+            <input
+              type="text" placeholder="Search delays..."
+              value={search} onChange={e => setSearch(e.target.value)}
+              className="w-full pl-9 pr-4 py-2 text-sm rounded-lg outline-none"
+              style={{ border: "1px solid #E2E8F0", color: "#1A202C" }}
+            />
+          </div>
+          <button
+            onClick={() => {
+              const rows = filtered.map(d => {
+                const proj = projects.find(p => p.id === d.projectId);
+                return [d.taskName, proj?.name ?? d.projectId, d.stagePhase, fmtDate(d.plannedEndDate), String(d.daysDelayed), d.rootCause, d.status];
+              });
+              exportCSV("delays", ["Task", "Project", "Stage", "Planned End", "Days Delayed", "Root Cause", "Status"], rows);
+            }}
+            className="flex items-center gap-1.5 px-3 py-2 border border-gray-300 text-gray-600 rounded-md text-sm font-medium hover:bg-gray-50"
+          >
+            <Download className="w-3.5 h-3.5" /> Export CSV
+          </button>
+        </div>
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
@@ -61,14 +91,14 @@ export function DelaysOverviewPage() {
               </tr>
             </thead>
             <tbody>
-              {delays.map((delay, i) => {
+              {filtered.map((delay, i) => {
                 const project = projects.find(p => p.id === delay.projectId);
                 const st = STATUS_STYLES[delay.status] ?? { bg: "#F1F5F9", text: "#475569" };
                 return (
                   <tr
                     key={delay.id}
                     className="cursor-pointer hover:opacity-80 transition-opacity"
-                    style={{ borderBottom: i < delays.length - 1 ? "1px solid #E2E8F0" : "none" }}
+                    style={{ borderBottom: i < filtered.length - 1 ? "1px solid #E2E8F0" : "none" }}
                     onClick={() => navigate(`/apps/construction/projects/${delay.projectId}/delays`)}
                   >
                     <td className="px-4 py-3 font-medium" style={{ color: "#1A202C" }}>{delay.taskName}</td>
@@ -86,7 +116,7 @@ export function DelaysOverviewPage() {
                   </tr>
                 );
               })}
-              {delays.length === 0 && (
+              {filtered.length === 0 && (
                 <tr><td colSpan={8} className="text-center py-8 text-sm" style={{ color: "#718096" }}>No delays found</td></tr>
               )}
             </tbody>

@@ -1,7 +1,8 @@
 import { useNavigate } from "react-router";
-import { ShieldCheck, AlertTriangle, Users, BookOpen, ChevronRight, Award } from "lucide-react";
+import { ShieldCheck, AlertTriangle, Users, BookOpen, ChevronRight, Award, Search, Download } from "lucide-react";
 import { useState } from "react";
 import { projects, hseMatrix, fmtDate } from "./mockData";
+import { exportCSV } from "../../utils/exportCSV";
 
 const STATUS_STYLES: Record<string, { bg: string; text: string }> = {
   Valid: { bg: "#E8F8EF", text: "#1B7A43" },
@@ -16,10 +17,16 @@ const INCIDENTS_MOCK = [
 
 export function HSEOverviewPage() {
   const navigate = useNavigate();
+  const [search, setSearch] = useState("");
 
   const valid = hseMatrix.filter(h => h.status === "Valid");
   const expiringSoon = hseMatrix.filter(h => h.status === "Expiring Soon");
   const expired = hseMatrix.filter(h => h.status === "Expired");
+
+  const filtered = hseMatrix.filter(h =>
+    h.staffMember.toLowerCase().includes(search.toLowerCase()) ||
+    h.competency.toLowerCase().includes(search.toLowerCase())
+  );
 
   const stats = [
     { icon: ShieldCheck, label: "Competency Records", value: hseMatrix.length },
@@ -52,6 +59,29 @@ export function HSEOverviewPage() {
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
         <div className="lg:col-span-2 bg-white rounded-lg overflow-hidden" style={{ border: "1px solid #E2E8F0" }}>
+          <div className="flex items-center gap-3 p-4 pb-0">
+            <div className="relative flex-1 max-w-sm">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4" style={{ color: "#718096" }} />
+              <input
+                type="text" placeholder="Search HSE records..."
+                value={search} onChange={e => setSearch(e.target.value)}
+                className="w-full pl-9 pr-4 py-2 text-sm rounded-lg outline-none"
+                style={{ border: "1px solid #E2E8F0", color: "#1A202C" }}
+              />
+            </div>
+            <button
+              onClick={() => {
+                const rows = filtered.map(h => {
+                  const proj = projects.find(p => p.id === h.projectId);
+                  return [h.staffMember, h.competency, proj?.name ?? h.projectId, fmtDate(h.dateObtained), fmtDate(h.expiryDate), h.status];
+                });
+                exportCSV("hse", ["Staff", "Competency", "Project", "Date Obtained", "Expiry", "Status"], rows);
+              }}
+              className="flex items-center gap-1.5 px-3 py-2 border border-gray-300 text-gray-600 rounded-md text-sm font-medium hover:bg-gray-50"
+            >
+              <Download className="w-3.5 h-3.5" /> Export CSV
+            </button>
+          </div>
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
@@ -66,14 +96,14 @@ export function HSEOverviewPage() {
                 </tr>
               </thead>
               <tbody>
-                {hseMatrix.map((hse, i) => {
+                {filtered.map((hse, i) => {
                   const project = projects.find(p => p.id === hse.projectId);
                   const st = STATUS_STYLES[hse.status] ?? { bg: "#F1F5F9", text: "#475569" };
                   return (
                     <tr
                       key={hse.id}
                       className="cursor-pointer hover:opacity-80 transition-opacity"
-                      style={{ borderBottom: i < hseMatrix.length - 1 ? "1px solid #E2E8F0" : "none" }}
+                      style={{ borderBottom: i < filtered.length - 1 ? "1px solid #E2E8F0" : "none" }}
                       onClick={() => navigate(`/apps/construction/projects/${hse.projectId}/hse`)}
                     >
                       <td className="px-4 py-3 font-medium" style={{ color: "#1A202C" }}>{hse.staffMember}</td>
@@ -90,7 +120,7 @@ export function HSEOverviewPage() {
                     </tr>
                   );
                 })}
-                {hseMatrix.length === 0 && (
+                {filtered.length === 0 && (
                   <tr><td colSpan={7} className="text-center py-8 text-sm" style={{ color: "#718096" }}>No HSE records found</td></tr>
                 )}
               </tbody>

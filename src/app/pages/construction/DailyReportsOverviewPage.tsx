@@ -1,7 +1,8 @@
 import { useNavigate } from "react-router";
-import { FileText, Sun, Cloud, CloudDrizzle, CloudRain, Eye, ChevronRight, ArrowUpDown } from "lucide-react";
+import { FileText, Sun, Cloud, CloudDrizzle, CloudRain, Eye, ChevronRight, ArrowUpDown, Search, Download } from "lucide-react";
 import { useMemo, useState } from "react";
 import { projects, dailyReports, fmtDate } from "./mockData";
+import { exportCSV } from "../../utils/exportCSV";
 
 const WEATHER_ICON: Record<string, typeof Sun> = { Sunny: Sun, Cloudy: Cloud, Drizzle: CloudDrizzle, Rainy: CloudRain };
 const STATUS_STYLES: Record<string, { bg: string; text: string }> = {
@@ -11,6 +12,7 @@ const STATUS_STYLES: Record<string, { bg: string; text: string }> = {
 
 export function DailyReportsOverviewPage() {
   const navigate = useNavigate();
+  const [search, setSearch] = useState("");
   const [sortField, setSortField] = useState<string | null>(null);
   const [sortDir, setSortDir] = useState<"asc" | "desc">("asc");
 
@@ -32,6 +34,14 @@ export function DailyReportsOverviewPage() {
 
   const sorted = useMemo(() => {
     let list = [...dailyReports];
+    if (search) {
+      const q = search.toLowerCase();
+      list = list.filter(r =>
+        r.submittedBy.toLowerCase().includes(q) ||
+        projects.find(p => p.id === r.projectId)?.name.toLowerCase().includes(q) ||
+        r.weather.toLowerCase().includes(q)
+      );
+    }
     if (sortField) {
       list.sort((a, b) => {
         let va: string | number, vb: string | number;
@@ -48,7 +58,7 @@ export function DailyReportsOverviewPage() {
       list.sort((a, b) => new Date(b.reportDate).getTime() - new Date(a.reportDate).getTime());
     }
     return list;
-  }, [sortField, sortDir]);
+  }, [search, sortField, sortDir]);
 
   return (
     <div style={{ backgroundColor: "#F7F8FA" }} className="min-h-screen p-6 space-y-6">
@@ -73,6 +83,29 @@ export function DailyReportsOverviewPage() {
       </div>
 
       <div className="bg-white rounded-lg overflow-hidden" style={{ border: "1px solid #E2E8F0" }}>
+        <div className="flex items-center gap-3 p-4 pb-0">
+          <div className="relative flex-1 max-w-sm">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4" style={{ color: "#718096" }} />
+            <input
+              type="text" placeholder="Search reports..."
+              value={search} onChange={e => setSearch(e.target.value)}
+              className="w-full pl-9 pr-4 py-2 text-sm rounded-lg outline-none"
+              style={{ border: "1px solid #E2E8F0", color: "#1A202C" }}
+            />
+          </div>
+          <button
+            onClick={() => {
+              const rows = sorted.map(r => {
+                const proj = projects.find(p => p.id === r.projectId);
+                return [proj?.name ?? r.projectId, fmtDate(r.reportDate), r.weather, r.submittedBy, r.status];
+              });
+              exportCSV("daily-reports", ["Project", "Date", "Weather", "Submitted By", "Status"], rows);
+            }}
+            className="flex items-center gap-1.5 px-3 py-2 border border-gray-300 text-gray-600 rounded-md text-sm font-medium hover:bg-gray-50"
+          >
+            <Download className="w-3.5 h-3.5" /> Export CSV
+          </button>
+        </div>
         <div className="overflow-x-auto">
               <table className="w-full text-sm">
                 <thead>
