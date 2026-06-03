@@ -1,7 +1,8 @@
 import { useParams } from "react-router";
 import { useState, useMemo } from "react";
-import { Users, Briefcase, Plus, Search, Mail, Phone, Calendar, User, MessageSquare, FileText, X, Building, Shield, UserCircle } from "lucide-react";
+import { Users, Briefcase, Plus, Search, Mail, Phone, Calendar, User, MessageSquare, FileText, X, Building, Shield, UserCircle, Download } from "lucide-react";
 import { getProjectById, stakeholders, fmtDate } from "./mockData";
+import { exportCSV } from "../../utils/exportCSV";
 
 interface CommPlanEntry {
   id: string; stakeholderId: string; stakeholderName: string;
@@ -197,6 +198,12 @@ export function StakeholdersPage() {
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-400" />
               <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search stakeholders..." className="pl-9 pr-4 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-orange-500 w-64" />
             </div>
+            <button onClick={() => {
+              const rows = localStakeholders.map(sh => [sh.name, sh.organization, sh.role, sh.influenceLevel, sh.impactLevel, sh.notes || ""]);
+              exportCSV("stakeholders-register", ["Name", "Organization", "Role", "Influence", "Impact", "Notes"], rows);
+            }} className="flex items-center gap-1.5 px-3 py-2 border border-gray-300 text-gray-600 rounded-md text-sm font-medium hover:bg-gray-50">
+              <Download className="w-3.5 h-3.5" /> Export
+            </button>
             <button onClick={() => setShowAddStakeholder(true)} className="flex items-center gap-1.5 px-3 py-2 bg-orange-600 text-white rounded-md text-sm font-medium hover:bg-orange-700">
               <Plus className="w-3.5 h-3.5" /> Add Stakeholder
             </button>
@@ -256,7 +263,13 @@ export function StakeholdersPage() {
       {/* Communication Plan */}
       {activeTab === "comm-plan" && (
         <div className="space-y-4">
-          <div className="flex justify-end">
+          <div className="flex justify-end gap-2">
+            <button onClick={() => {
+              const rows = commPlans.map(cp => [cp.stakeholderName, cp.commType, cp.frequency, cp.responsible, cp.method]);
+              exportCSV("communication-plan", ["Stakeholder", "Type", "Frequency", "Responsible", "Method"], rows);
+            }} className="flex items-center gap-1.5 px-3 py-2 border border-gray-300 text-gray-600 rounded-md text-sm font-medium hover:bg-gray-50">
+              <Download className="w-3.5 h-3.5" /> Export
+            </button>
             <button onClick={() => setShowLogCommunication(true)} className="flex items-center gap-1.5 px-3 py-2 bg-orange-600 text-white rounded-md text-sm font-medium hover:bg-orange-700">
               <MessageSquare className="w-3.5 h-3.5" /> Log Communication
             </button>
@@ -296,7 +309,13 @@ export function StakeholdersPage() {
       {/* Engagement Log */}
       {activeTab === "engagement" && (
         <div className="space-y-4">
-          <div className="flex justify-end">
+          <div className="flex justify-end gap-2">
+            <button onClick={() => {
+              const rows = engagementLog.map(el => [fmtDate(el.date), el.stakeholderName, el.commType, el.summary, el.outcome, el.followup]);
+              exportCSV("engagement-log", ["Date", "Stakeholder", "Type", "Summary", "Outcome", "Follow-up"], rows);
+            }} className="flex items-center gap-1.5 px-3 py-2 border border-gray-300 text-gray-600 rounded-md text-sm font-medium hover:bg-gray-50">
+              <Download className="w-3.5 h-3.5" /> Export
+            </button>
             <button onClick={() => setShowAddEngagement(true)} className="flex items-center gap-1.5 px-3 py-2 bg-orange-600 text-white rounded-md text-sm font-medium hover:bg-orange-700">
               <Plus className="w-3.5 h-3.5" /> Log Engagement
             </button>
@@ -335,7 +354,13 @@ export function StakeholdersPage() {
       {/* Visitor Log */}
       {activeTab === "visitor" && (
         <div className="space-y-4">
-          <div className="flex justify-end">
+          <div className="flex justify-end gap-2">
+            <button onClick={() => {
+              const rows = visitorLog.map(v => [v.name, v.organization, v.purpose, fmtDate(v.date), v.host, v.badgeNumber || ""]);
+              exportCSV("visitor-log", ["Name", "Organization", "Purpose", "Date", "Host", "Badge"], rows);
+            }} className="flex items-center gap-1.5 px-3 py-2 border border-gray-300 text-gray-600 rounded-md text-sm font-medium hover:bg-gray-50">
+              <Download className="w-3.5 h-3.5" /> Export
+            </button>
             <button onClick={() => setShowAddVisitor(true)} className="flex items-center gap-1.5 px-3 py-2 bg-orange-600 text-white rounded-md text-sm font-medium hover:bg-orange-700">
               <Plus className="w-3.5 h-3.5" /> Log Visitor
             </button>

@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Settings, Save, Plus, Trash2, ToggleLeft, ToggleRight, X, Check, Tags, Layers, Sun, Truck, Building2 } from "lucide-react";
+import { Settings, Save, Plus, Trash2, ToggleLeft, ToggleRight, X, Check, Tags, Layers, Sun, Truck, Building2, Users, Package } from "lucide-react";
 import type { Sector, ScheduleLevelConfig, WeatherConfig } from "./types";
 import { defaultScheduleLevels, defaultWeatherConfig, defaultProjectTypes } from "./mockData";
 
@@ -10,9 +10,6 @@ const defaultTradeTypes = [
   "Painting", "Glazing / aluminum works", "General operations / laboring",
   "Equipment operation", "Scaffolding", "Welding",
 ];
-const humanSourceTypes = ["employee", "individual-contractor", "vendor"];
-const materialCategories = ["Aggregates", "Concrete", "Formwork", "Reinforcement", "Structural Steel", "Finishing", "Plumbing", "Electrical", "Other"];
-const equipmentCategories = ["Earthwork", "Lifting", "Concreting", "Transportation", "Drilling & Piling", "Formwork & Scaffolding", "Power Generation", "Light Tools"];
 
 interface ReportSetting { id: string; key: string; label: string; enabled: boolean; }
 
@@ -35,6 +32,8 @@ export function SettingsPage() {
   const [saved, setSaved] = useState(false);
 
   // Schedule levels
+
+  // Schedule levels
   const [scheduleLevels, setScheduleLevels] = useState<ScheduleLevelConfig[]>(defaultScheduleLevels);
 
   // Weather config
@@ -46,13 +45,6 @@ export function SettingsPage() {
   const [newSector, setNewSector] = useState("");
   const [newCategory, setNewCategory] = useState("");
   const [newDescriptor, setNewDescriptor] = useState("");
-
-  // Resource categories
-  const [humanSources] = useState<string[]>(humanSourceTypes);
-  const [matCategories, setMatCategories] = useState<string[]>(materialCategories);
-  const [equipCategories, setEquipCategories] = useState<string[]>(equipmentCategories);
-  const [newMatCat, setNewMatCat] = useState("");
-  const [newEquipCat, setNewEquipCat] = useState("");
 
   function handleSave() {
     setIsSaving(true);
@@ -144,26 +136,6 @@ export function SettingsPage() {
 
   function removeCategory(sector: string, cat: string) {
     setProjectTypes(prev => prev.map(pt => pt.sector === sector ? { ...pt, categories: pt.categories.filter(c => c !== cat) } : pt));
-  }
-
-  function addMatCat() {
-    if (!newMatCat.trim() || matCategories.includes(newMatCat.trim())) return;
-    setMatCategories(prev => [...prev, newMatCat.trim()]);
-    setNewMatCat("");
-  }
-
-  function removeMatCat(c: string) {
-    setMatCategories(prev => prev.filter(x => x !== c));
-  }
-
-  function addEquipCat() {
-    if (!newEquipCat.trim() || equipCategories.includes(newEquipCat.trim())) return;
-    setEquipCategories(prev => [...prev, newEquipCat.trim()]);
-    setNewEquipCat("");
-  }
-
-  function removeEquipCat(c: string) {
-    setEquipCategories(prev => prev.filter(x => x !== c));
   }
 
   return (
@@ -292,51 +264,56 @@ export function SettingsPage() {
           </div>
         </div>
 
-        {/* ─── Resource Categories ─── */}
+        {/* ─── Resource Categories (Managed Elsewhere) ─── */}
         <div className="bg-white rounded-lg border border-gray-200 p-5">
-          <div className="flex items-center gap-2 mb-3">
+          <div className="flex items-center gap-2 mb-1">
             <Truck className="w-4 h-4 text-gray-400" />
-            <h3 className="text-sm font-semibold text-gray-900">Resource Categories</h3>
+            <h3 className="text-sm font-semibold text-gray-900">Resource Classification</h3>
           </div>
-
-          <div className="grid grid-cols-3 gap-4">
-            <div>
-              <p className="text-xs font-semibold text-gray-600 mb-2">Human Source Types</p>
-              <div className="flex flex-wrap gap-1.5">
-                {humanSources.map(s => (
-                  <span key={s} className="text-xs bg-purple-50 text-purple-700 px-2 py-0.5 rounded-full">{s}</span>
-                ))}
+          <p className="text-xs text-gray-400 mb-4">Resource categories are managed in their respective modules to ensure single-source-of-truth.</p>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="rounded-lg border border-purple-200 bg-purple-50/30 p-4">
+              <div className="flex items-center gap-2 mb-3">
+                <Users className="w-4 h-4 text-purple-600" />
+                <h4 className="text-sm font-semibold text-purple-900">Human Resources</h4>
               </div>
+              <p className="text-xs text-purple-700 mb-3">Managed in HR Module</p>
+              <div className="space-y-1.5 text-xs text-gray-600">
+                <p><span className="font-medium">Employee Types:</span> Full-time, Contract, Intern, Part-time</p>
+                <p><span className="font-medium">Staff Categories:</span> Management, Supervisory, Skilled, Unskilled</p>
+                <p><span className="font-medium">Trade Types:</span> Configured below in Trade Types section</p>
+              </div>
+              <a href="/apps/hr/hr-general-setup" className="inline-flex items-center gap-1 mt-3 text-xs font-medium text-purple-700 hover:text-purple-900">
+                Manage in HR Module →
+              </a>
             </div>
-            <div>
-              <p className="text-xs font-semibold text-gray-600 mb-2">Material Categories</p>
-              <div className="flex flex-wrap gap-1.5 mb-2">
-                {matCategories.map(c => (
-                  <span key={c} className="inline-flex items-center gap-1 text-xs bg-green-50 text-green-700 px-2 py-0.5 rounded-full">
-                    {c}
-                    <button onClick={() => removeMatCat(c)} className="hover:text-red-600"><X className="w-3 h-3" /></button>
-                  </span>
-                ))}
+            <div className="rounded-lg border border-green-200 bg-green-50/30 p-4">
+              <div className="flex items-center gap-2 mb-3">
+                <Package className="w-4 h-4 text-green-600" />
+                <h4 className="text-sm font-semibold text-green-900">Materials</h4>
               </div>
-              <div className="flex items-center gap-1">
-                <input value={newMatCat} onChange={e => setNewMatCat(e.target.value)} placeholder="Add..." className="flex-1 border border-gray-300 rounded px-2 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-orange-500" />
-                <button onClick={addMatCat} disabled={!newMatCat.trim()} className="text-xs px-2 py-1 bg-orange-600 text-white rounded hover:bg-orange-700 disabled:opacity-40"><Plus className="w-3 h-3" /></button>
+              <p className="text-xs text-green-700 mb-3">Managed in Procurement Module</p>
+              <div className="space-y-1.5 text-xs text-gray-600">
+                <p><span className="font-medium">Categories:</span> Aggregates, Concrete, Reinforcement, Structural Steel, Finishing, Plumbing, Electrical, Roofing, Formwork, Other</p>
+                <p><span className="font-medium">Units of Measure:</span> Configured in Admin settings</p>
               </div>
+              <a href="/apps/procurement" className="inline-flex items-center gap-1 mt-3 text-xs font-medium text-green-700 hover:text-green-900">
+                Manage in Procurement Module →
+              </a>
             </div>
-            <div>
-              <p className="text-xs font-semibold text-gray-600 mb-2">Equipment Categories</p>
-              <div className="flex flex-wrap gap-1.5 mb-2">
-                {equipCategories.map(c => (
-                  <span key={c} className="inline-flex items-center gap-1 text-xs bg-blue-50 text-blue-700 px-2 py-0.5 rounded-full">
-                    {c}
-                    <button onClick={() => removeEquipCat(c)} className="hover:text-red-600"><X className="w-3 h-3" /></button>
-                  </span>
-                ))}
+            <div className="rounded-lg border border-blue-200 bg-blue-50/30 p-4">
+              <div className="flex items-center gap-2 mb-3">
+                <Truck className="w-4 h-4 text-blue-600" />
+                <h4 className="text-sm font-semibold text-blue-900">Equipment</h4>
               </div>
-              <div className="flex items-center gap-1">
-                <input value={newEquipCat} onChange={e => setNewEquipCat(e.target.value)} placeholder="Add..." className="flex-1 border border-gray-300 rounded px-2 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-orange-500" />
-                <button onClick={addEquipCat} disabled={!newEquipCat.trim()} className="text-xs px-2 py-1 bg-orange-600 text-white rounded hover:bg-orange-700 disabled:opacity-40"><Plus className="w-3 h-3" /></button>
+              <p className="text-xs text-blue-700 mb-3">Managed in Procurement Module</p>
+              <div className="space-y-1.5 text-xs text-gray-600">
+                <p><span className="font-medium">Categories:</span> Earthwork, Lifting, Concreting, Transportation, Drilling & Piling, Formwork & Scaffolding, Power Generation, Light Tools</p>
+                <p><span className="font-medium">Ownership Types:</span> Company-owned, Rented, Client-supplied</p>
               </div>
+              <a href="/apps/procurement" className="inline-flex items-center gap-1 mt-3 text-xs font-medium text-blue-700 hover:text-blue-900">
+                Manage in Procurement Module →
+              </a>
             </div>
           </div>
         </div>
