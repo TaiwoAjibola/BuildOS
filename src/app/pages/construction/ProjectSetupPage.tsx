@@ -4,7 +4,6 @@ import {
   CheckCircle, Circle, ArrowRight, ArrowLeft, Lock, Calendar,
   Building2, Users, Layers, FileText, Plus, X, Trash2, ChevronRight, ChevronDown, Tags, Download, Upload
 } from "lucide-react";
-import * as XLSX from "xlsx";
 import { getProjectById, staffList, tradeTypes, clusters, tasks as allTasks, fmtDate, vendors as allVendors, defaultScheduleLevels, hrEmployees, materialInventory, equipmentInventory } from "./mockData";
 import type { Task, Vendor, ProjectCalendar, Sector, ProjectStructureItem, ScheduleLevelConfig, HumanResource, HumanResourceSource, MaterialResource, EquipmentResource, ResourceAssignment } from "./types";
 import { SECTOR_CATEGORIES, getBlockLabel, getStructureConfig, DEFAULT_WBS_LEVELS } from "./types";
@@ -286,7 +285,8 @@ export function ProjectSetupPage() {
 
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const downloadExcelTemplate = () => {
+  const downloadExcelTemplate = async () => {
+    const XLSX = await import("xlsx");
     const wb = XLSX.utils.book_new();
     const data = [
       ["Level", "Task Name", "Parent Task ID", "Planned Start", "Planned End"],
@@ -306,8 +306,9 @@ export function ProjectSetupPage() {
     const file = e.target.files?.[0];
     if (!file) return;
     const reader = new FileReader();
-    reader.onload = (evt) => {
+    reader.onload = async (evt) => {
       try {
+        const XLSX = await import("xlsx");
         const data = new Uint8Array(evt.target?.result as ArrayBuffer);
         const wb = XLSX.read(data, { type: "array" });
         const ws = wb.Sheets[wb.SheetNames[0]];
