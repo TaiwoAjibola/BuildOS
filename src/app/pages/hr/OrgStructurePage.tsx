@@ -1,5 +1,6 @@
 import { useState } from "react";
-import { Plus, X, Edit3, Save, CheckCircle, Building2, Users, Layers, Archive, Shield, BookOpen, UserPlus } from "lucide-react";
+import { useHRConfig, type OrgLevelConfig } from "../../stores/hrConfigStore";
+import { Plus, X, Edit3, Save, CheckCircle, Building2, Users, Layers, Archive, Shield, BookOpen, UserPlus, ArrowUp, ArrowDown, FileText, Check } from "lucide-react";
 
 interface OrgLevel {
   id: string; name: string; description: string; members: number; archived: boolean;
@@ -8,9 +9,56 @@ interface SupportingStructure {
   id: string; name: string; type: "craft" | "circle"; description: string; members: number;
 }
 
+interface StructureTemplate {
+  id: string; name: string; description: string; levels: { name: string; description: string }[];
+}
+
+const TEMPLATES: StructureTemplate[] = [
+  {
+    id: "collegium",
+    name: "Collegium / Cluster / Crew",
+    description: "Current company structure with executive leadership, operational management, and execution teams",
+    levels: [
+      { name: "Collegium", description: "Executive leadership body overseeing strategy and governance" },
+      { name: "Cluster", description: "Operational management level managing related projects and regions" },
+      { name: "Crew", description: "Execution-level teams performing project work" },
+    ],
+  },
+  {
+    id: "division",
+    name: "Division / Department / Team",
+    description: "Traditional corporate organizational structure",
+    levels: [
+      { name: "Division", description: "Major business unit or functional area" },
+      { name: "Department", description: "Specialized functional group within a division" },
+      { name: "Team", description: "Smaller working group within a department" },
+    ],
+  },
+  {
+    id: "region",
+    name: "Region / Branch / Unit",
+    description: "Multi-location or distributed organizational structure",
+    levels: [
+      { name: "Region", description: "Geographic or operational region" },
+      { name: "Branch", description: "Local branch or office within a region" },
+      { name: "Unit", description: "Specific operational unit within a branch" },
+    ],
+  },
+];
+
 export function OrgStructurePage() {
+  const { orgLevels, setOrgLevels } = useHRConfig();
   const [saved, setSaved] = useState(false);
-  const [levelNames, setLevelNames] = useState({ l1: "Collegium", l2: "Cluster", l3: "Crew" });
+  const [activeTemplate, setActiveTemplate] = useState<string>(TEMPLATES[0].id);
+  const [customTemplate, setCustomTemplate] = useState<StructureTemplate | null>(null);
+
+  const currentTemplate = customTemplate ?? TEMPLATES.find(t => t.id === activeTemplate)!;
+  const levelNames = {
+    l1: currentTemplate.levels[0]?.name ?? "Level 1",
+    l2: currentTemplate.levels[1]?.name ?? "Level 2",
+    l3: currentTemplate.levels[2]?.name ?? "Level 3",
+  };
+  const allLevels = currentTemplate.levels;
 
   const [collegiums, setCollegiums] = useState<OrgLevel[]>([
     { id: "col-1", name: "Executive Collegium", description: "Strategic leadership and governance", members: 7, archived: false },
@@ -27,6 +75,8 @@ export function OrgStructurePage() {
     { id: "cr-3", name: "MEP Crew", description: "Mechanical, electrical, plumbing", members: 6, archived: false },
   ]);
 
+  const allOrgItems = [collegiums, clusters, crews];
+
   const [crafts, setCrafts] = useState<SupportingStructure[]>([
     { id: "sk-1", name: "Engineering", type: "craft", description: "Civil, structural, MEP engineers", members: 34 },
     { id: "sk-2", name: "Quantity Surveying", type: "craft", description: "Cost management and estimation", members: 18 },
@@ -39,32 +89,81 @@ export function OrgStructurePage() {
 
   const [newOrgName, setNewOrgName] = useState("");
   const [newOrgDesc, setNewOrgDesc] = useState("");
-  const [addingTo, setAddingTo] = useState<"collegium" | "cluster" | "crew" | null>(null);
+  const [addingTo, setAddingTo] = useState<number | null>(null);
 
   const [newCraftName, setNewCraftName] = useState("");
   const [newCraftDesc, setNewCraftDesc] = useState("");
   const [newCircleName, setNewCircleName] = useState("");
   const [newCircleDesc, setNewCircleDesc] = useState("");
 
-  const [editLevel, setEditLevel] = useState<"l1" | "l2" | "l3" | null>(null);
-  const [editLevelVal, setEditLevelVal] = useState("");
+  const [showCustomModal, setShowCustomModal] = useState(false);
+  const [customLevels, setCustomLevels] = useState<{ name: string; description: string }[]>([]);
+  const [newCustomLevelName, setNewCustomLevelName] = useState("");
+  const [newCustomLevelDesc, setNewCustomLevelDesc] = useState("");
 
-  function save() { setSaved(true); setTimeout(() => setSaved(false), 3000); }
-
-  function addOrgLevel(type: "collegium" | "cluster" | "crew") {
-    if (!newOrgName.trim()) return;
-    const item: OrgLevel = { id: `${type}-${Date.now()}`, name: newOrgName.trim(), description: newOrgDesc.trim(), members: 0, archived: false };
-    if (type === "collegium") setCollegiums(p => [...p, item]);
-    else if (type === "cluster") setClusters(p => [...p, item]);
-    else setCrews(p => [...p, item]);
-    setNewOrgName(""); setNewOrgDesc(""); setAddingTo(null);
+  function save() {
+    setSaved(true);
+    setTimeout(() => setSaved(false), 3000);
   }
 
-  function archiveOrg(type: "collegium" | "cluster" | "crew", id: string) {
+  function applyTemplate(t: StructureTemplate) {
+    setActiveTemplate(t.id);
+    setCustomTemplate(null);
+    setOrgLevels(t.levels);
+  }
+
+  function startCustomTemplate() {
+    setCustomLevels([...allLevels]);
+    setShowCustomModal(true);
+  }
+
+  function applyCustomTemplate() {
+    const levels = customLevels.length > 0 ? customLevels : [{ name: "Level 1", description: "Top level" }];
+    setCustomTemplate({
+      id: "custom",
+      name: "Custom Structure",
+      description: "User-defined organizational structure",
+      levels,
+    });
+    setOrgLevels(levels);
+    setShowCustomModal(false);
+  }
+
+  function addCustomLevel() {
+    if (!newCustomLevelName.trim()) return;
+    setCustomLevels(prev => [...prev, { name: newCustomLevelName.trim(), description: newCustomLevelDesc.trim() }]);
+    setNewCustomLevelName("");
+    setNewCustomLevelDesc("");
+  }
+
+  function moveCustomLevel(idx: number, dir: "up" | "down") {
+    const target = dir === "up" ? idx - 1 : idx + 1;
+    if (target < 0 || target >= customLevels.length) return;
+    setCustomLevels(prev => {
+      const next = [...prev];
+      [next[idx], next[target]] = [next[target], next[idx]];
+      return next;
+    });
+  }
+
+  function removeCustomLevel(idx: number) {
+    setCustomLevels(prev => prev.filter((_, i) => i !== idx));
+  }
+
+  function addOrgLevel(levelIdx: number) {
+    if (!newOrgName.trim()) return;
+    const setters = [setCollegiums, setClusters, setCrews];
+    const item: OrgLevel = { id: `lvl-${levelIdx}-${Date.now()}`, name: newOrgName.trim(), description: newOrgDesc.trim(), members: 0, archived: false };
+    setters[levelIdx](prev => [...prev, item]);
+    setNewOrgName("");
+    setNewOrgDesc("");
+    setAddingTo(null);
+  }
+
+  function archiveOrg(levelIdx: number, id: string) {
+    const setters = [setCollegiums, setClusters, setCrews];
     const toggle = (items: OrgLevel[]) => items.map(i => i.id === id ? { ...i, archived: !i.archived } : i);
-    if (type === "collegium") setCollegiums(toggle);
-    else if (type === "cluster") setClusters(toggle);
-    else setCrews(toggle);
+    setters[levelIdx](toggle as any);
   }
 
   function addSupporting(type: "craft" | "circle") {
@@ -78,14 +177,16 @@ export function OrgStructurePage() {
     else { setNewCircleName(""); setNewCircleDesc(""); }
   }
 
-  const LevelCard = ({ item, type }: { item: OrgLevel; type: "collegium" | "cluster" | "crew" }) => (
+  const sectionIconMap = [Building2, Users, Users];
+
+  const LevelCard = ({ item, levelIdx }: { item: OrgLevel; levelIdx: number }) => (
     <div className={`flex items-center justify-between px-4 py-3 rounded-lg border text-sm ${item.archived ? "bg-gray-50 opacity-60" : "bg-white"}`} style={{ borderColor: "#E2E8F0" }}>
       <div className="flex-1 min-w-0">
         <p className={`font-medium ${item.archived ? "text-gray-400 line-through" : "text-gray-900"}`}>{item.name}</p>
         <p className="text-xs text-gray-500 truncate">{item.description} · {item.members} members</p>
       </div>
       <div className="flex items-center gap-2 shrink-0 ml-3">
-        <button onClick={() => archiveOrg(type, item.id)} className={`p-1 rounded ${item.archived ? "text-green-500 hover:bg-green-50" : "text-gray-400 hover:bg-gray-100"}`} title={item.archived ? "Restore" : "Archive"}>
+        <button onClick={() => archiveOrg(levelIdx, item.id)} className={`p-1 rounded ${item.archived ? "text-green-500 hover:bg-green-50" : "text-gray-400 hover:bg-gray-100"}`} title={item.archived ? "Restore" : "Archive"}>
           <Archive className="w-3.5 h-3.5" />
         </button>
       </div>
@@ -97,79 +198,106 @@ export function OrgStructurePage() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-semibold text-gray-900">Organizational Structure</h1>
-          <p className="text-sm text-gray-500 mt-0.5">Configure your organization hierarchy and supporting structures</p>
+          <p className="text-sm text-gray-500 mt-0.5">Configure your organization hierarchy, structure templates, and supporting units</p>
         </div>
         <button onClick={save} className={`flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium transition-colors ${saved ? "bg-green-600 text-white" : "bg-indigo-600 text-white hover:bg-indigo-700"}`}>
           {saved ? <><CheckCircle className="w-4 h-4" /> Saved</> : <><Save className="w-4 h-4" /> Save Changes</>}
         </button>
       </div>
 
-      {/* Level Naming */}
+      {/* ─── Structure Templates ─── */}
       <div className="bg-white rounded-xl border border-gray-200 p-5">
         <h2 className="text-sm font-semibold text-gray-900 flex items-center gap-2 mb-1">
-          <Layers className="w-4 h-4 text-indigo-600" /> Organizational Level Names
+          <FileText className="w-4 h-4 text-indigo-600" /> Structure Templates
         </h2>
-        <p className="text-xs text-gray-400 mb-4">Customize the names used for each level in your organizational hierarchy</p>
-        <div className="grid grid-cols-3 gap-4">
-          {(["l1", "l2", "l3"] as const).map((level) => (
-            <div key={level} className="border border-gray-200 rounded-lg p-3">
-              <label className="block text-xs font-medium text-gray-500 mb-1">Level {level[1]}</label>
-              {editLevel === level ? (
-                <div className="flex items-center gap-1">
-                  <input value={editLevelVal} onChange={e => setEditLevelVal(e.target.value)}
-                    className="flex-1 border border-gray-300 rounded px-2 py-1 text-sm focus:outline-none focus:ring-1 focus:ring-indigo-500" autoFocus
-                    onKeyDown={e => { if (e.key === "Enter") { setLevelNames(p => ({ ...p, [level]: editLevelVal })); setEditLevel(null); } }} />
-                  <button onClick={() => { setLevelNames(p => ({ ...p, [level]: editLevelVal })); setEditLevel(null); }} className="p-1 text-green-600"><CheckCircle className="w-3.5 h-3.5" /></button>
-                </div>
-              ) : (
-                <div className="flex items-center justify-between">
-                  <span className="text-sm font-semibold text-gray-900">{levelNames[level]}</span>
-                  <button onClick={() => { setEditLevel(level); setEditLevelVal(levelNames[level]); }} className="p-1 text-gray-400 hover:text-gray-600"><Edit3 className="w-3.5 h-3.5" /></button>
-                </div>
-              )}
-              <p className="text-[10px] text-gray-400 mt-1">
-                {level === "l1" ? "Executive leadership body" : level === "l2" ? "Operational management level" : "Execution-level teams"}
-              </p>
-            </div>
+        <p className="text-xs text-gray-400 mb-4">Choose a predefined organizational structure template or create a custom one</p>
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-3 mb-4">
+          {TEMPLATES.map(t => (
+            <button key={t.id} onClick={() => applyTemplate(t)}
+              className={`text-left p-3 rounded-lg border transition-all ${
+                activeTemplate === t.id && !customTemplate
+                  ? "border-indigo-500 bg-indigo-50 ring-1 ring-indigo-500"
+                  : "border-gray-200 hover:border-indigo-300 hover:bg-gray-50"
+              }`}
+            >
+              <div className="flex items-center justify-between mb-1">
+                <h3 className="text-sm font-semibold text-gray-900">{t.name.split("/")[0].trim()}</h3>
+                {activeTemplate === t.id && !customTemplate && <Check className="w-3.5 h-3.5 text-indigo-600" />}
+              </div>
+              <p className="text-[10px] text-gray-500 mb-1.5">{t.levels.map(l => l.name).join(" → ")}</p>
+              <p className="text-[10px] text-gray-400">{t.description}</p>
+            </button>
           ))}
+          <button onClick={startCustomTemplate}
+            className={`text-left p-3 rounded-lg border transition-all ${
+              customTemplate
+                ? "border-indigo-500 bg-indigo-50 ring-1 ring-indigo-500"
+                : "border-dashed border-gray-300 hover:border-indigo-300 hover:bg-gray-50"
+            }`}
+          >
+            <div className="flex items-center justify-between mb-1">
+              <h3 className="text-sm font-semibold text-gray-900">Custom</h3>
+              {customTemplate && <Check className="w-3.5 h-3.5 text-indigo-600" />}
+            </div>
+            <p className="text-[10px] text-gray-500 mb-1.5">Define your own levels</p>
+            <p className="text-[10px] text-gray-400">Create custom organizational levels with your own terminology</p>
+          </button>
+        </div>
+
+        {/* Active Structure Preview */}
+        <div className="bg-gray-50 rounded-lg p-3">
+          <div className="flex items-center gap-2 text-xs text-gray-500 mb-2">
+            <Layers className="w-3.5 h-3.5" />
+            Active Structure: <span className="font-semibold text-gray-700">{currentTemplate.name}</span>
+          </div>
+          <div className="flex items-center gap-2">
+            {allLevels.map((l, i) => (
+              <div key={i} className="flex items-center gap-2">
+                <span className="text-xs px-2.5 py-1 rounded-full bg-indigo-100 text-indigo-700 font-medium">
+                  {l.name}
+                </span>
+                {i < allLevels.length - 1 && <ArrowDown className="w-3 h-3 text-gray-300" />}
+              </div>
+            ))}
+            <span className="text-xs text-gray-400 ml-2">({allLevels.length} level{allLevels.length > 1 ? "s" : ""})</span>
+          </div>
         </div>
       </div>
 
-      {/* Hierarchy Sections */}
-      {[
-        { key: "collegium" as const, label: levelNames.l1, icon: Building2, color: "indigo", items: collegiums, desc: "Leadership bodies overseeing strategy and governance" },
-        { key: "cluster" as const, label: levelNames.l2, icon: Users, color: "purple", items: clusters, desc: "Operational units managing related projects and regions" },
-        { key: "crew" as const, label: levelNames.l3, icon: Users, color: "orange", items: crews, desc: "Execution-level teams performing project work" },
-      ].map(section => (
-        <div key={section.key} className="bg-white rounded-xl border border-gray-200 p-5">
+      {/* ─── Hierarchy Sections ─── */}
+      {allLevels.map((lv, idx) => {
+        const SectionIcon = sectionIconMap[idx];
+        return (
+        <div key={idx} className="bg-white rounded-xl border border-gray-200 p-5">
           <div className="flex items-center justify-between mb-1">
             <h2 className="text-sm font-semibold text-gray-900 flex items-center gap-2">
-              <section.icon className={`w-4 h-4 text-${section.color}-600`} /> {section.label}s
+              <SectionIcon className="w-4 h-4 text-indigo-600" /> {lv.name}s
             </h2>
-            <button onClick={() => setAddingTo(section.key)} className="flex items-center gap-1 text-xs font-medium text-indigo-600 hover:text-indigo-700">
-              <Plus className="w-3 h-3" /> Add {section.label}
+            <button onClick={() => setAddingTo(idx)} className="flex items-center gap-1 text-xs font-medium text-indigo-600 hover:text-indigo-700">
+              <Plus className="w-3 h-3" /> Add {lv.name}
             </button>
           </div>
-          <p className="text-xs text-gray-400 mb-3">{section.desc}</p>
+          <p className="text-xs text-gray-400 mb-3">{lv.description}</p>
           <div className="space-y-2">
-            {section.items.filter(i => !i.archived).map(item => <LevelCard key={item.id} item={item} type={section.key} />)}
-            {section.items.filter(i => i.archived).length > 0 && (
+            {allOrgItems[idx].filter(i => !i.archived).map(item => <LevelCard key={item.id} item={item} levelIdx={idx} />)}
+            {allOrgItems[idx].filter(i => i.archived).length > 0 && (
               <>
                 <p className="text-xs text-gray-400 font-medium mt-3 mb-1">Archived</p>
-                {section.items.filter(i => i.archived).map(item => <LevelCard key={item.id} item={item} type={section.key} />)}
+                {allOrgItems[idx].filter(i => i.archived).map(item => <LevelCard key={item.id} item={item} levelIdx={idx} />)}
               </>
             )}
-            {section.items.length === 0 && <p className="text-sm text-gray-400 text-center py-4">No {section.label.toLowerCase()}s configured</p>}
+            {allOrgItems[idx].length === 0 && <p className="text-sm text-gray-400 text-center py-4">No {lv.name.toLowerCase()}s configured</p>}
           </div>
         </div>
-      ))}
+        );
+      })}
 
       {/* Add Org Level Modal */}
-      {addingTo && (
+      {addingTo !== null && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
           <div className="rounded-xl w-full max-w-md p-5" style={{ backgroundColor: "white" }}>
             <div className="flex items-center justify-between mb-4">
-              <h3 className="text-base font-bold text-gray-900">Add {levelNames[addingTo === "collegium" ? "l1" : addingTo === "cluster" ? "l2" : "l3"]}</h3>
+              <h3 className="text-base font-bold text-gray-900">Add {levelNames[addingTo === 0 ? "l1" : addingTo === 1 ? "l2" : "l3"]}</h3>
               <button onClick={() => setAddingTo(null)} className="text-gray-400 hover:text-gray-600 text-xl leading-none">&times;</button>
             </div>
             <div className="space-y-3">
@@ -190,9 +318,57 @@ export function OrgStructurePage() {
         </div>
       )}
 
-      {/* Supporting Structures */}
+      {/* ─── Custom Structure Modal ─── */}
+      {showCustomModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+          <div className="rounded-xl w-full max-w-lg max-h-[90vh] overflow-y-auto" style={{ backgroundColor: "white" }}>
+            <div className="flex items-center justify-between p-5 border-b" style={{ borderColor: "#E2E8F0" }}>
+              <h2 className="text-lg font-bold text-gray-900">Custom Organizational Structure</h2>
+              <button onClick={() => setShowCustomModal(false)} className="text-gray-400 hover:text-gray-600 text-xl leading-none">&times;</button>
+            </div>
+            <div className="p-5 space-y-4">
+              <p className="text-xs text-gray-500">Define your own organizational levels. You can add, rename, reorder, or remove levels.</p>
+
+              {customLevels.map((lv, i) => (
+                <div key={i} className="flex items-center gap-2 p-3 rounded-lg border" style={{ borderColor: "#E2E8F0" }}>
+                  <div className="flex flex-col gap-0.5">
+                    <button onClick={() => moveCustomLevel(i, "up")} disabled={i === 0} className="p-0.5 text-gray-400 hover:text-gray-600 disabled:opacity-20"><ArrowUp className="w-3 h-3" /></button>
+                    <button onClick={() => moveCustomLevel(i, "down")} disabled={i === customLevels.length - 1} className="p-0.5 text-gray-400 hover:text-gray-600 disabled:opacity-20"><ArrowDown className="w-3 h-3" /></button>
+                  </div>
+                  <div className="flex-1">
+                    <input value={lv.name} onChange={e => {
+                      const next = [...customLevels];
+                      next[i] = { ...next[i], name: e.target.value };
+                      setCustomLevels(next);
+                    }} className="w-full text-sm font-medium border-b border-transparent focus:border-indigo-500 focus:outline-none px-1 py-0.5" placeholder="Level name" />
+                    <input value={lv.description} onChange={e => {
+                      const next = [...customLevels];
+                      next[i] = { ...next[i], description: e.target.value };
+                      setCustomLevels(next);
+                    }} className="w-full text-xs text-gray-500 border-b border-transparent focus:border-indigo-500 focus:outline-none px-1 py-0.5 mt-0.5" placeholder="Description (optional)" />
+                  </div>
+                  <button onClick={() => removeCustomLevel(i)} className="p-1 text-red-400 hover:text-red-600"><X className="w-3.5 h-3.5" /></button>
+                </div>
+              ))}
+
+              <div className="flex items-center gap-2 pt-2">
+                <input value={newCustomLevelName} onChange={e => setNewCustomLevelName(e.target.value)} placeholder="New level name..." className="flex-1 border border-gray-300 rounded px-3 py-1.5 text-sm focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                  onKeyDown={e => e.key === "Enter" && addCustomLevel()} />
+                <input value={newCustomLevelDesc} onChange={e => setNewCustomLevelDesc(e.target.value)} placeholder="Description..." className="flex-1 border border-gray-300 rounded px-3 py-1.5 text-sm focus:outline-none focus:ring-1 focus:ring-indigo-500" />
+                <button onClick={addCustomLevel} disabled={!newCustomLevelName.trim()} className="px-3 py-1.5 bg-indigo-600 text-white rounded text-xs font-medium disabled:opacity-40 hover:bg-indigo-700"><Plus className="w-3 h-3" /></button>
+              </div>
+            </div>
+            <div className="flex items-center justify-end gap-3 p-5 border-t" style={{ borderColor: "#E2E8F0" }}>
+              <button onClick={() => setShowCustomModal(false)} className="px-4 py-2 rounded-lg border text-sm text-gray-600" style={{ borderColor: "#E2E8F0" }}>Cancel</button>
+              <button onClick={applyCustomTemplate} disabled={customLevels.length === 0}
+                className="px-4 py-2 bg-indigo-600 text-white rounded-md text-sm font-medium disabled:opacity-40 hover:bg-indigo-700">Apply Structure</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ─── Supporting Structures ─── */}
       <div className="grid grid-cols-2 gap-5">
-        {/* Crafts */}
         <div className="bg-white rounded-xl border border-gray-200 p-5">
           <h2 className="text-sm font-semibold text-gray-900 flex items-center gap-2 mb-1">
             <Shield className="w-4 h-4 text-emerald-600" /> Crafts
@@ -216,7 +392,6 @@ export function OrgStructurePage() {
           </div>
         </div>
 
-        {/* Circles */}
         <div className="bg-white rounded-xl border border-gray-200 p-5">
           <h2 className="text-sm font-semibold text-gray-900 flex items-center gap-2 mb-1">
             <BookOpen className="w-4 h-4 text-amber-600" /> Circles

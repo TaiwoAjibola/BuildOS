@@ -45,11 +45,18 @@ const INITIAL_CLAIM_TYPES: ClaimType[] = [
 
 // ─── Context ──────────────────────────────────────────────────────────────────
 
+export interface OrgLevelConfig {
+  name: string;
+  description: string;
+}
+
 interface HRConfigContextValue {
   leaveTypes: LeaveType[];
   setLeaveTypes: React.Dispatch<React.SetStateAction<LeaveType[]>>;
   claimTypes: ClaimType[];
   setClaimTypes: React.Dispatch<React.SetStateAction<ClaimType[]>>;
+  orgLevels: OrgLevelConfig[];
+  setOrgLevels: React.Dispatch<React.SetStateAction<OrgLevelConfig[]>>;
 }
 
 const HRConfigContext = createContext<HRConfigContextValue | null>(null);
@@ -57,9 +64,14 @@ const HRConfigContext = createContext<HRConfigContextValue | null>(null);
 export function HRConfigProvider({ children }: { children: ReactNode }) {
   const [leaveTypes, setLeaveTypes] = useState<LeaveType[]>(INITIAL_LEAVE_TYPES);
   const [claimTypes, setClaimTypes] = useState<ClaimType[]>(INITIAL_CLAIM_TYPES);
+  const [orgLevels, setOrgLevels] = useState<OrgLevelConfig[]>([
+    { name: "Collegium", description: "Executive leadership body overseeing strategy and governance" },
+    { name: "Cluster", description: "Operational management level managing related projects and regions" },
+    { name: "Crew", description: "Execution-level teams performing project work" },
+  ]);
 
   return (
-    <HRConfigContext.Provider value={{ leaveTypes, setLeaveTypes, claimTypes, setClaimTypes }}>
+    <HRConfigContext.Provider value={{ leaveTypes, setLeaveTypes, claimTypes, setClaimTypes, orgLevels, setOrgLevels }}>
       {children}
     </HRConfigContext.Provider>
   );

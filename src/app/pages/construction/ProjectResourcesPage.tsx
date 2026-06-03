@@ -1,9 +1,10 @@
 import { useParams, useNavigate } from "react-router";
 import { useState } from "react";
 import { Users, Package, Truck, Plus, Search, X, Eye, Award, DollarSign, Briefcase, Download, Edit, ExternalLink, Building2, UserCheck, UserCog, Wrench } from "lucide-react";
-import { getVendorsByProject, getProjectById, getTasksByProject, fmtCurrency, vendors as allVendors } from "./mockData";
-import type { Vendor, Task, MaterialResource, EquipmentResource } from "./types";
+import { getProjectById, getTasksByProject, fmtCurrency } from "./mockData";
+import type { Task, MaterialResource, EquipmentResource } from "./types";
 import { exportCSV } from "../../utils/exportCSV";
+import { useResources } from "../../contexts/ResourceContext";
 
 const statusStyles: Record<string, { badge: string; label: string }> = {
   Awarded: { badge: "bg-blue-100 text-blue-700", label: "Awarded" },
@@ -68,7 +69,8 @@ export function ProjectResourcesPage() {
   const { id: projectId } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const project = getProjectById(projectId!);
-  const vendors = getVendorsByProject(projectId!);
+  const { contractors: allContractors, vendors: allVendors, addContractor, removeContractor, addVendor } = useResources();
+  const vendors = allVendors.filter(v => v.projectId === projectId);
 
   const [tab, setTab] = useState<ResourceTab>("human");
   const [humanSubTab, setHumanSubTab] = useState<HumanSubTab>("vendors");
@@ -76,11 +78,10 @@ export function ProjectResourcesPage() {
   const [showAddModal, setShowAddModal] = useState(false);
   const [form, setForm] = useState(emptyVendor);
   const [selectedVendorId, setSelectedVendorId] = useState("");
-
-  // Individual Contractors
-  const [projectContractors, setProjectContractors] = useState<{ id: string; name: string; trade: string; payRate: number; payRateUnit: string; skilledCount: number; unskilledCount: number; mandaysEstimate: number; status: string }[]>([]);
   const [showAddContractor, setShowAddContractor] = useState(false);
   const [contractorForm, setContractorForm] = useState({ name: "", trade: "", payRate: 0, payRateUnit: "daily", skilledCount: 0, unskilledCount: 0, mandaysEstimate: 0, status: "Awarded" });
+
+  const projectContractors = allContractors;
 
   const filteredVendors = vendors.filter(v => !search || v.name.toLowerCase().includes(search.toLowerCase()) || v.trade.toLowerCase().includes(search.toLowerCase()));
   const filteredEmployees = hrEmployees.filter(s => !search || s.firstName.toLowerCase().includes(search.toLowerCase()) || s.lastName.toLowerCase().includes(search.toLowerCase()) || s.role.toLowerCase().includes(search.toLowerCase()));
@@ -92,13 +93,11 @@ export function ProjectResourcesPage() {
   const structureNames = project?.structure?.map(s => s.name).filter(Boolean) ?? [];
 
   function handleAdd() {
-    const newVendor: Vendor = {
-      id: `V-${String(vendors.length + 1).padStart(3, "0")}`,
+    addVendor({
       projectId: projectId!,
       assignedWorkPackages: [],
       ...form,
-    };
-    vendors.push(newVendor);
+    });
     setShowAddModal(false);
     setForm(emptyVendor);
     setSelectedVendorId("");
@@ -114,19 +113,24 @@ export function ProjectResourcesPage() {
     }
   }
 
-  function addContractor() {
+  function handleAddContractor() {
     if (!contractorForm.name.trim() || !contractorForm.trade) return;
-    const newContractor = {
-      id: `CTR-${String(projectContractors.length + 1).padStart(3, "0")}`,
-      ...contractorForm,
-    };
-    setProjectContractors(prev => [...prev, newContractor]);
+    addContractor({
+      name: contractorForm.name,
+      trade: contractorForm.trade,
+      payRate: contractorForm.payRate,
+      payRateUnit: contractorForm.payRateUnit as "daily" | "weekly" | "monthly" | "lump-sum",
+      skilledCount: contractorForm.skilledCount,
+      unskilledCount: contractorForm.unskilledCount,
+      manDays: contractorForm.mandaysEstimate,
+      status: contractorForm.status as "Active" | "Completed" | "Terminated",
+    });
     setContractorForm({ name: "", trade: "", payRate: 0, payRateUnit: "daily", skilledCount: 0, unskilledCount: 0, mandaysEstimate: 0, status: "Awarded" });
     setShowAddContractor(false);
   }
 
-  function removeContractor(id: string) {
-    setProjectContractors(prev => prev.filter(c => c.id !== id));
+  function handleRemoveContractor(id: string) {
+    removeContractor(id);
   }
 
   function exportHumanCSV() {
@@ -317,7 +321,7 @@ export function ProjectResourcesPage() {
                           <td className="px-4 py-2.5 text-right font-medium text-gray-900">{c.payRate ? fmtCurrency(c.payRate) : "—"}</td>
                           <td className="px-4 py-2.5 text-gray-500 text-sm">{c.payRateUnit || "—"}</td>
                           <td className="px-4 py-2.5 text-center text-gray-500">{c.skilledCount}S / {c.unskilledCount}U</td>
-                          <td className="px-4 py-2.5 text-right text-gray-700">{c.mandaysEstimate}</td>
+                          <td className="px-4 py-2.5 text-right text-gray-700">{c.manDays}</td>
                           <td className="px-4 py-2.5">
                             <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${c.status === "Active" ? "bg-green-100 text-green-700" : c.status === "Completed" ? "bg-gray-100 text-gray-600" : "bg-blue-100 text-blue-700"}`}>{c.status}</span>
                           </td>
@@ -661,7 +665,7 @@ export function ProjectResourcesPage() {
             </div>
             <div className="flex items-center justify-end gap-3 p-5 border-t" style={{ borderColor: "#E2E8F0" }}>
               <button onClick={() => setShowAddContractor(false)} className="px-4 py-2 rounded-lg border text-sm text-gray-600" style={{ borderColor: "#E2E8F0" }}>Cancel</button>
-              <button onClick={addContractor} disabled={!contractorForm.name.trim() || !contractorForm.trade}
+              <button onClick={handleAddContractor} disabled={!contractorForm.name.trim() || !contractorForm.trade}
                 className="px-4 py-2 rounded-lg text-sm text-white font-medium disabled:opacity-50" style={{ backgroundColor: "#E8973A" }}>Add Contractor</button>
             </div>
           </div>

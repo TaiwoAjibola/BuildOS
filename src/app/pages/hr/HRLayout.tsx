@@ -4,7 +4,7 @@ import { CollapsibleSidebar } from "../../components/CollapsibleSidebar";
 import {
   LayoutDashboard, Users, Building2, Clock, BookOpen,
   DollarSign, Sliders, PlayCircle, Network, BarChart3,
-  CalendarDays, CalendarCheck, Settings2, Landmark, Calendar, CheckSquare, CreditCard, ListTodo, User,
+  CalendarDays, CalendarCheck, Settings2, Landmark, Calendar, CheckSquare, CreditCard, ListTodo, User, Layers,
 } from "lucide-react";
 
 const sidebarSections = [
@@ -26,6 +26,12 @@ const sidebarSections = [
     items: [
       { label: "All Employees", href: "/apps/hr",             icon: <Users    className="w-4 h-4" />, end: true },
       { label: "Departments",   href: "/apps/hr/departments", icon: <Building2 className="w-4 h-4" />, end: true },
+    ],
+  },
+  {
+    label: "Organization",
+    items: [
+      { label: "Organization Structure", href: "/apps/hr/org-structure", icon: <Layers className="w-4 h-4" />, end: true },
     ],
   },
   {

@@ -1,9 +1,8 @@
 import { useState } from "react";
-import { Settings, Save, Plus, Trash2, ToggleLeft, ToggleRight, X, Check, Tags, Layers, Sun, Truck, Building2, Users, Package } from "lucide-react";
+import { Settings, Save, Plus, Trash2, ToggleLeft, ToggleRight, X, Check, Tags, Layers, Sun, Truck, Building2, Users, Package, UserCog, ExternalLink, ArrowRight } from "lucide-react";
 import type { Sector, ScheduleLevelConfig, WeatherConfig } from "./types";
 import { defaultScheduleLevels, defaultWeatherConfig, defaultProjectTypes } from "./mockData";
 
-const defaultClusters = ["Lekki-VI", "Ikeja", "Apapa", "Victoria Island", "Ikoyi"];
 const defaultTradeTypes = [
   "Masonry", "Concreting labor", "Carpentry (formwork)", "Carpentry (roofing)",
   "Iron benders / steel fixers", "Tiling", "Plumbing", "Electrical",
@@ -23,10 +22,8 @@ const defaultReportSettings: ReportSetting[] = [
 ];
 
 export function SettingsPage() {
-  const [clusters, setClusters] = useState<string[]>(defaultClusters);
   const [tradeTypes, setTradeTypes] = useState<string[]>(defaultTradeTypes);
   const [reportSettings, setReportSettings] = useState<ReportSetting[]>(defaultReportSettings);
-  const [newCluster, setNewCluster] = useState("");
   const [newTrade, setNewTrade] = useState("");
   const [isSaving, setIsSaving] = useState(false);
   const [saved, setSaved] = useState(false);
@@ -57,16 +54,6 @@ export function SettingsPage() {
 
   function toggleReportSetting(id: string) {
     setReportSettings(prev => prev.map(rs => rs.id === id ? { ...rs, enabled: !rs.enabled } : rs));
-  }
-
-  function addCluster() {
-    if (!newCluster.trim() || clusters.includes(newCluster.trim())) return;
-    setClusters(prev => [...prev, newCluster.trim()]);
-    setNewCluster("");
-  }
-
-  function removeCluster(c: string) {
-    setClusters(prev => prev.filter(x => x !== c));
   }
 
   function addTrade() {
@@ -264,79 +251,49 @@ export function SettingsPage() {
           </div>
         </div>
 
-        {/* ─── Resource Categories (Managed Elsewhere) ─── */}
+        {/* ─── Human Resource Classification ─── */}
         <div className="bg-white rounded-lg border border-gray-200 p-5">
           <div className="flex items-center gap-2 mb-1">
-            <Truck className="w-4 h-4 text-gray-400" />
-            <h3 className="text-sm font-semibold text-gray-900">Resource Classification</h3>
+            <Users className="w-4 h-4 text-indigo-600" />
+            <h3 className="text-sm font-semibold text-gray-900">Human Resource Classification</h3>
           </div>
-          <p className="text-xs text-gray-400 mb-4">Resource categories are managed in their respective modules to ensure single-source-of-truth.</p>
+          <p className="text-xs text-gray-400 mb-4">
+            Human resource types available in the system and where each type is managed.
+          </p>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div className="rounded-lg border border-purple-200 bg-purple-50/30 p-4">
-              <div className="flex items-center gap-2 mb-3">
-                <Users className="w-4 h-4 text-purple-600" />
-                <h4 className="text-sm font-semibold text-purple-900">Human Resources</h4>
-              </div>
-              <p className="text-xs text-purple-700 mb-3">Managed in HR Module</p>
-              <div className="space-y-1.5 text-xs text-gray-600">
-                <p><span className="font-medium">Employee Types:</span> Full-time, Contract, Intern, Part-time</p>
-                <p><span className="font-medium">Staff Categories:</span> Management, Supervisory, Skilled, Unskilled</p>
-                <p><span className="font-medium">Trade Types:</span> Configured below in Trade Types section</p>
-              </div>
-              <a href="/apps/hr/hr-general-setup" className="inline-flex items-center gap-1 mt-3 text-xs font-medium text-purple-700 hover:text-purple-900">
-                Manage in HR Module →
-              </a>
-            </div>
-            <div className="rounded-lg border border-green-200 bg-green-50/30 p-4">
-              <div className="flex items-center gap-2 mb-3">
-                <Package className="w-4 h-4 text-green-600" />
-                <h4 className="text-sm font-semibold text-green-900">Materials</h4>
-              </div>
-              <p className="text-xs text-green-700 mb-3">Managed in Procurement Module</p>
-              <div className="space-y-1.5 text-xs text-gray-600">
-                <p><span className="font-medium">Categories:</span> Aggregates, Concrete, Reinforcement, Structural Steel, Finishing, Plumbing, Electrical, Roofing, Formwork, Other</p>
-                <p><span className="font-medium">Units of Measure:</span> Configured in Admin settings</p>
-              </div>
-              <a href="/apps/procurement" className="inline-flex items-center gap-1 mt-3 text-xs font-medium text-green-700 hover:text-green-900">
-                Manage in Procurement Module →
-              </a>
-            </div>
             <div className="rounded-lg border border-blue-200 bg-blue-50/30 p-4">
               <div className="flex items-center gap-2 mb-3">
-                <Truck className="w-4 h-4 text-blue-600" />
-                <h4 className="text-sm font-semibold text-blue-900">Equipment</h4>
+                <Users className="w-4 h-4 text-blue-600" />
+                <h4 className="text-sm font-semibold text-blue-900">Employees</h4>
               </div>
-              <p className="text-xs text-blue-700 mb-3">Managed in Procurement Module</p>
-              <div className="space-y-1.5 text-xs text-gray-600">
-                <p><span className="font-medium">Categories:</span> Earthwork, Lifting, Concreting, Transportation, Drilling & Piling, Formwork & Scaffolding, Power Generation, Light Tools</p>
-                <p><span className="font-medium">Ownership Types:</span> Company-owned, Rented, Client-supplied</p>
-              </div>
-              <a href="/apps/procurement" className="inline-flex items-center gap-1 mt-3 text-xs font-medium text-blue-700 hover:text-blue-900">
-                Manage in Procurement Module →
+              <p className="text-xs text-blue-700 mb-1">Managed within the HR Module.</p>
+              <p className="text-xs text-gray-500 mb-3">Not configurable from the Project Module. Employee data is sourced from the HR module.</p>
+              <a href="/apps/hr" className="inline-flex items-center gap-1 text-xs font-medium text-blue-700 hover:text-blue-900">
+                Manage Employees in HR Module <ArrowRight className="w-3 h-3" />
               </a>
             </div>
-          </div>
-        </div>
-
-        {/* ─── Clusters ─── */}
-        <div className="bg-white rounded-lg border border-gray-200 p-5">
-          <div className="flex items-center gap-2 mb-1">
-            <Building2 className="w-4 h-4 text-gray-400" />
-            <h3 className="text-sm font-semibold text-gray-900">Clusters Management</h3>
-          </div>
-          <p className="text-xs text-gray-400 mb-4">Geographic clusters used to group construction projects</p>
-          <div className="flex flex-wrap gap-2 mb-3">
-            {clusters.map(c => (
-              <span key={c} className="inline-flex items-center gap-1.5 bg-orange-50 text-orange-700 text-xs font-medium px-2.5 py-1 rounded-full">
-                {c}
-                <button onClick={() => removeCluster(c)} className="hover:text-red-600 transition-colors"><X className="w-3 h-3" /></button>
-              </span>
-            ))}
-          </div>
-          <div className="flex items-center gap-2">
-            <input value={newCluster} onChange={e => setNewCluster(e.target.value)} placeholder="New cluster name..." className="flex-1 max-w-xs border border-gray-300 rounded-md px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-orange-500"
-              onKeyDown={e => e.key === "Enter" && addCluster()} />
-            <button onClick={addCluster} disabled={!newCluster.trim()} className="flex items-center gap-1.5 px-3 py-1.5 bg-orange-600 text-white rounded-md text-sm font-medium hover:bg-orange-700 disabled:opacity-40"><Plus className="w-3.5 h-3.5" /> Add</button>
+            <div className="rounded-lg border border-purple-200 bg-purple-50/30 p-4">
+              <div className="flex items-center gap-2 mb-3">
+                <UserCog className="w-4 h-4 text-purple-600" />
+                <h4 className="text-sm font-semibold text-purple-900">Individual Contractors</h4>
+              </div>
+              <p className="text-xs text-purple-700 mb-1">Managed within the Project Module.</p>
+              <p className="text-xs text-gray-500 mb-3">Individual contractors are created and managed in the Resources Overview page and can be assigned to specific projects.</p>
+              <a href="/apps/construction/resources" className="inline-flex items-center gap-1 text-xs font-medium text-purple-700 hover:text-purple-900">
+                Manage Individual Contractors in Resources <ArrowRight className="w-3 h-3" />
+              </a>
+            </div>
+            <div className="rounded-lg border border-orange-200 bg-orange-50/30 p-4">
+              <div className="flex items-center gap-2 mb-3">
+                <Building2 className="w-4 h-4 text-orange-600" />
+                <h4 className="text-sm font-semibold text-orange-900">Vendors</h4>
+              </div>
+              <p className="text-xs text-orange-700 mb-1">Managed within the Project Module.</p>
+              <p className="text-xs text-gray-500 mb-3">Vendors and subcontractors are created and managed in the Resources Overview page and assigned to projects.</p>
+              <a href="/apps/construction/resources" className="inline-flex items-center gap-1 text-xs font-medium text-orange-700 hover:text-orange-900">
+                Manage Vendors in Resources <ArrowRight className="w-3 h-3" />
+              </a>
+            </div>
           </div>
         </div>
 

@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Save, CheckCircle, Clock, Users, Banknote, Settings2, Mail, Building2, ArrowRight } from "lucide-react";
+import { Save, CheckCircle, Clock, Users, Banknote, Settings2, Mail, Building2, ArrowRight, MapPin, Plus, X } from "lucide-react";
 
 interface FieldProps {
   label: string;
@@ -48,6 +48,9 @@ export function HRGeneralSetupPage() {
     senderEmail: "",
   });
 
+  const [clusters, setClusters] = useState(["Lekki-VI", "Ikeja", "Apapa", "Victoria Island", "Ikoyi"]);
+  const [newCluster, setNewCluster] = useState("");
+
   function f(key: keyof typeof form) {
     return (v: string) => setForm(prev => ({ ...prev, [key]: v }));
   }
@@ -55,6 +58,12 @@ export function HRGeneralSetupPage() {
   function save() {
     setSaved(true);
     setTimeout(() => setSaved(false), 3000);
+  }
+
+  function addCluster() {
+    if (!newCluster.trim() || clusters.includes(newCluster.trim())) return;
+    setClusters(prev => [...prev, newCluster.trim()]);
+    setNewCluster("");
   }
 
   return (
@@ -151,7 +160,7 @@ export function HRGeneralSetupPage() {
             <Building2 className="w-4 h-4 text-indigo-600" /> Organizational Structure
           </h2>
           <p className="text-xs text-gray-500">
-            Configure your organizational hierarchy, including levels (Collegium / Cluster / Crew), supporting structures (Crafts, Circles),
+            Configure your organizational hierarchy, including levels, supporting structures (Crafts, Circles),
             and employee assignments. Level names can be customized to match your organization's terminology.
           </p>
           <a href="/apps/hr/org-structure"
@@ -159,6 +168,30 @@ export function HRGeneralSetupPage() {
           >
             Manage Organizational Structure <ArrowRight className="w-4 h-4" />
           </a>
+        </div>
+
+        {/* Clusters Management */}
+        <div className="col-span-2 bg-white rounded-xl border border-gray-200 p-5 space-y-4">
+          <h2 className="text-sm font-semibold text-gray-900 flex items-center gap-2">
+            <MapPin className="w-4 h-4 text-indigo-600" /> Clusters Management
+          </h2>
+          <p className="text-xs text-gray-500">
+            Geographic clusters used to group organizational units and projects. Clusters are part of the organizational
+            structure and employee assignment model.
+          </p>
+          <div className="flex flex-wrap gap-2">
+            {clusters.map(c => (
+              <span key={c} className="inline-flex items-center gap-1.5 bg-indigo-50 text-indigo-700 text-xs font-medium px-2.5 py-1 rounded-full">
+                {c}
+                <button onClick={() => setClusters(prev => prev.filter(x => x !== c))} className="hover:text-red-600 transition-colors"><X className="w-3 h-3" /></button>
+              </span>
+            ))}
+          </div>
+          <div className="flex items-center gap-2">
+            <input value={newCluster} onChange={e => setNewCluster(e.target.value)} placeholder="New cluster name..." className="flex-1 max-w-xs border border-gray-300 rounded-md px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              onKeyDown={e => e.key === "Enter" && addCluster()} />
+            <button onClick={addCluster} disabled={!newCluster.trim()} className="flex items-center gap-1.5 px-3 py-1.5 bg-indigo-600 text-white rounded-md text-sm font-medium hover:bg-indigo-700 disabled:opacity-40"><Plus className="w-3.5 h-3.5" /> Add Cluster</button>
+          </div>
         </div>
       </div>
     </div>
