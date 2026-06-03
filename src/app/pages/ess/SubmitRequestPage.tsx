@@ -1,12 +1,14 @@
 import { useState, useRef, useEffect } from "react";
 import { useNavigate } from "react-router";
-import { useHRConfig } from "../../stores/hrConfigStore";
 import {
-  Package, DollarSign, CheckCircle, ArrowLeft,
-  Upload, X, ChevronDown, Calendar, Activity, FileText, CreditCard,
-  AlertTriangle, Edit2, Wrench, Search, Plus, ExternalLink, Send,
-  PlusCircle,
+  CheckCircle, AlertTriangle, Send, ChevronDown,
+  Upload, FileText, X, Search, Plus,
 } from "lucide-react";
+import { IssueForm } from "../../components/IssueForm";
+import { ChangeRequestForm } from "../../components/ChangeRequestForm";
+import { AttachmentsSection } from "../../components/AttachmentsSection";
+import { ApprovalPipeline } from "../../components/ApprovalPipeline";
+import { getWorkflows, getPipelineForRequest, type PipelineStep } from "../../store/workflowConfig";
 
 // Shared material catalogue with stock status — mirrors Storefront inventory
 type StockLevel = "in_stock" | "low_stock" | "out_of_stock";
@@ -125,47 +127,7 @@ type Tab = "material" | "finance" | "leave" | "issue" | "change";
 type FinanceSubType = "activity" | "expense" | "claim";
 
 // ─── Shared Attachments Component ────────────────────────────────────────────
-function AttachmentsSection({ files, onChange }: { files: File[]; onChange: (f: File[]) => void }) {
-  const ref = useRef<HTMLInputElement>(null);
-
-  function handleAdd(e: React.ChangeEvent<HTMLInputElement>) {
-    const newFiles = Array.from(e.target.files ?? []);
-    if (newFiles.length) onChange([...files, ...newFiles]);
-    if (ref.current) ref.current.value = "";
-  }
-
-  function remove(i: number) { onChange(files.filter((_, j) => j !== i)); }
-
-  return (
-    <div>
-      <label className="block text-sm font-medium text-gray-700 mb-1">
-        Attachments <span className="text-gray-400 font-normal">(optional)</span>
-      </label>
-      <input ref={ref} type="file" multiple
-        accept=".jpg,.jpeg,.png,.pdf,.doc,.docx,.xls,.xlsx"
-        className="hidden" onChange={handleAdd} />
-      <button type="button" onClick={() => ref.current?.click()}
-        className="w-full flex items-center gap-2 border border-dashed border-gray-300 rounded-md px-4 py-3 hover:bg-gray-50 transition-colors justify-center">
-        <Upload className="w-4 h-4 text-gray-400" />
-        <span className="text-sm text-gray-500">Click to attach files (PDF, images, Word, Excel)</span>
-      </button>
-      {files.length > 0 && (
-        <ul className="mt-2 space-y-1">
-          {files.map((f, i) => (
-            <li key={i} className="flex items-center gap-2 text-xs text-gray-600 bg-gray-50 rounded px-3 py-1.5">
-              <FileText className="w-3.5 h-3.5 text-gray-400 flex-shrink-0" />
-              <span className="flex-1 truncate">{f.name}</span>
-              <span className="text-gray-400 flex-shrink-0">{(f.size / 1024).toFixed(0)} KB</span>
-              <button type="button" onClick={() => remove(i)} className="text-gray-400 hover:text-gray-600">
-                <X className="w-3.5 h-3.5" />
-              </button>
-            </li>
-          ))}
-        </ul>
-      )}
-    </div>
-  );
-}
+// (moved to src/app/components/AttachmentsSection.tsx)
 
 const projects = [
   "Downtown Office Complex",
@@ -180,7 +142,7 @@ const priorities = [
   { value: "urgent", label: "Urgent", color: "text-red-700 bg-red-50"      },
 ];
 
-function SuccessCard({ title, id, onBack }: { title: string; id: string; onBack: () => void }) {
+function SuccessCard({ title, id, onBack, pipelineSteps }: { title: string; id: string; onBack: () => void; pipelineSteps: PipelineStep[] }) {
   const navigate = useNavigate();
   return (
     <div className="max-w-sm mx-auto mt-20 text-center">
@@ -190,6 +152,11 @@ function SuccessCard({ title, id, onBack }: { title: string; id: string; onBack:
       <h2 className="text-xl font-semibold text-gray-900">{title}</h2>
       <p className="text-sm text-gray-500 mt-2">Reference ID: <span className="font-mono font-medium text-gray-700">{id}</span></p>
       <p className="text-sm text-gray-500 mt-1">Your request has been submitted and is pending approval.</p>
+      {pipelineSteps.length > 0 && (
+        <div className="mt-6">
+          <ApprovalPipeline steps={pipelineSteps} accentClass="bg-teal-600 border-teal-600" accentTextClass="text-teal-700" />
+        </div>
+      )}
       <div className="flex gap-3 mt-8 justify-center">
         <button onClick={onBack} className="px-4 py-2 border border-gray-300 text-gray-700 rounded-md text-sm hover:bg-gray-50">
           Submit Another
@@ -778,196 +745,11 @@ function LeaveForm({ onSuccess }: { onSuccess: (id: string) => void }) {
   );
 }
 
-const issueTypes = ["Incident", "Complaint", "Safety Hazard", "Suggestion"];
-const changeCategoryOptions = ["Personal Details", "Bank Details", "Address", "Emergency Contact", "Other"];
+// ─── Change Request Form ────────────────────────────────────────────────────
+// (moved to src/app/components/ChangeRequestForm.tsx)
 
-function IssueForm({ onSuccess }: { onSuccess: (id: string) => void }) {
-  const [form, setForm] = useState({ type: "", title: "", description: "", priority: "medium", anonymous: false });
-  const [errors, setErrors] = useState<Record<string, string>>({});
-  const [attachments, setAttachments] = useState<File[]>([]);
-
-  function validate() {
-    const e: Record<string, string> = {};
-    if (!form.type) e.type = "Select an issue type";
-    if (!form.title.trim()) e.title = "Title is required";
-    if (!form.description.trim()) e.description = "Description is required";
-    return e;
-  }
-
-  function handleSubmit(e: React.FormEvent) {
-    e.preventDefault();
-    const errs = validate();
-    if (Object.keys(errs).length) { setErrors(errs); return; }
-    onSuccess("ISS-" + Math.random().toString(36).slice(2, 8).toUpperCase());
-  }
-
-  return (
-    <form onSubmit={handleSubmit} className="space-y-5">
-      <div>
-        <label className="block text-sm font-medium text-gray-700 mb-1">Issue Type <span className="text-red-500">*</span></label>
-        <select value={form.type} onChange={e => { setForm(f => ({ ...f, type: e.target.value })); if (errors.type) setErrors(p => { const x = {...p}; delete x.type; return x; }); }}
-          className={`w-full border rounded-md px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500 ${errors.type ? "border-red-400" : "border-gray-300"}`}>
-          <option value="">Select type…</option>
-          {issueTypes.map(t => <option key={t} value={t}>{t}</option>)}
-        </select>
-        {errors.type && <p className="text-xs text-red-500 mt-1">{errors.type}</p>}
-      </div>
-      <div>
-        <label className="block text-sm font-medium text-gray-700 mb-1">Title <span className="text-red-500">*</span></label>
-        <input value={form.title} onChange={e => { setForm(f => ({ ...f, title: e.target.value })); if (errors.title) setErrors(p => { const x = {...p}; delete x.title; return x; }); }}
-          placeholder="Brief title for the issue"
-          className={`w-full border rounded-md px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500 ${errors.title ? "border-red-400" : "border-gray-300"}`} />
-        {errors.title && <p className="text-xs text-red-500 mt-1">{errors.title}</p>}
-      </div>
-      <div>
-        <label className="block text-sm font-medium text-gray-700 mb-1">Description <span className="text-red-500">*</span></label>
-        <textarea value={form.description} onChange={e => { setForm(f => ({ ...f, description: e.target.value })); if (errors.description) setErrors(p => { const x = {...p}; delete x.description; return x; }); }}
-          rows={4} placeholder="Describe the issue in detail…"
-          className={`w-full border rounded-md px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500 resize-none ${errors.description ? "border-red-400" : "border-gray-300"}`} />
-        {errors.description && <p className="text-xs text-red-500 mt-1">{errors.description}</p>}
-      </div>
-      <div>
-        <label className="block text-sm font-medium text-gray-700 mb-2">Priority</label>
-        <div className="grid grid-cols-4 gap-2">
-          {priorities.map(p => (
-            <button key={p.value} type="button" onClick={() => setForm(f => ({ ...f, priority: p.value }))}
-              className={`py-2 rounded-md text-sm font-medium border transition-colors ${form.priority === p.value ? p.color + " border-transparent" : "border-gray-200 text-gray-500 hover:bg-gray-50"}`}>
-              {p.label}
-            </button>
-          ))}
-        </div>
-      </div>
-      <div className="flex items-center gap-2.5">
-        <input type="checkbox" id="anonymous" checked={form.anonymous} onChange={e => setForm(f => ({ ...f, anonymous: e.target.checked }))}
-          className="w-4 h-4 rounded border-gray-300 text-teal-600 focus:ring-teal-500" />
-        <label htmlFor="anonymous" className="text-sm text-gray-700">Submit anonymously</label>
-      </div>
-      <AttachmentsSection files={attachments} onChange={setAttachments} />
-      <button type="submit" className="w-full bg-teal-600 text-white py-2.5 rounded-md text-sm font-medium hover:bg-teal-700 transition-colors">
-        Report Issue
-      </button>
-    </form>
-  );
-}
-
-const changeTypeOptions = ["Cost", "Scope", "Schedule", "Design", "Quality"];
-
-function ChangeRequestForm({ onSuccess }: { onSuccess: (id: string) => void }) {
-  const [form, setForm] = useState({
-    category: "", description: "", reason: "", changeTypes: [] as string[],
-    scopeImpact: "", scheduleImpactDays: 0, costImpact: 0,
-    qualityImpact: "", stakeholderImpact: "", recommendedAction: "", notes: "",
-  });
-  const [errors, setErrors] = useState<Record<string, string>>({});
-  const [attachments, setAttachments] = useState<File[]>([]);
-
-  function toggleChangeType(t: string) {
-    setForm(f => ({ ...f, changeTypes: f.changeTypes.includes(t) ? f.changeTypes.filter(x => x !== t) : [...f.changeTypes, t] }));
-  }
-
-  function validate() {
-    const e: Record<string, string> = {};
-    if (!form.category) e.category = "Select a change category";
-    if (!form.description.trim()) e.description = "Describe the change";
-    return e;
-  }
-
-  function handleSubmit(e: React.FormEvent) {
-    e.preventDefault();
-    const errs = validate();
-    if (Object.keys(errs).length) { setErrors(errs); return; }
-    onSuccess("CHG-" + Math.random().toString(36).slice(2, 8).toUpperCase());
-  }
-
-  return (
-    <form onSubmit={handleSubmit} className="space-y-5">
-      <div>
-        <label className="block text-sm font-medium text-gray-700 mb-1">Change Category <span className="text-red-500">*</span></label>
-        <select value={form.category} onChange={e => { setForm(f => ({ ...f, category: e.target.value })); if (errors.category) setErrors(p => { const x = {...p}; delete x.category; return x; }); }}
-          className={`w-full border rounded-md px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500 ${errors.category ? "border-red-400" : "border-gray-300"}`}>
-          <option value="">Select category…</option>
-          {changeCategoryOptions.map(c => <option key={c} value={c}>{c}</option>)}
-        </select>
-        {errors.category && <p className="text-xs text-red-500 mt-1">{errors.category}</p>}
-      </div>
-      <div>
-        <label className="block text-sm font-medium text-gray-700 mb-1">Description <span className="text-red-500">*</span></label>
-        <textarea value={form.description} onChange={e => { setForm(f => ({ ...f, description: e.target.value })); if (errors.description) setErrors(p => { const x = {...p}; delete x.description; return x; }); }}
-          rows={2} placeholder="Describe the change being requested…"
-          className={`w-full border rounded-md px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500 resize-none ${errors.description ? "border-red-400" : "border-gray-300"}`} />
-        {errors.description && <p className="text-xs text-red-500 mt-1">{errors.description}</p>}
-      </div>
-      <div>
-        <label className="block text-sm font-medium text-gray-700 mb-1">Reason for Change</label>
-        <textarea value={form.reason} onChange={e => setForm(f => ({ ...f, reason: e.target.value }))} rows={2}
-          placeholder="Why is this change needed?"
-          className="w-full border border-gray-300 rounded-md px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500 resize-none" />
-      </div>
-      <div>
-        <label className="block text-sm font-medium text-gray-700 mb-1">Change Types</label>
-        <div className="flex flex-wrap gap-3">
-          {changeTypeOptions.map(t => (
-            <label key={t} className="flex items-center gap-1.5 text-sm text-gray-700 cursor-pointer">
-              <input type="checkbox" checked={form.changeTypes.includes(t)} onChange={() => toggleChangeType(t)} className="rounded" />
-              {t}
-            </label>
-          ))}
-        </div>
-      </div>
-      <div className="border-t border-gray-100 pt-4">
-        <p className="text-xs font-medium text-gray-500 uppercase tracking-wider mb-3">Impact Assessment</p>
-        <div className="space-y-3">
-          <div>
-            <label className="block text-xs font-medium text-gray-600 mb-1">Scope Impact</label>
-            <textarea value={form.scopeImpact} onChange={e => setForm(f => ({ ...f, scopeImpact: e.target.value }))} rows={1}
-              placeholder="How does this affect scope?"
-              className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500 resize-none" />
-          </div>
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className="block text-xs font-medium text-gray-600 mb-1">Schedule Impact (days)</label>
-              <input type="number" value={form.scheduleImpactDays} onChange={e => setForm(f => ({ ...f, scheduleImpactDays: Number(e.target.value) }))}
-                className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500" />
-            </div>
-            <div>
-              <label className="block text-xs font-medium text-gray-600 mb-1">Cost Impact (₦)</label>
-              <input type="number" value={form.costImpact} onChange={e => setForm(f => ({ ...f, costImpact: Number(e.target.value) }))}
-                className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500" />
-            </div>
-          </div>
-          <div>
-            <label className="block text-xs font-medium text-gray-600 mb-1">Quality Impact</label>
-            <textarea value={form.qualityImpact} onChange={e => setForm(f => ({ ...f, qualityImpact: e.target.value }))} rows={1}
-              placeholder="Quality implications?"
-              className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500 resize-none" />
-          </div>
-          <div>
-            <label className="block text-xs font-medium text-gray-600 mb-1">Stakeholder Impact</label>
-            <textarea value={form.stakeholderImpact} onChange={e => setForm(f => ({ ...f, stakeholderImpact: e.target.value }))} rows={1}
-              placeholder="Stakeholder implications?"
-              className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500 resize-none" />
-          </div>
-          <div>
-            <label className="block text-xs font-medium text-gray-600 mb-1">Recommended Action</label>
-            <textarea value={form.recommendedAction} onChange={e => setForm(f => ({ ...f, recommendedAction: e.target.value }))} rows={1}
-              placeholder="What action do you recommend?"
-              className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500 resize-none" />
-          </div>
-        </div>
-      </div>
-      <div>
-        <label className="block text-sm font-medium text-gray-700 mb-1">Additional Notes <span className="text-gray-400 font-normal">(optional)</span></label>
-        <textarea value={form.notes} onChange={e => setForm(f => ({ ...f, notes: e.target.value }))} rows={2}
-          placeholder="Any additional context…"
-          className="w-full border border-gray-300 rounded-md px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500 resize-none" />
-      </div>
-      <AttachmentsSection files={attachments} onChange={setAttachments} />
-      <button type="submit" className="w-full text-white py-2.5 rounded-md text-sm font-medium transition-colors" style={{ backgroundColor: "#E8973A" }}>
-        Submit Change Request
-      </button>
-    </form>
-  );
-}
+// ─── Issue Form ─────────────────────────────────────────────────────────────
+// (moved to src/app/components/IssueForm.tsx)
 
 export function SubmitRequestPage() {
   const navigate = useNavigate();
@@ -975,11 +757,18 @@ export function SubmitRequestPage() {
   const [successState, setSuccessState] = useState<{ type: string; id: string } | null>(null);
 
   if (successState) {
+    const tabKey = successState.type === "Material Request" ? "material"
+      : successState.type === "Finance Request" ? "finance"
+      : successState.type === "Leave Request" ? "leave"
+      : successState.type === "Issue Reported" ? "issue"
+      : successState.type === "Change Request" ? "change" : "material";
+    const pipelineSteps = getPipelineForRequest(tabKey, getWorkflows());
     return (
       <SuccessCard
         title={`${successState.type} Submitted`}
         id={successState.id}
         onBack={() => setSuccessState(null)}
+        pipelineSteps={pipelineSteps}
       />
     );
   }
@@ -1037,8 +826,8 @@ export function SubmitRequestPage() {
 
           {/* Form body */}
           <div className="p-6">
-            {tab === "material" && <MaterialForm onSuccess={id => setSuccessState({ type: "Material Request", id })} />}
-            {tab === "finance"  && <FinanceForm  onSuccess={id => setSuccessState({ type: "Finance Request",  id })} />}
+              {tab === "material" && <MaterialForm onSuccess={id => setSuccessState({ type: "Material Request", id })} />}
+            {tab === "finance"  && <ExpenseForm  onSuccess={id => setSuccessState({ type: "Finance Request",  id })} />}
             {tab === "leave"    && <LeaveForm    onSuccess={id => setSuccessState({ type: "Leave Request",    id })} />}
             {tab === "issue"    && <IssueForm    onSuccess={id => setSuccessState({ type: "Issue Reported",   id })} />}
             {tab === "change"   && <ChangeRequestForm onSuccess={id => setSuccessState({ type: "Change Request", id })} />}

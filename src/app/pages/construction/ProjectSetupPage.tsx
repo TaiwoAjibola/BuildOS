@@ -1,12 +1,14 @@
 import { useParams } from "react-router";
-import { useState, useMemo } from "react";
+import { useState, useMemo, useRef } from "react";
 import {
   CheckCircle, Circle, ArrowRight, ArrowLeft, Lock, Calendar,
-  Building2, Users, Layers, FileText, Plus, X, Trash2, ChevronRight, ChevronDown, Tags
+  Building2, Users, Layers, FileText, Plus, X, Trash2, ChevronRight, ChevronDown, Tags, Download, Upload
 } from "lucide-react";
-import { getProjectById, staffList, tradeTypes, clusters, tasks as allTasks, fmtDate, vendors as allVendors, defaultScheduleLevels } from "./mockData";
+import * as XLSX from "xlsx";
+import { getProjectById, staffList, tradeTypes, clusters, tasks as allTasks, fmtDate, vendors as allVendors, defaultScheduleLevels, hrEmployees, materialInventory, equipmentInventory } from "./mockData";
 import type { Task, Vendor, ProjectCalendar, Sector, ProjectStructureItem, ScheduleLevelConfig, HumanResource, HumanResourceSource, MaterialResource, EquipmentResource, ResourceAssignment } from "./types";
 import { SECTOR_CATEGORIES, getBlockLabel, getStructureConfig, DEFAULT_WBS_LEVELS } from "./types";
+import { useResources } from "../../contexts/ResourceContext";
 
 const STEPS = [
   { id: "basic", label: "Basic Information", icon: FileText },
@@ -44,6 +46,7 @@ export function ProjectSetupPage() {
   const { id: projectId } = useParams<{ id: string }>();
   const project = getProjectById(projectId!);
 
+  const { individualContractors } = useResources();
   const [currentStep, setCurrentStep] = useState(0);
   const [completedSteps, setCompletedSteps] = useState<Set<number>>(new Set());
 
@@ -141,18 +144,25 @@ export function ProjectSetupPage() {
   const EMPTY_STAFF_FORM = { name: "", trade: "", employeeId: "", dailyRate: 0, status: "Active" as const };
   const [staffForm, setStaffForm] = useState(EMPTY_STAFF_FORM);
   const [projectStaff, setProjectStaff] = useState<HumanResource[]>([]);
+  const [selectedEmployeeId, setSelectedEmployeeId] = useState("");
 
   const EMPTY_CONTRACTOR_FORM = { name: "", trade: "", payRate: 0, payRateUnit: "daily" as "daily" | "weekly" | "monthly" | "lump-sum", skilledCount: 0, unskilledCount: 0, mandaysEstimate: 0, status: "Awarded" as const };
   const [contractorForm, setContractorForm] = useState(EMPTY_CONTRACTOR_FORM);
   const [projectContractors, setProjectContractors] = useState<HumanResource[]>([]);
+  const [selectedExistingContractor, setSelectedExistingContractor] = useState("");
+  const [isNewContractor, setIsNewContractor] = useState(false);
 
   const EMPTY_MATERIAL_FORM = { name: "", category: "", unit: "", estimatedQty: 0, estimatedUnitCost: 0, procurementSource: "internal" as "internal" | "purchase", supplierName: "" };
   const [materialForm, setMaterialForm] = useState(EMPTY_MATERIAL_FORM);
   const [projectMaterials, setProjectMaterials] = useState<MaterialResource[]>([]);
+  const [materialSource, setMaterialSource] = useState<"inventory" | "manual">("inventory");
+  const [selectedMaterialInventoryId, setSelectedMaterialInventoryId] = useState("");
 
   const EMPTY_EQUIPMENT_FORM = { name: "", category: "", ownership: "company-owned" as "company-owned" | "rented" | "client-supplied", internalCostPerDay: 0, rentalCostPerDay: 0, rentalSupplier: "", estimatedDays: 0, status: "Available" as "Available" | "Assigned" | "Under Maintenance" };
   const [equipmentForm, setEquipmentForm] = useState(EMPTY_EQUIPMENT_FORM);
   const [projectEquipment, setProjectEquipment] = useState<EquipmentResource[]>([]);
+  const [equipmentSource, setEquipmentSource] = useState<"fleet" | "manual">("fleet");
+  const [selectedEquipmentFleetId, setSelectedEquipmentFleetId] = useState("");
 
   // HR list UI state
   const [hrSearch, setHrSearch] = useState("");
@@ -274,6 +284,71 @@ export function ProjectSetupPage() {
     setResourceAssignments(prev => prev.filter(a => !idsToRemove.has(a.taskId)));
   };
 
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const downloadExcelTemplate = () => {
+    const wb = XLSX.utils.book_new();
+    const data = [
+      ["Level", "Task Name", "Parent Task ID", "Planned Start", "Planned End"],
+      [1, "Substructure Works", "", "2026-01-15", "2026-03-15"],
+      [2, "Excavation", "TSK-001", "2026-01-15", "2026-02-01"],
+      [2, "Foundation", "TSK-001", "2026-02-02", "2026-03-15"],
+      [1, "Superstructure Works", "", "2026-03-16", "2026-09-30"],
+      [2, "Column & Slab", "TSK-004", "2026-03-16", "2026-06-30"],
+      [3, "Ground Floor Slab", "TSK-005", "2026-03-16", "2026-04-30"],
+      [3, "First Floor Slab", "TSK-005", "2026-05-01", "2026-06-30"],
+    ];
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(data), "Tasks");
+    XLSX.writeFile(wb, "project_schedule_template.xlsx");
+  };
+
+  const handleExcelImport = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (evt) => {
+      try {
+        const data = new Uint8Array(evt.target?.result as ArrayBuffer);
+        const wb = XLSX.read(data, { type: "array" });
+        const ws = wb.Sheets[wb.SheetNames[0]];
+        const rows = XLSX.utils.sheet_to_json<string[]>(ws, { header: 1 });
+        const newTasks: Task[] = [];
+        let maxLvl = maxTaskId;
+        for (let i = 1; i < rows.length; i++) {
+          const [levelStr, name, parentId, start, end] = rows[i];
+          const level = Number(levelStr);
+          if (!name || isNaN(level) || level < 1 || level > 4) continue;
+          maxLvl++;
+          const prefix = LEVEL_PREFIX[level as 1 | 2 | 3 | 4];
+          const id = `${prefix}-${String(maxLvl).padStart(3, "0")}`;
+          const s = start || new Date().toISOString().split("T")[0];
+          const e = end || new Date(Date.now() + 30 * 86400000).toISOString().split("T")[0];
+          const dur = Math.max(1, Math.round((new Date(e).getTime() - new Date(s).getTime()) / 86400000) + 1);
+          newTasks.push({
+            id, projectId: projectId!, parentTaskId: parentId || null,
+            level: level as 1 | 2 | 3 | 4, name: String(name).trim(),
+            plannedStart: s, plannedEnd: e, actualStart: null, actualEnd: null,
+            plannedDuration: dur, actualDuration: null, percentComplete: 0,
+            predecessorId: null, dependencyType: null, lagDays: 0,
+            vendorId: null, ragStatus: "on-track", ragOverride: false, notes: "",
+          });
+        }
+        if (newTasks.length > 0) {
+          setProjectTasks(prev => [...prev, ...newTasks]);
+          setExpanded(prev => {
+            const next = new Set(prev);
+            newTasks.forEach(t => { next.add(t.id); if (t.parentTaskId) next.add(t.parentTaskId); });
+            return next;
+          });
+        }
+      } catch (err) {
+        console.error("Excel import failed", err);
+      }
+    };
+    reader.readAsArrayBuffer(file);
+    if (fileInputRef.current) fileInputRef.current.value = "";
+  };
+
   // Vendor helpers
   const uniqueVendors = useMemo(() => {
     const seen = new Set<string>();
@@ -343,26 +418,50 @@ export function ProjectSetupPage() {
 
   // Staff helpers
   const addStaff = () => {
-    if (!staffForm.name || !staffForm.trade) return;
+    if (!selectedEmployeeId) return;
+    const emp = hrEmployees.find(e => e.id === selectedEmployeeId);
+    if (!emp) return;
+    if (projectStaff.some(s => s.employeeId === selectedEmployeeId)) return;
     const newStaff: HumanResource = {
       id: `STF-${String(projectStaff.length + 1).padStart(3, "0")}`,
       projectId: projectId!,
       source: "employee",
-      name: staffForm.name,
-      trade: staffForm.trade,
-      employeeId: staffForm.employeeId || undefined,
-      dailyRate: staffForm.dailyRate || undefined,
+      name: `${emp.firstName} ${emp.lastName}`,
+      trade: emp.role,
+      employeeId: emp.id,
+      dailyRate: emp.dailyRate,
       status: "Active",
       assignedWorkPackages: [],
       blockAssignment: "",
       mandaysEstimate: 0,
     };
     setProjectStaff(prev => [...prev, newStaff]);
-    setStaffForm(EMPTY_STAFF_FORM);
+    setSelectedEmployeeId("");
   };
   const removeStaff = (id: string) => setProjectStaff(prev => prev.filter(s => s.id !== id));
 
   // Contractor helpers
+  const handleSelectExistingContractor = (id: string) => {
+    setSelectedExistingContractor(id);
+    if (id === "__new__") {
+      setIsNewContractor(true);
+      setContractorForm(EMPTY_CONTRACTOR_FORM);
+    } else if (id === "") {
+      setIsNewContractor(false);
+      setContractorForm(EMPTY_CONTRACTOR_FORM);
+    } else {
+      setIsNewContractor(false);
+      const c = individualContractors.find(c => c.id === id);
+      if (c) {
+        setContractorForm({
+          name: c.name, trade: c.trade, payRate: c.payRate,
+          payRateUnit: c.payRateUnit, skilledCount: c.skilledCount,
+          unskilledCount: c.unskilledCount, mandaysEstimate: c.manDays,
+          status: c.status,
+        });
+      }
+    }
+  };
   const addContractor = () => {
     if (!contractorForm.name || !contractorForm.trade) return;
     const newCon: HumanResource = {
@@ -382,6 +481,8 @@ export function ProjectSetupPage() {
     };
     setProjectContractors(prev => [...prev, newCon]);
     setContractorForm(EMPTY_CONTRACTOR_FORM);
+    setSelectedExistingContractor("");
+    setIsNewContractor(false);
   };
   const removeContractor = (id: string) => setProjectContractors(prev => prev.filter(c => c.id !== id));
 
@@ -396,6 +497,26 @@ export function ProjectSetupPage() {
 
   // Material helpers
   const addMaterial = () => {
+    if (materialSource === "inventory") {
+      if (!selectedMaterialInventoryId || !materialForm.estimatedQty) return;
+      const inv = materialInventory.find(i => i.id === selectedMaterialInventoryId);
+      if (!inv) return;
+      const newMat: MaterialResource = {
+        id: `MAT-${String(projectMaterials.length + 1).padStart(3, "0")}`,
+        projectId: projectId!,
+        name: inv.name,
+        category: inv.category,
+        unit: inv.unit,
+        estimatedQty: materialForm.estimatedQty,
+        estimatedUnitCost: inv.defaultUnitCost,
+        totalEstimatedCost: materialForm.estimatedQty * inv.defaultUnitCost,
+        procurementSource: "internal",
+      };
+      setProjectMaterials(prev => [...prev, newMat]);
+      setSelectedMaterialInventoryId("");
+      setMaterialForm({ ...EMPTY_MATERIAL_FORM, estimatedQty: 0 });
+      return;
+    }
     if (!materialForm.name || !materialForm.category || !materialForm.unit) return;
     const newMat: MaterialResource = {
       id: `MAT-${String(projectMaterials.length + 1).padStart(3, "0")}`,
@@ -416,6 +537,26 @@ export function ProjectSetupPage() {
 
   // Equipment helpers
   const addEquipment = () => {
+    if (equipmentSource === "fleet") {
+      if (!selectedEquipmentFleetId || !equipmentForm.estimatedDays) return;
+      const inv = equipmentInventory.find(e => e.id === selectedEquipmentFleetId);
+      if (!inv) return;
+      const newEquip: EquipmentResource = {
+        id: `EQ-${String(projectEquipment.length + 1).padStart(3, "0")}`,
+        projectId: projectId!,
+        name: inv.name,
+        category: inv.category,
+        ownership: "company-owned",
+        internalCostPerDay: inv.defaultInternalCostPerDay,
+        estimatedDays: equipmentForm.estimatedDays,
+        totalEstimatedCost: inv.defaultInternalCostPerDay * equipmentForm.estimatedDays,
+        status: inv.status === "Available" ? "Available" : "Assigned",
+      };
+      setProjectEquipment(prev => [...prev, newEquip]);
+      setSelectedEquipmentFleetId("");
+      setEquipmentForm({ ...EMPTY_EQUIPMENT_FORM, estimatedDays: 0 });
+      return;
+    }
     if (!equipmentForm.name || !equipmentForm.category) return;
     const isCompanyOwned = equipmentForm.ownership === "company-owned";
     const costPerDay = isCompanyOwned ? equipmentForm.internalCostPerDay : equipmentForm.rentalCostPerDay;
@@ -434,6 +575,7 @@ export function ProjectSetupPage() {
     };
     setProjectEquipment(prev => [...prev, newEquip]);
     setEquipmentForm(EMPTY_EQUIPMENT_FORM);
+    setSelectedEquipmentFleetId("");
   };
   const removeEquipment = (id: string) => setProjectEquipment(prev => prev.filter(e => e.id !== id));
 
@@ -769,6 +911,7 @@ export function ProjectSetupPage() {
           >
             <option value="">Select PM</option>
             {staffList.map(s => <option key={s} value={s}>{s}</option>)}
+            {individualContractors.map(c => <option key={c.id} value={c.name}>{c.name} (Contractor)</option>)}
           </select>
         </div>
         <div>
@@ -924,6 +1067,20 @@ export function ProjectSetupPage() {
           >
             <Plus className="w-4 h-4" /> Add Task
           </button>
+          <div className="flex gap-2">
+            <button onClick={downloadExcelTemplate}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium border"
+              style={{ borderColor: "#E2E8F0", color: "#4A5568" }}
+            >
+              <Download className="w-4 h-4" /> Template
+            </button>
+            <label className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium border cursor-pointer"
+              style={{ borderColor: "#E2E8F0", color: "#4A5568" }}
+            >
+              <Upload className="w-4 h-4" /> Import Excel
+              <input ref={fileInputRef} type="file" accept=".xlsx,.xls" onChange={handleExcelImport} className="hidden" />
+            </label>
+          </div>
         </div>
 
         {projectTasks.length === 0 ? (
@@ -1058,24 +1215,35 @@ export function ProjectSetupPage() {
               {/* Existing assignments */}
               {resourceAssignments.filter(a => a.taskId === assignModalTaskId).length > 0 && (
                 <div>
-                  <h4 className="text-sm font-semibold text-gray-700 mb-2">Assigned Resources</h4>
-                  <div className="space-y-2">
+                  <h4 className="text-sm font-semibold text-gray-700 mb-3 flex items-center gap-2">
+                    <Users className="w-4 h-4" /> Assigned Resources
+                    <span className="text-xs text-gray-400 font-normal">({resourceAssignments.filter(a => a.taskId === assignModalTaskId).length})</span>
+                  </h4>
+                  <div className="grid grid-cols-1 gap-2">
                     {resourceAssignments.filter(a => a.taskId === assignModalTaskId).map(ass => {
                       const resName = ass.resourceType === "human"
                         ? ([...projectStaff, ...projectContractors, ...projectVendors.map(v => ({ id: v.id, name: v.name, trade: v.trade }))] as { id: string; name: string; trade?: string }[]).find(r => r.id === (ass.humanResourceId || ass.materialResourceId || ass.equipmentResourceId))?.name || "Unknown"
                         : ass.resourceType === "material"
                           ? projectMaterials.find(m => m.id === ass.materialResourceId)?.name || "Unknown"
                           : projectEquipment.find(e => e.id === ass.equipmentResourceId)?.name || "Unknown";
+                      const badgeColor = ass.resourceType === "human" ? "bg-blue-100 text-blue-700" : ass.resourceType === "material" ? "bg-green-100 text-green-700" : "bg-amber-100 text-amber-700";
                       return (
-                        <div key={ass.id} className="flex items-center justify-between px-3 py-2 bg-gray-50 rounded-lg text-sm">
-                          <div>
-                            <span className="font-medium text-gray-900">{resName}</span>
-                            <span className="ml-2 text-xs text-gray-500">({ass.resourceType})</span>
-                          </div>
+                        <div key={ass.id} className="flex items-center justify-between px-4 py-3 bg-gray-50 rounded-lg text-sm border" style={{ borderColor: "#E2E8F0" }}>
                           <div className="flex items-center gap-3">
-                            <span className="text-gray-600">Qty: {ass.plannedQty}</span>
-                            <span className="text-gray-600">Cost: ₦{(ass.plannedCost || 0).toLocaleString()}</span>
-                            <button onClick={() => setResourceAssignments(prev => prev.filter(a => a.id !== ass.id))} className="text-red-400 hover:text-red-600"><X className="w-3.5 h-3.5" /></button>
+                            <div className={`w-8 h-8 rounded-lg flex items-center justify-center text-xs font-bold ${badgeColor}`}>
+                              {ass.resourceType === "human" ? "H" : ass.resourceType === "material" ? "M" : "E"}
+                            </div>
+                            <div>
+                              <p className="font-medium text-gray-900">{resName}</p>
+                              <p className="text-xs text-gray-500 capitalize">{ass.resourceType}</p>
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-4">
+                            <div className="text-right">
+                              <p className="text-sm font-medium text-gray-900">{ass.plannedQty} × {ass.plannedCost > 0 ? `₦${ass.plannedCost.toLocaleString()}` : "N/A"}</p>
+                              <p className="text-xs text-gray-400">Total: ₦{((ass.plannedCost || 0) * ass.plannedQty).toLocaleString()}</p>
+                            </div>
+                            <button onClick={() => setResourceAssignments(prev => prev.filter(a => a.id !== ass.id))} className="p-1.5 rounded-lg hover:bg-red-50 text-red-400 hover:text-red-600 transition-colors"><Trash2 className="w-3.5 h-3.5" /></button>
                           </div>
                         </div>
                       );
@@ -1086,16 +1254,24 @@ export function ProjectSetupPage() {
 
               {/* Add new assignment */}
               <div>
-                <h4 className="text-sm font-semibold text-gray-700 mb-2">Add Resource</h4>
+                <h4 className="text-sm font-semibold text-gray-700 mb-3 flex items-center gap-2">
+                  <Plus className="w-4 h-4" /> Assign New Resource
+                </h4>
                 <div className="space-y-3">
                   <div>
-                    <label className="block text-xs font-medium text-gray-600 mb-1">Resource Type</label>
+                    <label className="block text-xs font-medium text-gray-600 mb-2">Resource Type</label>
                     <div className="flex gap-2">
                       {(["human", "material", "equipment"] as const).map(rt => (
                         <button
                           key={rt}
                           onClick={() => setAssignForm({ ...assignForm, resourceType: rt, resourceId: "" })}
-                          className={`px-3 py-1.5 rounded-lg text-xs font-medium border ${assignForm.resourceType === rt ? "bg-orange-50 border-orange-400 text-orange-700" : "bg-white border-gray-200 text-gray-600"}`}
+                          className={`flex-1 px-3 py-2 rounded-lg text-sm font-medium border transition-colors ${
+                            assignForm.resourceType === rt
+                              ? rt === "human" ? "bg-blue-50 border-blue-400 text-blue-700"
+                                : rt === "material" ? "bg-green-50 border-green-400 text-green-700"
+                                : "bg-amber-50 border-amber-400 text-amber-700"
+                              : "bg-white border-gray-200 text-gray-500 hover:bg-gray-50"
+                          }`}
                         >
                           {rt === "human" ? "Human" : rt === "material" ? "Material" : "Equipment"}
                         </button>
@@ -1223,49 +1399,51 @@ export function ProjectSetupPage() {
           {/* ── Employee Form ── */}
           {humanSubType === "employee" && (
             <div className="rounded-xl border p-6" style={{ borderColor: "#E2E8F0", backgroundColor: "white" }}>
-              <h2 className="text-lg font-bold mb-4" style={{ color: "#1A202C" }}>Register Staff / Employee</h2>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Full Name</label>
-                  <input type="text" value={staffForm.name}
-                    onChange={e => setStaffForm({ ...staffForm, name: e.target.value })}
-                    className="w-full px-3 py-2 rounded-lg border text-sm" style={{ borderColor: "#E2E8F0", backgroundColor: "#F7F8FA" }}
-                    placeholder="e.g. James Okafor" />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Trade / Role</label>
-                  <select value={staffForm.trade}
-                    onChange={e => setStaffForm({ ...staffForm, trade: e.target.value })}
-                    className="w-full px-3 py-2 rounded-lg border text-sm" style={{ borderColor: "#E2E8F0", backgroundColor: "#F7F8FA" }}>
-                    <option value="">Select role</option>
-                    {tradeTypes.map(t => <option key={t} value={t}>{t}</option>)}
-                    <option value="Project Management">Project Management</option>
-                    <option value="Site Supervision">Site Supervision</option>
-                    <option value="QA/QC">QA/QC</option>
-                    <option value="HSE">HSE</option>
-                    <option value="Administration">Administration</option>
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Employee ID</label>
-                  <input type="text" value={staffForm.employeeId}
-                    onChange={e => setStaffForm({ ...staffForm, employeeId: e.target.value })}
-                    className="w-full px-3 py-2 rounded-lg border text-sm" style={{ borderColor: "#E2E8F0", backgroundColor: "#F7F8FA" }}
-                    placeholder="e.g. EMP-010" />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Daily Rate (₦)</label>
-                  <input type="number" value={staffForm.dailyRate || ""}
-                    onChange={e => setStaffForm({ ...staffForm, dailyRate: Number(e.target.value) })}
-                    className="w-full px-3 py-2 rounded-lg border text-sm" style={{ borderColor: "#E2E8F0", backgroundColor: "#F7F8FA" }}
-                    placeholder="e.g. 45000" />
-                </div>
+              <h2 className="text-lg font-bold mb-4" style={{ color: "#1A202C" }}>Select Employee</h2>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Choose Employee from HR</label>
+                <select value={selectedEmployeeId}
+                  onChange={e => setSelectedEmployeeId(e.target.value)}
+                  className="w-full px-3 py-2 rounded-lg border text-sm" style={{ borderColor: "#E2E8F0", backgroundColor: "#F7F8FA" }}>
+                  <option value="">— Select Employee —</option>
+                  {hrEmployees.filter(e => !projectStaff.some(s => s.employeeId === e.id)).map(e => (
+                    <option key={e.id} value={e.id}>{e.firstName} {e.lastName} — {e.role}</option>
+                  ))}
+                </select>
               </div>
+              {(() => {
+                const emp = hrEmployees.find(e => e.id === selectedEmployeeId);
+                if (!emp) return null;
+                return (
+                  <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Full Name</label>
+                      <input type="text" value={`${emp.firstName} ${emp.lastName}`} disabled
+                        className="w-full px-3 py-2 rounded-lg border text-sm bg-gray-50" style={{ borderColor: "#E2E8F0" }} />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Role</label>
+                      <input type="text" value={emp.role} disabled
+                        className="w-full px-3 py-2 rounded-lg border text-sm bg-gray-50" style={{ borderColor: "#E2E8F0" }} />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Employee ID</label>
+                      <input type="text" value={emp.id} disabled
+                        className="w-full px-3 py-2 rounded-lg border text-sm bg-gray-50" style={{ borderColor: "#E2E8F0" }} />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Daily Rate (₦)</label>
+                      <input type="text" value={emp.dailyRate.toLocaleString()} disabled
+                        className="w-full px-3 py-2 rounded-lg border text-sm bg-gray-50" style={{ borderColor: "#E2E8F0" }} />
+                    </div>
+                  </div>
+                );
+              })()}
               <div className="flex justify-end mt-4">
-                <button onClick={addStaff} disabled={!staffForm.name || !staffForm.trade}
+                <button onClick={addStaff} disabled={!selectedEmployeeId}
                   className="flex items-center gap-1.5 px-4 py-2 rounded-lg text-white text-sm font-medium disabled:opacity-50"
                   style={{ backgroundColor: "#E8973A" }}>
-                  <Plus className="w-4 h-4" /> Add Employee
+                  <Plus className="w-4 h-4" /> Assign to Project
                 </button>
               </div>
             </div>
@@ -1274,79 +1452,95 @@ export function ProjectSetupPage() {
           {/* ── Individual Contractor Form ── */}
           {humanSubType === "individual-contractor" && (
             <div className="rounded-xl border p-6" style={{ borderColor: "#E2E8F0", backgroundColor: "white" }}>
-              <h2 className="text-lg font-bold mb-4" style={{ color: "#1A202C" }}>Register Individual Contractor</h2>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Full Name</label>
-                  <input type="text" value={contractorForm.name}
-                    onChange={e => setContractorForm({ ...contractorForm, name: e.target.value })}
-                    className="w-full px-3 py-2 rounded-lg border text-sm" style={{ borderColor: "#E2E8F0", backgroundColor: "#F7F8FA" }}
-                    placeholder="e.g. Babatunde Welder" />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Trade</label>
-                  <select value={contractorForm.trade}
-                    onChange={e => setContractorForm({ ...contractorForm, trade: e.target.value })}
-                    className="w-full px-3 py-2 rounded-lg border text-sm" style={{ borderColor: "#E2E8F0", backgroundColor: "#F7F8FA" }}>
-                    <option value="">Select trade</option>
-                    {tradeTypes.map(t => <option key={t} value={t}>{t}</option>)}
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Pay Rate (₦)</label>
-                  <input type="number" value={contractorForm.payRate || ""}
-                    onChange={e => setContractorForm({ ...contractorForm, payRate: Number(e.target.value) })}
-                    className="w-full px-3 py-2 rounded-lg border text-sm" style={{ borderColor: "#E2E8F0", backgroundColor: "#F7F8FA" }}
-                    placeholder="e.g. 25000" />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Rate Unit</label>
-                  <select value={contractorForm.payRateUnit}
-                    onChange={e => setContractorForm({ ...contractorForm, payRateUnit: e.target.value as "daily" | "weekly" | "monthly" | "lump-sum" })}
-                    className="w-full px-3 py-2 rounded-lg border text-sm" style={{ borderColor: "#E2E8F0", backgroundColor: "#F7F8FA" }}>
-                    <option value="daily">Per Day</option>
-                    <option value="weekly">Per Week</option>
-                    <option value="monthly">Per Month</option>
-                    <option value="lump-sum">Lump Sum</option>
-                  </select>
-                </div>
-                <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Skilled Workers</label>
-                    <input type="number" value={contractorForm.skilledCount || ""}
-                      onChange={e => setContractorForm({ ...contractorForm, skilledCount: Number(e.target.value) })}
-                      className="w-full px-3 py-2 rounded-lg border text-sm" style={{ borderColor: "#E2E8F0", backgroundColor: "#F7F8FA" }} />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Unskilled Workers</label>
-                    <input type="number" value={contractorForm.unskilledCount || ""}
-                      onChange={e => setContractorForm({ ...contractorForm, unskilledCount: Number(e.target.value) })}
-                      className="w-full px-3 py-2 rounded-lg border text-sm" style={{ borderColor: "#E2E8F0", backgroundColor: "#F7F8FA" }} />
-                  </div>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Man-days Estimate</label>
-                  <input type="number" value={contractorForm.mandaysEstimate || ""}
-                    onChange={e => setContractorForm({ ...contractorForm, mandaysEstimate: Number(e.target.value) })}
-                    className="w-full px-3 py-2 rounded-lg border text-sm" style={{ borderColor: "#E2E8F0", backgroundColor: "#F7F8FA" }} />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Status</label>
-                  <select value={contractorForm.status}
-                    onChange={e => setContractorForm({ ...contractorForm, status: e.target.value as "Awarded" | "Active" | "Completed" | "Terminated" })}
-                    className="w-full px-3 py-2 rounded-lg border text-sm" style={{ borderColor: "#E2E8F0", backgroundColor: "#F7F8FA" }}>
-                    <option value="Awarded">Awarded</option>
-                    <option value="Active">Active</option>
-                    <option value="Completed">Completed</option>
-                    <option value="Terminated">Terminated</option>
-                  </select>
-                </div>
+              <h2 className="text-lg font-bold mb-4" style={{ color: "#1A202C" }}>
+                {isNewContractor ? "Register Individual Contractor" : "Select Contractor"}
+              </h2>
+              <div className="mb-4">
+                <label className="block text-sm font-medium text-gray-700 mb-1">Choose Contractor</label>
+                <select value={selectedExistingContractor}
+                  onChange={e => handleSelectExistingContractor(e.target.value)}
+                  className="w-full px-3 py-2 rounded-lg border text-sm" style={{ borderColor: "#E2E8F0", backgroundColor: "#F7F8FA" }}>
+                  <option value="">— Select Contractor —</option>
+                  {individualContractors.filter(c => !projectContractors.some(pc => pc.name === c.name)).map(c => (
+                    <option key={c.id} value={c.id}>{c.name} — {c.trade}</option>
+                  ))}
+                  <option value="__new__">Register New Contractor</option>
+                </select>
               </div>
+              {(isNewContractor || selectedExistingContractor) && (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Full Name</label>
+                    <input type="text" value={contractorForm.name}
+                      onChange={e => setContractorForm({ ...contractorForm, name: e.target.value })}
+                      className="w-full px-3 py-2 rounded-lg border text-sm" style={{ borderColor: "#E2E8F0", backgroundColor: "#F7F8FA" }}
+                      placeholder="e.g. Babatunde Welder" />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Trade</label>
+                    <select value={contractorForm.trade}
+                      onChange={e => setContractorForm({ ...contractorForm, trade: e.target.value })}
+                      className="w-full px-3 py-2 rounded-lg border text-sm" style={{ borderColor: "#E2E8F0", backgroundColor: "#F7F8FA" }}>
+                      <option value="">Select trade</option>
+                      {tradeTypes.map(t => <option key={t} value={t}>{t}</option>)}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Pay Rate (₦)</label>
+                    <input type="number" value={contractorForm.payRate || ""}
+                      onChange={e => setContractorForm({ ...contractorForm, payRate: Number(e.target.value) })}
+                      className="w-full px-3 py-2 rounded-lg border text-sm" style={{ borderColor: "#E2E8F0", backgroundColor: "#F7F8FA" }}
+                      placeholder="e.g. 25000" />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Rate Unit</label>
+                    <select value={contractorForm.payRateUnit}
+                      onChange={e => setContractorForm({ ...contractorForm, payRateUnit: e.target.value as "daily" | "weekly" | "monthly" | "lump-sum" })}
+                      className="w-full px-3 py-2 rounded-lg border text-sm" style={{ borderColor: "#E2E8F0", backgroundColor: "#F7F8FA" }}>
+                      <option value="daily">Per Day</option>
+                      <option value="weekly">Per Week</option>
+                      <option value="monthly">Per Month</option>
+                      <option value="lump-sum">Lump Sum</option>
+                    </select>
+                  </div>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Skilled Workers</label>
+                      <input type="number" value={contractorForm.skilledCount || ""}
+                        onChange={e => setContractorForm({ ...contractorForm, skilledCount: Number(e.target.value) })}
+                        className="w-full px-3 py-2 rounded-lg border text-sm" style={{ borderColor: "#E2E8F0", backgroundColor: "#F7F8FA" }} />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Unskilled Workers</label>
+                      <input type="number" value={contractorForm.unskilledCount || ""}
+                        onChange={e => setContractorForm({ ...contractorForm, unskilledCount: Number(e.target.value) })}
+                        className="w-full px-3 py-2 rounded-lg border text-sm" style={{ borderColor: "#E2E8F0", backgroundColor: "#F7F8FA" }} />
+                    </div>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Man-days Estimate</label>
+                    <input type="number" value={contractorForm.mandaysEstimate || ""}
+                      onChange={e => setContractorForm({ ...contractorForm, mandaysEstimate: Number(e.target.value) })}
+                      className="w-full px-3 py-2 rounded-lg border text-sm" style={{ borderColor: "#E2E8F0", backgroundColor: "#F7F8FA" }} />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Status</label>
+                    <select value={contractorForm.status}
+                      onChange={e => setContractorForm({ ...contractorForm, status: e.target.value as "Awarded" | "Active" | "Completed" | "Terminated" })}
+                      className="w-full px-3 py-2 rounded-lg border text-sm" style={{ borderColor: "#E2E8F0", backgroundColor: "#F7F8FA" }}>
+                      <option value="Awarded">Awarded</option>
+                      <option value="Active">Active</option>
+                      <option value="Completed">Completed</option>
+                      <option value="Terminated">Terminated</option>
+                    </select>
+                  </div>
+                </div>
+              )}
               <div className="flex justify-end mt-4">
                 <button onClick={addContractor} disabled={!contractorForm.name || !contractorForm.trade}
                   className="flex items-center gap-1.5 px-4 py-2 rounded-lg text-white text-sm font-medium disabled:opacity-50"
                   style={{ backgroundColor: "#E8973A" }}>
-                  <Plus className="w-4 h-4" /> Add Contractor
+                  <Plus className="w-4 h-4" /> {isNewContractor ? "Add Contractor" : "Assign to Project"}
                 </button>
               </div>
             </div>
@@ -1609,76 +1803,144 @@ export function ProjectSetupPage() {
       {/* ──── MATERIALS ──── */}
       {resourceTab === "material" && (<>
         <div className="rounded-xl border p-6" style={{ borderColor: "#E2E8F0", backgroundColor: "white" }}>
-          <h2 className="text-lg font-bold mb-4" style={{ color: "#1A202C" }}>Register Material Resource</h2>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Material Name</label>
-              <input type="text" value={materialForm.name}
-                onChange={e => setMaterialForm({ ...materialForm, name: e.target.value })}
-                className="w-full px-3 py-2 rounded-lg border text-sm" style={{ borderColor: "#E2E8F0", backgroundColor: "#F7F8FA" }}
-                placeholder="e.g. Cement (Grade 42.5)" />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Category</label>
-              <select value={materialForm.category}
-                onChange={e => setMaterialForm({ ...materialForm, category: e.target.value })}
-                className="w-full px-3 py-2 rounded-lg border text-sm" style={{ borderColor: "#E2E8F0", backgroundColor: "#F7F8FA" }}>
-                <option value="">Select category</option>
-                {materialCategories.map(c => <option key={c} value={c}>{c}</option>)}
-              </select>
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Unit of Measure</label>
-              <select value={materialForm.unit}
-                onChange={e => setMaterialForm({ ...materialForm, unit: e.target.value })}
-                className="w-full px-3 py-2 rounded-lg border text-sm" style={{ borderColor: "#E2E8F0", backgroundColor: "#F7F8FA" }}>
-                <option value="">Select unit</option>
-                {materialUnits.map(u => <option key={u} value={u}>{u}</option>)}
-              </select>
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Estimated Quantity</label>
-              <input type="number" value={materialForm.estimatedQty || ""}
-                onChange={e => setMaterialForm({ ...materialForm, estimatedQty: Number(e.target.value) })}
-                className="w-full px-3 py-2 rounded-lg border text-sm" style={{ borderColor: "#E2E8F0", backgroundColor: "#F7F8FA" }}
-                placeholder="e.g. 5000" />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Estimated Unit Cost (₦)</label>
-              <input type="number" value={materialForm.estimatedUnitCost || ""}
-                onChange={e => setMaterialForm({ ...materialForm, estimatedUnitCost: Number(e.target.value) })}
-                className="w-full px-3 py-2 rounded-lg border text-sm" style={{ borderColor: "#E2E8F0", backgroundColor: "#F7F8FA" }}
-                placeholder="e.g. 5500" />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Procurement Source</label>
-              <select value={materialForm.procurementSource}
-                onChange={e => setMaterialForm({ ...materialForm, procurementSource: e.target.value as "internal" | "purchase" })}
-                className="w-full px-3 py-2 rounded-lg border text-sm" style={{ borderColor: "#E2E8F0", backgroundColor: "#F7F8FA" }}>
-                <option value="purchase">Purchase</option>
-                <option value="internal">Internal / Client-supplied</option>
-              </select>
-            </div>
-            {materialForm.procurementSource === "purchase" && (
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Supplier Name</label>
-                <input type="text" value={materialForm.supplierName}
-                  onChange={e => setMaterialForm({ ...materialForm, supplierName: e.target.value })}
-                  className="w-full px-3 py-2 rounded-lg border text-sm" style={{ borderColor: "#E2E8F0", backgroundColor: "#F7F8FA" }}
-                  placeholder="e.g. Dangote Cement" />
-              </div>
-            )}
+          <h2 className="text-lg font-bold mb-4" style={{ color: "#1A202C" }}>Add Material Resource</h2>
+          {/* Source toggle */}
+          <div className="flex gap-1 bg-gray-100 rounded-lg p-1 max-w-xs mb-4">
+            {(["inventory", "manual"] as const).map(src => (
+              <button key={src} onClick={() => { setMaterialSource(src); setSelectedMaterialInventoryId(""); setMaterialForm(EMPTY_MATERIAL_FORM); }}
+                className={`flex-1 px-4 py-1.5 text-sm font-medium rounded-md transition-colors capitalize ${
+                  materialSource === src ? "bg-white text-gray-900 shadow-sm" : "text-gray-500 hover:text-gray-700"
+                }`}
+              >
+                {src === "inventory" ? "From Inventory" : "New Material"}
+              </button>
+            ))}
           </div>
-          {materialForm.estimatedQty > 0 && materialForm.estimatedUnitCost > 0 && (
+          {materialSource === "inventory" ? (
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Select Material from Inventory</label>
+                <select value={selectedMaterialInventoryId}
+                  onChange={e => {
+                    const id = e.target.value;
+                    setSelectedMaterialInventoryId(id);
+                    if (id) {
+                      const inv = materialInventory.find(i => i.id === id);
+                      if (inv) setMaterialForm({ ...materialForm, name: inv.name, category: inv.category, unit: inv.unit, estimatedUnitCost: inv.defaultUnitCost, procurementSource: "internal" });
+                    }
+                  }}
+                  className="w-full px-3 py-2 rounded-lg border text-sm" style={{ borderColor: "#E2E8F0", backgroundColor: "#F7F8FA" }}>
+                  <option value="">— Select from inventory —</option>
+                  {materialInventory.map(i => (
+                    <option key={i.id} value={i.id}>{i.name} ({i.inStock} {i.unit} in stock) — ₦{i.defaultUnitCost.toLocaleString()}/{i.unit}</option>
+                  ))}
+                </select>
+              </div>
+              {selectedMaterialInventoryId && (() => {
+                const inv = materialInventory.find(i => i.id === selectedMaterialInventoryId);
+                if (!inv) return null;
+                return (
+                  <>
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Estimated Quantity</label>
+                        <input type="number" value={materialForm.estimatedQty || ""}
+                          onChange={e => setMaterialForm({ ...materialForm, estimatedQty: Number(e.target.value) })}
+                          className="w-full px-3 py-2 rounded-lg border text-sm" style={{ borderColor: "#E2E8F0", backgroundColor: "#F7F8FA" }}
+                          placeholder="e.g. 500" />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Unit Cost (₦) — from inventory</label>
+                        <input type="text" value={`₦${inv.defaultUnitCost.toLocaleString()}`} disabled
+                          className="w-full px-3 py-2 rounded-lg border text-sm bg-gray-50 text-gray-500" style={{ borderColor: "#E2E8F0" }} />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">In Stock</label>
+                        <input type="text" value={`${inv.inStock} ${inv.unit}`} disabled
+                          className="w-full px-3 py-2 rounded-lg border text-sm bg-gray-50 text-gray-500" style={{ borderColor: "#E2E8F0" }} />
+                      </div>
+                    </div>
+                    {materialForm.estimatedQty > 0 && (
+                      <p className="text-sm text-gray-500 mt-2">
+                        Estimated Total: <span className="font-semibold text-gray-900">₦{(materialForm.estimatedQty * inv.defaultUnitCost).toLocaleString()}</span>
+                        <span className="text-gray-400 ml-2">(company stock — cost auto-calculated)</span>
+                      </p>
+                    )}
+                  </>
+                );
+              })()}
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Material Name</label>
+                <input type="text" value={materialForm.name}
+                  onChange={e => setMaterialForm({ ...materialForm, name: e.target.value })}
+                  className="w-full px-3 py-2 rounded-lg border text-sm" style={{ borderColor: "#E2E8F0", backgroundColor: "#F7F8FA" }}
+                  placeholder="e.g. Cement (Grade 42.5)" />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Category</label>
+                <select value={materialForm.category}
+                  onChange={e => setMaterialForm({ ...materialForm, category: e.target.value })}
+                  className="w-full px-3 py-2 rounded-lg border text-sm" style={{ borderColor: "#E2E8F0", backgroundColor: "#F7F8FA" }}>
+                  <option value="">Select category</option>
+                  {materialCategories.map(c => <option key={c} value={c}>{c}</option>)}
+                </select>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Unit of Measure</label>
+                <select value={materialForm.unit}
+                  onChange={e => setMaterialForm({ ...materialForm, unit: e.target.value })}
+                  className="w-full px-3 py-2 rounded-lg border text-sm" style={{ borderColor: "#E2E8F0", backgroundColor: "#F7F8FA" }}>
+                  <option value="">Select unit</option>
+                  {materialUnits.map(u => <option key={u} value={u}>{u}</option>)}
+                </select>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Estimated Quantity</label>
+                <input type="number" value={materialForm.estimatedQty || ""}
+                  onChange={e => setMaterialForm({ ...materialForm, estimatedQty: Number(e.target.value) })}
+                  className="w-full px-3 py-2 rounded-lg border text-sm" style={{ borderColor: "#E2E8F0", backgroundColor: "#F7F8FA" }}
+                  placeholder="e.g. 5000" />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Estimated Unit Cost (₦)</label>
+                <input type="number" value={materialForm.estimatedUnitCost || ""}
+                  onChange={e => setMaterialForm({ ...materialForm, estimatedUnitCost: Number(e.target.value) })}
+                  className="w-full px-3 py-2 rounded-lg border text-sm" style={{ borderColor: "#E2E8F0", backgroundColor: "#F7F8FA" }}
+                  placeholder="e.g. 5500" />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Procurement Source</label>
+                <select value={materialForm.procurementSource}
+                  onChange={e => setMaterialForm({ ...materialForm, procurementSource: e.target.value as "internal" | "purchase" })}
+                  className="w-full px-3 py-2 rounded-lg border text-sm" style={{ borderColor: "#E2E8F0", backgroundColor: "#F7F8FA" }}>
+                  <option value="purchase">Purchase (external)</option>
+                  <option value="internal">Internal / Client-supplied</option>
+                </select>
+              </div>
+              {materialForm.procurementSource === "purchase" && (
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Supplier Name</label>
+                  <input type="text" value={materialForm.supplierName}
+                    onChange={e => setMaterialForm({ ...materialForm, supplierName: e.target.value })}
+                    className="w-full px-3 py-2 rounded-lg border text-sm" style={{ borderColor: "#E2E8F0", backgroundColor: "#F7F8FA" }}
+                    placeholder="e.g. Dangote Cement" />
+                </div>
+              )}
+            </div>
+          )}
+          {materialSource === "manual" && materialForm.estimatedQty > 0 && materialForm.estimatedUnitCost > 0 && (
             <p className="text-sm text-gray-500 mt-3">
               Estimated Total: <span className="font-semibold text-gray-900">₦{(materialForm.estimatedQty * materialForm.estimatedUnitCost).toLocaleString()}</span>
             </p>
           )}
           <div className="flex justify-end mt-4">
-            <button onClick={addMaterial} disabled={!materialForm.name || !materialForm.category || !materialForm.unit}
+            <button onClick={addMaterial} disabled={materialSource === "inventory" ? !selectedMaterialInventoryId || !materialForm.estimatedQty : !materialForm.name || !materialForm.category || !materialForm.unit}
               className="flex items-center gap-1.5 px-4 py-2 rounded-lg text-white text-sm font-medium disabled:opacity-50"
               style={{ backgroundColor: "#E8973A" }}>
-              <Plus className="w-4 h-4" /> Add Material
+              <Plus className="w-4 h-4" /> {materialSource === "inventory" ? "Add from Inventory" : "Add Material"}
             </button>
           </div>
         </div>
@@ -1711,82 +1973,152 @@ export function ProjectSetupPage() {
       {/* ──── EQUIPMENT ──── */}
       {resourceTab === "equipment" && (<>
         <div className="rounded-xl border p-6" style={{ borderColor: "#E2E8F0", backgroundColor: "white" }}>
-          <h2 className="text-lg font-bold mb-4" style={{ color: "#1A202C" }}>Register Equipment Resource</h2>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Equipment Name</label>
-              <input type="text" value={equipmentForm.name}
-                onChange={e => setEquipmentForm({ ...equipmentForm, name: e.target.value })}
-                className="w-full px-3 py-2 rounded-lg border text-sm" style={{ borderColor: "#E2E8F0", backgroundColor: "#F7F8FA" }}
-                placeholder="e.g. Tower Crane" />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Category</label>
-              <select value={equipmentForm.category}
-                onChange={e => setEquipmentForm({ ...equipmentForm, category: e.target.value })}
-                className="w-full px-3 py-2 rounded-lg border text-sm" style={{ borderColor: "#E2E8F0", backgroundColor: "#F7F8FA" }}>
-                <option value="">Select category</option>
-                {equipmentCategories.map(c => <option key={c} value={c}>{c}</option>)}
-              </select>
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Ownership</label>
-              <select value={equipmentForm.ownership}
-                onChange={e => setEquipmentForm({ ...equipmentForm, ownership: e.target.value as "company-owned" | "rented" | "client-supplied" })}
-                className="w-full px-3 py-2 rounded-lg border text-sm" style={{ borderColor: "#E2E8F0", backgroundColor: "#F7F8FA" }}>
-                <option value="company-owned">Company-owned</option>
-                <option value="rented">Rented / Hired</option>
-                <option value="client-supplied">Client-supplied</option>
-              </select>
-            </div>
-            {equipmentForm.ownership === "company-owned" && (
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Internal Cost per Day (₦)</label>
-                <input type="number" value={equipmentForm.internalCostPerDay || ""}
-                  onChange={e => setEquipmentForm({ ...equipmentForm, internalCostPerDay: Number(e.target.value) })}
-                  className="w-full px-3 py-2 rounded-lg border text-sm" style={{ borderColor: "#E2E8F0", backgroundColor: "#F7F8FA" }}
-                  placeholder="e.g. 150000" />
-              </div>
-            )}
-            {equipmentForm.ownership === "rented" && (<>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Rental Cost per Day (₦)</label>
-                <input type="number" value={equipmentForm.rentalCostPerDay || ""}
-                  onChange={e => setEquipmentForm({ ...equipmentForm, rentalCostPerDay: Number(e.target.value) })}
-                  className="w-full px-3 py-2 rounded-lg border text-sm" style={{ borderColor: "#E2E8F0", backgroundColor: "#F7F8FA" }}
-                  placeholder="e.g. 120000" />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Rental Supplier</label>
-                <input type="text" value={equipmentForm.rentalSupplier}
-                  onChange={e => setEquipmentForm({ ...equipmentForm, rentalSupplier: e.target.value })}
-                  className="w-full px-3 py-2 rounded-lg border text-sm" style={{ borderColor: "#E2E8F0", backgroundColor: "#F7F8FA" }}
-                  placeholder="e.g. Mario Equipment Ltd" />
-              </div>
-            </>)}
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Estimated Days on Site</label>
-              <input type="number" value={equipmentForm.estimatedDays || ""}
-                onChange={e => setEquipmentForm({ ...equipmentForm, estimatedDays: Number(e.target.value) })}
-                className="w-full px-3 py-2 rounded-lg border text-sm" style={{ borderColor: "#E2E8F0", backgroundColor: "#F7F8FA" }}
-                placeholder="e.g. 180" />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Status</label>
-              <select value={equipmentForm.status}
-                onChange={e => setEquipmentForm({ ...equipmentForm, status: e.target.value as "Available" | "Assigned" | "Under Maintenance" })}
-                className="w-full px-3 py-2 rounded-lg border text-sm" style={{ borderColor: "#E2E8F0", backgroundColor: "#F7F8FA" }}>
-                {equipmentStatuses.map(s => <option key={s} value={s}>{s}</option>)}
-              </select>
-            </div>
+          <h2 className="text-lg font-bold mb-4" style={{ color: "#1A202C" }}>Add Equipment Resource</h2>
+          {/* Source toggle */}
+          <div className="flex gap-1 bg-gray-100 rounded-lg p-1 max-w-xs mb-4">
+            {(["fleet", "manual"] as const).map(src => (
+              <button key={src} onClick={() => { setEquipmentSource(src); setSelectedEquipmentFleetId(""); setEquipmentForm(EMPTY_EQUIPMENT_FORM); }}
+                className={`flex-1 px-4 py-1.5 text-sm font-medium rounded-md transition-colors capitalize ${
+                  equipmentSource === src ? "bg-white text-gray-900 shadow-sm" : "text-gray-500 hover:text-gray-700"
+                }`}
+              >
+                {src === "fleet" ? "From Company Fleet" : "New Equipment"}
+              </button>
+            ))}
           </div>
-          {equipmentForm.estimatedDays > 0 && (equipmentForm.internalCostPerDay > 0 || equipmentForm.rentalCostPerDay > 0) && (
+          {equipmentSource === "fleet" ? (
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Select Equipment from Fleet</label>
+                <select value={selectedEquipmentFleetId}
+                  onChange={e => {
+                    const id = e.target.value;
+                    setSelectedEquipmentFleetId(id);
+                    if (id) {
+                      const inv = equipmentInventory.find(i => i.id === id);
+                      if (inv) setEquipmentForm({ ...equipmentForm, name: inv.name, category: inv.category, internalCostPerDay: inv.defaultInternalCostPerDay });
+                    }
+                  }}
+                  className="w-full px-3 py-2 rounded-lg border text-sm" style={{ borderColor: "#E2E8F0", backgroundColor: "#F7F8FA" }}>
+                  <option value="">— Select from fleet —</option>
+                  {equipmentInventory.map(e => (
+                    <option key={e.id} value={e.id}>{e.name} — {e.category} ({e.status})</option>
+                  ))}
+                </select>
+              </div>
+              {selectedEquipmentFleetId && (() => {
+                const inv = equipmentInventory.find(e => e.id === selectedEquipmentFleetId);
+                if (!inv) return null;
+                return (
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Estimated Days on Site</label>
+                      <input type="number" value={equipmentForm.estimatedDays || ""}
+                        onChange={e => setEquipmentForm({ ...equipmentForm, estimatedDays: Number(e.target.value) })}
+                        className="w-full px-3 py-2 rounded-lg border text-sm" style={{ borderColor: "#E2E8F0", backgroundColor: "#F7F8FA" }}
+                        placeholder="e.g. 180" />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Internal Cost per Day — from fleet</label>
+                      <input type="text" value={`₦${inv.defaultInternalCostPerDay.toLocaleString()}`} disabled
+                        className="w-full px-3 py-2 rounded-lg border text-sm bg-gray-50 text-gray-500" style={{ borderColor: "#E2E8F0" }} />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Current Status</label>
+                      <input type="text" value={inv.status} disabled
+                        className="w-full px-3 py-2 rounded-lg border text-sm bg-gray-50 text-gray-500" style={{ borderColor: "#E2E8F0" }} />
+                    </div>
+                  </div>
+                );
+              })()}
+              {equipmentSource === "fleet" && selectedEquipmentFleetId && equipmentForm.estimatedDays > 0 && (() => {
+                const inv = equipmentInventory.find(e => e.id === selectedEquipmentFleetId);
+                if (!inv) return null;
+                return (
+                  <p className="text-sm text-gray-500 mt-2">
+                    Estimated Total: <span className="font-semibold text-gray-900">₦{(inv.defaultInternalCostPerDay * equipmentForm.estimatedDays).toLocaleString()}</span>
+                    <span className="text-gray-400 ml-2">(company fleet — cost auto-calculated)</span>
+                  </p>
+                );
+              })()}
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Equipment Name</label>
+                <input type="text" value={equipmentForm.name}
+                  onChange={e => setEquipmentForm({ ...equipmentForm, name: e.target.value })}
+                  className="w-full px-3 py-2 rounded-lg border text-sm" style={{ borderColor: "#E2E8F0", backgroundColor: "#F7F8FA" }}
+                  placeholder="e.g. Tower Crane" />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Category</label>
+                <select value={equipmentForm.category}
+                  onChange={e => setEquipmentForm({ ...equipmentForm, category: e.target.value })}
+                  className="w-full px-3 py-2 rounded-lg border text-sm" style={{ borderColor: "#E2E8F0", backgroundColor: "#F7F8FA" }}>
+                  <option value="">Select category</option>
+                  {equipmentCategories.map(c => <option key={c} value={c}>{c}</option>)}
+                </select>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Ownership</label>
+                <select value={equipmentForm.ownership}
+                  onChange={e => setEquipmentForm({ ...equipmentForm, ownership: e.target.value as "company-owned" | "rented" | "client-supplied" })}
+                  className="w-full px-3 py-2 rounded-lg border text-sm" style={{ borderColor: "#E2E8F0", backgroundColor: "#F7F8FA" }}>
+                  <option value="company-owned">Company-owned</option>
+                  <option value="rented">Rented / Hired</option>
+                  <option value="client-supplied">Client-supplied</option>
+                </select>
+              </div>
+              {equipmentForm.ownership === "company-owned" && (
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Internal Cost per Day (₦)</label>
+                  <input type="number" value={equipmentForm.internalCostPerDay || ""}
+                    onChange={e => setEquipmentForm({ ...equipmentForm, internalCostPerDay: Number(e.target.value) })}
+                    className="w-full px-3 py-2 rounded-lg border text-sm" style={{ borderColor: "#E2E8F0", backgroundColor: "#F7F8FA" }}
+                    placeholder="e.g. 150000" />
+                </div>
+              )}
+              {equipmentForm.ownership === "rented" && (<>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Rental Cost per Day (₦)</label>
+                  <input type="number" value={equipmentForm.rentalCostPerDay || ""}
+                    onChange={e => setEquipmentForm({ ...equipmentForm, rentalCostPerDay: Number(e.target.value) })}
+                    className="w-full px-3 py-2 rounded-lg border text-sm" style={{ borderColor: "#E2E8F0", backgroundColor: "#F7F8FA" }}
+                    placeholder="e.g. 120000" />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Rental Supplier</label>
+                  <input type="text" value={equipmentForm.rentalSupplier}
+                    onChange={e => setEquipmentForm({ ...equipmentForm, rentalSupplier: e.target.value })}
+                    className="w-full px-3 py-2 rounded-lg border text-sm" style={{ borderColor: "#E2E8F0", backgroundColor: "#F7F8FA" }}
+                    placeholder="e.g. Mario Equipment Ltd" />
+                </div>
+              </>)}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Estimated Days on Site</label>
+                <input type="number" value={equipmentForm.estimatedDays || ""}
+                  onChange={e => setEquipmentForm({ ...equipmentForm, estimatedDays: Number(e.target.value) })}
+                  className="w-full px-3 py-2 rounded-lg border text-sm" style={{ borderColor: "#E2E8F0", backgroundColor: "#F7F8FA" }}
+                  placeholder="e.g. 180" />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Status</label>
+                <select value={equipmentForm.status}
+                  onChange={e => setEquipmentForm({ ...equipmentForm, status: e.target.value as "Available" | "Assigned" | "Under Maintenance" })}
+                  className="w-full px-3 py-2 rounded-lg border text-sm" style={{ borderColor: "#E2E8F0", backgroundColor: "#F7F8FA" }}>
+                  {equipmentStatuses.map(s => <option key={s} value={s}>{s}</option>)}
+                </select>
+              </div>
+            </div>
+          )}
+          {equipmentSource === "manual" && equipmentForm.estimatedDays > 0 && (equipmentForm.internalCostPerDay > 0 || equipmentForm.rentalCostPerDay > 0) && (
             <p className="text-sm text-gray-500 mt-3">
               Estimated Total: <span className="font-semibold text-gray-900">₦{((equipmentForm.ownership === "company-owned" ? equipmentForm.internalCostPerDay : equipmentForm.rentalCostPerDay) * equipmentForm.estimatedDays).toLocaleString()}</span>
             </p>
           )}
           <div className="flex justify-end mt-4">
-            <button onClick={addEquipment} disabled={!equipmentForm.name || !equipmentForm.category}
+            <button onClick={addEquipment} disabled={equipmentSource === "fleet" ? !selectedEquipmentFleetId || !equipmentForm.estimatedDays : !equipmentForm.name || !equipmentForm.category}
               className="flex items-center gap-1.5 px-4 py-2 rounded-lg text-white text-sm font-medium disabled:opacity-50"
               style={{ backgroundColor: "#E8973A" }}>
               <Plus className="w-4 h-4" /> Add Equipment

@@ -1,7 +1,7 @@
 import { useParams, useNavigate } from "react-router";
 import { useState } from "react";
 import { Users, Package, Truck, Plus, Search, X, Eye, Award, DollarSign, Briefcase, Download, Edit, ExternalLink, Building2, UserCheck, UserCog, Wrench } from "lucide-react";
-import { getProjectById, getTasksByProject, fmtCurrency } from "./mockData";
+import { getProjectById, getTasksByProject, fmtCurrency, hrEmployees } from "./mockData";
 import type { Task, MaterialResource, EquipmentResource } from "./types";
 import { exportCSV } from "../../utils/exportCSV";
 import { useResources } from "../../contexts/ResourceContext";
@@ -31,20 +31,6 @@ const emptyVendor = {
 
 const materialCategories = ["Aggregates", "Concrete", "Formwork", "Reinforcement", "Structural Steel", "Finishing", "Plumbing", "Electrical", "Roofing", "Other"];
 const equipmentCategories = ["Earthwork", "Lifting", "Concreting", "Transportation", "Drilling & Piling", "Formwork & Scaffolding", "Power Generation", "Light Tools"];
-
-// Simulated HR Module employees assigned to this project
-interface ProjectEmployee {
-  id: string; firstName: string; lastName: string; role: string; department: string;
-  status: string; dailyRate: number; employmentType: string;
-}
-const hrEmployees: ProjectEmployee[] = [
-  { id: "EMP-001", firstName: "Emeka", lastName: "Okafor", role: "Project Manager", department: "Project Management", status: "active", dailyRate: 80000, employmentType: "Full-time" },
-  { id: "EMP-002", firstName: "Sarah", lastName: "Adeyemi", role: "Site Supervisor", department: "Site Operations", status: "active", dailyRate: 55000, employmentType: "Full-time" },
-  { id: "EMP-003", firstName: "Tunde", lastName: "Balogun", role: "Quantity Surveyor", department: "Commercial", status: "active", dailyRate: 60000, employmentType: "Full-time" },
-  { id: "EMP-004", firstName: "Chidi", lastName: "Nwosu", role: "HSE Officer", department: "Safety", status: "active", dailyRate: 45000, employmentType: "Full-time" },
-  { id: "EMP-005", firstName: "Yemi", lastName: "Lawson", role: "Structural Engineer", department: "Engineering", status: "on_leave", dailyRate: 70000, employmentType: "Full-time" },
-  { id: "EMP-006", firstName: "Aisha", lastName: "Bello", role: "QA/QC Inspector", department: "Quality", status: "active", dailyRate: 50000, employmentType: "Contract" },
-];
 
 type ResourceTab = "human" | "material" | "equipment";
 type HumanSubTab = "employees" | "contractors" | "vendors";

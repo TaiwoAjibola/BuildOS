@@ -212,6 +212,7 @@ export const router = createBrowserRouter([
               { path: "hse", Component: HSEOverviewPage },
               { path: "documents", Component: DocumentsOverviewPage },
               { path: "costs", Component: CostsOverviewPage },
+              { path: "finance", lazy: () => import("./pages/construction/FinancePage").then(m => ({ Component: m.FinancePage })) },
               { path: "funding", Component: FundingPage },
               { path: "stakeholders", Component: StakeholdersOverviewPage },
               { path: "reports", Component: ReportsPage },

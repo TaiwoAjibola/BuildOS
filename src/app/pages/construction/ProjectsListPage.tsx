@@ -7,6 +7,7 @@ import {
 } from "lucide-react";
 import { projects as mockProjects, fmtCurrency, fmtDate, ragColor, ragLabel, ragBg, ragText, staffList } from "./mockData";
 import type { Project, ContractType } from "./types";
+import { useResources } from "../../contexts/ResourceContext";
 
 type ProjectStatus = Project["status"];
 
@@ -35,6 +36,7 @@ const DEFAULT_FORM = {
 
 export function ProjectsListPage() {
   const navigate = useNavigate();
+  const { contractors } = useResources();
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<ProjectStatus | "All">("All");
   const [clusterFilter, setClusterFilter] = useState<string>("All");
@@ -352,15 +354,22 @@ export function ProjectsListPage() {
                   <label className="block text-sm font-medium text-gray-700 mb-1">Project Manager *</label>
                   <select required value={form.projectManager} onChange={e => setForm(f => ({...f, projectManager: e.target.value}))} className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500">
                     <option value="">Select PM</option>
-                    {staffList.map(s => <option key={s} value={s}>{s}</option>)}
+                    <optgroup label="Employees">
+                      {staffList.map(s => <option key={s} value={s}>{s}</option>)}
+                    </optgroup>
+                    {contractors.length > 0 && (
+                      <optgroup label="Contractors">
+                        {contractors.map(c => <option key={c.id} value={c.name}>{c.name}</option>)}
+                      </optgroup>
+                    )}
                   </select>
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Start Date *</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Planned Start Date *</label>
                   <input type="date" required value={form.plannedStartDate} onChange={e => setForm(f => ({...f, plannedStartDate: e.target.value}))} className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500" />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">End Date *</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Planned End Date *</label>
                   <input type="date" required value={form.plannedEndDate} onChange={e => setForm(f => ({...f, plannedEndDate: e.target.value}))} className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500" />
                 </div>
               </div>

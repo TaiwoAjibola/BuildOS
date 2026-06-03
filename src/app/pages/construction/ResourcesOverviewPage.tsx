@@ -1,7 +1,7 @@
 import { useNavigate } from "react-router";
 import { Truck, Award, Users, DollarSign, ChevronRight, Search, ArrowUpDown, Download, Plus, X, Edit3, Package, Building2, UserCheck, UserCog, Wrench, ExternalLink, Save } from "lucide-react";
 import { useMemo, useState } from "react";
-import { projects, fmtCurrency } from "./mockData";
+import { projects, fmtCurrency, hrEmployees } from "./mockData";
 import { exportCSV } from "../../utils/exportCSV";
 import { useResources, type IndividualContractor } from "../../contexts/ResourceContext";
 import type { Vendor } from "./types";
@@ -25,20 +25,6 @@ const tradeTypes = [
 ];
 
 const contractTypes = ["Labor-only", "Supply & Install", "Nominated Subcontractor"];
-
-interface ProjectEmployee {
-  id: string; firstName: string; lastName: string; role: string; department: string;
-  status: string; dailyRate: number; employmentType: string;
-}
-
-const hrEmployees: ProjectEmployee[] = [
-  { id: "EMP-001", firstName: "Emeka", lastName: "Okafor", role: "Project Manager", department: "Project Management", status: "active", dailyRate: 80000, employmentType: "Full-time" },
-  { id: "EMP-002", firstName: "Sarah", lastName: "Adeyemi", role: "Site Supervisor", department: "Site Operations", status: "active", dailyRate: 55000, employmentType: "Full-time" },
-  { id: "EMP-003", firstName: "Tunde", lastName: "Balogun", role: "Quantity Surveyor", department: "Commercial", status: "active", dailyRate: 60000, employmentType: "Full-time" },
-  { id: "EMP-004", firstName: "Chidi", lastName: "Nwosu", role: "HSE Officer", department: "Safety", status: "active", dailyRate: 45000, employmentType: "Full-time" },
-  { id: "EMP-005", firstName: "Yemi", lastName: "Lawson", role: "Structural Engineer", department: "Engineering", status: "on_leave", dailyRate: 70000, employmentType: "Full-time" },
-  { id: "EMP-006", firstName: "Aisha", lastName: "Bello", role: "QA/QC Inspector", department: "Quality", status: "active", dailyRate: 50000, employmentType: "Contract" },
-];
 
 const stubMaterials = [
   { id: "MAT-001", name: "Cement (Grade 42.5)", category: "Concrete", unit: "bags", estimatedQty: 5000 },

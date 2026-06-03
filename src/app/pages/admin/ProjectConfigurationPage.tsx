@@ -3,25 +3,7 @@ import {
   FolderCog, Plus, Edit, Trash2, X, ChevronDown, ChevronRight,
   User, Users, Layers, CheckCircle2, AlertCircle, Lock,
 } from "lucide-react";
-
-// ── Types ─────────────────────────────────────────────────────────────────────
-type ApprovalType = "single" | "group" | "tier";
-
-interface TierLevel {
-  level: number;
-  approver: string;
-  condition: string;
-}
-
-interface ProcessWorkflow {
-  id: string;
-  process: string;
-  app: string;
-  workflowType: ApprovalType;
-  approver?: string;          // for single
-  groupApprovers?: string[];  // for group
-  tierLevels?: TierLevel[];   // for tier
-}
+import { type ApprovalType, type ProcessWorkflow, type TierLevel, getWorkflows, setWorkflows, addWorkflow } from "../../store/workflowConfig";
 
 // ── Static approval workflow types ────────────────────────────────────────────
 const APPROVAL_WORKFLOW_TYPES = [
@@ -352,7 +334,14 @@ function ConfigureWorkflowModal({
 // ── Main Page ─────────────────────────────────────────────────────────────────
 export function ProjectConfigurationPage() {
   const [activeTab, setActiveTab] = useState<"workflows" | "process_list">("workflows");
-  const [workflows, setWorkflows] = useState<ProcessWorkflow[]>(SEED_WORKFLOWS);
+  const [workflows, setWorkflowsState] = useState<ProcessWorkflow[]>(() => {
+    const existing = getWorkflows();
+    if (existing.length === 0) {
+      setWorkflows(SEED_WORKFLOWS);
+      return SEED_WORKFLOWS;
+    }
+    return existing;
+  });
   const [showWfModal, setShowWfModal] = useState(false);
   const [editingWf, setEditingWf] = useState<ProcessWorkflow | undefined>(undefined);
   const [expandedWfId, setExpandedWfId] = useState<string | null>(null);
@@ -533,7 +522,7 @@ export function ProjectConfigurationPage() {
                         )}
                         <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                           <button onClick={() => { setEditingWf(wf); setShowWfModal(true); }} className="p-1.5 rounded hover:bg-gray-100 text-gray-400 hover:text-gray-700"><Edit className="w-3.5 h-3.5" /></button>
-                          <button onClick={() => setWorkflows((prev) => prev.filter((w) => w.id !== wf.id))} className="p-1.5 rounded hover:bg-red-50 text-gray-400 hover:text-red-500"><Trash2 className="w-3.5 h-3.5" /></button>
+                          <button onClick={() => { const next = workflows.filter((w) => w.id !== wf.id); setWorkflowsState(next); setWorkflows(next); }} className="p-1.5 rounded hover:bg-red-50 text-gray-400 hover:text-red-500"><Trash2 className="w-3.5 h-3.5" /></button>
                         </div>
                       </div>
 
@@ -590,9 +579,9 @@ export function ProjectConfigurationPage() {
         <ConfigureWorkflowModal
           existing={editingWf}
           onSave={(wf) => {
-            setWorkflows((prev) =>
-              editingWf ? prev.map((w) => w.id === wf.id ? wf : w) : [...prev, wf]
-            );
+            const next = editingWf ? workflows.map((w) => w.id === wf.id ? wf : w) : [...workflows, wf];
+            setWorkflowsState(next);
+            setWorkflows(next);
           }}
           onClose={() => { setShowWfModal(false); setEditingWf(undefined); }}
         />
