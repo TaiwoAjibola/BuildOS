@@ -3,7 +3,7 @@ import { AppHeader } from "../../components/AppHeader";
 import { CollapsibleSidebar } from "../../components/CollapsibleSidebar";
 import {
   LayoutDashboard, FileText, PlusCircle, FolderKanban,
-  ListTodo, User, History, CheckSquare, ScrollText, Star, AlertTriangle,
+  ListTodo, User, History, CheckSquare, ScrollText, Star,
 } from "lucide-react";
 
 const sidebarSections = [
@@ -37,8 +37,7 @@ const sidebarSections = [
   {
     label: "Performance",
     items: [
-      { label: "Appraisals", href: "/apps/ess/appraisals", icon: <Star          className="w-4 h-4" />, end: true },
-      { label: "Log Issues",  href: "/apps/ess/log-issues", icon: <AlertTriangle className="w-4 h-4" />, end: true },
+      { label: "Appraisals", href: "/apps/ess/appraisals", icon: <Star className="w-4 h-4" />, end: true },
     ],
   },
   {

@@ -117,7 +117,6 @@ import { ActivityHistoryPage } from "./pages/ess/ActivityHistoryPage";
 import { MyTasksPage } from "./pages/ess/MyTasksPage";
 import { PayslipHistoryPage } from "./pages/ess/PayslipHistoryPage";
 import { AppraisalPage } from "./pages/ess/AppraisalPage";
-import { LogIssuesPage } from "./pages/ess/LogIssuesPage";
 
 // Admin App
 import { AdminApprovalsPage } from "./pages/admin/AdminApprovalsPage";
@@ -337,7 +336,6 @@ export const router = createBrowserRouter([
               { path: "approvals", Component: ESSApprovalsPage },
               { path: "payslips", Component: PayslipHistoryPage },
               { path: "appraisals", Component: AppraisalPage },
-              { path: "log-issues", Component: LogIssuesPage },
             ],
           },
           {
