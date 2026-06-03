@@ -45,7 +45,7 @@ export function ProjectSetupPage() {
   const { id: projectId } = useParams<{ id: string }>();
   const project = getProjectById(projectId!);
 
-  const { individualContractors } = useResources();
+  const { contractors: individualContractors } = useResources();
   const [currentStep, setCurrentStep] = useState(0);
   const [completedSteps, setCompletedSteps] = useState<Set<number>>(new Set());
 
