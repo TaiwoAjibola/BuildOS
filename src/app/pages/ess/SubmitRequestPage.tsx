@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect } from "react";
 import { useNavigate } from "react-router";
 import {
-  CheckCircle, AlertTriangle, Send, ChevronDown,
+  CheckCircle, AlertTriangle, Send, ChevronDown, ArrowLeft,
   Upload, FileText, X, Search, Plus,
 } from "lucide-react";
 import { IssueForm } from "../../components/IssueForm";
