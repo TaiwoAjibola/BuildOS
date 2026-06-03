@@ -2,7 +2,8 @@ import { useState, useRef, useEffect } from "react";
 import { useNavigate } from "react-router";
 import {
   CheckCircle, AlertTriangle, Send, ChevronDown, ArrowLeft,
-  Upload, FileText, X, Search, Plus, Package,
+  Upload, FileText, X, Search, Plus, Package, DollarSign,
+  Calendar, PlusCircle, Wrench, Edit2,
 } from "lucide-react";
 import { IssueForm } from "../../components/IssueForm";
 import { ChangeRequestForm } from "../../components/ChangeRequestForm";
