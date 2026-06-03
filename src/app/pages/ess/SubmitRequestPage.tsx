@@ -10,6 +10,7 @@ import { ChangeRequestForm } from "../../components/ChangeRequestForm";
 import { AttachmentsSection } from "../../components/AttachmentsSection";
 import { ApprovalPipeline } from "../../components/ApprovalPipeline";
 import { getWorkflows, getPipelineForRequest, type PipelineStep } from "../../store/workflowConfig";
+import { useHRConfig } from "../../store/hrConfig";
 
 // Shared material catalogue with stock status — mirrors Storefront inventory
 type StockLevel = "in_stock" | "low_stock" | "out_of_stock";
