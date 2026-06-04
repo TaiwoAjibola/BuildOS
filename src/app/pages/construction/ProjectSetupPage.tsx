@@ -8,6 +8,7 @@ import { getProjectById, staffList, tradeTypes, clusters, tasks as allTasks, fmt
 import type { Task, Vendor, ProjectCalendar, Sector, ProjectStructureItem, ScheduleLevelConfig, HumanResource, HumanResourceSource, MaterialResource, EquipmentResource, ResourceAssignment } from "./types";
 import { SECTOR_CATEGORIES, getBlockLabel, getStructureConfig, DEFAULT_WBS_LEVELS } from "./types";
 import { useResources } from "../../contexts/ResourceContext";
+import { SearchableMultiSelect } from "../../components/SearchableMultiSelect";
 
 const STEPS = [
   { id: "basic", label: "Basic Information", icon: FileText },
@@ -122,7 +123,7 @@ export function ProjectSetupPage() {
   const [showAddTask, setShowAddTask] = useState(false);
   const [taskForm, setTaskForm] = useState({
     name: "", level: 4 as 1 | 2 | 3 | 4, parentTaskId: "",
-    plannedStart: "", plannedEnd: "", vendorId: null as string | null,
+    plannedStart: "", plannedEnd: "",
   });
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
 
@@ -130,6 +131,7 @@ export function ProjectSetupPage() {
   const [resourceAssignments, setResourceAssignments] = useState<ResourceAssignment[]>([]);
   const [assignModalTaskId, setAssignModalTaskId] = useState<string | null>(null);
   const [assignForm, setAssignForm] = useState({ resourceType: "human" as "human" | "material" | "equipment", resourceId: "", plannedQty: 0, plannedCost: 0 });
+  const [selectedResourceIds, setSelectedResourceIds] = useState<string[]>([]);
 
   // Step 3 — Vendor Registration
   const [projectVendors, setProjectVendors] = useState<Vendor[]>([]);
@@ -266,7 +268,7 @@ export function ProjectSetupPage() {
       if (task.parentTaskId) next.add(task.parentTaskId);
       return next;
     });
-    setTaskForm({ name: "", level: 4, parentTaskId: "", plannedStart: "", plannedEnd: "", vendorId: null });
+    setTaskForm({ name: "", level: 4, parentTaskId: "", plannedStart: "", plannedEnd: "" });
     setShowAddTask(false);
   };
 
@@ -329,10 +331,10 @@ export function ProjectSetupPage() {
             plannedStart: s, plannedEnd: e, actualStart: null, actualEnd: null,
             plannedDuration: dur, actualDuration: null, percentComplete: 0,
             predecessorId: null, dependencyType: null, lagDays: 0,
-      vendorId: taskForm.vendorId || null, subVendorIds: [], ragStatus: "on-track", ragOverride: false, notes: "",
-          });
-        }
-        if (newTasks.length > 0) {
+      vendorId: null, subVendorIds: [], ragStatus: "on-track", ragOverride: false, notes: "",
+            });
+          }
+          if (newTasks.length > 0) {
           setProjectTasks(prev => [...prev, ...newTasks]);
           setExpanded(prev => {
             const next = new Set(prev);
@@ -997,48 +999,53 @@ export function ProjectSetupPage() {
               borderBottom: "1px solid #E2E8F0",
             }}
           >
-            <button
-              onClick={() => hasChildren && toggleExpand(task.id)}
-              className="flex-shrink-0 text-gray-400 hover:text-gray-600"
-            >
+            <span className="w-3.5 flex items-center justify-center flex-shrink-0">
               {hasChildren ? (
-                isExpanded ? <ChevronDown className="w-3.5 h-3.5" /> : <ChevronRight className="w-3.5 h-3.5" />
+                <button onClick={() => toggleExpand(task.id)} className="text-gray-400 hover:text-gray-600">
+                  {isExpanded ? <ChevronDown className="w-3.5 h-3.5" /> : <ChevronRight className="w-3.5 h-3.5" />}
+                </button>
               ) : (
                 <span className="w-3.5" />
               )}
-            </button>
+            </span>
             <span className="text-xs font-mono opacity-60 w-16 flex-shrink-0">{task.id}</span>
-            <span className="flex-1 truncate font-medium">{task.name}</span>
-            {task.level === 1 && task.vendorId && (
-              <div className="flex items-center gap-1 text-xs" style={{ color: isLevel1 ? "rgba(255,255,255,0.7)" : "#6B7280" }}>
-                <Building2 className="w-3 h-3" />
-                <span>{primaryVendor?.name || "—"}</span>
-                {subVendors && subVendors.length > 0 && (
-                  <span className="ml-1 text-[10px] opacity-60">+{subVendors.length}</span>
-                )}
-              </div>
-            )}
-            <span className="text-xs opacity-60 hidden sm:inline w-28">{LEVEL_NAMES[task.level]}</span>
-            <span className="text-xs opacity-60 hidden sm:inline w-40">{fmtDate(task.plannedStart)} — {fmtDate(task.plannedEnd)}</span>
-            <button
-              onClick={() => setAssignModalTaskId(task.id)}
-              className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium transition-colors opacity-70 hover:opacity-100"
-              style={{ color: isLevel1 ? "#E8973A" : "#E8973A", backgroundColor: isLevel1 ? "rgba(232,151,58,0.15)" : "rgba(232,151,58,0.1)" }}
-            >
-              <Users className="w-3.5 h-3.5" /> Assign
-              {resourceAssignments.filter(a => a.taskId === task.id).length > 0 && (
-                <span className="bg-white text-orange-700 text-[10px] font-bold rounded-full w-4 h-4 flex items-center justify-center border" style={{ borderColor: "#E8973A" }}>
-                  {resourceAssignments.filter(a => a.taskId === task.id).length}
+            <span className="flex-1 truncate font-medium flex items-center gap-2">
+              {task.name}
+              {task.level === 1 && task.vendorId && (
+                <span className="inline-flex items-center gap-1 text-xs" style={{ color: isLevel1 ? "rgba(255,255,255,0.7)" : "#6B7280" }}>
+                  <Building2 className="w-3 h-3 flex-shrink-0" />
+                  <span>{primaryVendor?.name || "—"}</span>
+                  {subVendors && subVendors.length > 0 && (
+                    <span className="text-[10px] opacity-60 ml-0.5">+{subVendors.length}</span>
+                  )}
                 </span>
               )}
-            </button>
-            <button
-              onClick={() => removeTask(task.id)}
-              className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-medium transition-colors opacity-50 hover:opacity-100 hover:bg-red-50"
-              style={{ color: "#EF4444" }}
-            >
-              <Trash2 className="w-3 h-3" /> <span className="hidden sm:inline">Delete</span>
-            </button>
+            </span>
+            <span className="text-xs opacity-60 hidden sm:inline w-28 flex-shrink-0">{LEVEL_NAMES[task.level]}</span>
+            <span className="text-xs opacity-60 hidden sm:inline w-40 flex-shrink-0">{fmtDate(task.plannedStart)} — {fmtDate(task.plannedEnd)}</span>
+            <div className="w-[140px] flex-shrink-0 flex justify-center">
+              <button
+                onClick={() => setAssignModalTaskId(task.id)}
+                className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium transition-colors opacity-70 hover:opacity-100"
+                style={{ color: isLevel1 ? "#E8973A" : "#E8973A", backgroundColor: isLevel1 ? "rgba(232,151,58,0.15)" : "rgba(232,151,58,0.1)" }}
+              >
+                <Users className="w-3.5 h-3.5" /> Assign
+                {resourceAssignments.filter(a => a.taskId === task.id).length > 0 && (
+                  <span className="bg-white text-orange-700 text-[10px] font-bold rounded-full w-4 h-4 flex items-center justify-center border" style={{ borderColor: "#E8973A" }}>
+                    {resourceAssignments.filter(a => a.taskId === task.id).length}
+                  </span>
+                )}
+              </button>
+            </div>
+            <div className="w-[80px] flex-shrink-0 flex justify-center">
+              <button
+                onClick={() => removeTask(task.id)}
+                className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-medium transition-colors opacity-50 hover:opacity-100 hover:bg-red-50"
+                style={{ color: "#EF4444" }}
+              >
+                <Trash2 className="w-3 h-3" /> <span className="hidden sm:inline">Delete</span>
+              </button>
+            </div>
           </div>
           {hasChildren && isExpanded && renderTaskTree(task.id, depth + 1)}
         </div>
@@ -1082,6 +1089,56 @@ export function ProjectSetupPage() {
             {renderTaskTree(null, 0)}
           </div>
         )}
+      </div>
+
+      {/* Schedule Import Center */}
+      <div className="rounded-xl border p-6" style={{ borderColor: "#E2E8F0", backgroundColor: "white" }}>
+        <div className="flex items-center gap-3 mb-4">
+          <div className="w-8 h-8 rounded-lg flex items-center justify-center" style={{ backgroundColor: "#FFF3E0" }}>
+            <FileText className="w-4 h-4" style={{ color: "#E8973A" }} />
+          </div>
+          <div>
+            <h3 className="text-base font-bold" style={{ color: "#1A202C" }}>Schedule Import Center</h3>
+            <p className="text-xs mt-0.5" style={{ color: "#718096" }}>
+              Download a template, review the structure, and import your completed schedule.
+            </p>
+          </div>
+        </div>
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+          <button onClick={downloadExcelTemplate}
+            className="flex items-center gap-3 px-4 py-3 rounded-lg border text-sm font-medium transition-colors hover:bg-gray-50"
+            style={{ borderColor: "#E2E8F0", color: "#4A5568" }}
+          >
+            <Download className="w-5 h-5" style={{ color: "#E8973A" }} />
+            <div className="text-left">
+              <p className="font-medium text-gray-900">Download Template</p>
+              <p className="text-xs text-gray-400 mt-0.5">XLSX with example tasks</p>
+            </div>
+          </button>
+          <div className="flex flex-col gap-2 px-4 py-3 rounded-lg border text-sm" style={{ borderColor: "#E2E8F0", color: "#4A5568" }}>
+            <div className="flex items-center gap-2">
+              <FileText className="w-5 h-5 flex-shrink-0" style={{ color: "#6B7280" }} />
+              <p className="font-medium text-gray-900">Template Guide</p>
+            </div>
+            <div className="text-xs text-gray-500 space-y-1 pl-7">
+              <p><strong className="text-gray-700">Level</strong> — Task hierarchy level (1–4). Level 1 = Phase, 2 = Work Package, 3 = Activity, 4 = Task.</p>
+              <p><strong className="text-gray-700">Task Name</strong> — Descriptive name for the task (e.g. "Foundation Works").</p>
+              <p><strong className="text-gray-700">Parent ID</strong> — The ID of the parent task. Leave blank for Level 1 tasks.</p>
+              <p><strong className="text-gray-700">Start Date</strong> — Planned start date in YYYY-MM-DD format.</p>
+              <p><strong className="text-gray-700">End Date</strong> — Planned end date in YYYY-MM-DD format.</p>
+            </div>
+          </div>
+          <label className="flex items-center gap-3 px-4 py-3 rounded-lg border text-sm font-medium cursor-pointer transition-colors hover:bg-gray-50"
+            style={{ borderColor: "#E2E8F0", color: "#4A5568" }}
+          >
+            <Upload className="w-5 h-5" style={{ color: "#10B981" }} />
+            <div className="text-left">
+              <p className="font-medium text-gray-900">Upload Completed Template</p>
+              <p className="text-xs text-gray-400 mt-0.5">.xlsx or .xls files</p>
+            </div>
+            <input ref={fileInputRef} type="file" accept=".xlsx,.xls" onChange={handleExcelImport} className="hidden" />
+          </label>
+        </div>
       </div>
 
       {/* Add Task Modal */}
@@ -1160,22 +1217,6 @@ export function ProjectSetupPage() {
                   />
                 </div>
               </div>
-              {taskForm.level === 1 && (
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Primary Vendor (responsible lead)</label>
-                  <select value={taskForm.vendorId || ""}
-                    onChange={e => setTaskForm({ ...taskForm, vendorId: e.target.value || null })}
-                    className="w-full px-3 py-2 rounded-lg border text-sm"
-                    style={{ borderColor: "#E2E8F0", backgroundColor: "#F7F8FA" }}
-                  >
-                    <option value="">— None —</option>
-                    {projectVendors.map(v => (
-                      <option key={v.id} value={v.id}>{v.name} — {v.trade}</option>
-                    ))}
-                  </select>
-                  <p className="text-xs text-gray-400 mt-1">The primary vendor is the delivery lead for this task.</p>
-                </div>
-              )}
             </div>
             <div className="flex items-center justify-end gap-3 p-5 border-t" style={{ borderColor: "#E2E8F0" }}>
               <button
@@ -1252,7 +1293,22 @@ export function ProjectSetupPage() {
                                 </>
                               )}
                             </div>
-                            <button onClick={() => setResourceAssignments(prev => prev.filter(a => a.id !== ass.id))} className="p-1.5 rounded-lg hover:bg-red-50 text-red-400 hover:text-red-600 transition-colors"><Trash2 className="w-3.5 h-3.5" /></button>
+                            <button onClick={() => {
+                              setResourceAssignments(prev => prev.filter(a => a.id !== ass.id));
+                              if (ass.resourceType === "human" && ass.humanResourceId) {
+                                const vendor = projectVendors.find(v => v.id === ass.humanResourceId);
+                                if (vendor) {
+                                  setProjectTasks(prev => prev.map(t => {
+                                    if (t.id !== ass.taskId) return t;
+                                    if (t.vendorId === vendor.id) {
+                                      const subs = t.subVendorIds || [];
+                                      return subs.length > 0 ? { ...t, vendorId: subs[0], subVendorIds: subs.slice(1) } : { ...t, vendorId: null, subVendorIds: [] };
+                                    }
+                                    return { ...t, subVendorIds: (t.subVendorIds || []).filter(sid => sid !== vendor.id) };
+                                  }));
+                                }
+                              }
+                            }} className="p-1.5 rounded-lg hover:bg-red-50 text-red-400 hover:text-red-600 transition-colors"><Trash2 className="w-3.5 h-3.5" /></button>
                           </div>
                         </div>
                       );
@@ -1289,45 +1345,38 @@ export function ProjectSetupPage() {
                   </div>
                   <div>
                     <label className="block text-xs font-medium text-gray-600 mb-1">Resource</label>
-                    <select
-                      value={assignForm.resourceId}
-                      onChange={e => {
-                        const val = e.target.value;
-                        setAssignForm({ ...assignForm, resourceId: val, plannedQty: 0, plannedCost: 0 });
-                      }}
-                      className="w-full px-3 py-2 rounded-lg border text-sm"
-                      style={{ borderColor: "#E2E8F0", backgroundColor: "#F7F8FA" }}
-                    >
-                      <option value="">Select…</option>
-                      {assignForm.resourceType === "human" && (
-                        <>
-                          <optgroup label="Employees">
-                            {projectStaff.map(r => (
-                              <option key={r.id} value={r.id}>{r.name} — {r.trade}</option>
-                            ))}
-                          </optgroup>
-                          <optgroup label="Contractors">
-                            {projectContractors.map(r => (
-                              <option key={r.id} value={r.id}>{r.name} — {r.trade}</option>
-                            ))}
-                          </optgroup>
-                          <optgroup label="Vendors">
-                            {projectVendors.map(r => (
-                              <option key={r.id} value={r.id}>{r.name} — {r.trade}</option>
-                            ))}
-                          </optgroup>
-                        </>
-                      )}
-                      {assignForm.resourceType === "material" && projectMaterials.map(m => (
-                        <option key={m.id} value={m.id}>{m.name} ({m.category})</option>
-                      ))}
-                      {assignForm.resourceType === "equipment" && projectEquipment.map(e => (
-                        <option key={e.id} value={e.id}>{e.name} ({e.category})</option>
-                      ))}
-                    </select>
                     {assignForm.resourceType === "human" && projectStaff.length + projectContractors.length + projectVendors.length === 0 && <p className="text-xs text-gray-400 mt-1">No human resources registered. Go to Resources step first.</p>}
                     {assignForm.resourceType === "material" && projectMaterials.length === 0 && <p className="text-xs text-gray-400 mt-1">No materials registered. Go to Resources step first.</p>}
                     {assignForm.resourceType === "equipment" && projectEquipment.length === 0 && <p className="text-xs text-gray-400 mt-1">No equipment registered. Go to Resources step first.</p>}
+                    {assignForm.resourceType === "human" && (projectStaff.length + projectContractors.length + projectVendors.length > 0) && (
+                      <SearchableMultiSelect
+                        options={[
+                          ...projectStaff.map(r => ({ label: `${r.name} — ${r.trade}`, value: r.id, group: "Employees" })),
+                          ...projectContractors.map(r => ({ label: `${r.name} — ${r.trade}${r.payRate ? ` (₦${r.payRate.toLocaleString()}/${r.payRateUnit})` : ""}`, value: r.id, group: "Contractors" })),
+                          ...projectVendors.map(r => ({ label: `${r.name} — ${r.trade}`, value: r.id, group: "Vendors" })),
+                        ]}
+                        value={selectedResourceIds}
+                        onChange={setSelectedResourceIds}
+                        placeholder="Select resources..."
+                        searchPlaceholder="Search resources..."
+                      />
+                    )}
+                    {assignForm.resourceType === "material" && projectMaterials.length > 0 && (
+                      <SearchableMultiSelect
+                        options={projectMaterials.map(m => ({ label: `${m.name} (${m.category})`, value: m.id, group: m.category }))}
+                        value={selectedResourceIds}
+                        onChange={setSelectedResourceIds}
+                        placeholder="Select materials..."
+                      />
+                    )}
+                    {assignForm.resourceType === "equipment" && projectEquipment.length > 0 && (
+                      <SearchableMultiSelect
+                        options={projectEquipment.map(e => ({ label: `${e.name} (${e.category})`, value: e.id, group: e.ownership === "company-owned" ? "Company Owned" : "External" }))}
+                        value={selectedResourceIds}
+                        onChange={setSelectedResourceIds}
+                        placeholder="Select equipment..."
+                      />
+                    )}
                   </div>
                   {(() => {
                     const rId = assignForm.resourceId;
@@ -1371,22 +1420,40 @@ export function ProjectSetupPage() {
                   })()}
                   <button
                     onClick={() => {
-                      if (!assignForm.resourceId || !assignModalTaskId) return;
-                      const newAssignment: ResourceAssignment = {
-                        id: `RA-${Date.now()}`,
+                      if (selectedResourceIds.length === 0 || !assignModalTaskId) return;
+                      const now = Date.now();
+                      const newAssignments: ResourceAssignment[] = selectedResourceIds.map((rid, i) => ({
+                        id: `RA-${now + i}`,
                         taskId: assignModalTaskId,
                         projectId: projectId || "",
                         resourceType: assignForm.resourceType,
-                        ...(assignForm.resourceType === "human" ? { humanResourceId: assignForm.resourceId } : {}),
-                        ...(assignForm.resourceType === "material" ? { materialResourceId: assignForm.resourceId } : {}),
-                        ...(assignForm.resourceType === "equipment" ? { equipmentResourceId: assignForm.resourceId } : {}),
+                        ...(assignForm.resourceType === "human" ? { humanResourceId: rid } : {}),
+                        ...(assignForm.resourceType === "material" ? { materialResourceId: rid } : {}),
+                        ...(assignForm.resourceType === "equipment" ? { equipmentResourceId: rid } : {}),
                         plannedQty: assignForm.plannedQty,
                         plannedCost: assignForm.plannedCost,
-                      };
-                      setResourceAssignments(prev => [...prev, newAssignment]);
+                      }));
+                      setResourceAssignments(prev => [...prev, ...newAssignments]);
+                      if (assignForm.resourceType === "human") {
+                        setProjectTasks(prev => prev.map(t => {
+                          if (t.id !== assignModalTaskId) return t;
+                          let updated = { ...t };
+                          selectedResourceIds.forEach(rid => {
+                            const vendor = projectVendors.find(v => v.id === rid);
+                            if (!vendor) return;
+                            if (!updated.vendorId) { updated = { ...updated, vendorId: vendor.id }; }
+                            else {
+                              const subs = updated.subVendorIds || [];
+                              if (!subs.includes(vendor.id)) { updated = { ...updated, subVendorIds: [...subs, vendor.id] }; }
+                            }
+                          });
+                          return updated;
+                        }));
+                      }
+                      setSelectedResourceIds([]);
                       setAssignForm({ resourceType: "human", resourceId: "", plannedQty: 0, plannedCost: 0 });
                     }}
-                    disabled={!assignForm.resourceId}
+                    disabled={selectedResourceIds.length === 0}
                     className="w-full px-4 py-2 rounded-lg text-sm text-white font-medium disabled:opacity-40"
                     style={{ backgroundColor: "#E8973A" }}
                   >
@@ -1839,52 +1906,8 @@ export function ProjectSetupPage() {
                                     <span key={s!.id} className="inline-block px-1.5 py-0.5 bg-gray-100 rounded text-gray-500">{s!.name}</span>
                                   ))}
                                 </p>
-        )}
-      </div>
-
-      {/* Schedule Import Center */}
-      <div className="rounded-xl border p-6" style={{ borderColor: "#E2E8F0", backgroundColor: "white" }}>
-        <div className="flex items-center gap-3 mb-4">
-          <div className="w-8 h-8 rounded-lg flex items-center justify-center" style={{ backgroundColor: "#FFF3E0" }}>
-            <FileText className="w-4 h-4" style={{ color: "#E8973A" }} />
-          </div>
-          <div>
-            <h3 className="text-base font-bold" style={{ color: "#1A202C" }}>Schedule Import Center</h3>
-            <p className="text-xs mt-0.5" style={{ color: "#718096" }}>
-              Download a template, review the structure, and import your completed schedule.
-            </p>
-          </div>
-        </div>
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-          <button onClick={downloadExcelTemplate}
-            className="flex items-center gap-3 px-4 py-3 rounded-lg border text-sm font-medium transition-colors hover:bg-gray-50"
-            style={{ borderColor: "#E2E8F0", color: "#4A5568" }}
-          >
-            <Download className="w-5 h-5" style={{ color: "#E8973A" }} />
-            <div className="text-left">
-              <p className="font-medium text-gray-900">Download Template</p>
-              <p className="text-xs text-gray-400 mt-0.5">XLSX with example tasks</p>
-            </div>
-          </button>
-          <div className="flex items-center gap-3 px-4 py-3 rounded-lg border text-sm" style={{ borderColor: "#E2E8F0", color: "#4A5568" }}>
-            <FileText className="w-5 h-5" style={{ color: "#6B7280" }} />
-            <div className="text-left">
-              <p className="font-medium text-gray-900">Template Guide</p>
-              <p className="text-xs text-gray-400 mt-0.5">Column: Level, Task Name, Parent ID, Start, End</p>
-            </div>
-          </div>
-          <label className="flex items-center gap-3 px-4 py-3 rounded-lg border text-sm font-medium cursor-pointer transition-colors hover:bg-gray-50"
-            style={{ borderColor: "#E2E8F0", color: "#4A5568" }}
-          >
-            <Upload className="w-5 h-5" style={{ color: "#10B981" }} />
-            <div className="text-left">
-              <p className="font-medium text-gray-900">Upload Completed Template</p>
-              <p className="text-xs text-gray-400 mt-0.5">.xlsx or .xls files</p>
-            </div>
-            <input ref={fileInputRef} type="file" accept=".xlsx,.xls" onChange={handleExcelImport} className="hidden" />
-          </label>
-        </div>
-      </div>
+                              )}
+                            </div>
                           </div>
                           <button onClick={() => removeVendor(v.id)} className="p-1 rounded hover:bg-red-50 text-red-400 hover:text-red-600"><Trash2 className="w-3.5 h-3.5" /></button>
                         </div>
