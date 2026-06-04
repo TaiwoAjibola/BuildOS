@@ -1,5 +1,5 @@
-import { useState, useRef, useEffect } from "react";
-import { Search, Check, X, ChevronDown } from "lucide-react";
+import { useState, useRef, useEffect, type ReactNode } from "react";
+import { Search, Check, X, ChevronDown, Plus } from "lucide-react";
 
 interface Option {
   label: string;
@@ -15,6 +15,9 @@ interface SearchableMultiSelectProps {
   searchPlaceholder?: string;
   className?: string;
   disabled?: boolean;
+  onNotFoundAction?: { label: string; icon?: ReactNode; onClick: (query: string) => void };
+  emptyMessage?: string;
+  max?: number;
 }
 
 export function SearchableMultiSelect({
@@ -25,6 +28,9 @@ export function SearchableMultiSelect({
   searchPlaceholder = "Search...",
   className = "",
   disabled = false,
+  onNotFoundAction,
+  emptyMessage = "No results found",
+  max,
 }: SearchableMultiSelectProps) {
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
@@ -58,6 +64,8 @@ export function SearchableMultiSelect({
   const toggle = (optionValue: string) => {
     if (value.includes(optionValue)) {
       onChange(value.filter((v) => v !== optionValue));
+    } else if (max && value.length >= max) {
+      onChange([optionValue]);
     } else {
       onChange([...value, optionValue]);
     }
@@ -115,7 +123,19 @@ export function SearchableMultiSelect({
           </div>
           <div className="max-h-60 overflow-y-auto">
             {Object.keys(grouped).length === 0 ? (
-              <p className="px-3 py-2 text-sm text-gray-400">No results found</p>
+              <div>
+                <p className="px-3 py-2 text-sm text-gray-400">{emptyMessage}</p>
+                {onNotFoundAction && query.trim().length > 0 && (
+                  <button
+                    type="button"
+                    onClick={() => onNotFoundAction.onClick(query)}
+                    className="w-full flex items-center gap-2 px-3 py-2 text-sm text-left text-orange-600 hover:bg-orange-50 border-t border-gray-100 transition-colors font-medium"
+                  >
+                    {onNotFoundAction.icon || <Plus className="w-4 h-4" />}
+                    {onNotFoundAction.label}
+                  </button>
+                )}
+              </div>
             ) : (
               Object.entries(grouped).map(([group, items]) => (
                 <div key={group}>

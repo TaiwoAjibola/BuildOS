@@ -1055,6 +1055,48 @@ export function ProjectSetupPage() {
 
   const renderScheduleBuilder = () => (
     <div className="space-y-4">
+      {/* Schedule Import Center */}
+      <div className="rounded-xl border p-6" style={{ borderColor: "#E2E8F0", backgroundColor: "white" }}>
+        <div className="flex items-center gap-3 mb-4">
+          <div className="w-8 h-8 rounded-lg flex items-center justify-center" style={{ backgroundColor: "#FFF3E0" }}>
+            <FileText className="w-4 h-4" style={{ color: "#E8973A" }} />
+          </div>
+          <div>
+            <h3 className="text-base font-bold" style={{ color: "#1A202C" }}>Schedule Import Center</h3>
+          </div>
+        </div>
+
+        {/* Info panel */}
+        <div className="mb-5 p-4 rounded-lg" style={{ backgroundColor: "#F7F8FA", border: "1px solid #E2E8F0" }}>
+          <p className="text-sm font-medium text-gray-700 mb-2">Schedule Import Guide</p>
+          <p className="text-xs text-gray-500 mb-3">Download the template and use the provided structure.</p>
+          <ul className="text-xs text-gray-500 space-y-1 list-disc list-inside">
+            <li>Do not modify column names.</li>
+            <li>Maintain task hierarchy relationships.</li>
+            <li>Use supported date formats (YYYY-MM-DD).</li>
+            <li>Review validation errors before final import.</li>
+            <li>Parent-child mappings are already configured.</li>
+          </ul>
+        </div>
+
+        <div className="flex flex-col sm:flex-row gap-3">
+          <button onClick={downloadExcelTemplate}
+            className="flex items-center justify-center gap-2 px-5 py-2.5 rounded-lg border-2 text-sm font-medium transition-colors hover:bg-gray-50 flex-1"
+            style={{ borderColor: "#E2E8F0", color: "#4A5568" }}
+          >
+            <Download className="w-4 h-4" style={{ color: "#E8973A" }} />
+            Download Template
+          </button>
+          <label className="flex items-center justify-center gap-2 px-5 py-2.5 rounded-lg text-sm font-medium cursor-pointer transition-colors hover:opacity-90 flex-1 text-white"
+            style={{ backgroundColor: "#E8973A" }}
+          >
+            <Upload className="w-4 h-4" />
+            Upload Completed Template
+            <input ref={fileInputRef} type="file" accept=".xlsx,.xls" onChange={handleExcelImport} className="hidden" />
+          </label>
+        </div>
+      </div>
+
       <div className="rounded-xl border p-6" style={{ borderColor: "#E2E8F0", backgroundColor: "white" }}>
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-lg font-bold" style={{ color: "#1A202C" }}>Task Hierarchy Builder</h2>
@@ -1089,56 +1131,6 @@ export function ProjectSetupPage() {
             {renderTaskTree(null, 0)}
           </div>
         )}
-      </div>
-
-      {/* Schedule Import Center */}
-      <div className="rounded-xl border p-6" style={{ borderColor: "#E2E8F0", backgroundColor: "white" }}>
-        <div className="flex items-center gap-3 mb-4">
-          <div className="w-8 h-8 rounded-lg flex items-center justify-center" style={{ backgroundColor: "#FFF3E0" }}>
-            <FileText className="w-4 h-4" style={{ color: "#E8973A" }} />
-          </div>
-          <div>
-            <h3 className="text-base font-bold" style={{ color: "#1A202C" }}>Schedule Import Center</h3>
-            <p className="text-xs mt-0.5" style={{ color: "#718096" }}>
-              Download a template, review the structure, and import your completed schedule.
-            </p>
-          </div>
-        </div>
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-          <button onClick={downloadExcelTemplate}
-            className="flex items-center gap-3 px-4 py-3 rounded-lg border text-sm font-medium transition-colors hover:bg-gray-50"
-            style={{ borderColor: "#E2E8F0", color: "#4A5568" }}
-          >
-            <Download className="w-5 h-5" style={{ color: "#E8973A" }} />
-            <div className="text-left">
-              <p className="font-medium text-gray-900">Download Template</p>
-              <p className="text-xs text-gray-400 mt-0.5">XLSX with example tasks</p>
-            </div>
-          </button>
-          <div className="flex flex-col gap-2 px-4 py-3 rounded-lg border text-sm" style={{ borderColor: "#E2E8F0", color: "#4A5568" }}>
-            <div className="flex items-center gap-2">
-              <FileText className="w-5 h-5 flex-shrink-0" style={{ color: "#6B7280" }} />
-              <p className="font-medium text-gray-900">Template Guide</p>
-            </div>
-            <div className="text-xs text-gray-500 space-y-1 pl-7">
-              <p><strong className="text-gray-700">Level</strong> — Task hierarchy level (1–4). Level 1 = Phase, 2 = Work Package, 3 = Activity, 4 = Task.</p>
-              <p><strong className="text-gray-700">Task Name</strong> — Descriptive name for the task (e.g. "Foundation Works").</p>
-              <p><strong className="text-gray-700">Parent ID</strong> — The ID of the parent task. Leave blank for Level 1 tasks.</p>
-              <p><strong className="text-gray-700">Start Date</strong> — Planned start date in YYYY-MM-DD format.</p>
-              <p><strong className="text-gray-700">End Date</strong> — Planned end date in YYYY-MM-DD format.</p>
-            </div>
-          </div>
-          <label className="flex items-center gap-3 px-4 py-3 rounded-lg border text-sm font-medium cursor-pointer transition-colors hover:bg-gray-50"
-            style={{ borderColor: "#E2E8F0", color: "#4A5568" }}
-          >
-            <Upload className="w-5 h-5" style={{ color: "#10B981" }} />
-            <div className="text-left">
-              <p className="font-medium text-gray-900">Upload Completed Template</p>
-              <p className="text-xs text-gray-400 mt-0.5">.xlsx or .xls files</p>
-            </div>
-            <input ref={fileInputRef} type="file" accept=".xlsx,.xls" onChange={handleExcelImport} className="hidden" />
-          </label>
-        </div>
       </div>
 
       {/* Add Task Modal */}
@@ -1271,6 +1263,9 @@ export function ProjectSetupPage() {
                         : ass.resourceType === "material" ? "Material" : "Equipment";
                       const badgeColor = ass.resourceType === "human" ? "bg-blue-100 text-blue-700" : ass.resourceType === "material" ? "bg-green-100 text-green-700" : "bg-amber-100 text-amber-700";
                       const hideCostQty = isHuman && (subtypeLabel === "Employee" || subtypeLabel === "Vendor");
+                      const isEmptyQtyCost = !hideCostQty && ass.plannedQty === 0 && ass.plannedCost === 0;
+                      const displayLabel = subtypeLabel;
+                      const resourceId = ass.humanResourceId || ass.materialResourceId || ass.equipmentResourceId || "";
                       return (
                         <div key={ass.id} className="flex items-center justify-between px-4 py-3 bg-gray-50 rounded-lg text-sm border" style={{ borderColor: "#E2E8F0" }}>
                           <div className="flex items-center gap-3">
@@ -1279,12 +1274,12 @@ export function ProjectSetupPage() {
                             </div>
                             <div>
                               <p className="font-medium text-gray-900">{resName}</p>
-                              <p className="text-xs text-gray-500">{subtypeLabel}</p>
+                              <p className="text-xs text-gray-500">{displayLabel}</p>
                             </div>
                           </div>
                           <div className="flex items-center gap-4">
                             <div className="text-right">
-                              {hideCostQty ? (
+                              {hideCostQty || isEmptyQtyCost ? (
                                 <p className="text-xs text-gray-400 italic">Managed in records</p>
                               ) : (
                                 <>
@@ -1293,6 +1288,48 @@ export function ProjectSetupPage() {
                                 </>
                               )}
                             </div>
+                            {/* Hierarchy actions for human resources */}
+                            {isHuman && (displayLabel === "Vendor" || displayLabel === "Contractor") && (
+                              <div className="flex items-center gap-1 mr-1">
+                                {ass.reportsToAssignmentId ? (
+                                  <button
+                                    onClick={() => setResourceAssignments(prev => prev.map(a => a.id === ass.id ? { ...a, reportsToAssignmentId: undefined } : a))}
+                                    className="p-1 rounded text-[10px] text-gray-400 hover:text-orange-600 hover:bg-orange-50 transition-colors"
+                                    title="Remove relationship"
+                                  >
+                                    <X className="w-3 h-3" />
+                                  </button>
+                                ) : (
+                                  <button
+                                    onClick={() => {
+                                      const leadCandidates = resourceAssignments.filter(
+                                        a => a.taskId === ass.taskId && a.id !== ass.id && a.resourceType === "human" && a.humanResourceId
+                                      );
+                                      if (leadCandidates.length > 0) {
+                                        const choice = window.confirm(
+                                          `Set "${resName}" as supporting resource?\n\nClick OK to choose a lead from ${leadCandidates.length} other assigned resources.`
+                                        );
+                                        if (!choice) return;
+                                        const names = leadCandidates.map(a => {
+                                          const n = ([...projectStaff, ...projectContractors, ...projectVendors] as { id: string; name: string }[]).find(r => r.id === a.humanResourceId)?.name || "Unknown";
+                                          return `${a.id}|${n}`;
+                                        });
+                                        const sel = window.prompt(
+                                          `Enter the assignment ID of the lead resource:\n\n${names.map(n => `  ${n.split("|")[0]} — ${n.split("|")[1]}`).join("\n")}`
+                                        );
+                                        if (sel && leadCandidates.find(a => a.id === sel.trim())) {
+                                          setResourceAssignments(prev => prev.map(a => a.id === ass.id ? { ...a, reportsToAssignmentId: sel.trim() } : a));
+                                        }
+                                      }
+                                    }}
+                                    className="p-1 rounded text-[10px] text-gray-400 hover:text-orange-600 hover:bg-orange-50 transition-colors"
+                                    title="Nominate supporting resource"
+                                  >
+                                    <ChevronRight className="w-3 h-3" />
+                                  </button>
+                                )}
+                              </div>
+                            )}
                             <button onClick={() => {
                               setResourceAssignments(prev => prev.filter(a => a.id !== ass.id));
                               if (ass.resourceType === "human" && ass.humanResourceId) {
@@ -1361,20 +1398,32 @@ export function ProjectSetupPage() {
                         searchPlaceholder="Search resources..."
                       />
                     )}
-                    {assignForm.resourceType === "material" && projectMaterials.length > 0 && (
+                    {assignForm.resourceType === "material" && (
                       <SearchableMultiSelect
                         options={projectMaterials.map(m => ({ label: `${m.name} (${m.category})`, value: m.id, group: m.category }))}
                         value={selectedResourceIds}
                         onChange={setSelectedResourceIds}
                         placeholder="Select materials..."
+                        onNotFoundAction={{
+                          label: "Submit Procurement Request",
+                          onClick: (q) => {
+                            alert(`Procurement request for "${q}" will be submitted.`);
+                          },
+                        }}
                       />
                     )}
-                    {assignForm.resourceType === "equipment" && projectEquipment.length > 0 && (
+                    {assignForm.resourceType === "equipment" && (
                       <SearchableMultiSelect
                         options={projectEquipment.map(e => ({ label: `${e.name} (${e.category})`, value: e.id, group: e.ownership === "company-owned" ? "Company Owned" : "External" }))}
                         value={selectedResourceIds}
                         onChange={setSelectedResourceIds}
                         placeholder="Select equipment..."
+                        onNotFoundAction={{
+                          label: "Add External Equipment",
+                          onClick: (q) => {
+                            alert(`External equipment form for "${q}" will be opened.`);
+                          },
+                        }}
                       />
                     )}
                   </div>
@@ -1934,25 +1983,26 @@ export function ProjectSetupPage() {
           <div className="space-y-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Search Material from Inventory</label>
-              <select
-                value={selectedMaterialInventoryId}
-                onChange={e => {
-                  const id = e.target.value;
+              <SearchableMultiSelect
+                options={materialInventory.map(i => ({ label: `${i.name} (${i.inStock} ${i.unit} in stock) — ₦${i.defaultUnitCost.toLocaleString()}/${i.unit}`, value: i.id, group: i.category }))}
+                value={selectedMaterialInventoryId ? [selectedMaterialInventoryId] : []}
+                onChange={ids => {
+                  const id = ids[0] || "";
                   setSelectedMaterialInventoryId(id);
                   if (id) {
                     const inv = materialInventory.find(i => i.id === id);
                     if (inv) setMaterialForm({ ...materialForm, name: inv.name, category: inv.category, unit: inv.unit, estimatedUnitCost: inv.defaultUnitCost, procurementSource: "internal" });
                   }
                 }}
-                className="w-full px-3 py-2 rounded-lg border text-sm"
-                style={{ borderColor: "#E2E8F0", backgroundColor: "#F7F8FA" }}
-              >
-                <option value="">— Search & select material —</option>
-                {materialInventory.map(i => (
-                  <option key={i.id} value={i.id}>{i.name} ({i.inStock} {i.unit} in stock) — ₦{i.defaultUnitCost.toLocaleString()}/{i.unit}</option>
-                ))}
-              </select>
-              <p className="text-xs text-gray-400 mt-1">Type to search. Multi-select supported — add items one at a time.</p>
+                placeholder="Search material..."
+                max={1}
+                onNotFoundAction={{
+                  label: "Submit Procurement Request",
+                  onClick: (q) => {
+                    window.open("/apps/procurement/requests", "_blank");
+                  },
+                }}
+              />
             </div>
 
             {selectedMaterialInventoryId && (() => {
@@ -1989,7 +2039,7 @@ export function ProjectSetupPage() {
               );
             })()}
 
-            {/* Not found — procurement option */}
+            {/* Not found — procurement option (shown only when no inventory selected) */}
             {!selectedMaterialInventoryId && (
               <div className="rounded-lg border-2 border-dashed p-4 text-center" style={{ borderColor: "#E2E8F0" }}>
                 <p className="text-sm text-gray-500 mb-2">Material not found in inventory?</p>
@@ -2048,23 +2098,27 @@ export function ProjectSetupPage() {
           <div className="space-y-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Search Equipment from Company Fleet</label>
-              <select value={selectedEquipmentFleetId}
-                onChange={e => {
-                  const id = e.target.value;
+              <SearchableMultiSelect
+                options={equipmentInventory.map(e => ({ label: `${e.name} — ${e.category} (${e.status})`, value: e.id, group: e.category }))}
+                value={selectedEquipmentFleetId ? [selectedEquipmentFleetId] : []}
+                onChange={ids => {
+                  const id = ids[0] || "";
                   setSelectedEquipmentFleetId(id);
                   if (id) {
                     const inv = equipmentInventory.find(i => i.id === id);
                     if (inv) setEquipmentForm({ ...equipmentForm, name: inv.name, category: inv.category, ownership: "company-owned", internalCostPerDay: inv.defaultInternalCostPerDay, status: "Available" });
                   }
                 }}
-                className="w-full px-3 py-2 rounded-lg border text-sm" style={{ borderColor: "#E2E8F0", backgroundColor: "#F7F8FA" }}
-              >
-                <option value="">— Search & select equipment —</option>
-                {equipmentInventory.map(e => (
-                  <option key={e.id} value={e.id}>{e.name} — {e.category} ({e.status})</option>
-                ))}
-              </select>
-              <p className="text-xs text-gray-400 mt-1">Type to search. Select multiple items one at a time.</p>
+                placeholder="Search equipment..."
+                max={1}
+                onNotFoundAction={{
+                  label: "Add External Equipment",
+                  onClick: (q) => {
+                    setSelectedEquipmentFleetId("_external");
+                    setEquipmentForm({ ...equipmentForm, ownership: "client-supplied", name: q, category: "", internalCostPerDay: 0, rentalCostPerDay: 0, rentalSupplier: "" });
+                  },
+                }}
+              />
             </div>
 
             {selectedEquipmentFleetId && (() => {

@@ -835,6 +835,7 @@ export interface ResourceAssignment {
   plannedCost: number;
   actualQty?: number;
   actualCost?: number;
+  reportsToAssignmentId?: string;
 }
 
 // ── Schedule Level Config ───────────────────────────────────
