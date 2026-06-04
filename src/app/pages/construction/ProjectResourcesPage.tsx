@@ -1,8 +1,8 @@
 import { useParams, useNavigate } from "react-router";
 import { useState } from "react";
-import { Users, Package, Truck, Plus, Search, X, Eye, Award, DollarSign, Briefcase, Download, Edit, ExternalLink, Building2, UserCheck, UserCog, Wrench } from "lucide-react";
-import { getProjectById, getTasksByProject, fmtCurrency, hrEmployees } from "./mockData";
-import type { Task, MaterialResource, EquipmentResource } from "./types";
+import { Users, Package, Truck, Plus, Search, X, Eye, Award, DollarSign, Briefcase, Download, Edit, ExternalLink, Building2, UserCheck, UserCog } from "lucide-react";
+import { getProjectById, getTasksByProject, fmtCurrency, hrEmployees, stubMaterials, stubEquipment, tradeTypes } from "./mockData";
+import type { Task } from "./types";
 import { exportCSV } from "../../utils/exportCSV";
 import { useResources } from "../../contexts/ResourceContext";
 
@@ -12,13 +12,6 @@ const statusStyles: Record<string, { badge: string; label: string }> = {
   Completed: { badge: "bg-gray-100 text-gray-600", label: "Completed" },
   Terminated: { badge: "bg-red-100 text-red-700", label: "Terminated" },
 };
-
-const tradeTypes = [
-  "Masonry", "Concreting labor", "Carpentry (formwork)", "Carpentry (roofing)",
-  "Iron benders / steel fixers", "Tiling", "Plumbing", "Electrical",
-  "Painting", "Glazing / aluminum works", "General operations / laboring",
-  "Equipment operation",
-];
 
 const contractTypes = ["Labor-only", "Supply & Install", "Nominated Subcontractor"];
 
@@ -35,21 +28,6 @@ const equipmentCategories = ["Earthwork", "Lifting", "Concreting", "Transportati
 type ResourceTab = "human" | "material" | "equipment";
 type HumanSubTab = "employees" | "contractors" | "vendors";
 
-const stubMaterials: MaterialResource[] = [
-  { id: "MAT-001", projectId: "", name: "Cement (Grade 42.5)", category: "Concrete", unit: "bags", estimatedQty: 5000, estimatedUnitCost: 5500, totalEstimatedCost: 27500000, procurementSource: "purchase" },
-  { id: "MAT-002", projectId: "", name: "Reinforcement Steel (16mm)", category: "Reinforcement", unit: "tonnes", estimatedQty: 120, estimatedUnitCost: 850000, totalEstimatedCost: 102000000, procurementSource: "purchase" },
-  { id: "MAT-003", projectId: "", name: "Sharp Sand", category: "Aggregates", unit: "tonnes", estimatedQty: 800, estimatedUnitCost: 12000, totalEstimatedCost: 9600000, procurementSource: "purchase" },
-  { id: "MAT-004", projectId: "", name: "Granite (3/4 inch)", category: "Aggregates", unit: "tonnes", estimatedQty: 600, estimatedUnitCost: 18000, totalEstimatedCost: 10800000, procurementSource: "internal" },
-  { id: "MAT-005", projectId: "", name: "PVC Pipes (4 inch)", category: "Plumbing", unit: "pieces", estimatedQty: 200, estimatedUnitCost: 4500, totalEstimatedCost: 900000, procurementSource: "purchase" },
-];
-
-const stubEquipment: EquipmentResource[] = [
-  { id: "EQ-001", projectId: "", name: "Excavator (20 ton)", category: "Earthwork", ownership: "company-owned", internalCostPerDay: 120000, estimatedDays: 90, totalEstimatedCost: 10800000, status: "Available" },
-  { id: "EQ-002", projectId: "", name: "Tower Crane", category: "Lifting", ownership: "rented", rentalCostPerDay: 250000, rentalSupplier: "CraneHire Ltd", estimatedDays: 180, totalEstimatedCost: 45000000, status: "Assigned" },
-  { id: "EQ-003", projectId: "", name: "Concrete Mixer (1m³)", category: "Concreting", ownership: "company-owned", internalCostPerDay: 45000, estimatedDays: 150, totalEstimatedCost: 6750000, status: "Available" },
-  { id: "EQ-004", projectId: "", name: "Compactor (Vibratory Roller)", category: "Compaction", ownership: "rented", rentalCostPerDay: 80000, rentalSupplier: "BuildEquip Co", estimatedDays: 45, totalEstimatedCost: 3600000, status: "Under Maintenance" },
-  { id: "EQ-005", projectId: "", name: "Generator (100 KVA)", category: "Generators / Power", ownership: "company-owned", internalCostPerDay: 35000, estimatedDays: 365, totalEstimatedCost: 12775000, status: "Available" },
-];
 
 export function ProjectResourcesPage() {
   const { id: projectId } = useParams<{ id: string }>();

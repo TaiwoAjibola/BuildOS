@@ -2,7 +2,7 @@ import { useParams, useNavigate } from "react-router";
 import { ArrowLeft, MapPin, Calendar, Users, DollarSign, Building2, FileText, AlertTriangle, CheckSquare, Clock, Truck } from "lucide-react";
 import { useState } from "react";
 import type { Project } from "./types";
-import { getProjectById, getTasksByProject, getVendorsByProject, getReportsByProject, getIssuesByProject, fmtCurrency, fmtDate, ragColor, ragLabel, tasks } from "./mockData";
+import { getProjectById, getTasksByProject, getVendorsByProject, getReportsByProject, getIssuesByProject, fmtCurrency, fmtDate, ragColor, ragLabel } from "./mockData";
 import { ProcessGuidance } from "../../components/ProcessGuidance";
 
 const RAG_HEX: Record<string, { dot: string; bg: string; text: string }> = {

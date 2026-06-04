@@ -1,7 +1,7 @@
 import { useNavigate } from "react-router";
-import { Truck, Award, Users, DollarSign, ChevronRight, Search, ArrowUpDown, Download, Plus, X, Edit3, Package, Building2, UserCheck, UserCog, Wrench, ExternalLink, Save } from "lucide-react";
+import { Truck, Award, Users, DollarSign, ChevronRight, Search, ArrowUpDown, Download, Plus, X, Edit3, Package, Building2, UserCheck, UserCog, ExternalLink, Save } from "lucide-react";
 import { useMemo, useState } from "react";
-import { projects, fmtCurrency, hrEmployees } from "./mockData";
+import { projects, fmtCurrency, hrEmployees, stubMaterials, stubEquipment, tradeTypes } from "./mockData";
 import { exportCSV } from "../../utils/exportCSV";
 import { useResources, type IndividualContractor } from "../../contexts/ResourceContext";
 import type { Vendor } from "./types";
@@ -17,30 +17,8 @@ type SortField = "name" | "project" | "trade" | "contractType" | "status" | "con
 type ResourceTab = "human" | "material" | "equipment";
 type HumanSubTab = "employees" | "contractors" | "vendors";
 
-const tradeTypes = [
-  "Masonry", "Concreting labor", "Carpentry (formwork)", "Carpentry (roofing)",
-  "Iron benders / steel fixers", "Tiling", "Plumbing", "Electrical",
-  "Painting", "Glazing / aluminum works", "General operations / laboring",
-  "Equipment operation", "Scaffolding", "Welding",
-];
-
 const contractTypes = ["Labor-only", "Supply & Install", "Nominated Subcontractor"];
 
-const stubMaterials = [
-  { id: "MAT-001", name: "Cement (Grade 42.5)", category: "Concrete", unit: "bags", estimatedQty: 5000 },
-  { id: "MAT-002", name: "Reinforcement Steel (16mm)", category: "Reinforcement", unit: "tonnes", estimatedQty: 120 },
-  { id: "MAT-003", name: "Sharp Sand", category: "Aggregates", unit: "tonnes", estimatedQty: 800 },
-  { id: "MAT-004", name: "Granite (3/4 inch)", category: "Aggregates", unit: "tonnes", estimatedQty: 600 },
-  { id: "MAT-005", name: "PVC Pipes (4 inch)", category: "Plumbing", unit: "pieces", estimatedQty: 200 },
-];
-
-const stubEquipment = [
-  { id: "EQ-001", name: "Excavator (20 ton)", category: "Earthwork", ownership: "company-owned", status: "Available" },
-  { id: "EQ-002", name: "Tower Crane", category: "Lifting", ownership: "rented", status: "Assigned" },
-  { id: "EQ-003", name: "Concrete Mixer (1m³)", category: "Concreting", ownership: "company-owned", status: "Available" },
-  { id: "EQ-004", name: "Compactor (Vibratory Roller)", category: "Earthwork", ownership: "rented", status: "Under Maintenance" },
-  { id: "EQ-005", name: "Generator (100 KVA)", category: "Power Generation", ownership: "company-owned", status: "Available" },
-];
 
 export function ResourcesOverviewPage() {
   const navigate = useNavigate();

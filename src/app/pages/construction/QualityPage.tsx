@@ -3,7 +3,6 @@ import { useState } from "react";
 import { CheckSquare, AlertTriangle, FileText, ClipboardList, Beaker, XCircle, Plus, Eye, User, Calendar } from "lucide-react";
 import { getProjectById, qualityNCRs, fmtDate } from "./mockData";
 import type { QualityNCR } from "./types";
-import type { QualityNCR } from "./types";
 
 type QATab = "compliance" | "inspections" | "ncrs" | "capa" | "schedule";
 

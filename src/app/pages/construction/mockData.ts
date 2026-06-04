@@ -27,7 +27,7 @@ export const tradeTypes = [
   "Masonry", "Concreting labor", "Carpentry (formwork)", "Carpentry (roofing)",
   "Iron benders / steel fixers", "Tiling", "Plumbing", "Electrical",
   "Painting", "Glazing / aluminum works", "General operations / laboring",
-  "Equipment operation",
+  "Equipment operation", "Scaffolding", "Welding",
 ];
 
 export const vendors: Vendor[] = [
@@ -428,4 +428,20 @@ export const equipmentInventory: InventoryEquipment[] = [
   { id: "INV-EQ-013", name: "Forklift (3 ton)", category: "Transport", defaultInternalCostPerDay: 55000, status: "Available" },
   { id: "INV-EQ-014", name: "Pile Driver", category: "Piling", defaultInternalCostPerDay: 200000, status: "Available" },
   { id: "INV-EQ-015", name: "Safety Scaffolding Set", category: "Safety", defaultInternalCostPerDay: 8000, status: "Available" },
+];
+
+export const stubMaterials: MaterialResource[] = [
+  { id: "MAT-001", projectId: "", name: "Cement (Grade 42.5)", category: "Concrete", unit: "bags", estimatedQty: 5000, estimatedUnitCost: 5500, totalEstimatedCost: 27500000, procurementSource: "internal" },
+  { id: "MAT-002", projectId: "", name: "Reinforcement Steel (16mm)", category: "Reinforcement", unit: "tonnes", estimatedQty: 120, estimatedUnitCost: 850000, totalEstimatedCost: 102000000, procurementSource: "purchase" },
+  { id: "MAT-003", projectId: "", name: "Sharp Sand", category: "Aggregates", unit: "tonnes", estimatedQty: 800, estimatedUnitCost: 12000, totalEstimatedCost: 9600000, procurementSource: "purchase" },
+  { id: "MAT-004", projectId: "", name: "Granite (3/4 inch)", category: "Aggregates", unit: "tonnes", estimatedQty: 600, estimatedUnitCost: 18000, totalEstimatedCost: 10800000, procurementSource: "internal" },
+  { id: "MAT-005", projectId: "", name: "PVC Pipes (4 inch)", category: "Plumbing", unit: "pieces", estimatedQty: 200, estimatedUnitCost: 4500, totalEstimatedCost: 900000, procurementSource: "purchase" },
+];
+
+export const stubEquipment: EquipmentResource[] = [
+  { id: "EQ-001", projectId: "", name: "Excavator (20 ton)", category: "Earthwork", ownership: "company-owned", internalCostPerDay: 120000, estimatedDays: 90, totalEstimatedCost: 10800000, status: "Available" },
+  { id: "EQ-002", projectId: "", name: "Tower Crane", category: "Lifting", ownership: "rented", rentalCostPerDay: 250000, rentalSupplier: "CraneHire Ltd", estimatedDays: 180, totalEstimatedCost: 45000000, status: "Assigned" },
+  { id: "EQ-003", projectId: "", name: "Concrete Mixer (1m³)", category: "Concreting", ownership: "company-owned", internalCostPerDay: 45000, estimatedDays: 150, totalEstimatedCost: 6750000, status: "Available" },
+  { id: "EQ-004", projectId: "", name: "Compactor (Vibratory Roller)", category: "Compaction", ownership: "rented", rentalCostPerDay: 80000, rentalSupplier: "BuildEquip Co", estimatedDays: 45, totalEstimatedCost: 3600000, status: "Under Maintenance" },
+  { id: "EQ-005", projectId: "", name: "Generator (100 KVA)", category: "Generators / Power", ownership: "company-owned", internalCostPerDay: 35000, estimatedDays: 365, totalEstimatedCost: 12775000, status: "Available" },
 ];

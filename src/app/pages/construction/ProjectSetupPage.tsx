@@ -154,13 +154,11 @@ export function ProjectSetupPage() {
   const EMPTY_MATERIAL_FORM = { name: "", category: "", unit: "", estimatedQty: 0, estimatedUnitCost: 0, procurementSource: "internal" as "internal" | "purchase", supplierName: "" };
   const [materialForm, setMaterialForm] = useState(EMPTY_MATERIAL_FORM);
   const [projectMaterials, setProjectMaterials] = useState<MaterialResource[]>([]);
-  const [materialSource, setMaterialSource] = useState<"inventory" | "manual">("inventory");
   const [selectedMaterialInventoryId, setSelectedMaterialInventoryId] = useState("");
 
   const EMPTY_EQUIPMENT_FORM = { name: "", category: "", ownership: "company-owned" as "company-owned" | "rented" | "client-supplied", internalCostPerDay: 0, rentalCostPerDay: 0, rentalSupplier: "", estimatedDays: 0, status: "Available" as "Available" | "Assigned" | "Under Maintenance" };
   const [equipmentForm, setEquipmentForm] = useState(EMPTY_EQUIPMENT_FORM);
   const [projectEquipment, setProjectEquipment] = useState<EquipmentResource[]>([]);
-  const [equipmentSource, setEquipmentSource] = useState<"fleet" | "manual">("fleet");
   const [selectedEquipmentFleetId, setSelectedEquipmentFleetId] = useState("");
 
   // HR list UI state
@@ -498,48 +496,30 @@ export function ProjectSetupPage() {
 
   // Material helpers
   const addMaterial = () => {
-    if (materialSource === "inventory") {
-      if (!selectedMaterialInventoryId || !materialForm.estimatedQty) return;
-      const inv = materialInventory.find(i => i.id === selectedMaterialInventoryId);
-      if (!inv) return;
-      const newMat: MaterialResource = {
-        id: `MAT-${String(projectMaterials.length + 1).padStart(3, "0")}`,
-        projectId: projectId!,
-        name: inv.name,
-        category: inv.category,
-        unit: inv.unit,
-        estimatedQty: materialForm.estimatedQty,
-        estimatedUnitCost: inv.defaultUnitCost,
-        totalEstimatedCost: materialForm.estimatedQty * inv.defaultUnitCost,
-        procurementSource: "internal",
-      };
-      setProjectMaterials(prev => [...prev, newMat]);
-      setSelectedMaterialInventoryId("");
-      setMaterialForm({ ...EMPTY_MATERIAL_FORM, estimatedQty: 0 });
-      return;
-    }
-    if (!materialForm.name || !materialForm.category || !materialForm.unit) return;
+    if (!selectedMaterialInventoryId || !materialForm.estimatedQty) return;
+    const inv = materialInventory.find(i => i.id === selectedMaterialInventoryId);
+    if (!inv) return;
     const newMat: MaterialResource = {
       id: `MAT-${String(projectMaterials.length + 1).padStart(3, "0")}`,
       projectId: projectId!,
-      name: materialForm.name,
-      category: materialForm.category,
-      unit: materialForm.unit,
+      name: inv.name,
+      category: inv.category,
+      unit: inv.unit,
       estimatedQty: materialForm.estimatedQty,
-      estimatedUnitCost: materialForm.estimatedUnitCost,
-      totalEstimatedCost: materialForm.estimatedQty * materialForm.estimatedUnitCost,
-      procurementSource: materialForm.procurementSource,
-      supplierId: materialForm.supplierName || undefined,
+      estimatedUnitCost: inv.defaultUnitCost,
+      totalEstimatedCost: materialForm.estimatedQty * inv.defaultUnitCost,
+      procurementSource: "internal",
     };
     setProjectMaterials(prev => [...prev, newMat]);
-    setMaterialForm(EMPTY_MATERIAL_FORM);
+    setSelectedMaterialInventoryId("");
+    setMaterialForm({ ...EMPTY_MATERIAL_FORM, estimatedQty: 0 });
   };
   const removeMaterial = (id: string) => setProjectMaterials(prev => prev.filter(m => m.id !== id));
 
   // Equipment helpers
   const addEquipment = () => {
-    if (equipmentSource === "fleet") {
-      if (!selectedEquipmentFleetId || !equipmentForm.estimatedDays) return;
+    if (selectedEquipmentFleetId && selectedEquipmentFleetId !== "_external") {
+      if (!equipmentForm.estimatedDays) return;
       const inv = equipmentInventory.find(e => e.id === selectedEquipmentFleetId);
       if (!inv) return;
       const newEquip: EquipmentResource = {
@@ -1787,7 +1767,7 @@ export function ProjectSetupPage() {
                 {/* Section: Employees */}
                 {projectStaff.filter(s => !hrSearch || s.name.toLowerCase().includes(hrSearch.toLowerCase()) || s.trade.toLowerCase().includes(hrSearch.toLowerCase())).length > 0 && (
                   <div>
-                    <div className="px-5 py-2 bg-gray-50 flex items-center gap-2 cursor-pointer select-none" onClick={() => setHrSection(!hrSectionOpen.employee)}>
+                    <div className="px-5 py-2 bg-gray-50 flex items-center gap-2 cursor-pointer select-none" onClick={() => setHrSectionOpen(prev => ({ ...prev, employee: !prev.employee }))}>
                       <span className="text-xs font-semibold uppercase tracking-wider text-blue-600 flex items-center gap-1">
                         <Users className="w-3 h-3" /> Employees
                       </span>
@@ -1811,7 +1791,7 @@ export function ProjectSetupPage() {
                 {/* Section: Individual Contractors */}
                 {projectContractors.filter(c => !hrSearch || c.name.toLowerCase().includes(hrSearch.toLowerCase()) || c.trade.toLowerCase().includes(hrSearch.toLowerCase())).length > 0 && (
                   <div>
-                    <div className="px-5 py-2 bg-gray-50 flex items-center gap-2 cursor-pointer select-none" onClick={() => setHrSection(!hrSectionOpen.contractor)}>
+                    <div className="px-5 py-2 bg-gray-50 flex items-center gap-2 cursor-pointer select-none" onClick={() => setHrSectionOpen(prev => ({ ...prev, contractor: !prev.contractor }))}>
                       <span className="text-xs font-semibold uppercase tracking-wider text-purple-600 flex items-center gap-1">
                         <Users className="w-3 h-3" /> Contractors
                       </span>
@@ -1835,7 +1815,7 @@ export function ProjectSetupPage() {
                 {/* Section: Vendors */}
                 {projectVendors.filter(v => !hrSearch || v.name.toLowerCase().includes(hrSearch.toLowerCase()) || v.trade.toLowerCase().includes(hrSearch.toLowerCase())).length > 0 && (
                   <div>
-                    <div className="px-5 py-2 bg-gray-50 flex items-center gap-2 cursor-pointer select-none" onClick={() => setHrSection(!hrSectionOpen.vendor)}>
+                    <div className="px-5 py-2 bg-gray-50 flex items-center gap-2 cursor-pointer select-none" onClick={() => setHrSectionOpen(prev => ({ ...prev, vendor: !prev.vendor }))}>
                       <span className="text-xs font-semibold uppercase tracking-wider text-orange-600 flex items-center gap-1">
                         <Building2 className="w-3 h-3" /> Vendors
                       </span>
