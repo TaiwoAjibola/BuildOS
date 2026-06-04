@@ -452,6 +452,7 @@ export function ResourcesOverviewPage() {
                 <th className="px-4 py-2.5 text-left text-xs font-medium text-gray-500 uppercase">Category</th>
                 <th className="px-4 py-2.5 text-left text-xs font-medium text-gray-500 uppercase">Unit</th>
                 <th className="px-4 py-2.5 text-right text-xs font-medium text-gray-500 uppercase">Est. Qty</th>
+                <th className="px-4 py-2.5 text-left text-xs font-medium text-gray-500 uppercase">Source</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100">
@@ -461,10 +462,17 @@ export function ResourcesOverviewPage() {
                   <td className="px-4 py-2.5 text-gray-600">{m.category}</td>
                   <td className="px-4 py-2.5 text-gray-500">{m.unit}</td>
                   <td className="px-4 py-2.5 text-right text-gray-700">{m.estimatedQty.toLocaleString()}</td>
+                  <td className="px-4 py-2.5">
+                    <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${
+                      m.procurementSource === "internal" ? "bg-green-100 text-green-700" : "bg-blue-100 text-blue-700"
+                    }`}>
+                      {m.procurementSource === "internal" ? "Inventory" : "Purchase"}
+                    </span>
+                  </td>
                 </tr>
               ))}
               {filteredMaterials.length === 0 && (
-                <tr><td colSpan={4} className="text-center py-8 text-sm text-gray-400">No materials found</td></tr>
+                <tr><td colSpan={5} className="text-center py-8 text-sm text-gray-400">No materials found</td></tr>
               )}
             </tbody>
           </table>

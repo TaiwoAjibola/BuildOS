@@ -124,6 +124,7 @@ export interface Task {
   dependencyType: "FS" | "FF" | "SS" | "SF" | null;
   lagDays: number;
   vendorId: string | null;
+  subVendorIds: string[];
   ragStatus: RAGStatus;
   ragOverride: boolean;
   notes: string;

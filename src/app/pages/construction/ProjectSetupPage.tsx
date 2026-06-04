@@ -122,7 +122,7 @@ export function ProjectSetupPage() {
   const [showAddTask, setShowAddTask] = useState(false);
   const [taskForm, setTaskForm] = useState({
     name: "", level: 4 as 1 | 2 | 3 | 4, parentTaskId: "",
-    plannedStart: "", plannedEnd: "",
+    plannedStart: "", plannedEnd: "", vendorId: null as string | null,
   });
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
 
@@ -268,7 +268,7 @@ export function ProjectSetupPage() {
       if (task.parentTaskId) next.add(task.parentTaskId);
       return next;
     });
-    setTaskForm({ name: "", level: 4, parentTaskId: "", plannedStart: "", plannedEnd: "" });
+    setTaskForm({ name: "", level: 4, parentTaskId: "", plannedStart: "", plannedEnd: "", vendorId: null });
     setShowAddTask(false);
   };
 
@@ -331,7 +331,7 @@ export function ProjectSetupPage() {
             plannedStart: s, plannedEnd: e, actualStart: null, actualEnd: null,
             plannedDuration: dur, actualDuration: null, percentComplete: 0,
             predecessorId: null, dependencyType: null, lagDays: 0,
-            vendorId: null, ragStatus: "on-track", ragOverride: false, notes: "",
+      vendorId: taskForm.vendorId || null, subVendorIds: [], ragStatus: "on-track", ragOverride: false, notes: "",
           });
         }
         if (newTasks.length > 0) {
@@ -1002,15 +1002,19 @@ export function ProjectSetupPage() {
       const isExpanded = expanded.has(task.id);
       const hasChildren = projectTasks.some(t => t.parentTaskId === task.id);
       const paddingLeft = (task.level - 1) * 24 + 12;
+      const isLevel1 = task.level === 1;
+      const primaryVendor = task.vendorId ? projectVendors.find(v => v.id === task.vendorId) : null;
+      const subVendors = task.subVendorIds?.map(id => projectVendors.find(v => v.id === id)).filter(Boolean) as Vendor[] | undefined;
 
       return (
         <div key={task.id}>
           <div
-            className="flex items-center gap-2 px-3 py-2 rounded-lg text-sm group"
+            className="flex items-center gap-2 px-3 py-2.5 text-sm group"
             style={{
               paddingLeft: `${paddingLeft}px`,
-              backgroundColor: task.level === 1 ? "#1C2333" : "transparent",
-              color: task.level === 1 ? "white" : "#1A202C",
+              backgroundColor: isLevel1 ? "#1C2333" : "transparent",
+              color: isLevel1 ? "white" : "#1A202C",
+              borderBottom: "1px solid #E2E8F0",
             }}
           >
             <button
@@ -1023,31 +1027,37 @@ export function ProjectSetupPage() {
                 <span className="w-3.5" />
               )}
             </button>
-            <span className="text-xs font-mono opacity-60 w-14 flex-shrink-0">{task.id}</span>
+            <span className="text-xs font-mono opacity-60 w-16 flex-shrink-0">{task.id}</span>
             <span className="flex-1 truncate font-medium">{task.name}</span>
-            <span className="text-xs opacity-60 hidden sm:inline">
-              {LEVEL_NAMES[task.level]}
-            </span>
-            <span className="text-xs opacity-60 hidden sm:inline">
-              {fmtDate(task.plannedStart)} — {fmtDate(task.plannedEnd)}
-            </span>
+            {task.level === 1 && task.vendorId && (
+              <div className="flex items-center gap-1 text-xs" style={{ color: isLevel1 ? "rgba(255,255,255,0.7)" : "#6B7280" }}>
+                <Building2 className="w-3 h-3" />
+                <span>{primaryVendor?.name || "—"}</span>
+                {subVendors && subVendors.length > 0 && (
+                  <span className="ml-1 text-[10px] opacity-60">+{subVendors.length}</span>
+                )}
+              </div>
+            )}
+            <span className="text-xs opacity-60 hidden sm:inline w-28">{LEVEL_NAMES[task.level]}</span>
+            <span className="text-xs opacity-60 hidden sm:inline w-40">{fmtDate(task.plannedStart)} — {fmtDate(task.plannedEnd)}</span>
             <button
               onClick={() => setAssignModalTaskId(task.id)}
-              className="p-1 rounded opacity-0 group-hover:opacity-100 hover:bg-orange-100 text-orange-600 transition-opacity relative"
-              title="Assign resources"
+              className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium transition-colors opacity-70 hover:opacity-100"
+              style={{ color: isLevel1 ? "#E8973A" : "#E8973A", backgroundColor: isLevel1 ? "rgba(232,151,58,0.15)" : "rgba(232,151,58,0.1)" }}
             >
-              <Users className="w-3.5 h-3.5" />
+              <Users className="w-3.5 h-3.5" /> Assign
               {resourceAssignments.filter(a => a.taskId === task.id).length > 0 && (
-                <span className="absolute -top-1.5 -right-1.5 bg-orange-600 text-white text-[10px] font-bold rounded-full w-4 h-4 flex items-center justify-center">
+                <span className="bg-white text-orange-700 text-[10px] font-bold rounded-full w-4 h-4 flex items-center justify-center border" style={{ borderColor: "#E8973A" }}>
                   {resourceAssignments.filter(a => a.taskId === task.id).length}
                 </span>
               )}
             </button>
             <button
               onClick={() => removeTask(task.id)}
-              className="p-1 rounded opacity-0 group-hover:opacity-100 hover:bg-red-100 text-red-500 transition-opacity"
+              className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-medium transition-colors opacity-50 hover:opacity-100 hover:bg-red-50"
+              style={{ color: "#EF4444" }}
             >
-              <X className="w-3.5 h-3.5" />
+              <Trash2 className="w-3 h-3" /> <span className="hidden sm:inline">Delete</span>
             </button>
           </div>
           {hasChildren && isExpanded && renderTaskTree(task.id, depth + 1)}
@@ -1061,26 +1071,14 @@ export function ProjectSetupPage() {
       <div className="rounded-xl border p-6" style={{ borderColor: "#E2E8F0", backgroundColor: "white" }}>
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-lg font-bold" style={{ color: "#1A202C" }}>Task Hierarchy Builder</h2>
-          <button
-            onClick={() => setShowAddTask(true)}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-white text-sm font-medium"
-            style={{ backgroundColor: "#E8973A" }}
-          >
-            <Plus className="w-4 h-4" /> Add Task
-          </button>
-          <div className="flex gap-2">
-            <button onClick={downloadExcelTemplate}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium border"
-              style={{ borderColor: "#E2E8F0", color: "#4A5568" }}
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => setShowAddTask(true)}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-white text-sm font-medium"
+              style={{ backgroundColor: "#E8973A" }}
             >
-              <Download className="w-4 h-4" /> Template
+              <Plus className="w-4 h-4" /> Add Task
             </button>
-            <label className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium border cursor-pointer"
-              style={{ borderColor: "#E2E8F0", color: "#4A5568" }}
-            >
-              <Upload className="w-4 h-4" /> Import Excel
-              <input ref={fileInputRef} type="file" accept=".xlsx,.xls" onChange={handleExcelImport} className="hidden" />
-            </label>
           </div>
         </div>
 
@@ -1094,11 +1092,12 @@ export function ProjectSetupPage() {
           <div className="border rounded-lg" style={{ borderColor: "#E2E8F0" }}>
             <div className="flex items-center gap-2 px-3 py-2 bg-gray-50 border-b text-xs font-semibold text-gray-500 uppercase tracking-wider" style={{ borderColor: "#E2E8F0" }}>
               <span className="w-3.5" />
-              <span className="w-14">ID</span>
+              <span className="w-16">ID</span>
               <span className="flex-1">Task Name</span>
               <span className="hidden sm:inline w-28">Level</span>
               <span className="hidden sm:inline w-40">Dates</span>
-              <span className="w-6" />
+              <span className="w-[140px]" />
+              <span className="w-[80px]" />
             </div>
             {renderTaskTree(null, 0)}
           </div>
@@ -1181,6 +1180,22 @@ export function ProjectSetupPage() {
                   />
                 </div>
               </div>
+              {taskForm.level === 1 && (
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Primary Vendor (responsible lead)</label>
+                  <select value={taskForm.vendorId || ""}
+                    onChange={e => setTaskForm({ ...taskForm, vendorId: e.target.value || null })}
+                    className="w-full px-3 py-2 rounded-lg border text-sm"
+                    style={{ borderColor: "#E2E8F0", backgroundColor: "#F7F8FA" }}
+                  >
+                    <option value="">— None —</option>
+                    {projectVendors.map(v => (
+                      <option key={v.id} value={v.id}>{v.name} — {v.trade}</option>
+                    ))}
+                  </select>
+                  <p className="text-xs text-gray-400 mt-1">The primary vendor is the delivery lead for this task.</p>
+                </div>
+              )}
             </div>
             <div className="flex items-center justify-end gap-3 p-5 border-t" style={{ borderColor: "#E2E8F0" }}>
               <button
@@ -1222,27 +1237,40 @@ export function ProjectSetupPage() {
                   </h4>
                   <div className="grid grid-cols-1 gap-2">
                     {resourceAssignments.filter(a => a.taskId === assignModalTaskId).map(ass => {
-                      const resName = ass.resourceType === "human"
-                        ? ([...projectStaff, ...projectContractors, ...projectVendors.map(v => ({ id: v.id, name: v.name, trade: v.trade }))] as { id: string; name: string; trade?: string }[]).find(r => r.id === (ass.humanResourceId || ass.materialResourceId || ass.equipmentResourceId))?.name || "Unknown"
+                      const isHuman = ass.resourceType === "human";
+                      const resName = isHuman
+                        ? ([...projectStaff, ...projectContractors, ...projectVendors.map(v => ({ id: v.id, name: v.name, trade: v.trade }))] as { id: string; name: string; trade?: string }[]).find(r => r.id === ass.humanResourceId)?.name || "Unknown"
                         : ass.resourceType === "material"
                           ? projectMaterials.find(m => m.id === ass.materialResourceId)?.name || "Unknown"
                           : projectEquipment.find(e => e.id === ass.equipmentResourceId)?.name || "Unknown";
+                      const subtypeLabel = isHuman
+                        ? projectStaff.some(s => s.id === ass.humanResourceId) ? "Employee"
+                          : projectContractors.some(c => c.id === ass.humanResourceId) ? "Contractor"
+                          : "Vendor"
+                        : ass.resourceType === "material" ? "Material" : "Equipment";
                       const badgeColor = ass.resourceType === "human" ? "bg-blue-100 text-blue-700" : ass.resourceType === "material" ? "bg-green-100 text-green-700" : "bg-amber-100 text-amber-700";
+                      const hideCostQty = isHuman && (subtypeLabel === "Employee" || subtypeLabel === "Vendor");
                       return (
                         <div key={ass.id} className="flex items-center justify-between px-4 py-3 bg-gray-50 rounded-lg text-sm border" style={{ borderColor: "#E2E8F0" }}>
                           <div className="flex items-center gap-3">
                             <div className={`w-8 h-8 rounded-lg flex items-center justify-center text-xs font-bold ${badgeColor}`}>
-                              {ass.resourceType === "human" ? "H" : ass.resourceType === "material" ? "M" : "E"}
+                              {isHuman ? "H" : ass.resourceType === "material" ? "M" : "E"}
                             </div>
                             <div>
                               <p className="font-medium text-gray-900">{resName}</p>
-                              <p className="text-xs text-gray-500 capitalize">{ass.resourceType}</p>
+                              <p className="text-xs text-gray-500">{subtypeLabel}</p>
                             </div>
                           </div>
                           <div className="flex items-center gap-4">
                             <div className="text-right">
-                              <p className="text-sm font-medium text-gray-900">{ass.plannedQty} × {ass.plannedCost > 0 ? `₦${ass.plannedCost.toLocaleString()}` : "N/A"}</p>
-                              <p className="text-xs text-gray-400">Total: ₦{((ass.plannedCost || 0) * ass.plannedQty).toLocaleString()}</p>
+                              {hideCostQty ? (
+                                <p className="text-xs text-gray-400 italic">Managed in records</p>
+                              ) : (
+                                <>
+                                  <p className="text-sm font-medium text-gray-900">{ass.plannedQty} × {ass.plannedCost > 0 ? `₦${ass.plannedCost.toLocaleString()}` : "N/A"}</p>
+                                  <p className="text-xs text-gray-400">Total: ₦{((ass.plannedCost || 0) * ass.plannedQty).toLocaleString()}</p>
+                                </>
+                              )}
                             </div>
                             <button onClick={() => setResourceAssignments(prev => prev.filter(a => a.id !== ass.id))} className="p-1.5 rounded-lg hover:bg-red-50 text-red-400 hover:text-red-600 transition-colors"><Trash2 className="w-3.5 h-3.5" /></button>
                           </div>
@@ -1283,14 +1311,33 @@ export function ProjectSetupPage() {
                     <label className="block text-xs font-medium text-gray-600 mb-1">Resource</label>
                     <select
                       value={assignForm.resourceId}
-                      onChange={e => setAssignForm({ ...assignForm, resourceId: e.target.value })}
+                      onChange={e => {
+                        const val = e.target.value;
+                        setAssignForm({ ...assignForm, resourceId: val, plannedQty: 0, plannedCost: 0 });
+                      }}
                       className="w-full px-3 py-2 rounded-lg border text-sm"
                       style={{ borderColor: "#E2E8F0", backgroundColor: "#F7F8FA" }}
                     >
                       <option value="">Select…</option>
-                      {assignForm.resourceType === "human" && [...projectStaff, ...projectContractors, ...projectVendors].map(r => (
-                        <option key={r.id} value={r.id}>{"name" in r ? r.name : r.id} {"trade" in r && r.trade ? `— ${r.trade}` : ""}</option>
-                      ))}
+                      {assignForm.resourceType === "human" && (
+                        <>
+                          <optgroup label="Employees">
+                            {projectStaff.map(r => (
+                              <option key={r.id} value={r.id}>{r.name} — {r.trade}</option>
+                            ))}
+                          </optgroup>
+                          <optgroup label="Contractors">
+                            {projectContractors.map(r => (
+                              <option key={r.id} value={r.id}>{r.name} — {r.trade}</option>
+                            ))}
+                          </optgroup>
+                          <optgroup label="Vendors">
+                            {projectVendors.map(r => (
+                              <option key={r.id} value={r.id}>{r.name} — {r.trade}</option>
+                            ))}
+                          </optgroup>
+                        </>
+                      )}
                       {assignForm.resourceType === "material" && projectMaterials.map(m => (
                         <option key={m.id} value={m.id}>{m.name} ({m.category})</option>
                       ))}
@@ -1302,16 +1349,46 @@ export function ProjectSetupPage() {
                     {assignForm.resourceType === "material" && projectMaterials.length === 0 && <p className="text-xs text-gray-400 mt-1">No materials registered. Go to Resources step first.</p>}
                     {assignForm.resourceType === "equipment" && projectEquipment.length === 0 && <p className="text-xs text-gray-400 mt-1">No equipment registered. Go to Resources step first.</p>}
                   </div>
-                  <div className="grid grid-cols-2 gap-3">
-                    <div>
-                      <label className="block text-xs font-medium text-gray-600 mb-1">Planned Quantity</label>
-                      <input type="number" min={0} value={assignForm.plannedQty} onChange={e => setAssignForm({ ...assignForm, plannedQty: Number(e.target.value) })} className="w-full px-3 py-2 rounded-lg border text-sm" style={{ borderColor: "#E2E8F0", backgroundColor: "#F7F8FA" }} />
-                    </div>
-                    <div>
-                      <label className="block text-xs font-medium text-gray-600 mb-1">Planned Cost (₦)</label>
-                      <input type="number" min={0} value={assignForm.plannedCost} onChange={e => setAssignForm({ ...assignForm, plannedCost: Number(e.target.value) })} className="w-full px-3 py-2 rounded-lg border text-sm" style={{ borderColor: "#E2E8F0", backgroundColor: "#F7F8FA" }} />
-                    </div>
-                  </div>
+                  {(() => {
+                    const rId = assignForm.resourceId;
+                    if (!rId) return null;
+                    let hideQty = false;
+                    let hideCost = false;
+                    let costLabel = "Planned Cost (₦)";
+                    if (assignForm.resourceType === "human") {
+                      const isContractor = projectContractors.some(c => c.id === rId);
+                      const isVendor = projectVendors.some(v => v.id === rId);
+                      const isEmployee = projectStaff.some(s => s.id === rId);
+                      if (isEmployee || isVendor) { hideQty = true; hideCost = true; }
+                    }
+                    if (assignForm.resourceType === "material") {
+                      const mat = projectMaterials.find(m => m.id === rId);
+                      if (mat?.procurementSource === "internal") hideCost = true;
+                    }
+                    if (assignForm.resourceType === "equipment") {
+                      const eq = projectEquipment.find(e => e.id === rId);
+                      if (eq?.ownership === "company-owned") hideCost = true;
+                    }
+                    if (hideQty && hideCost) {
+                      return <p className="text-xs text-gray-500 mt-1 italic">Cost and quantity are managed through existing records for this resource type.</p>;
+                    }
+                    return (
+                      <div className="grid grid-cols-2 gap-3">
+                        {!hideQty && (
+                          <div>
+                            <label className="block text-xs font-medium text-gray-600 mb-1">Planned Quantity</label>
+                            <input type="number" min={0} value={assignForm.plannedQty} onChange={e => setAssignForm({ ...assignForm, plannedQty: Number(e.target.value) })} className="w-full px-3 py-2 rounded-lg border text-sm" style={{ borderColor: "#E2E8F0", backgroundColor: "#F7F8FA" }} />
+                          </div>
+                        )}
+                        {!hideCost && (
+                          <div>
+                            <label className="block text-xs font-medium text-gray-600 mb-1">{costLabel}</label>
+                            <input type="number" min={0} value={assignForm.plannedCost} onChange={e => setAssignForm({ ...assignForm, plannedCost: Number(e.target.value) })} className="w-full px-3 py-2 rounded-lg border text-sm" style={{ borderColor: "#E2E8F0", backgroundColor: "#F7F8FA" }} />
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })()}
                   <button
                     onClick={() => {
                       if (!assignForm.resourceId || !assignModalTaskId) return;
@@ -1782,8 +1859,52 @@ export function ProjectSetupPage() {
                                     <span key={s!.id} className="inline-block px-1.5 py-0.5 bg-gray-100 rounded text-gray-500">{s!.name}</span>
                                   ))}
                                 </p>
-                              )}
-                            </div>
+        )}
+      </div>
+
+      {/* Schedule Import Center */}
+      <div className="rounded-xl border p-6" style={{ borderColor: "#E2E8F0", backgroundColor: "white" }}>
+        <div className="flex items-center gap-3 mb-4">
+          <div className="w-8 h-8 rounded-lg flex items-center justify-center" style={{ backgroundColor: "#FFF3E0" }}>
+            <FileText className="w-4 h-4" style={{ color: "#E8973A" }} />
+          </div>
+          <div>
+            <h3 className="text-base font-bold" style={{ color: "#1A202C" }}>Schedule Import Center</h3>
+            <p className="text-xs mt-0.5" style={{ color: "#718096" }}>
+              Download a template, review the structure, and import your completed schedule.
+            </p>
+          </div>
+        </div>
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+          <button onClick={downloadExcelTemplate}
+            className="flex items-center gap-3 px-4 py-3 rounded-lg border text-sm font-medium transition-colors hover:bg-gray-50"
+            style={{ borderColor: "#E2E8F0", color: "#4A5568" }}
+          >
+            <Download className="w-5 h-5" style={{ color: "#E8973A" }} />
+            <div className="text-left">
+              <p className="font-medium text-gray-900">Download Template</p>
+              <p className="text-xs text-gray-400 mt-0.5">XLSX with example tasks</p>
+            </div>
+          </button>
+          <div className="flex items-center gap-3 px-4 py-3 rounded-lg border text-sm" style={{ borderColor: "#E2E8F0", color: "#4A5568" }}>
+            <FileText className="w-5 h-5" style={{ color: "#6B7280" }} />
+            <div className="text-left">
+              <p className="font-medium text-gray-900">Template Guide</p>
+              <p className="text-xs text-gray-400 mt-0.5">Column: Level, Task Name, Parent ID, Start, End</p>
+            </div>
+          </div>
+          <label className="flex items-center gap-3 px-4 py-3 rounded-lg border text-sm font-medium cursor-pointer transition-colors hover:bg-gray-50"
+            style={{ borderColor: "#E2E8F0", color: "#4A5568" }}
+          >
+            <Upload className="w-5 h-5" style={{ color: "#10B981" }} />
+            <div className="text-left">
+              <p className="font-medium text-gray-900">Upload Completed Template</p>
+              <p className="text-xs text-gray-400 mt-0.5">.xlsx or .xls files</p>
+            </div>
+            <input ref={fileInputRef} type="file" accept=".xlsx,.xls" onChange={handleExcelImport} className="hidden" />
+          </label>
+        </div>
+      </div>
                           </div>
                           <button onClick={() => removeVendor(v.id)} className="p-1 rounded hover:bg-red-50 text-red-400 hover:text-red-600"><Trash2 className="w-3.5 h-3.5" /></button>
                         </div>
@@ -1804,144 +1925,88 @@ export function ProjectSetupPage() {
       {/* ──── MATERIALS ──── */}
       {resourceTab === "material" && (<>
         <div className="rounded-xl border p-6" style={{ borderColor: "#E2E8F0", backgroundColor: "white" }}>
-          <h2 className="text-lg font-bold mb-4" style={{ color: "#1A202C" }}>Add Material Resource</h2>
-          {/* Source toggle */}
-          <div className="flex gap-1 bg-gray-100 rounded-lg p-1 max-w-xs mb-4">
-            {(["inventory", "manual"] as const).map(src => (
-              <button key={src} onClick={() => { setMaterialSource(src); setSelectedMaterialInventoryId(""); setMaterialForm(EMPTY_MATERIAL_FORM); }}
-                className={`flex-1 px-4 py-1.5 text-sm font-medium rounded-md transition-colors capitalize ${
-                  materialSource === src ? "bg-white text-gray-900 shadow-sm" : "text-gray-500 hover:text-gray-700"
-                }`}
+          <h2 className="text-lg font-bold mb-4" style={{ color: "#1A202C" }}>Select Materials</h2>
+
+          {/* Smart selector */}
+          <div className="space-y-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Search Material from Inventory</label>
+              <select
+                value={selectedMaterialInventoryId}
+                onChange={e => {
+                  const id = e.target.value;
+                  setSelectedMaterialInventoryId(id);
+                  if (id) {
+                    const inv = materialInventory.find(i => i.id === id);
+                    if (inv) setMaterialForm({ ...materialForm, name: inv.name, category: inv.category, unit: inv.unit, estimatedUnitCost: inv.defaultUnitCost, procurementSource: "internal" });
+                  }
+                }}
+                className="w-full px-3 py-2 rounded-lg border text-sm"
+                style={{ borderColor: "#E2E8F0", backgroundColor: "#F7F8FA" }}
               >
-                {src === "inventory" ? "From Inventory" : "New Material"}
-              </button>
-            ))}
-          </div>
-          {materialSource === "inventory" ? (
-            <div className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Select Material from Inventory</label>
-                <select value={selectedMaterialInventoryId}
-                  onChange={e => {
-                    const id = e.target.value;
-                    setSelectedMaterialInventoryId(id);
-                    if (id) {
-                      const inv = materialInventory.find(i => i.id === id);
-                      if (inv) setMaterialForm({ ...materialForm, name: inv.name, category: inv.category, unit: inv.unit, estimatedUnitCost: inv.defaultUnitCost, procurementSource: "internal" });
-                    }
-                  }}
-                  className="w-full px-3 py-2 rounded-lg border text-sm" style={{ borderColor: "#E2E8F0", backgroundColor: "#F7F8FA" }}>
-                  <option value="">— Select from inventory —</option>
-                  {materialInventory.map(i => (
-                    <option key={i.id} value={i.id}>{i.name} ({i.inStock} {i.unit} in stock) — ₦{i.defaultUnitCost.toLocaleString()}/{i.unit}</option>
-                  ))}
-                </select>
-              </div>
-              {selectedMaterialInventoryId && (() => {
-                const inv = materialInventory.find(i => i.id === selectedMaterialInventoryId);
-                if (!inv) return null;
-                return (
-                  <>
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">Estimated Quantity</label>
-                        <input type="number" value={materialForm.estimatedQty || ""}
-                          onChange={e => setMaterialForm({ ...materialForm, estimatedQty: Number(e.target.value) })}
-                          className="w-full px-3 py-2 rounded-lg border text-sm" style={{ borderColor: "#E2E8F0", backgroundColor: "#F7F8FA" }}
-                          placeholder="e.g. 500" />
-                      </div>
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">Unit Cost (₦) — from inventory</label>
-                        <input type="text" value={`₦${inv.defaultUnitCost.toLocaleString()}`} disabled
-                          className="w-full px-3 py-2 rounded-lg border text-sm bg-gray-50 text-gray-500" style={{ borderColor: "#E2E8F0" }} />
-                      </div>
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">In Stock</label>
-                        <input type="text" value={`${inv.inStock} ${inv.unit}`} disabled
-                          className="w-full px-3 py-2 rounded-lg border text-sm bg-gray-50 text-gray-500" style={{ borderColor: "#E2E8F0" }} />
-                      </div>
+                <option value="">— Search & select material —</option>
+                {materialInventory.map(i => (
+                  <option key={i.id} value={i.id}>{i.name} ({i.inStock} {i.unit} in stock) — ₦{i.defaultUnitCost.toLocaleString()}/{i.unit}</option>
+                ))}
+              </select>
+              <p className="text-xs text-gray-400 mt-1">Type to search. Multi-select supported — add items one at a time.</p>
+            </div>
+
+            {selectedMaterialInventoryId && (() => {
+              const inv = materialInventory.find(i => i.id === selectedMaterialInventoryId);
+              if (!inv) return null;
+              return (
+                <>
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Estimated Quantity</label>
+                      <input type="number" value={materialForm.estimatedQty || ""}
+                        onChange={e => setMaterialForm({ ...materialForm, estimatedQty: Number(e.target.value) })}
+                        className="w-full px-3 py-2 rounded-lg border text-sm" style={{ borderColor: "#E2E8F0", backgroundColor: "#F7F8FA" }}
+                        placeholder="e.g. 500" />
                     </div>
-                    {materialForm.estimatedQty > 0 && (
-                      <p className="text-sm text-gray-500 mt-2">
-                        Estimated Total: <span className="font-semibold text-gray-900">₦{(materialForm.estimatedQty * inv.defaultUnitCost).toLocaleString()}</span>
-                        <span className="text-gray-400 ml-2">(company stock — cost auto-calculated)</span>
-                      </p>
-                    )}
-                  </>
-                );
-              })()}
-            </div>
-          ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Material Name</label>
-                <input type="text" value={materialForm.name}
-                  onChange={e => setMaterialForm({ ...materialForm, name: e.target.value })}
-                  className="w-full px-3 py-2 rounded-lg border text-sm" style={{ borderColor: "#E2E8F0", backgroundColor: "#F7F8FA" }}
-                  placeholder="e.g. Cement (Grade 42.5)" />
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Unit Cost (₦) — from inventory</label>
+                      <input type="text" value={`₦${inv.defaultUnitCost.toLocaleString()}`} disabled
+                        className="w-full px-3 py-2 rounded-lg border text-sm bg-gray-50 text-gray-500" style={{ borderColor: "#E2E8F0" }} />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">In Stock</label>
+                      <input type="text" value={`${inv.inStock} ${inv.unit}`} disabled
+                        className="w-full px-3 py-2 rounded-lg border text-sm bg-gray-50 text-gray-500" style={{ borderColor: "#E2E8F0" }} />
+                    </div>
+                  </div>
+                  {materialForm.estimatedQty > 0 && (
+                    <p className="text-sm text-gray-500 mt-2">
+                      Estimated Total: <span className="font-semibold text-gray-900">₦{(materialForm.estimatedQty * inv.defaultUnitCost).toLocaleString()}</span>
+                      <span className="text-gray-400 ml-2">(company stock — cost auto-calculated)</span>
+                    </p>
+                  )}
+                </>
+              );
+            })()}
+
+            {/* Not found — procurement option */}
+            {!selectedMaterialInventoryId && (
+              <div className="rounded-lg border-2 border-dashed p-4 text-center" style={{ borderColor: "#E2E8F0" }}>
+                <p className="text-sm text-gray-500 mb-2">Material not found in inventory?</p>
+                <button
+                  onClick={() => window.open("/apps/procurement/requests", "_blank")}
+                  className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-medium text-white"
+                  style={{ backgroundColor: "#E8973A" }}
+                >
+                  <Plus className="w-4 h-4" /> Submit Procurement Request
+                </button>
+                <p className="text-xs text-gray-400 mt-2">Procurement team will be notified. Item becomes selectable once added to inventory.</p>
               </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Category</label>
-                <select value={materialForm.category}
-                  onChange={e => setMaterialForm({ ...materialForm, category: e.target.value })}
-                  className="w-full px-3 py-2 rounded-lg border text-sm" style={{ borderColor: "#E2E8F0", backgroundColor: "#F7F8FA" }}>
-                  <option value="">Select category</option>
-                  {materialCategories.map(c => <option key={c} value={c}>{c}</option>)}
-                </select>
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Unit of Measure</label>
-                <select value={materialForm.unit}
-                  onChange={e => setMaterialForm({ ...materialForm, unit: e.target.value })}
-                  className="w-full px-3 py-2 rounded-lg border text-sm" style={{ borderColor: "#E2E8F0", backgroundColor: "#F7F8FA" }}>
-                  <option value="">Select unit</option>
-                  {materialUnits.map(u => <option key={u} value={u}>{u}</option>)}
-                </select>
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Estimated Quantity</label>
-                <input type="number" value={materialForm.estimatedQty || ""}
-                  onChange={e => setMaterialForm({ ...materialForm, estimatedQty: Number(e.target.value) })}
-                  className="w-full px-3 py-2 rounded-lg border text-sm" style={{ borderColor: "#E2E8F0", backgroundColor: "#F7F8FA" }}
-                  placeholder="e.g. 5000" />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Estimated Unit Cost (₦)</label>
-                <input type="number" value={materialForm.estimatedUnitCost || ""}
-                  onChange={e => setMaterialForm({ ...materialForm, estimatedUnitCost: Number(e.target.value) })}
-                  className="w-full px-3 py-2 rounded-lg border text-sm" style={{ borderColor: "#E2E8F0", backgroundColor: "#F7F8FA" }}
-                  placeholder="e.g. 5500" />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Procurement Source</label>
-                <select value={materialForm.procurementSource}
-                  onChange={e => setMaterialForm({ ...materialForm, procurementSource: e.target.value as "internal" | "purchase" })}
-                  className="w-full px-3 py-2 rounded-lg border text-sm" style={{ borderColor: "#E2E8F0", backgroundColor: "#F7F8FA" }}>
-                  <option value="purchase">Purchase (external)</option>
-                  <option value="internal">Internal / Client-supplied</option>
-                </select>
-              </div>
-              {materialForm.procurementSource === "purchase" && (
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Supplier Name</label>
-                  <input type="text" value={materialForm.supplierName}
-                    onChange={e => setMaterialForm({ ...materialForm, supplierName: e.target.value })}
-                    className="w-full px-3 py-2 rounded-lg border text-sm" style={{ borderColor: "#E2E8F0", backgroundColor: "#F7F8FA" }}
-                    placeholder="e.g. Dangote Cement" />
-                </div>
-              )}
-            </div>
-          )}
-          {materialSource === "manual" && materialForm.estimatedQty > 0 && materialForm.estimatedUnitCost > 0 && (
-            <p className="text-sm text-gray-500 mt-3">
-              Estimated Total: <span className="font-semibold text-gray-900">₦{(materialForm.estimatedQty * materialForm.estimatedUnitCost).toLocaleString()}</span>
-            </p>
-          )}
+            )}
+          </div>
+
           <div className="flex justify-end mt-4">
-            <button onClick={addMaterial} disabled={materialSource === "inventory" ? !selectedMaterialInventoryId || !materialForm.estimatedQty : !materialForm.name || !materialForm.category || !materialForm.unit}
+            <button onClick={addMaterial} disabled={!selectedMaterialInventoryId || !materialForm.estimatedQty}
               className="flex items-center gap-1.5 px-4 py-2 rounded-lg text-white text-sm font-medium disabled:opacity-50"
               style={{ backgroundColor: "#E8973A" }}>
-              <Plus className="w-4 h-4" /> {materialSource === "inventory" ? "Add from Inventory" : "Add Material"}
+              <Plus className="w-4 h-4" /> Add to Project Materials
             </button>
           </div>
         </div>
@@ -1974,43 +2039,36 @@ export function ProjectSetupPage() {
       {/* ──── EQUIPMENT ──── */}
       {resourceTab === "equipment" && (<>
         <div className="rounded-xl border p-6" style={{ borderColor: "#E2E8F0", backgroundColor: "white" }}>
-          <h2 className="text-lg font-bold mb-4" style={{ color: "#1A202C" }}>Add Equipment Resource</h2>
-          {/* Source toggle */}
-          <div className="flex gap-1 bg-gray-100 rounded-lg p-1 max-w-xs mb-4">
-            {(["fleet", "manual"] as const).map(src => (
-              <button key={src} onClick={() => { setEquipmentSource(src); setSelectedEquipmentFleetId(""); setEquipmentForm(EMPTY_EQUIPMENT_FORM); }}
-                className={`flex-1 px-4 py-1.5 text-sm font-medium rounded-md transition-colors capitalize ${
-                  equipmentSource === src ? "bg-white text-gray-900 shadow-sm" : "text-gray-500 hover:text-gray-700"
-                }`}
+          <h2 className="text-lg font-bold mb-4" style={{ color: "#1A202C" }}>Select Equipment</h2>
+
+          {/* Smart selector */}
+          <div className="space-y-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Search Equipment from Company Fleet</label>
+              <select value={selectedEquipmentFleetId}
+                onChange={e => {
+                  const id = e.target.value;
+                  setSelectedEquipmentFleetId(id);
+                  if (id) {
+                    const inv = equipmentInventory.find(i => i.id === id);
+                    if (inv) setEquipmentForm({ ...equipmentForm, name: inv.name, category: inv.category, ownership: "company-owned", internalCostPerDay: inv.defaultInternalCostPerDay, status: "Available" });
+                  }
+                }}
+                className="w-full px-3 py-2 rounded-lg border text-sm" style={{ borderColor: "#E2E8F0", backgroundColor: "#F7F8FA" }}
               >
-                {src === "fleet" ? "From Company Fleet" : "New Equipment"}
-              </button>
-            ))}
-          </div>
-          {equipmentSource === "fleet" ? (
-            <div className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Select Equipment from Fleet</label>
-                <select value={selectedEquipmentFleetId}
-                  onChange={e => {
-                    const id = e.target.value;
-                    setSelectedEquipmentFleetId(id);
-                    if (id) {
-                      const inv = equipmentInventory.find(i => i.id === id);
-                      if (inv) setEquipmentForm({ ...equipmentForm, name: inv.name, category: inv.category, internalCostPerDay: inv.defaultInternalCostPerDay });
-                    }
-                  }}
-                  className="w-full px-3 py-2 rounded-lg border text-sm" style={{ borderColor: "#E2E8F0", backgroundColor: "#F7F8FA" }}>
-                  <option value="">— Select from fleet —</option>
-                  {equipmentInventory.map(e => (
-                    <option key={e.id} value={e.id}>{e.name} — {e.category} ({e.status})</option>
-                  ))}
-                </select>
-              </div>
-              {selectedEquipmentFleetId && (() => {
-                const inv = equipmentInventory.find(e => e.id === selectedEquipmentFleetId);
-                if (!inv) return null;
-                return (
+                <option value="">— Search & select equipment —</option>
+                {equipmentInventory.map(e => (
+                  <option key={e.id} value={e.id}>{e.name} — {e.category} ({e.status})</option>
+                ))}
+              </select>
+              <p className="text-xs text-gray-400 mt-1">Type to search. Select multiple items one at a time.</p>
+            </div>
+
+            {selectedEquipmentFleetId && (() => {
+              const inv = equipmentInventory.find(e => e.id === selectedEquipmentFleetId);
+              if (!inv) return null;
+              return (
+                <>
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-1">Estimated Days on Site</label>
@@ -2030,99 +2088,97 @@ export function ProjectSetupPage() {
                         className="w-full px-3 py-2 rounded-lg border text-sm bg-gray-50 text-gray-500" style={{ borderColor: "#E2E8F0" }} />
                     </div>
                   </div>
-                );
-              })()}
-              {equipmentSource === "fleet" && selectedEquipmentFleetId && equipmentForm.estimatedDays > 0 && (() => {
-                const inv = equipmentInventory.find(e => e.id === selectedEquipmentFleetId);
-                if (!inv) return null;
-                return (
-                  <p className="text-sm text-gray-500 mt-2">
-                    Estimated Total: <span className="font-semibold text-gray-900">₦{(inv.defaultInternalCostPerDay * equipmentForm.estimatedDays).toLocaleString()}</span>
-                    <span className="text-gray-400 ml-2">(company fleet — cost auto-calculated)</span>
-                  </p>
-                );
-              })()}
-            </div>
-          ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Equipment Name</label>
-                <input type="text" value={equipmentForm.name}
-                  onChange={e => setEquipmentForm({ ...equipmentForm, name: e.target.value })}
-                  className="w-full px-3 py-2 rounded-lg border text-sm" style={{ borderColor: "#E2E8F0", backgroundColor: "#F7F8FA" }}
-                  placeholder="e.g. Tower Crane" />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Category</label>
-                <select value={equipmentForm.category}
-                  onChange={e => setEquipmentForm({ ...equipmentForm, category: e.target.value })}
-                  className="w-full px-3 py-2 rounded-lg border text-sm" style={{ borderColor: "#E2E8F0", backgroundColor: "#F7F8FA" }}>
-                  <option value="">Select category</option>
-                  {equipmentCategories.map(c => <option key={c} value={c}>{c}</option>)}
-                </select>
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Ownership</label>
-                <select value={equipmentForm.ownership}
-                  onChange={e => setEquipmentForm({ ...equipmentForm, ownership: e.target.value as "company-owned" | "rented" | "client-supplied" })}
-                  className="w-full px-3 py-2 rounded-lg border text-sm" style={{ borderColor: "#E2E8F0", backgroundColor: "#F7F8FA" }}>
-                  <option value="company-owned">Company-owned</option>
-                  <option value="rented">Rented / Hired</option>
-                  <option value="client-supplied">Client-supplied</option>
-                </select>
-              </div>
-              {equipmentForm.ownership === "company-owned" && (
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Internal Cost per Day (₦)</label>
-                  <input type="number" value={equipmentForm.internalCostPerDay || ""}
-                    onChange={e => setEquipmentForm({ ...equipmentForm, internalCostPerDay: Number(e.target.value) })}
-                    className="w-full px-3 py-2 rounded-lg border text-sm" style={{ borderColor: "#E2E8F0", backgroundColor: "#F7F8FA" }}
-                    placeholder="e.g. 150000" />
+                  {equipmentForm.estimatedDays > 0 && (
+                    <p className="text-sm text-gray-500 mt-2">
+                      Estimated Total: <span className="font-semibold text-gray-900">₦{(inv.defaultInternalCostPerDay * equipmentForm.estimatedDays).toLocaleString()}</span>
+                      <span className="text-gray-400 ml-2">(company fleet — cost auto-calculated)</span>
+                    </p>
+                  )}
+                </>
+              );
+            })()}
+
+            {/* Not found — external options */}
+            {!selectedEquipmentFleetId && (
+              <div className="rounded-lg border-2 border-dashed p-5 space-y-4" style={{ borderColor: "#E2E8F0" }}>
+                <p className="text-sm font-medium text-gray-600">Equipment not found in fleet? Add external equipment:</p>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                  {(["client-supplied", "rented", "external"] as const).map(opt => (
+                    <button key={opt} onClick={() => {
+                      setEquipmentForm({ ...equipmentForm, ownership: opt, name: "", category: "", internalCostPerDay: 0, rentalCostPerDay: 0, rentalSupplier: "" });
+                      setSelectedEquipmentFleetId("_external");
+                    }}
+                      className={`px-4 py-3 rounded-lg border text-sm font-medium text-left transition-colors ${
+                        equipmentForm.ownership === opt ? "bg-amber-50 border-amber-400 text-amber-700" : "hover:bg-gray-50"
+                      }`}
+                    >
+                      <p className="font-semibold">{opt === "client-supplied" ? "Client Supplied" : opt === "rented" ? "Rented / Borrowed" : "External Equipment"}</p>
+                      <p className="text-xs text-gray-400 mt-1">
+                        {opt === "client-supplied" ? "Provided by client" : opt === "rented" ? "Hired from third party" : "Other external source"}
+                      </p>
+                    </button>
+                  ))}
                 </div>
-              )}
-              {equipmentForm.ownership === "rented" && (<>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Rental Cost per Day (₦)</label>
-                  <input type="number" value={equipmentForm.rentalCostPerDay || ""}
-                    onChange={e => setEquipmentForm({ ...equipmentForm, rentalCostPerDay: Number(e.target.value) })}
-                    className="w-full px-3 py-2 rounded-lg border text-sm" style={{ borderColor: "#E2E8F0", backgroundColor: "#F7F8FA" }}
-                    placeholder="e.g. 120000" />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Rental Supplier</label>
-                  <input type="text" value={equipmentForm.rentalSupplier}
-                    onChange={e => setEquipmentForm({ ...equipmentForm, rentalSupplier: e.target.value })}
-                    className="w-full px-3 py-2 rounded-lg border text-sm" style={{ borderColor: "#E2E8F0", backgroundColor: "#F7F8FA" }}
-                    placeholder="e.g. Mario Equipment Ltd" />
-                </div>
-              </>)}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Estimated Days on Site</label>
-                <input type="number" value={equipmentForm.estimatedDays || ""}
-                  onChange={e => setEquipmentForm({ ...equipmentForm, estimatedDays: Number(e.target.value) })}
-                  className="w-full px-3 py-2 rounded-lg border text-sm" style={{ borderColor: "#E2E8F0", backgroundColor: "#F7F8FA" }}
-                  placeholder="e.g. 180" />
+                {selectedEquipmentFleetId === "_external" && (
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-3">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Equipment Name</label>
+                      <input type="text" value={equipmentForm.name}
+                        onChange={e => setEquipmentForm({ ...equipmentForm, name: e.target.value })}
+                        className="w-full px-3 py-2 rounded-lg border text-sm" style={{ borderColor: "#E2E8F0", backgroundColor: "#F7F8FA" }}
+                        placeholder="e.g. Tower Crane" />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Category</label>
+                      <select value={equipmentForm.category}
+                        onChange={e => setEquipmentForm({ ...equipmentForm, category: e.target.value })}
+                        className="w-full px-3 py-2 rounded-lg border text-sm" style={{ borderColor: "#E2E8F0", backgroundColor: "#F7F8FA" }}>
+                        <option value="">Select category</option>
+                        {equipmentCategories.map(c => <option key={c} value={c}>{c}</option>)}
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Estimated Days on Site</label>
+                      <input type="number" value={equipmentForm.estimatedDays || ""}
+                        onChange={e => setEquipmentForm({ ...equipmentForm, estimatedDays: Number(e.target.value) })}
+                        className="w-full px-3 py-2 rounded-lg border text-sm" style={{ borderColor: "#E2E8F0", backgroundColor: "#F7F8FA" }}
+                        placeholder="e.g. 180" />
+                    </div>
+                    {equipmentForm.ownership === "rented" && (<>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Rental Cost per Day (₦)</label>
+                        <input type="number" value={equipmentForm.rentalCostPerDay || ""}
+                          onChange={e => setEquipmentForm({ ...equipmentForm, rentalCostPerDay: Number(e.target.value) })}
+                          className="w-full px-3 py-2 rounded-lg border text-sm" style={{ borderColor: "#E2E8F0", backgroundColor: "#F7F8FA" }}
+                          placeholder="e.g. 120000" />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Rental Supplier</label>
+                        <input type="text" value={equipmentForm.rentalSupplier}
+                          onChange={e => setEquipmentForm({ ...equipmentForm, rentalSupplier: e.target.value })}
+                          className="w-full px-3 py-2 rounded-lg border text-sm" style={{ borderColor: "#E2E8F0", backgroundColor: "#F7F8FA" }}
+                          placeholder="e.g. Mario Equipment Ltd" />
+                      </div>
+                    </>)}
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Status</label>
+                      <select value={equipmentForm.status}
+                        onChange={e => setEquipmentForm({ ...equipmentForm, status: e.target.value as "Available" | "Assigned" | "Under Maintenance" })}
+                        className="w-full px-3 py-2 rounded-lg border text-sm" style={{ borderColor: "#E2E8F0", backgroundColor: "#F7F8FA" }}>
+                        {equipmentStatuses.map(s => <option key={s} value={s}>{s}</option>)}
+                      </select>
+                    </div>
+                  </div>
+                )}
               </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Status</label>
-                <select value={equipmentForm.status}
-                  onChange={e => setEquipmentForm({ ...equipmentForm, status: e.target.value as "Available" | "Assigned" | "Under Maintenance" })}
-                  className="w-full px-3 py-2 rounded-lg border text-sm" style={{ borderColor: "#E2E8F0", backgroundColor: "#F7F8FA" }}>
-                  {equipmentStatuses.map(s => <option key={s} value={s}>{s}</option>)}
-                </select>
-              </div>
-            </div>
-          )}
-          {equipmentSource === "manual" && equipmentForm.estimatedDays > 0 && (equipmentForm.internalCostPerDay > 0 || equipmentForm.rentalCostPerDay > 0) && (
-            <p className="text-sm text-gray-500 mt-3">
-              Estimated Total: <span className="font-semibold text-gray-900">₦{((equipmentForm.ownership === "company-owned" ? equipmentForm.internalCostPerDay : equipmentForm.rentalCostPerDay) * equipmentForm.estimatedDays).toLocaleString()}</span>
-            </p>
-          )}
+            )}
+          </div>
+
           <div className="flex justify-end mt-4">
-            <button onClick={addEquipment} disabled={equipmentSource === "fleet" ? !selectedEquipmentFleetId || !equipmentForm.estimatedDays : !equipmentForm.name || !equipmentForm.category}
+            <button onClick={addEquipment} disabled={!selectedEquipmentFleetId && !equipmentForm.name}
               className="flex items-center gap-1.5 px-4 py-2 rounded-lg text-white text-sm font-medium disabled:opacity-50"
               style={{ backgroundColor: "#E8973A" }}>
-              <Plus className="w-4 h-4" /> Add Equipment
+              <Plus className="w-4 h-4" /> Add to Project Equipment
             </button>
           </div>
         </div>
