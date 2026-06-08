@@ -6,7 +6,6 @@ const tabs = [
   { label: "Overview", path: "overview", icon: "📋" },
   { label: "Schedule", path: "schedule", icon: "📅" },
   { label: "Daily Reports", path: "daily-reports", icon: "📄" },
-  { label: "Tasks", path: "tasks", icon: "📋" },
   { label: "Resources", path: "resources", icon: "🚛" },
   { label: "Issues", path: "issues", icon: "⚠️" },
   { label: "Change Requests", path: "change-requests", icon: "🔀" },

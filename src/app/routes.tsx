@@ -42,7 +42,6 @@ import { CostsOverviewPage } from "./pages/construction/CostsOverviewPage";
 import { CostsPage } from "./pages/construction/CostsPage";
 import { StakeholdersOverviewPage } from "./pages/construction/StakeholdersOverviewPage";
 import { StakeholdersPage } from "./pages/construction/StakeholdersPage";
-import { TasksPage } from "./pages/construction/TasksPage";
 import { ResourceHubPage } from "./pages/construction/ResourceHubPage";
 import { ReportsPage } from "./pages/construction/ReportsPage";
 import { ProgressEarnedValuePage } from "./pages/construction/ProgressEarnedValuePage";
@@ -229,7 +228,6 @@ export const router = createBrowserRouter([
                   { path: "schedule", Component: SchedulePage },
                   { path: "daily-reports", Component: DailyReportsPage },
                   { path: "daily-reports/new", Component: DailyReportFormPage },
-                  { path: "tasks", Component: TasksPage },
                   { path: "daily-reports/:reportId", Component: DailyReportFormPage },
                   { path: "resources", Component: ProjectResourcesPage },
                   { path: "resources/:resourceId", Component: ResourceDetailPage },
