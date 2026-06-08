@@ -85,6 +85,7 @@ export interface Project {
   client: string;
   projectManager: string;
   mainContractor: string;
+  mainContractorId?: string;
   contractType: ContractType;
   plannedStartDate: string;
   plannedEndDate: string;
@@ -104,6 +105,16 @@ export interface Project {
   category?: string;
   descriptor?: string;
   structure?: ProjectStructureItem[];
+  // Setup lock/unlock
+  setupLocked?: boolean;
+  setupAuditLog?: SetupAuditLog[];
+  // Daily reporting config
+  dailyReportingConfig?: DailyReportingConfig;
+  // Recurring tasks
+  recurringReportTasks?: RecurringReportTask[];
+  // Project roles
+  projectRoles?: ProjectRole[];
+  humanResourceRoles?: HumanResourceRole[];
 }
 
 export interface Task {
@@ -158,6 +169,77 @@ export interface Vendor {
   unskilledDays?: number;
   unskilledRate?: number;
   vendorMargin?: number;
+  // Organization model (items 43-44)
+  isMainContractor?: boolean;
+  subcontractorIds?: string[];
+  representatives?: VendorRepresentative[];
+}
+
+export interface VendorRepresentative {
+  id: string;
+  vendorId: string;
+  fullName: string;
+  email: string;
+  phone: string;
+  position: string;
+  isActive: boolean;
+}
+
+export interface ProjectRole {
+  id: string;
+  name: string;
+  description: string;
+  permissions: string[];
+}
+
+export const DEFAULT_PROJECT_ROLES: ProjectRole[] = [
+  { id: "role-pm", name: "Project Manager (PM)", description: "Overall project leadership", permissions: ["daily-all", "setup-all", "finance-all"] },
+  { id: "role-apm", name: "Assistant Project Manager", description: "Support PM in execution", permissions: ["daily-all", "setup-read"] },
+  { id: "role-ss", name: "Site Supervisor", description: "Day-to-day site supervision", permissions: ["daily-progress", "daily-labour", "daily-activity"] },
+  { id: "role-hse", name: "HSE Officer", description: "Health, safety & environment", permissions: ["daily-safety", "daily-incident", "daily-toolbox"] },
+  { id: "role-qa", name: "Quality Assurance Officer", description: "Quality control & inspections", permissions: ["daily-quality"] },
+  { id: "role-qs", name: "Quantity Surveyor", description: "Cost & measurement", permissions: ["daily-material", "daily-measurement"] },
+  { id: "role-se", name: "Site Engineer", description: "Technical execution", permissions: ["daily-progress", "daily-quality"] },
+  { id: "role-pe", name: "Planning Engineer", description: "Schedule & planning", permissions: ["daily-progress"] },
+  { id: "role-pc", name: "Procurement Coordinator", description: "Material procurement", permissions: ["daily-material"] },
+  { id: "role-dc", name: "Document Controller", description: "Document management", permissions: ["daily-read"] },
+  { id: "role-cr", name: "Contractor Representative", description: "Contractor site representative", permissions: ["daily-progress", "daily-labour"] },
+  { id: "role-cl", name: "Client Representative", description: "Client-side oversight", permissions: ["daily-read"] },
+];
+
+export interface HumanResourceRole {
+  humanResourceId: string;
+  projectRoleId: string;
+}
+
+export type DailyReportContributorMode = "employees-only" | "contractors-only" | "both";
+
+export interface DailyReportingConfig {
+  contributorMode: DailyReportContributorMode;
+  assignedEmployeeIds: string[];
+  assignedContractorRepIds: string[];
+}
+
+export interface RecurringReportTask {
+  id: string;
+  projectId: string;
+  name: string;
+  frequency: "daily" | "weekly" | "monthly" | "custom";
+  customIntervalDays?: number;
+  assignedTo: string; // employeeId or contractorRepId
+  lastGenerated: string | null;
+  nextDue: string;
+  isActive: boolean;
+  sections: string[];
+}
+
+export interface SetupAuditLog {
+  id: string;
+  projectId: string;
+  action: "locked" | "unlocked";
+  performedBy: string;
+  performedAt: string;
+  reason: string;
 }
 
 export interface DailyReport {
@@ -318,6 +400,8 @@ export interface Stakeholder {
   name: string;
   organization: string;
   role: string;
+  email?: string;
+  phone?: string;
   influenceLevel: "High" | "Medium" | "Low";
   impactLevel: "High" | "Medium" | "Low";
   notes: string;

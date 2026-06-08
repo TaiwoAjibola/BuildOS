@@ -86,6 +86,7 @@ export function StakeholdersPage() {
   const [addForm, setAddForm] = useState({
     name: "", organization: "", role: "Consultant" as string,
     influence: "Medium" as string, impact: "Medium" as string, notes: "",
+    email: "", phone: "",
   });
 
   const [visitorForm, setVisitorForm] = useState({
@@ -113,13 +114,15 @@ export function StakeholdersPage() {
       name: addForm.name,
       organization: addForm.organization,
       role: addForm.role,
+      email: addForm.email || undefined,
+      phone: addForm.phone || undefined,
       influenceLevel: addForm.influence as "High" | "Medium" | "Low",
       impactLevel: addForm.impact as "High" | "Medium" | "Low",
       notes: addForm.notes,
     };
     setLocalStakeholders(prev => [...prev, newSh]);
     setShowAddStakeholder(false);
-    setAddForm({ name: "", organization: "", role: "Consultant", influence: "Medium", impact: "Medium", notes: "" });
+    setAddForm({ name: "", organization: "", role: "Consultant", influence: "Medium", impact: "Medium", notes: "", email: "", phone: "" });
   }
 
   function handleAddVisitor() {
@@ -199,8 +202,8 @@ export function StakeholdersPage() {
               <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search stakeholders..." className="pl-9 pr-4 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-orange-500 w-64" />
             </div>
             <button onClick={() => {
-              const rows = localStakeholders.map(sh => [sh.name, sh.organization, sh.role, sh.influenceLevel, sh.impactLevel, sh.notes || ""]);
-              exportCSV("stakeholders-register", ["Name", "Organization", "Role", "Influence", "Impact", "Notes"], rows);
+              const rows = localStakeholders.map(sh => [sh.name, sh.organization, sh.role, sh.email || "", sh.phone || "", sh.influenceLevel, sh.impactLevel, sh.notes || ""]);
+              exportCSV("stakeholders-register", ["Name", "Organization", "Role", "Email", "Phone", "Influence", "Impact", "Notes"], rows);
             }} className="flex items-center gap-1.5 px-3 py-2 border border-gray-300 text-gray-600 rounded-md text-sm font-medium hover:bg-gray-50">
               <Download className="w-3.5 h-3.5" /> Export
             </button>
@@ -215,6 +218,8 @@ export function StakeholdersPage() {
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wide">Name</th>
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wide">Organization</th>
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wide">Role</th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wide">Email</th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wide">Phone</th>
                   <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wide">Influence</th>
                   <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wide">Impact</th>
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wide">Notes</th>
@@ -237,6 +242,8 @@ export function StakeholdersPage() {
                         {roleIcons[sh.role] ?? null} {sh.role}
                       </span>
                     </td>
+                    <td className="px-4 py-3 text-sm text-gray-500">{sh.email || "—"}</td>
+                    <td className="px-4 py-3 text-sm text-gray-500">{sh.phone || "—"}</td>
                     <td className="px-4 py-3 text-center">
                       <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${influenceColors[sh.influenceLevel]}`}>{sh.influenceLevel}</span>
                     </td>
@@ -248,7 +255,7 @@ export function StakeholdersPage() {
                 ))}
                 {filteredStakeholders.length === 0 && (
                   <tr>
-                    <td colSpan={6} className="px-4 py-12 text-center">
+                    <td colSpan={8} className="px-4 py-12 text-center">
                       <Users className="w-8 h-8 text-gray-300 mx-auto mb-2" />
                       <p className="text-sm text-gray-500">No stakeholders found</p>
                     </td>
@@ -419,6 +426,16 @@ export function StakeholdersPage() {
                   <option value="Consultant">Consultant</option>
                   <option value="Regulator">Regulator</option>
                 </select>
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
+                  <input type="email" value={addForm.email} onChange={e => setAddForm(f => ({ ...f, email: e.target.value }))} className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange-500" placeholder="email@example.com" />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Phone</label>
+                  <input type="text" value={addForm.phone} onChange={e => setAddForm(f => ({ ...f, phone: e.target.value }))} className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange-500" placeholder="+234-..." />
+                </div>
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div>

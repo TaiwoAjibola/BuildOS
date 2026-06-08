@@ -7,7 +7,7 @@ import type {
   HumanResource, MaterialResource, EquipmentResource, ResourceAssignment,
   DailyExpense, CommunicationLogEntry, Disbursement,
   FundingAllocation, FundingRelease,
-  ScheduleLevelConfig, WeatherConfig,
+  ScheduleLevelConfig, WeatherConfig, VendorRepresentative,
 } from "./types";
 
 export const projects: Project[] = [
@@ -31,9 +31,17 @@ export const tradeTypes = [
 ];
 
 export const vendors: Vendor[] = [
-  { id: "V-001", projectId: "PRJ-001", name: "Alhaji Masonry Services", trade: "Masonry", contractType: "Labor-only", isNominated: false, contractSum: 45_000_000, assignedWorkPackages: ["WP-001", "WP-002"], blockAssignment: "Tower A", skilledCount: 12, unskilledCount: 24, mandaysEstimate: 540, status: "Active", skilledDays: 180, skilledRate: 12000, unskilledDays: 360, unskilledRate: 7000, vendorMargin: 30 },
-  { id: "V-002", projectId: "PRJ-001", name: "Chike Tiling Experts", trade: "Tiling", contractType: "Labor-only", isNominated: false, contractSum: 28_000_000, assignedWorkPackages: ["WP-005"], blockAssignment: "Tower A", skilledCount: 8, unskilledCount: 12, mandaysEstimate: 300, status: "Active", skilledDays: 120, skilledRate: 15000, unskilledDays: 180, unskilledRate: 7000, vendorMargin: 25 },
-  { id: "V-003", projectId: "PRJ-001", name: "Steel Fixers United", trade: "Iron benders / steel fixers", contractType: "Nominated Subcontractor", isNominated: true, contractSum: 62_000_000, assignedWorkPackages: ["WP-003"], blockAssignment: "Tower A", skilledCount: 15, unskilledCount: 30, mandaysEstimate: 675, status: "Active", skilledDays: 225, skilledRate: 14000, unskilledDays: 450, unskilledRate: 7000, vendorMargin: 30 },
+  { id: "V-001", projectId: "PRJ-001", name: "Alhaji Masonry Services", trade: "Masonry", contractType: "Labor-only", isNominated: false, contractSum: 45_000_000, assignedWorkPackages: ["WP-001", "WP-002"], blockAssignment: "Tower A", skilledCount: 12, unskilledCount: 24, mandaysEstimate: 540, status: "Active", skilledDays: 180, skilledRate: 12000, unskilledDays: 360, unskilledRate: 7000, vendorMargin: 30, isMainContractor: true, representatives: [
+    { id: "VR-001", vendorId: "V-001", fullName: "Alhaji Musa", email: "musa@alhajimasonry.com", phone: "+234-802-111-0001", position: "Site Manager", isActive: true },
+    { id: "VR-002", vendorId: "V-001", fullName: "Ibrahim Danjuma", email: "ibrahim@alhajimasonry.com", phone: "+234-802-111-0002", position: "Foreman", isActive: true },
+  ]},
+  { id: "V-002", projectId: "PRJ-001", name: "Chike Tiling Experts", trade: "Tiling", contractType: "Labor-only", isNominated: false, contractSum: 28_000_000, assignedWorkPackages: ["WP-005"], blockAssignment: "Tower A", skilledCount: 8, unskilledCount: 12, mandaysEstimate: 300, status: "Active", skilledDays: 120, skilledRate: 15000, unskilledDays: 180, unskilledRate: 7000, vendorMargin: 25, subcontractorIds: ["V-003"], representatives: [
+    { id: "VR-003", vendorId: "V-002", fullName: "Chike Okafor", email: "chike@chiketiling.com", phone: "+234-802-111-0003", position: "Managing Director", isActive: true },
+  ]},
+  { id: "V-003", projectId: "PRJ-001", name: "Steel Fixers United", trade: "Iron benders / steel fixers", contractType: "Nominated Subcontractor", isNominated: true, contractSum: 62_000_000, assignedWorkPackages: ["WP-003"], blockAssignment: "Tower A", skilledCount: 15, unskilledCount: 30, mandaysEstimate: 675, status: "Active", skilledDays: 225, skilledRate: 14000, unskilledDays: 450, unskilledRate: 7000, vendorMargin: 30, representatives: [
+    { id: "VR-004", vendorId: "V-003", fullName: "Musa Bello", email: "musa@steelfixers.com", phone: "+234-802-111-0004", position: "Project Coordinator", isActive: true },
+    { id: "VR-005", vendorId: "V-003", fullName: "Ahmed Lawal", email: "ahmed@steelfixers.com", phone: "+234-802-111-0005", position: "Quality Supervisor", isActive: true },
+  ]},
   { id: "V-004", projectId: "PRJ-002", name: "De Renaissance Painters", trade: "Painting", contractType: "Supply & Install", isNominated: false, contractSum: 18_500_000, assignedWorkPackages: ["WP-010"], blockAssignment: "Blocks 1-4", skilledCount: 6, unskilledCount: 8, mandaysEstimate: 210, status: "Awarded", vendorMargin: 25 },
   { id: "V-005", projectId: "PRJ-002", name: "Ade Plumbing Services", trade: "Plumbing", contractType: "Labor-only", isNominated: false, contractSum: 32_000_000, assignedWorkPackages: ["WP-008"], blockAssignment: "All blocks", skilledCount: 10, unskilledCount: 15, mandaysEstimate: 375, status: "Active", skilledDays: 150, skilledRate: 13000, unskilledDays: 225, unskilledRate: 7000, vendorMargin: 30 },
 ];

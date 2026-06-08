@@ -2,10 +2,12 @@ import { useParams } from "react-router";
 import { useState, useMemo, useRef, useEffect } from "react";
 import {
   CheckCircle, Circle, ArrowRight, ArrowLeft, Lock, Calendar,
-  Building2, Users, Layers, FileText, Plus, X, Trash2, ChevronRight, ChevronDown, Tags, Download, Upload
+  Building2, Users, Layers, FileText, Plus, X, Trash2, ChevronRight, ChevronDown, Tags, Download, Upload,
+  Shield, Edit3
 } from "lucide-react";
 import { getProjectById, staffList, tradeTypes, clusters, tasks as allTasks, fmtDate, vendors as allVendors, defaultScheduleLevels, hrEmployees, materialInventory, equipmentInventory } from "./mockData";
-import type { Task, Vendor, ProjectCalendar, Sector, ProjectStructureItem, ScheduleLevelConfig, HumanResource, HumanResourceSource, MaterialResource, EquipmentResource, ResourceAssignment } from "./types";
+import type { Task, Vendor, VendorRepresentative, ProjectCalendar, Sector, ProjectStructureItem, ScheduleLevelConfig, HumanResource, HumanResourceSource, MaterialResource, EquipmentResource, ResourceAssignment, ProjectRole, HumanResourceRole } from "./types";
+import { DEFAULT_PROJECT_ROLES } from "./types";
 import { SECTOR_CATEGORIES, getBlockLabel, getStructureConfig, DEFAULT_WBS_LEVELS } from "./types";
 import { useResources } from "../../contexts/ResourceContext";
 import { SearchableMultiSelect } from "../../components/SearchableMultiSelect";
@@ -146,7 +148,7 @@ export function ProjectSetupPage() {
   const [vendorForm, setVendorForm] = useState(EMPTY_VENDOR_FORM);
   const [selectedExistingVendor, setSelectedExistingVendor] = useState("");
   const [vendorStageAssignments, setVendorStageAssignments] = useState<Record<string, string[]>>({});
-  const [resourceTab, setResourceTab] = useState<"human" | "material" | "equipment">("human");
+  const [resourceTab, setResourceTab] = useState<"human" | "material" | "equipment" | "roles">("human");
   const [isNewVendor, setIsNewVendor] = useState(false);
   const [humanSubType, setHumanSubType] = useState<HumanResourceSource>("vendor");
 
@@ -178,6 +180,63 @@ export function ProjectSetupPage() {
   const [hrSearch, setHrSearch] = useState("");
   const [hrSectionOpen, setHrSectionOpen] = useState({ employee: true, contractor: true, vendor: true });
 
+  // Vendor representatives UI state
+  const [repExpandedVendorId, setRepExpandedVendorId] = useState<string | null>(null);
+  const [newRepForm, setNewRepForm] = useState({ fullName: "", email: "", phone: "", position: "" });
+
+  // Main contractor selection
+  const assignMainContractor = (vendorId: string) => {
+    setProjectVendors(prev => prev.map(v => ({ ...v, isMainContractor: v.id === vendorId })));
+  };
+
+  // Project roles
+  const [projectRoles, setProjectRoles] = useState<ProjectRole[]>(DEFAULT_PROJECT_ROLES);
+  const [humanResourceRoles, setHumanResourceRoles] = useState<HumanResourceRole[]>([]);
+  const [newRoleName, setNewRoleName] = useState("");
+  const [newRoleDescription, setNewRoleDescription] = useState("");
+  const assignRoleToResource = (humanResourceId: string, projectRoleId: string) => {
+    setHumanResourceRoles(prev => {
+      const existing = prev.find(r => r.humanResourceId === humanResourceId);
+      if (existing) return prev.map(r => r.humanResourceId === humanResourceId ? { ...r, projectRoleId } : r);
+      return [...prev, { humanResourceId, projectRoleId }];
+    });
+  };
+  const removeRoleFromResource = (humanResourceId: string) => {
+    setHumanResourceRoles(prev => prev.filter(r => r.humanResourceId !== humanResourceId));
+  };
+  const addCustomRole = () => {
+    if (!newRoleName.trim()) return;
+    const role: ProjectRole = { id: `role-custom-${Date.now()}`, name: newRoleName.trim(), description: newRoleDescription.trim(), permissions: [] };
+    setProjectRoles(prev => [...prev, role]);
+    setNewRoleName("");
+    setNewRoleDescription("");
+  };
+  const removeCustomRole = (roleId: string) => {
+    setProjectRoles(prev => prev.filter(r => r.id !== roleId));
+    setHumanResourceRoles(prev => prev.filter(r => r.projectRoleId !== roleId));
+  };
+  const getRoleName = (roleId: string) => projectRoles.find(r => r.id === roleId)?.name || "Unknown";
+  const getResourceRole = (resourceId: string) => {
+    const ass = humanResourceRoles.find(r => r.humanResourceId === resourceId);
+    return ass ? getRoleName(ass.projectRoleId) : null;
+  };
+
+  // Daily reporting config
+  const [reportContributorMode, setReportContributorMode] = useState<"employees-only" | "contractors-only" | "both">("both");
+  const [reportContributorEmployeeIds, setReportContributorEmployeeIds] = useState<string[]>([]);
+  const [reportContributorRepIds, setReportContributorRepIds] = useState<string[]>([]);
+
+  // Recurring report tasks
+  const [recurringReportTasks, setRecurringReportTasks] = useState<{ id: string; name: string; frequency: "daily" | "weekly" | "monthly"; assignedTo: string; isActive: boolean }[]>([]);
+  const [newRecurringTask, setNewRecurringTask] = useState({ name: "", frequency: "daily" as "daily" | "weekly" | "monthly", assignedTo: "" });
+  const addRecurringTask = () => {
+    if (!newRecurringTask.name.trim() || !newRecurringTask.assignedTo) return;
+    setRecurringReportTasks(prev => [...prev, { id: `rt-${Date.now()}`, ...newRecurringTask, isActive: true }]);
+    setNewRecurringTask({ name: "", frequency: "daily", assignedTo: "" });
+  };
+  const removeRecurringTask = (id: string) => setRecurringReportTasks(prev => prev.filter(t => t.id !== id));
+  const toggleRecurringTask = (id: string) => setRecurringReportTasks(prev => prev.map(t => t.id === id ? { ...t, isActive: !t.isActive } : t));
+
   // Step 4 — Calendar
   const emptyCalendar: ProjectCalendar = {
     id: "", projectId: projectId || "",
@@ -193,6 +252,20 @@ export function ProjectSetupPage() {
 
   // Step 5 — Baseline
   const [baselineLocked, setBaselineLocked] = useState(false);
+  const [showUnlockModal, setShowUnlockModal] = useState(false);
+  const [unlockReason, setUnlockReason] = useState("");
+  const [setupAuditLog, setSetupAuditLog] = useState<{ action: "locked" | "unlocked"; performedBy: string; performedAt: string; reason: string }[]>([]);
+  const performLock = () => {
+    setBaselineLocked(true);
+    setSetupAuditLog(prev => [...prev, { action: "locked", performedBy: "Project Manager", performedAt: new Date().toISOString(), reason: "Baseline locked" }]);
+  };
+  const performUnlock = () => {
+    if (!unlockReason.trim()) return;
+    setBaselineLocked(false);
+    setSetupAuditLog(prev => [...prev, { action: "unlocked", performedBy: "Project Manager", performedAt: new Date().toISOString(), reason: unlockReason }]);
+    setShowUnlockModal(false);
+    setUnlockReason("");
+  };
 
   const toggleDay = (dayIdx: number) => {
     setCalendarData(prev => {
@@ -448,6 +521,29 @@ export function ProjectSetupPage() {
     });
   };
 
+  // Vendor representatives
+  const addRepresentative = (vendorId: string) => {
+    if (!newRepForm.fullName.trim()) return;
+    const repId = `VR-${vendorId}-${Date.now()}`;
+    const rep: VendorRepresentative = { id: repId, vendorId, ...newRepForm, isActive: true };
+    setProjectVendors(prev => prev.map(v =>
+      v.id === vendorId ? { ...v, representatives: [...(v.representatives || []), rep] } : v
+    ));
+    setNewRepForm({ fullName: "", email: "", phone: "", position: "" });
+  };
+  const removeRepresentative = (vendorId: string, repId: string) => {
+    setProjectVendors(prev => prev.map(v =>
+      v.id === vendorId ? { ...v, representatives: (v.representatives || []).filter(r => r.id !== repId) } : v
+    ));
+  };
+  const toggleRepresentativeActive = (vendorId: string, repId: string) => {
+    setProjectVendors(prev => prev.map(v =>
+      v.id === vendorId ? { ...v, representatives: (v.representatives || []).map(r =>
+        r.id === repId ? { ...r, isActive: !r.isActive } : r
+      ) } : v
+    ));
+  };
+
   // Staff helpers
   const addStaff = () => {
     if (selectedEmployeeIds.length === 0) return;
@@ -602,7 +698,7 @@ export function ProjectSetupPage() {
 
   const handleCompleteSetup = () => {
     setCompletedSteps(prev => new Set([...prev, 5]));
-    setBaselineLocked(true);
+    performLock();
   };
 
   const isLastStep = currentStep === STEPS.length - 1;
@@ -1578,13 +1674,13 @@ export function ProjectSetupPage() {
       <div className="space-y-4">
         {/* Resource Type Tabs */}
         <div className="flex gap-1 bg-gray-100 rounded-lg p-1 max-w-md">
-          {(["human", "material", "equipment"] as const).map(tab => (
+          {(["human", "material", "equipment", "roles"] as const).map(tab => (
             <button key={tab} onClick={() => setResourceTab(tab)}
               className={`flex-1 px-4 py-2 text-sm font-medium rounded-md transition-colors capitalize ${
                 resourceTab === tab ? "bg-white text-gray-900 shadow-sm" : "text-gray-500 hover:text-gray-700"
               }`}
             >
-              {tab === "human" ? "Human Resources" : tab === "material" ? "Materials" : "Equipment"}
+              {tab === "human" ? "Human Resources" : tab === "material" ? "Materials" : tab === "equipment" ? "Equipment" : "Project Roles"}
             </button>
           ))}
         </div>
@@ -1879,23 +1975,99 @@ export function ProjectSetupPage() {
                       const assignedStages = (vendorStageAssignments[v.id] || [])
                         .map(sid => stages.find(s => s.id === sid))
                         .filter(Boolean);
+                      const reps = v.representatives || [];
+                      const repCount = reps.length;
                       return (
-                        <div key={v.id} className="flex items-center justify-between px-5 py-2.5 text-sm pl-10">
-                          <div className="flex items-center gap-3">
-                            <div className="w-7 h-7 rounded-full flex items-center justify-center text-white text-[10px] font-bold" style={{ backgroundColor: "#E8973A" }}>{v.name.charAt(0)}</div>
-                            <div>
-                              <p className="font-medium text-gray-900 text-sm">{v.name}</p>
-                              <p className="text-[11px] text-gray-500">{v.trade} · {v.contractType}</p>
-                              {assignedStages.length > 0 && (
-                                <p className="text-[10px] text-gray-400 mt-0.5 flex gap-1 flex-wrap">
-                                  {assignedStages.map(s => (
-                                    <span key={s!.id} className="inline-block px-1.5 py-0.5 bg-gray-100 rounded text-gray-500">{s!.name}</span>
-                                  ))}
+                        <div key={v.id}>
+                          <div className="flex items-center justify-between px-5 py-2.5 text-sm pl-10">
+                            <div className="flex items-center gap-3">
+                              <div className="w-7 h-7 rounded-full flex items-center justify-center text-white text-[10px] font-bold" style={{ backgroundColor: "#E8973A" }}>{v.name.charAt(0)}</div>
+                              <div>
+                                <p className="font-medium text-gray-900 text-sm flex items-center gap-2">
+                                  {v.name}
+                                  {v.isMainContractor && (
+                                    <span className="text-[10px] bg-blue-100 text-blue-700 px-1.5 py-0.5 rounded-full font-medium">Main Contractor</span>
+                                  )}
                                 </p>
+                                <p className="text-[11px] text-gray-500">{v.trade} · {v.contractType}</p>
+                                {assignedStages.length > 0 && (
+                                  <p className="text-[10px] text-gray-400 mt-0.5 flex gap-1 flex-wrap">
+                                    {assignedStages.map(s => (
+                                      <span key={s!.id} className="inline-block px-1.5 py-0.5 bg-gray-100 rounded text-gray-500">{s!.name}</span>
+                                    ))}
+                                  </p>
+                                )}
+                              </div>
+                            </div>
+                            <div className="flex items-center gap-1">
+                              {!v.isMainContractor && (
+                                <button onClick={() => assignMainContractor(v.id)}
+                                  className="px-2 py-1 rounded text-[10px] font-medium border hover:bg-blue-50 text-blue-600"
+                                  style={{ borderColor: "#E2E8F0" }} title="Designate as Main Contractor">
+                                  Set as Main
+                                </button>
                               )}
+                              <button onClick={() => setRepExpandedVendorId(repExpandedVendorId === v.id ? null : v.id)}
+                                className="px-2 py-1 rounded text-[10px] font-medium border hover:bg-gray-50 text-gray-600"
+                                style={{ borderColor: "#E2E8F0" }}>
+                                Reps ({repCount})
+                              </button>
+                              <button onClick={() => removeVendor(v.id)} className="p-1 rounded hover:bg-red-50 text-red-400 hover:text-red-600"><Trash2 className="w-3.5 h-3.5" /></button>
                             </div>
                           </div>
-                          <button onClick={() => removeVendor(v.id)} className="p-1 rounded hover:bg-red-50 text-red-400 hover:text-red-600"><Trash2 className="w-3.5 h-3.5" /></button>
+                          {/* Representatives section */}
+                          {repExpandedVendorId === v.id && (
+                            <div className="px-5 pb-3 pl-16">
+                              <div className="rounded-lg border p-3 space-y-2" style={{ borderColor: "#E2E8F0", backgroundColor: "#F7F8FA" }}>
+                                {reps.length === 0 && (
+                                  <p className="text-xs text-gray-400">No representatives added yet.</p>
+                                )}
+                                {reps.map(r => (
+                                  <div key={r.id} className="flex items-center justify-between gap-2 bg-white rounded px-3 py-2 border" style={{ borderColor: "#E2E8F0" }}>
+                                    <div className="flex-1 min-w-0">
+                                      <p className="text-xs font-medium text-gray-900">{r.fullName}</p>
+                                      <p className="text-[10px] text-gray-500">{r.position} · {r.email} · {r.phone}</p>
+                                    </div>
+                                    <div className="flex items-center gap-1 shrink-0">
+                                      <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-medium ${r.isActive ? "bg-green-100 text-green-700" : "bg-gray-100 text-gray-500"}`}>
+                                        {r.isActive ? "Active" : "Inactive"}
+                                      </span>
+                                      <button onClick={() => toggleRepresentativeActive(v.id, r.id)}
+                                        className="p-0.5 rounded hover:bg-gray-100 text-gray-400 hover:text-gray-600"
+                                        title="Toggle active status">
+                                        <X className="w-3 h-3" />
+                                      </button>
+                                      <button onClick={() => removeRepresentative(v.id, r.id)}
+                                        className="p-0.5 rounded hover:bg-red-50 text-red-400 hover:text-red-600"
+                                        title="Remove representative">
+                                        <Trash2 className="w-3 h-3" />
+                                      </button>
+                                    </div>
+                                  </div>
+                                ))}
+                                {/* Add new rep form */}
+                                <div className="grid grid-cols-4 gap-2">
+                                  <input type="text" value={newRepForm.fullName}
+                                    onChange={e => setNewRepForm(prev => ({ ...prev, fullName: e.target.value }))}
+                                    placeholder="Full name" className="px-2 py-1.5 text-xs rounded border" style={{ borderColor: "#E2E8F0", backgroundColor: "white" }} />
+                                  <input type="text" value={newRepForm.email}
+                                    onChange={e => setNewRepForm(prev => ({ ...prev, email: e.target.value }))}
+                                    placeholder="Email" className="px-2 py-1.5 text-xs rounded border" style={{ borderColor: "#E2E8F0", backgroundColor: "white" }} />
+                                  <input type="text" value={newRepForm.phone}
+                                    onChange={e => setNewRepForm(prev => ({ ...prev, phone: e.target.value }))}
+                                    placeholder="Phone" className="px-2 py-1.5 text-xs rounded border" style={{ borderColor: "#E2E8F0", backgroundColor: "white" }} />
+                                  <input type="text" value={newRepForm.position}
+                                    onChange={e => setNewRepForm(prev => ({ ...prev, position: e.target.value }))}
+                                    placeholder="Position" className="px-2 py-1.5 text-xs rounded border" style={{ borderColor: "#E2E8F0", backgroundColor: "white" }} />
+                                </div>
+                                <button onClick={() => addRepresentative(v.id)} disabled={!newRepForm.fullName.trim()}
+                                  className="flex items-center gap-1 px-2 py-1 rounded text-[10px] font-medium text-white disabled:opacity-50"
+                                  style={{ backgroundColor: "#E8973A" }}>
+                                  <Plus className="w-3 h-3" /> Add Representative
+                                </button>
+                              </div>
+                            </div>
+                          )}
                         </div>
                       );
                     })}
@@ -2035,6 +2207,133 @@ export function ProjectSetupPage() {
             </div>
           </div>
         )}
+      </>)}
+
+      {/* ──── PROJECT ROLES ──── */}
+      {resourceTab === "roles" && (<>
+        <div className="rounded-xl border p-6" style={{ borderColor: "#E2E8F0", backgroundColor: "white" }}>
+          <h2 className="text-lg font-bold mb-4" style={{ color: "#1A202C" }}>Project Roles</h2>
+          <p className="text-sm text-gray-500 mb-4">Configure project-specific roles and assign them to team members. These are different from HR job titles.</p>
+
+          {/* Role list */}
+          <div className="space-y-2 mb-4">
+            <h3 className="text-sm font-semibold text-gray-700">Standard & Custom Roles</h3>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+              {projectRoles.map(role => (
+                <div key={role.id} className="flex items-center justify-between px-3 py-2 rounded-lg border text-sm" style={{ borderColor: "#E2E8F0", backgroundColor: "#F7F8FA" }}>
+                  <div className="flex items-center gap-2">
+                    <Shield className="w-4 h-4 text-gray-400" />
+                    <div>
+                      <p className="font-medium text-gray-900 text-xs">{role.name}</p>
+                      {role.description && <p className="text-[10px] text-gray-500">{role.description}</p>}
+                    </div>
+                  </div>
+                  {role.id.startsWith("role-custom-") && (
+                    <button onClick={() => removeCustomRole(role.id)} className="p-1 rounded hover:bg-red-50 text-red-400 hover:text-red-600">
+                      <Trash2 className="w-3 h-3" />
+                    </button>
+                  )}
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Add custom role */}
+          <div className="rounded-lg border p-3 space-y-2" style={{ borderColor: "#E2E8F0", backgroundColor: "#F7F8FA" }}>
+            <h3 className="text-xs font-semibold text-gray-700">Add Custom Role</h3>
+            <div className="flex gap-2">
+              <input type="text" value={newRoleName} onChange={e => setNewRoleName(e.target.value)}
+                placeholder="Role name (e.g. Logistics Coordinator)" className="flex-1 px-3 py-1.5 text-xs rounded border" style={{ borderColor: "#E2E8F0", backgroundColor: "white" }} />
+              <input type="text" value={newRoleDescription} onChange={e => setNewRoleDescription(e.target.value)}
+                placeholder="Description (optional)" className="flex-1 px-3 py-1.5 text-xs rounded border" style={{ borderColor: "#E2E8F0", backgroundColor: "white" }} />
+              <button onClick={addCustomRole} disabled={!newRoleName.trim()}
+                className="flex items-center gap-1 px-3 py-1.5 rounded text-xs font-medium text-white disabled:opacity-50" style={{ backgroundColor: "#E8973A" }}>
+                <Plus className="w-3 h-3" /> Add Role
+              </button>
+            </div>
+          </div>
+        </div>
+
+        {/* Role Assignments */}
+        <div className="rounded-xl border" style={{ borderColor: "#E2E8F0", backgroundColor: "white" }}>
+          <div className="px-5 py-3 border-b" style={{ borderColor: "#E2E8F0" }}>
+            <h3 className="text-sm font-semibold" style={{ color: "#1A202C" }}>Assign Roles to Team Members</h3>
+          </div>
+          <div className="divide-y" style={{ borderColor: "#E2E8F0" }}>
+            {/* Employees */}
+            {projectStaff.map(s => (
+              <div key={s.id} className="flex items-center justify-between px-5 py-2.5 text-sm">
+                <div className="flex items-center gap-2">
+                  <div className="w-7 h-7 rounded-full flex items-center justify-center text-white text-[10px] font-bold" style={{ backgroundColor: "#3B82F6" }}>{s.name.charAt(0)}</div>
+                  <div>
+                    <p className="font-medium text-gray-900 text-xs">{s.name}</p>
+                    <p className="text-[10px] text-gray-500">{s.trade} (Employee)</p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2">
+                  <select value={humanResourceRoles.find(r => r.humanResourceId === s.id)?.projectRoleId || ""}
+                    onChange={e => e.target.value ? assignRoleToResource(s.id, e.target.value) : removeRoleFromResource(s.id)}
+                    className="px-2 py-1 text-xs rounded border" style={{ borderColor: "#E2E8F0" }}>
+                    <option value="">No role</option>
+                    {projectRoles.map(r => <option key={r.id} value={r.id}>{r.name}</option>)}
+                  </select>
+                  {getResourceRole(s.id) && (
+                    <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-blue-100 text-blue-700">{getResourceRole(s.id)}</span>
+                  )}
+                </div>
+              </div>
+            ))}
+            {/* Contractors */}
+            {projectContractors.map(c => (
+              <div key={c.id} className="flex items-center justify-between px-5 py-2.5 text-sm">
+                <div className="flex items-center gap-2">
+                  <div className="w-7 h-7 rounded-full flex items-center justify-center text-white text-[10px] font-bold" style={{ backgroundColor: "#8B5CF6" }}>{c.name.charAt(0)}</div>
+                  <div>
+                    <p className="font-medium text-gray-900 text-xs">{c.name}</p>
+                    <p className="text-[10px] text-gray-500">{c.trade} (Contractor)</p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2">
+                  <select value={humanResourceRoles.find(r => r.humanResourceId === c.id)?.projectRoleId || ""}
+                    onChange={e => e.target.value ? assignRoleToResource(c.id, e.target.value) : removeRoleFromResource(c.id)}
+                    className="px-2 py-1 text-xs rounded border" style={{ borderColor: "#E2E8F0" }}>
+                    <option value="">No role</option>
+                    {projectRoles.map(r => <option key={r.id} value={r.id}>{r.name}</option>)}
+                  </select>
+                  {getResourceRole(c.id) && (
+                    <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-purple-100 text-purple-700">{getResourceRole(c.id)}</span>
+                  )}
+                </div>
+              </div>
+            ))}
+            {/* Vendors - list representatives */}
+            {projectVendors.flatMap(v => (v.representatives || []).map(r => ({ ...r, vendorName: v.name }))).map(r => (
+              <div key={r.id} className="flex items-center justify-between px-5 py-2.5 text-sm">
+                <div className="flex items-center gap-2">
+                  <div className="w-7 h-7 rounded-full flex items-center justify-center text-white text-[10px] font-bold" style={{ backgroundColor: "#E8973A" }}>{r.fullName.charAt(0)}</div>
+                  <div>
+                    <p className="font-medium text-gray-900 text-xs">{r.fullName}</p>
+                    <p className="text-[10px] text-gray-500">{r.position} · {r.vendorName} (Vendor Rep)</p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2">
+                  <select value={humanResourceRoles.find(hr => hr.humanResourceId === r.id)?.projectRoleId || ""}
+                    onChange={e => e.target.value ? assignRoleToResource(r.id, e.target.value) : removeRoleFromResource(r.id)}
+                    className="px-2 py-1 text-xs rounded border" style={{ borderColor: "#E2E8F0" }}>
+                    <option value="">No role</option>
+                    {projectRoles.map(role => <option key={role.id} value={role.id}>{role.name}</option>)}
+                  </select>
+                  {getResourceRole(r.id) && (
+                    <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-orange-100 text-orange-700">{getResourceRole(r.id)}</span>
+                  )}
+                </div>
+              </div>
+            ))}
+            {projectStaff.length + projectContractors.length + projectVendors.reduce((sum, v) => sum + (v.representatives?.length || 0), 0) === 0 && (
+              <div className="px-5 py-6 text-center text-xs text-gray-400">No team members registered yet. Add employees, contractors, or vendors first.</div>
+            )}
+          </div>
+        </div>
       </>)}
 
       {/* Procurement Request Modal */}
@@ -2306,6 +2605,125 @@ export function ProjectSetupPage() {
           <p className="text-sm text-gray-400 text-center py-4">No shutdowns added</p>
         )}
       </div>
+
+      {/* ──── Daily Reporting Configuration ──── */}
+      <div className="rounded-xl border p-6" style={{ borderColor: "#E2E8F0", backgroundColor: "white" }}>
+        <h2 className="text-lg font-bold mb-4" style={{ color: "#1A202C" }}>Daily Reporting Setup</h2>
+        <p className="text-sm text-gray-500 mb-4">Configure who can submit daily reports and set up recurring reporting tasks.</p>
+
+        {/* Contributor mode */}
+        <div className="mb-4">
+          <label className="block text-sm font-medium text-gray-700 mb-2">Who can submit daily reports?</label>
+          <div className="flex gap-2">
+            {(["employees-only", "contractors-only", "both"] as const).map(mode => (
+              <button key={mode} onClick={() => setReportContributorMode(mode)}
+                className={`px-3 py-1.5 text-xs font-medium rounded-lg border transition-colors ${
+                  reportContributorMode === mode ? "bg-amber-50 border-amber-400 text-amber-700" : "hover:bg-gray-50 text-gray-600"
+                }`}
+              >
+                {mode === "employees-only" ? "Employees Only" : mode === "contractors-only" ? "Contractor Reps Only" : "Both"}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* Employee contributors */}
+        {(reportContributorMode === "employees-only" || reportContributorMode === "both") && (
+          <div className="mb-4">
+            <label className="block text-sm font-medium text-gray-700 mb-1">Employee Contributors</label>
+            <div className="flex flex-wrap gap-1.5">
+              {projectStaff.map(s => {
+                const selected = reportContributorEmployeeIds.includes(s.id);
+                return (
+                  <button key={s.id} onClick={() => setReportContributorEmployeeIds(prev =>
+                    prev.includes(s.id) ? prev.filter(id => id !== s.id) : [...prev, s.id]
+                  )}
+                    className={`px-2 py-1 rounded-lg text-[10px] font-medium border transition-colors ${
+                      selected ? "bg-blue-50 border-blue-300 text-blue-700" : "hover:bg-gray-50 text-gray-600"
+                    }`}
+                  >
+                    {s.name}
+                  </button>
+                );
+              })}
+              {projectStaff.length === 0 && <span className="text-[10px] text-gray-400">No employees registered.</span>}
+            </div>
+          </div>
+        )}
+
+        {/* Contractor rep contributors */}
+        {(reportContributorMode === "contractors-only" || reportContributorMode === "both") && (
+          <div className="mb-4">
+            <label className="block text-sm font-medium text-gray-700 mb-1">Contractor Representative Contributors</label>
+            <div className="flex flex-wrap gap-1.5">
+              {projectVendors.flatMap(v => (v.representatives || []).map(r => ({ ...r, vendorName: v.name }))).map(r => {
+                const selected = reportContributorRepIds.includes(r.id);
+                return (
+                  <button key={r.id} onClick={() => setReportContributorRepIds(prev =>
+                    prev.includes(r.id) ? prev.filter(id => id !== r.id) : [...prev, r.id]
+                  )}
+                    className={`px-2 py-1 rounded-lg text-[10px] font-medium border transition-colors ${
+                      selected ? "bg-orange-50 border-orange-300 text-orange-700" : "hover:bg-gray-50 text-gray-600"
+                    }`}
+                  >
+                    {r.fullName} ({r.vendorName})
+                  </button>
+                );
+              })}
+              {projectVendors.reduce((sum, v) => sum + (v.representatives?.length || 0), 0) === 0 && (
+                <span className="text-[10px] text-gray-400">No vendor representatives registered. Add reps in Resources → Human Resources → Vendors.</span>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* Recurring Reporting Tasks */}
+        <div className="border-t pt-4" style={{ borderColor: "#E2E8F0" }}>
+          <h3 className="text-sm font-semibold text-gray-700 mb-3">Recurring Reporting Tasks</h3>
+          {recurringReportTasks.length > 0 && (
+            <div className="space-y-1.5 mb-3">
+              {recurringReportTasks.map(t => (
+                <div key={t.id} className="flex items-center justify-between px-3 py-2 rounded-lg border text-xs" style={{ borderColor: "#E2E8F0", backgroundColor: "#F7F8FA" }}>
+                  <div className="flex items-center gap-2">
+                    <button onClick={() => toggleRecurringTask(t.id)} className={`w-4 h-4 rounded border flex items-center justify-center ${t.isActive ? "bg-green-500 border-green-500" : "border-gray-300"}`}>
+                      {t.isActive && <CheckCircle className="w-3 h-3 text-white" />}
+                    </button>
+                    <div>
+                      <p className="font-medium text-gray-900">{t.name}</p>
+                      <p className="text-[10px] text-gray-500 capitalize">{t.frequency} · Assigned to: {projectStaff.find(s => s.id === t.assignedTo)?.name || t.assignedTo}</p>
+                    </div>
+                  </div>
+                  <button onClick={() => removeRecurringTask(t.id)} className="p-1 rounded hover:bg-red-50 text-red-400 hover:text-red-600">
+                    <Trash2 className="w-3 h-3" />
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+          <div className="grid grid-cols-3 gap-2 mb-2">
+            <input type="text" value={newRecurringTask.name} onChange={e => setNewRecurringTask(prev => ({ ...prev, name: e.target.value }))}
+              placeholder="Task name (e.g. Daily Site Report)" className="px-2 py-1.5 text-xs rounded border" style={{ borderColor: "#E2E8F0", backgroundColor: "white" }} />
+            <select value={newRecurringTask.frequency} onChange={e => setNewRecurringTask(prev => ({ ...prev, frequency: e.target.value as "daily" | "weekly" | "monthly" }))}
+              className="px-2 py-1.5 text-xs rounded border" style={{ borderColor: "#E2E8F0", backgroundColor: "white" }}>
+              <option value="daily">Daily</option>
+              <option value="weekly">Weekly</option>
+              <option value="monthly">Monthly</option>
+            </select>
+            <select value={newRecurringTask.assignedTo} onChange={e => setNewRecurringTask(prev => ({ ...prev, assignedTo: e.target.value }))}
+              className="px-2 py-1.5 text-xs rounded border" style={{ borderColor: "#E2E8F0", backgroundColor: "white" }}>
+              <option value="">Assign to...</option>
+              {projectStaff.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+              {projectVendors.flatMap(v => (v.representatives || []).map(r => ({ ...r, vendorName: v.name }))).map(r =>
+                <option key={r.id} value={r.id}>{r.fullName} ({r.vendorName})</option>
+              )}
+            </select>
+          </div>
+          <button onClick={addRecurringTask} disabled={!newRecurringTask.name.trim() || !newRecurringTask.assignedTo}
+            className="flex items-center gap-1 px-3 py-1.5 rounded text-xs font-medium text-white disabled:opacity-50" style={{ backgroundColor: "#E8973A" }}>
+            <Plus className="w-3 h-3" /> Add Recurring Task
+          </button>
+        </div>
+      </div>
     </div>
   );
 
@@ -2381,18 +2799,64 @@ export function ProjectSetupPage() {
 
         <div className={`rounded-lg p-4 text-sm ${baselineLocked ? "bg-green-50 border border-green-200" : ""}`}>
           {baselineLocked ? (
-            <div className="flex items-center gap-2 text-green-700">
-              <CheckCircle className="w-5 h-5" />
-              <span className="font-medium">Baseline has been locked successfully.</span>
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2 text-green-700">
+                <CheckCircle className="w-5 h-5" />
+                <span className="font-medium">Baseline has been locked successfully.</span>
+              </div>
+              <button onClick={() => setShowUnlockModal(true)} className="flex items-center gap-1 px-3 py-1.5 rounded text-xs font-medium text-white" style={{ backgroundColor: "#E8973A" }}>
+                Unlock Setup
+              </button>
             </div>
           ) : (
-            <p className="text-gray-500 text-center">
-              Once locked, the planned dates and scope cannot be modified without a formal change request.
-            </p>
+            <div>
+              <p className="text-gray-500 text-center mb-3">
+                Once locked, the planned dates and scope cannot be modified without a formal change request.
+              </p>
+            </div>
           )}
         </div>
-      </div>
-    );
+
+        {/* Audit log */}
+        {setupAuditLog.length > 0 && (
+          <div className="mt-4 pt-4 border-t" style={{ borderColor: "#E2E8F0" }}>
+            <h3 className="text-xs font-semibold text-gray-600 mb-2">Setup Audit Trail</h3>
+            <div className="space-y-1">
+              {setupAuditLog.map((entry, idx) => (
+                <div key={idx} className="flex items-center gap-2 text-[10px] text-gray-500">
+                  <span className={`px-1.5 py-0.5 rounded font-medium ${entry.action === "locked" ? "bg-green-100 text-green-700" : "bg-amber-100 text-amber-700"}`}>
+                    {entry.action === "locked" ? "LOCKED" : "UNLOCKED"}
+                  </span>
+                  <span>{entry.performedBy}</span>
+                  <span>·</span>
+                  <span>{new Date(entry.performedAt).toLocaleString()}</span>
+                  {entry.reason && <span>· "{entry.reason}"</span>}
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Unlock Modal */}
+        {showUnlockModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+          <div className="rounded-xl w-full max-w-sm p-5" style={{ backgroundColor: "white" }}>
+            <h3 className="text-base font-bold mb-2" style={{ color: "#1A202C" }}>Unlock Setup</h3>
+            <p className="text-xs text-gray-500 mb-4">Provide a reason for unlocking the setup. This will be recorded in the audit trail.</p>
+            <textarea rows={3} value={unlockReason} onChange={e => setUnlockReason(e.target.value)}
+              placeholder="Reason for unlocking..." className="w-full px-3 py-2 rounded-lg border text-sm" style={{ borderColor: "#E2E8F0" }} />
+            <div className="flex justify-end gap-2 mt-4">
+              <button onClick={() => { setShowUnlockModal(false); setUnlockReason(""); }} className="px-3 py-1.5 rounded border text-sm text-gray-600" style={{ borderColor: "#E2E8F0" }}>Cancel</button>
+              <button onClick={performUnlock} disabled={!unlockReason.trim()}
+                className="px-3 py-1.5 rounded text-sm font-medium text-white disabled:opacity-50" style={{ backgroundColor: "#E8973A" }}>
+                Unlock
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
   };
 
   const renderBottomIndicator = () => (
