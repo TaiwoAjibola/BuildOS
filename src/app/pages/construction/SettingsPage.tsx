@@ -379,10 +379,8 @@ export function SettingsPage() {
                         </div>
                       </div>
                       <div className="flex items-center gap-1 shrink-0 ml-2">
-                        <button onClick={() => startEditRole(role)} className="p-1.5 text-gray-400 hover:text-orange-600 hover:bg-orange-50 rounded-lg"><Edit3 className="w-3.5 h-3.5" /></button>
-                        {!isDefaultRole(role.id) && (
-                          <button onClick={() => deleteRole(role.id)} className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg"><Trash2 className="w-3.5 h-3.5" /></button>
-                        )}
+                        <button type="button" onClick={() => startEditRole(role)} className="p-1.5 text-gray-400 hover:text-orange-600 hover:bg-orange-50 rounded-lg"><Edit3 className="w-3.5 h-3.5" /></button>
+                        <button type="button" onClick={() => deleteRole(role.id)} className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg"><Trash2 className="w-3.5 h-3.5" /></button>
                       </div>
                     </div>
                     {role.permissions.length > 0 && (
