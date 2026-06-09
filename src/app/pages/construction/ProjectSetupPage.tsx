@@ -2,7 +2,7 @@ import { useParams } from "react-router";
 import { useState, useMemo, useRef, useEffect } from "react";
 import {
   CheckCircle, Circle, ArrowRight, ArrowLeft, Lock, Calendar,
-  Building2, Users, Layers, FileText, Plus, X, Trash2, ChevronRight, ChevronDown, Tags, Download, Upload,
+  Building2, Users, Layers, FileText, Package, Wrench, Plus, X, Trash2, ChevronRight, ChevronDown, Tags, Download, Upload,
 } from "lucide-react";
 import { getProjectById, staffList, tradeTypes, clusters, tasks as allTasks, fmtDate, vendors as allVendors, defaultScheduleLevels, hrEmployees, materialInventory, equipmentInventory } from "./mockData";
 import type { Task, Vendor, VendorRepresentative, ProjectCalendar, Sector, ProjectStructureItem, ScheduleLevelConfig, HumanResource, HumanResourceSource, MaterialResource, EquipmentResource, ResourceAssignment, ProjectRole, HumanResourceRole } from "./types";
@@ -14,7 +14,10 @@ import { SearchableMultiSelect } from "../../components/SearchableMultiSelect";
 const STEPS = [
   { id: "basic", label: "Basic Information", icon: FileText },
   { id: "project-type", label: "Project Type", icon: Tags },
-  { id: "resources", label: "Resources", icon: Users },
+  { id: "human-resources", label: "Human Resources", icon: Users },
+  { id: "daily-reporting", label: "Daily Reporting", icon: FileText },
+  { id: "materials", label: "Materials", icon: Package },
+  { id: "equipment", label: "Equipment", icon: Wrench },
   { id: "calendar", label: "Calendar", icon: Calendar },
   { id: "schedule", label: "Schedule Builder", icon: Layers },
   { id: "summary", label: "Summary", icon: Lock },
@@ -149,7 +152,7 @@ export function ProjectSetupPage() {
   const [vendorForm, setVendorForm] = useState(EMPTY_VENDOR_FORM);
   const [selectedExistingVendor, setSelectedExistingVendor] = useState("");
   const [vendorStageAssignments, setVendorStageAssignments] = useState<Record<string, string[]>>({});
-  const [resourceTab, setResourceTab] = useState<"human" | "material" | "equipment">("human");
+
   const [isNewVendor, setIsNewVendor] = useState(false);
   const [humanSubType, setHumanSubType] = useState<HumanResourceSource>("vendor");
 
@@ -686,7 +689,7 @@ export function ProjectSetupPage() {
   };
 
   const handleCompleteSetup = () => {
-    setCompletedSteps(prev => new Set([...prev, 5]));
+    setCompletedSteps(prev => new Set([...prev, STEPS.length - 1]));
     performLock();
   };
 
@@ -1735,7 +1738,7 @@ export function ProjectSetupPage() {
   );
 
   // Step 3 — Vendor Registration & Stage Assignment
-  const renderResourceRegistration = () => {
+  const renderHumanResources = () => {
     const stages = projectTasks.filter(t => t.level === 1);
 
     const allHumanResources = [
@@ -1743,12 +1746,6 @@ export function ProjectSetupPage() {
       ...projectContractors.map(c => ({ ...c, _subtype: "Contractor" as const })),
       ...projectVendors.map(v => ({ ...v, id: v.id, name: v.name, trade: v.trade, _subtype: "Vendor" as const, extra: v.contractType })),
     ];
-
-    const materialCategories = ["Aggregates", "Reinforcement", "Concrete", "Steel", "Finishing", "Plumbing", "Electrical", "Roofing", "Lumber / Formwork", "Hardware", "Paint & Coatings", "Waterproofing", "Insulation", "Other"];
-    const materialUnits = ["bags", "tonnes", "kg", "litres", "gallons", "m³", "m²", "linear metres", "pieces", "rolls", "sheets", "pails", "drums"];
-
-    const equipmentCategories = ["Earthwork", "Lifting", "Concreting", "Compaction", "Piling", "Transport", "Generators / Power", "Pumping", "Safety", "Other"];
-    const equipmentStatuses = ["Available", "Assigned", "Under Maintenance"];
 
     const SubPill = ({ label, value }: { label: string; value: HumanResourceSource }) => (
       <button onClick={() => setHumanSubType(value)}
@@ -1762,461 +1759,516 @@ export function ProjectSetupPage() {
 
     return (
       <div className="space-y-4">
-        {/* Resource Type Tabs */}
-        <div className="flex gap-1 bg-gray-100 rounded-lg p-1 max-w-md">
-          {(["human", "material", "equipment"] as const).map(tab => (
-            <button key={tab} onClick={() => setResourceTab(tab)}
-              className={`flex-1 px-4 py-2 text-sm font-medium rounded-md transition-colors capitalize ${
-                resourceTab === tab ? "bg-white text-gray-900 shadow-sm" : "text-gray-500 hover:text-gray-700"
-              }`}
-            >
-              {tab === "human" ? "Human Resources" : tab === "material" ? "Materials" : "Equipment"}
-            </button>
-          ))}
+        {/* Sub-type pills */}
+        <div className="flex gap-1.5">
+          <SubPill label="Employees" value="employee" />
+          <SubPill label="Individual Contractors" value="individual-contractor" />
+          <SubPill label="Contractors" value="vendor" />
         </div>
 
-        {/* ──── HUMAN RESOURCES ──── */}
-        {resourceTab === "human" && (<>
-          {/* Sub-type pills */}
-          <div className="flex gap-1.5">
-            <SubPill label="Employees" value="employee" />
-            <SubPill label="Individual Contractors" value="individual-contractor" />
-            <SubPill label="Contractors" value="vendor" />
+        {/* ── Employee Form ── */}
+        {humanSubType === "employee" && (
+          <div className="rounded-xl border p-6" style={{ borderColor: "#E2E8F0", backgroundColor: "white" }}>
+            <h2 className="text-lg font-bold mb-4" style={{ color: "#1A202C" }}>{
+              basicInfo.contractingModel === "developer" ? "Select Employee (Our Team)" :
+              basicInfo.contractingModel === "contractor" ? "Select Employee (Self-Perform)" :
+              "Select Employee (Management Team)"
+            }</h2>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Choose Employees from HR</label>
+              <SearchableMultiSelect
+                options={hrEmployees.filter(e => !projectStaff.some(s => s.employeeId === e.id)).map(e => ({ label: `${e.firstName} ${e.lastName} — ${e.role}`, value: e.id, group: e.role }))}
+                value={selectedEmployeeIds}
+                onChange={setSelectedEmployeeIds}
+                placeholder="Search employees..."
+              />
+            </div>
+            {selectedEmployeeIds.length > 0 && (
+              <p className="text-sm text-gray-500 mt-2">
+                <span className="font-medium">{selectedEmployeeIds.length}</span> employee(s) selected.
+              </p>
+            )}
+            <div className="flex justify-end mt-4">
+              <button onClick={addStaff} disabled={selectedEmployeeIds.length === 0}
+                className="flex items-center gap-1.5 px-4 py-2 rounded-lg text-white text-sm font-medium disabled:opacity-50"
+                style={{ backgroundColor: "#E8973A" }}>
+                <Plus className="w-4 h-4" /> Assign to Project
+              </button>
+            </div>
           </div>
+        )}
 
-          {/* ── Employee Form ── */}
-          {humanSubType === "employee" && (
-            <div className="rounded-xl border p-6" style={{ borderColor: "#E2E8F0", backgroundColor: "white" }}>
-              <h2 className="text-lg font-bold mb-4" style={{ color: "#1A202C" }}>{
-                basicInfo.contractingModel === "developer" ? "Select Employee (Our Team)" :
-                basicInfo.contractingModel === "contractor" ? "Select Employee (Self-Perform)" :
-                "Select Employee (Management Team)"
-              }</h2>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Choose Employees from HR</label>
-                <SearchableMultiSelect
-                  options={hrEmployees.filter(e => !projectStaff.some(s => s.employeeId === e.id)).map(e => ({ label: `${e.firstName} ${e.lastName} — ${e.role}`, value: e.id, group: e.role }))}
-                  value={selectedEmployeeIds}
-                  onChange={setSelectedEmployeeIds}
-                  placeholder="Search employees..."
-                />
-              </div>
-              {selectedEmployeeIds.length > 0 && (
-                <p className="text-sm text-gray-500 mt-2">
-                  <span className="font-medium">{selectedEmployeeIds.length}</span> employee(s) selected.
-                </p>
-              )}
-              <div className="flex justify-end mt-4">
-                <button onClick={addStaff} disabled={selectedEmployeeIds.length === 0}
-                  className="flex items-center gap-1.5 px-4 py-2 rounded-lg text-white text-sm font-medium disabled:opacity-50"
-                  style={{ backgroundColor: "#E8973A" }}>
-                  <Plus className="w-4 h-4" /> Assign to Project
+        {/* ── Individual Contractor Form ── */}
+        {humanSubType === "individual-contractor" && (
+          <div className="rounded-xl border p-6" style={{ borderColor: "#E2E8F0", backgroundColor: "white" }}>
+            <h2 className="text-lg font-bold mb-4" style={{ color: "#1A202C" }}>{
+              basicInfo.contractingModel === "developer" ? "Select Individual Contractor (Direct Hires)" :
+              basicInfo.contractingModel === "contractor" ? "Select Individual Contractor (Self-Perform)" :
+              "Select Individual Contractor (Direct Hires)"
+            }</h2>
+            <div className="mb-4">
+              <label className="block text-sm font-medium text-gray-700 mb-1">Choose Contractors</label>
+              <SearchableMultiSelect
+                options={individualContractors.filter(c => !projectContractors.some(pc => pc.name === c.name)).map(c => ({ label: `${c.name} — ${c.trade}`, value: c.id, group: c.trade }))}
+                value={selectedContractorIds}
+                onChange={setSelectedContractorIds}
+                placeholder="Search contractors..."
+              />
+              <div className="mt-2">
+                <button onClick={() => setIsNewContractor(true)} className="text-xs text-orange-600 hover:text-orange-700 font-medium">
+                  + Register New Contractor
                 </button>
               </div>
             </div>
-          )}
-
-          {/* ── Individual Contractor Form ── */}
-          {humanSubType === "individual-contractor" && (
-            <div className="rounded-xl border p-6" style={{ borderColor: "#E2E8F0", backgroundColor: "white" }}>
-              <h2 className="text-lg font-bold mb-4" style={{ color: "#1A202C" }}>{
-                basicInfo.contractingModel === "developer" ? "Select Individual Contractor (Direct Hires)" :
-                basicInfo.contractingModel === "contractor" ? "Select Individual Contractor (Self-Perform)" :
-                "Select Individual Contractor (Direct Hires)"
-              }</h2>
-              <div className="mb-4">
-                <label className="block text-sm font-medium text-gray-700 mb-1">Choose Contractors</label>
-                <SearchableMultiSelect
-                  options={individualContractors.filter(c => !projectContractors.some(pc => pc.name === c.name)).map(c => ({ label: `${c.name} — ${c.trade}`, value: c.id, group: c.trade }))}
-                  value={selectedContractorIds}
-                  onChange={setSelectedContractorIds}
-                  placeholder="Search contractors..."
-                />
-                <div className="mt-2">
-                  <button onClick={() => setIsNewContractor(true)} className="text-xs text-orange-600 hover:text-orange-700 font-medium">
-                    + Register New Contractor
-                  </button>
+            {isNewContractor && (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 p-4 rounded-lg border mb-4" style={{ borderColor: "#E2E8F0", backgroundColor: "#F7F8FA" }}>
+                <p className="text-sm font-medium text-gray-700 col-span-full">New Contractor Details</p>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Full Name</label>
+                  <input type="text" value={contractorForm.name}
+                    onChange={e => setContractorForm({ ...contractorForm, name: e.target.value })}
+                    className="w-full px-3 py-2 rounded-lg border text-sm" style={{ borderColor: "#E2E8F0", backgroundColor: "white" }}
+                    placeholder="e.g. Babatunde Welder" />
                 </div>
-              </div>
-              {isNewContractor && (
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 p-4 rounded-lg border mb-4" style={{ borderColor: "#E2E8F0", backgroundColor: "#F7F8FA" }}>
-                  <p className="text-sm font-medium text-gray-700 col-span-full">New Contractor Details</p>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Trade</label>
+                  <select value={contractorForm.trade}
+                    onChange={e => setContractorForm({ ...contractorForm, trade: e.target.value })}
+                    className="w-full px-3 py-2 rounded-lg border text-sm" style={{ borderColor: "#E2E8F0", backgroundColor: "white" }}>
+                    <option value="">Select trade</option>
+                    {tradeTypes.map(t => <option key={t} value={t}>{t}</option>)}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Pay Rate (₦)</label>
+                  <input type="number" value={contractorForm.payRate || ""}
+                    onChange={e => setContractorForm({ ...contractorForm, payRate: Number(e.target.value) })}
+                    className="w-full px-3 py-2 rounded-lg border text-sm" style={{ borderColor: "#E2E8F0", backgroundColor: "white" }}
+                    placeholder="e.g. 25000" />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Rate Unit</label>
+                  <select value={contractorForm.payRateUnit}
+                    onChange={e => setContractorForm({ ...contractorForm, payRateUnit: e.target.value as "daily" | "weekly" | "monthly" | "lump-sum" })}
+                    className="w-full px-3 py-2 rounded-lg border text-sm" style={{ borderColor: "#E2E8F0", backgroundColor: "white" }}>
+                    <option value="daily">Per Day</option>
+                    <option value="weekly">Per Week</option>
+                    <option value="monthly">Per Month</option>
+                    <option value="lump-sum">Lump Sum</option>
+                  </select>
+                </div>
+                <div className="grid grid-cols-2 gap-3">
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Full Name</label>
-                    <input type="text" value={contractorForm.name}
-                      onChange={e => setContractorForm({ ...contractorForm, name: e.target.value })}
-                      className="w-full px-3 py-2 rounded-lg border text-sm" style={{ borderColor: "#E2E8F0", backgroundColor: "white" }}
-                      placeholder="e.g. Babatunde Welder" />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Trade</label>
-                    <select value={contractorForm.trade}
-                      onChange={e => setContractorForm({ ...contractorForm, trade: e.target.value })}
-                      className="w-full px-3 py-2 rounded-lg border text-sm" style={{ borderColor: "#E2E8F0", backgroundColor: "white" }}>
-                      <option value="">Select trade</option>
-                      {tradeTypes.map(t => <option key={t} value={t}>{t}</option>)}
-                    </select>
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Pay Rate (₦)</label>
-                    <input type="number" value={contractorForm.payRate || ""}
-                      onChange={e => setContractorForm({ ...contractorForm, payRate: Number(e.target.value) })}
-                      className="w-full px-3 py-2 rounded-lg border text-sm" style={{ borderColor: "#E2E8F0", backgroundColor: "white" }}
-                      placeholder="e.g. 25000" />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Rate Unit</label>
-                    <select value={contractorForm.payRateUnit}
-                      onChange={e => setContractorForm({ ...contractorForm, payRateUnit: e.target.value as "daily" | "weekly" | "monthly" | "lump-sum" })}
-                      className="w-full px-3 py-2 rounded-lg border text-sm" style={{ borderColor: "#E2E8F0", backgroundColor: "white" }}>
-                      <option value="daily">Per Day</option>
-                      <option value="weekly">Per Week</option>
-                      <option value="monthly">Per Month</option>
-                      <option value="lump-sum">Lump Sum</option>
-                    </select>
-                  </div>
-                  <div className="grid grid-cols-2 gap-3">
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">Skilled Workers</label>
-                      <input type="number" value={contractorForm.skilledCount || ""}
-                        onChange={e => setContractorForm({ ...contractorForm, skilledCount: Number(e.target.value) })}
-                        className="w-full px-3 py-2 rounded-lg border text-sm" style={{ borderColor: "#E2E8F0", backgroundColor: "white" }} />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">Unskilled Workers</label>
-                      <input type="number" value={contractorForm.unskilledCount || ""}
-                        onChange={e => setContractorForm({ ...contractorForm, unskilledCount: Number(e.target.value) })}
-                        className="w-full px-3 py-2 rounded-lg border text-sm" style={{ borderColor: "#E2E8F0", backgroundColor: "white" }} />
-                    </div>
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Man-days Estimate</label>
-                    <input type="number" value={contractorForm.mandaysEstimate || ""}
-                      onChange={e => setContractorForm({ ...contractorForm, mandaysEstimate: Number(e.target.value) })}
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Skilled Workers</label>
+                    <input type="number" value={contractorForm.skilledCount || ""}
+                      onChange={e => setContractorForm({ ...contractorForm, skilledCount: Number(e.target.value) })}
                       className="w-full px-3 py-2 rounded-lg border text-sm" style={{ borderColor: "#E2E8F0", backgroundColor: "white" }} />
                   </div>
-                  <div className="flex justify-end gap-2 col-span-full">
-                    <button onClick={() => setIsNewContractor(false)} className="px-3 py-1.5 rounded-lg border text-xs text-gray-600" style={{ borderColor: "#E2E8F0" }}>Cancel</button>
-                    <button onClick={() => {
-                      if (!contractorForm.name || !contractorForm.trade) return;
-                      const newCon: HumanResource = {
-                        id: `CON-${String(projectContractors.length + 1).padStart(3, "0")}`,
-                        projectId: projectId!,
-                        source: "individual-contractor",
-                        name: contractorForm.name,
-                        trade: contractorForm.trade,
-                        payRate: contractorForm.payRate || undefined,
-                        payRateUnit: contractorForm.payRateUnit,
-                        skilledCount: contractorForm.skilledCount,
-                        unskilledCount: contractorForm.unskilledCount,
-                        mandaysEstimate: contractorForm.mandaysEstimate,
-                        status: contractorForm.status,
-                        assignedWorkPackages: [],
-                        blockAssignment: "",
-                      };
-                      setProjectContractors(prev => [...prev, newCon]);
-                      setContractorForm(EMPTY_CONTRACTOR_FORM);
-                      setIsNewContractor(false);
-                    }} className="px-3 py-1.5 rounded-lg text-xs text-white font-medium" style={{ backgroundColor: "#E8973A" }}>Add Contractor</button>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Unskilled Workers</label>
+                    <input type="number" value={contractorForm.unskilledCount || ""}
+                      onChange={e => setContractorForm({ ...contractorForm, unskilledCount: Number(e.target.value) })}
+                      className="w-full px-3 py-2 rounded-lg border text-sm" style={{ borderColor: "#E2E8F0", backgroundColor: "white" }} />
                   </div>
                 </div>
-              )}
-              {selectedContractorIds.length > 0 && (
-                <p className="text-sm text-gray-500 mt-2">
-                  <span className="font-medium">{selectedContractorIds.length}</span> contractor(s) selected.
-                </p>
-              )}
-              <div className="flex justify-end mt-4">
-                <button onClick={addContractor} disabled={selectedContractorIds.length === 0}
-                  className="flex items-center gap-1.5 px-4 py-2 rounded-lg text-white text-sm font-medium disabled:opacity-50"
-                  style={{ backgroundColor: "#E8973A" }}>
-                  <Plus className="w-4 h-4" /> Assign to Project
-                </button>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Man-days Estimate</label>
+                  <input type="number" value={contractorForm.mandaysEstimate || ""}
+                    onChange={e => setContractorForm({ ...contractorForm, mandaysEstimate: Number(e.target.value) })}
+                    className="w-full px-3 py-2 rounded-lg border text-sm" style={{ borderColor: "#E2E8F0", backgroundColor: "white" }} />
+                </div>
+                <div className="flex justify-end gap-2 col-span-full">
+                  <button onClick={() => setIsNewContractor(false)} className="px-3 py-1.5 rounded-lg border text-xs text-gray-600" style={{ borderColor: "#E2E8F0" }}>Cancel</button>
+                  <button onClick={() => {
+                    if (!contractorForm.name || !contractorForm.trade) return;
+                    const newCon: HumanResource = {
+                      id: `CON-${String(projectContractors.length + 1).padStart(3, "0")}`,
+                      projectId: projectId!,
+                      source: "individual-contractor",
+                      name: contractorForm.name,
+                      trade: contractorForm.trade,
+                      payRate: contractorForm.payRate || undefined,
+                      payRateUnit: contractorForm.payRateUnit,
+                      skilledCount: contractorForm.skilledCount,
+                      unskilledCount: contractorForm.unskilledCount,
+                      mandaysEstimate: contractorForm.mandaysEstimate,
+                      status: contractorForm.status,
+                      assignedWorkPackages: [],
+                      blockAssignment: "",
+                    };
+                    setProjectContractors(prev => [...prev, newCon]);
+                    setContractorForm(EMPTY_CONTRACTOR_FORM);
+                    setIsNewContractor(false);
+                  }} className="px-3 py-1.5 rounded-lg text-xs text-white font-medium" style={{ backgroundColor: "#E8973A" }}>Add Contractor</button>
+                </div>
               </div>
+            )}
+            {selectedContractorIds.length > 0 && (
+              <p className="text-sm text-gray-500 mt-2">
+                <span className="font-medium">{selectedContractorIds.length}</span> contractor(s) selected.
+              </p>
+            )}
+            <div className="flex justify-end mt-4">
+              <button onClick={addContractor} disabled={selectedContractorIds.length === 0}
+                className="flex items-center gap-1.5 px-4 py-2 rounded-lg text-white text-sm font-medium disabled:opacity-50"
+                style={{ backgroundColor: "#E8973A" }}>
+                <Plus className="w-4 h-4" /> Assign to Project
+              </button>
             </div>
-          )}
+          </div>
+        )}
 
-          {/* ── Contractor Companies Form ── */}
-          {humanSubType === "vendor" && (
-            <div className="rounded-xl border p-6" style={{ borderColor: "#E2E8F0", backgroundColor: "white" }}>
-              <h2 className="text-lg font-bold mb-4" style={{ color: "#1A202C" }}>{
-                basicInfo.contractingModel === "developer" ? "Select Contractor (Main + Subs)" :
-                basicInfo.contractingModel === "contractor" ? "Select Subcontractor" :
-                "Select Trade Contractor"
-              }</h2>
-              <div className="mb-4">
-                <label className="block text-sm font-medium text-gray-700 mb-1">Choose Contractors</label>
-                <SearchableMultiSelect
-                  options={(uniqueVendors as { id: string; name: string; trade: string }[]).filter(v => !projectVendors.some(pv => pv.name === v.name)).map(v => ({ label: `${v.name} — ${v.trade}`, value: v.id, group: v.trade }))}
-                  value={selectedVendorIds}
-                  onChange={setSelectedVendorIds}
-                  placeholder="Search contractors..."
-                />
-              </div>
-              {selectedVendorIds.length > 0 && (
-                <p className="text-sm text-gray-500 mt-2">
-                  <span className="font-medium">{selectedVendorIds.length}</span> contractor(s) selected.
-                </p>
-              )}
-              <div className="flex justify-end mt-4">
-                <button onClick={addVendor} disabled={selectedVendorIds.length === 0}
-                  className="flex items-center gap-1.5 px-4 py-2 rounded-lg text-white text-sm font-medium disabled:opacity-50"
-                  style={{ backgroundColor: "#E8973A" }}>
-                  <Plus className="w-4 h-4" /> Assign to Project
-                </button>
-              </div>
+        {/* ── Contractor Companies Form ── */}
+        {humanSubType === "vendor" && (
+          <div className="rounded-xl border p-6" style={{ borderColor: "#E2E8F0", backgroundColor: "white" }}>
+            <h2 className="text-lg font-bold mb-4" style={{ color: "#1A202C" }}>{
+              basicInfo.contractingModel === "developer" ? "Select Contractor (Main + Subs)" :
+              basicInfo.contractingModel === "contractor" ? "Select Subcontractor" :
+              "Select Trade Contractor"
+            }</h2>
+            <div className="mb-4">
+              <label className="block text-sm font-medium text-gray-700 mb-1">Choose Contractors</label>
+              <SearchableMultiSelect
+                options={(uniqueVendors as { id: string; name: string; trade: string }[]).filter(v => !projectVendors.some(pv => pv.name === v.name)).map(v => ({ label: `${v.name} — ${v.trade}`, value: v.id, group: v.trade }))}
+                value={selectedVendorIds}
+                onChange={setSelectedVendorIds}
+                placeholder="Search contractors..."
+              />
             </div>
-          )}
+            {selectedVendorIds.length > 0 && (
+              <p className="text-sm text-gray-500 mt-2">
+                <span className="font-medium">{selectedVendorIds.length}</span> contractor(s) selected.
+              </p>
+            )}
+            <div className="flex justify-end mt-4">
+              <button onClick={addVendor} disabled={selectedVendorIds.length === 0}
+                className="flex items-center gap-1.5 px-4 py-2 rounded-lg text-white text-sm font-medium disabled:opacity-50"
+                style={{ backgroundColor: "#E8973A" }}>
+                <Plus className="w-4 h-4" /> Assign to Project
+              </button>
+            </div>
+          </div>
+        )}
 
-          {/* Stage Assignment — only when humanSubType === "vendor" */}
-          {humanSubType === "vendor" && projectVendors.length > 0 && stages.length > 0 && (
-            <div className="rounded-xl border p-5" style={{ borderColor: "#E2E8F0", backgroundColor: "white" }}>
-              <h3 className="text-base font-bold mb-4" style={{ color: "#1A202C" }}>Assign Resources to Schedule Phases</h3>
-              <p className="text-sm text-gray-500 mb-4">For each resource, select which stages of the schedule they will work on.</p>
-              <div className="overflow-x-auto">
-                <table className="w-full text-sm">
-                  <thead>
-                    <tr style={{ backgroundColor: "#F7F8FA", borderBottom: "1px solid #E2E8F0" }}>
-                      <th className="text-left px-3 py-2.5 font-medium text-gray-500">Contractor</th>
-                      {stages.map(s => (
-                        <th key={s.id} className="text-center px-3 py-2.5 font-medium text-gray-500 min-w-[120px]">{s.name}</th>
-                      ))}
+        {/* Stage Assignment — only when viewing Contractors */}
+        {humanSubType === "vendor" && projectVendors.length > 0 && stages.length > 0 && (
+          <div className="rounded-xl border p-5" style={{ borderColor: "#E2E8F0", backgroundColor: "white" }}>
+            <h3 className="text-base font-bold mb-4" style={{ color: "#1A202C" }}>Assign Resources to Schedule Phases</h3>
+            <p className="text-sm text-gray-500 mb-4">For each resource, select which stages of the schedule they will work on.</p>
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr style={{ backgroundColor: "#F7F8FA", borderBottom: "1px solid #E2E8F0" }}>
+                    <th className="text-left px-3 py-2.5 font-medium text-gray-500">Contractor</th>
+                    {stages.map(s => (
+                      <th key={s.id} className="text-center px-3 py-2.5 font-medium text-gray-500 min-w-[120px]">{s.name}</th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {projectVendors.map(v => {
+                    const parent = v.parentContractorId ? projectVendors.find(p => p.id === v.parentContractorId) : null;
+                    return (
+                    <tr key={v.id} style={{ borderBottom: "1px solid #E2E8F0" }}>
+                      <td className="px-3 py-2.5 font-medium text-gray-900">
+                        {parent && <span className="text-[10px] text-gray-400 mr-1">↳ </span>}
+                        {v.name}
+                        {parent && <span className="text-[10px] text-gray-400 ml-1">(sub of {parent.name})</span>}
+                      </td>
+                      {stages.map(s => {
+                        const assigned = vendorStageAssignments[v.id] || [];
+                        return (
+                          <td key={s.id} className="text-center px-3 py-2.5">
+                            <input type="checkbox" checked={assigned.includes(s.id)}
+                              onChange={() => toggleStageForVendor(v.id, s.id)}
+                              className="w-4 h-4 rounded" style={{ accentColor: "#E8973A" }} />
+                          </td>
+                        );
+                      })}
                     </tr>
-                  </thead>
-                  <tbody>
-                    {projectVendors.map(v => {
-                      const parent = v.parentContractorId ? projectVendors.find(p => p.id === v.parentContractorId) : null;
-                      return (
-                      <tr key={v.id} style={{ borderBottom: "1px solid #E2E8F0" }}>
-                        <td className="px-3 py-2.5 font-medium text-gray-900">
-                          {parent && <span className="text-[10px] text-gray-400 mr-1">↳ </span>}
-                          {v.name}
-                          {parent && <span className="text-[10px] text-gray-400 ml-1">(sub of {parent.name})</span>}
-                        </td>
-                        {stages.map(s => {
-                          const assigned = vendorStageAssignments[v.id] || [];
-                          return (
-                            <td key={s.id} className="text-center px-3 py-2.5">
-                              <input type="checkbox" checked={assigned.includes(s.id)}
-                                onChange={() => toggleStageForVendor(v.id, s.id)}
-                                className="w-4 h-4 rounded" style={{ accentColor: "#E8973A" }} />
-                            </td>
-                          );
-                        })}
-                      </tr>
                     );
                   })}
-                  </tbody>
-                </table>
-              </div>
+                </tbody>
+              </table>
             </div>
-          )}
+          </div>
+        )}
 
-          {/* Registered list — show all human resources */}
-          {allHumanResources.length > 0 && (
-            <div className="rounded-xl border" style={{ borderColor: "#E2E8F0", backgroundColor: "white" }}>
-              <div className="px-5 py-3 border-b flex items-center justify-between gap-3 flex-wrap" style={{ borderColor: "#E2E8F0" }}>
-                <h3 className="text-sm font-semibold" style={{ color: "#1A202C" }}>
-                  Registered Human Resources ({allHumanResources.length})
-                </h3>
-                <input type="text" value={hrSearch} onChange={e => setHrSearch(e.target.value)} placeholder="Search resources..." className="px-3 py-1.5 rounded-lg border text-xs" style={{ borderColor: "#E2E8F0", backgroundColor: "#F7F8FA", maxWidth: 200 }} />
-              </div>
-              <div className="divide-y" style={{ borderColor: "#E2E8F0" }}>
-                {/* Section: Employees */}
-                {projectStaff.filter(s => !hrSearch || s.name.toLowerCase().includes(hrSearch.toLowerCase()) || s.trade.toLowerCase().includes(hrSearch.toLowerCase())).length > 0 && (
-                  <div>
-                    <div className="px-5 py-2 bg-gray-50 flex items-center gap-2 cursor-pointer select-none" onClick={() => setHrSectionOpen(prev => ({ ...prev, employee: !prev.employee }))}>
-                      <span className="text-xs font-semibold uppercase tracking-wider text-blue-600 flex items-center gap-1">
-                        <Users className="w-3 h-3" /> {
-                          basicInfo.contractingModel === "developer" ? "Our Team" :
-                          basicInfo.contractingModel === "contractor" ? "Self-Perform" :
-                          "Management Team"
-                        }
-                      </span>
-                      <span className="text-[10px] bg-blue-100 text-blue-700 px-1.5 py-0.5 rounded-full font-medium">{projectStaff.length}</span>
-                      {hrSectionOpen.employee ? <ChevronDown className="w-3 h-3 text-gray-400 ml-auto" /> : <ChevronRight className="w-3 h-3 text-gray-400 ml-auto" />}
-                    </div>
-                    {hrSectionOpen.employee && projectStaff.filter(s => !hrSearch || s.name.toLowerCase().includes(hrSearch.toLowerCase()) || s.trade.toLowerCase().includes(hrSearch.toLowerCase())).map(s => (
-                      <div key={s.id} className="flex items-center justify-between px-5 py-2.5 text-sm pl-10">
-                        <div className="flex items-center gap-3">
-                          <div className="w-7 h-7 rounded-full flex items-center justify-center text-white text-[10px] font-bold" style={{ backgroundColor: "#3B82F6" }}>{s.name.charAt(0)}</div>
-                          <div>
-                            <p className="font-medium text-gray-900 text-sm">{s.name}</p>
-                            <p className="text-[11px] text-gray-500">{s.trade}{s.dailyRate ? ` · ₦${s.dailyRate.toLocaleString()}/day` : ""}</p>
-                          </div>
-                        </div>
-                        <button onClick={() => removeStaff(s.id)} className="p-1 rounded hover:bg-red-50 text-red-400 hover:text-red-600"><Trash2 className="w-3.5 h-3.5" /></button>
-                      </div>
-                    ))}
+        {/* Registered list — show all human resources */}
+        {allHumanResources.length > 0 && (
+          <div className="rounded-xl border" style={{ borderColor: "#E2E8F0", backgroundColor: "white" }}>
+            <div className="px-5 py-3 border-b flex items-center justify-between gap-3 flex-wrap" style={{ borderColor: "#E2E8F0" }}>
+              <h3 className="text-sm font-semibold" style={{ color: "#1A202C" }}>
+                Registered Human Resources ({allHumanResources.length})
+              </h3>
+              <input type="text" value={hrSearch} onChange={e => setHrSearch(e.target.value)} placeholder="Search resources..." className="px-3 py-1.5 rounded-lg border text-xs" style={{ borderColor: "#E2E8F0", backgroundColor: "#F7F8FA", maxWidth: 200 }} />
+            </div>
+            <div className="divide-y" style={{ borderColor: "#E2E8F0" }}>
+              {/* Section: Employees */}
+              {projectStaff.filter(s => !hrSearch || s.name.toLowerCase().includes(hrSearch.toLowerCase()) || s.trade.toLowerCase().includes(hrSearch.toLowerCase())).length > 0 && (
+                <div>
+                  <div className="px-5 py-2 bg-gray-50 flex items-center gap-2 cursor-pointer select-none" onClick={() => setHrSectionOpen(prev => ({ ...prev, employee: !prev.employee }))}>
+                    <span className="text-xs font-semibold uppercase tracking-wider text-blue-600 flex items-center gap-1">
+                      <Users className="w-3 h-3" /> {
+                        basicInfo.contractingModel === "developer" ? "Our Team" :
+                        basicInfo.contractingModel === "contractor" ? "Self-Perform" :
+                        "Management Team"
+                      }
+                    </span>
+                    <span className="text-[10px] bg-blue-100 text-blue-700 px-1.5 py-0.5 rounded-full font-medium">{projectStaff.length}</span>
+                    {hrSectionOpen.employee ? <ChevronDown className="w-3 h-3 text-gray-400 ml-auto" /> : <ChevronRight className="w-3 h-3 text-gray-400 ml-auto" />}
                   </div>
-                )}
-                {/* Section: Individual Contractors */}
-                {projectContractors.filter(c => !hrSearch || c.name.toLowerCase().includes(hrSearch.toLowerCase()) || c.trade.toLowerCase().includes(hrSearch.toLowerCase())).length > 0 && (
-                  <div>
-                    <div className="px-5 py-2 bg-gray-50 flex items-center gap-2 cursor-pointer select-none" onClick={() => setHrSectionOpen(prev => ({ ...prev, contractor: !prev.contractor }))}>
-                      <span className="text-xs font-semibold uppercase tracking-wider text-purple-600 flex items-center gap-1">
-                        <Users className="w-3 h-3" /> {
-                          basicInfo.contractingModel === "developer" ? "Direct Hires" :
-                          basicInfo.contractingModel === "contractor" ? "Self-Perform" :
-                          "Direct Hires"
-                        }
-                      </span>
-                      <span className="text-[10px] bg-purple-100 text-purple-700 px-1.5 py-0.5 rounded-full font-medium">{projectContractors.length}</span>
-                      {hrSectionOpen.contractor ? <ChevronDown className="w-3 h-3 text-gray-400 ml-auto" /> : <ChevronRight className="w-3 h-3 text-gray-400 ml-auto" />}
-                    </div>
-                    {hrSectionOpen.contractor && projectContractors.filter(c => !hrSearch || c.name.toLowerCase().includes(hrSearch.toLowerCase()) || c.trade.toLowerCase().includes(hrSearch.toLowerCase())).map(c => (
-                      <div key={c.id} className="flex items-center justify-between px-5 py-2.5 text-sm pl-10">
-                        <div className="flex items-center gap-3">
-                          <div className="w-7 h-7 rounded-full flex items-center justify-center text-white text-[10px] font-bold" style={{ backgroundColor: "#8B5CF6" }}>{c.name.charAt(0)}</div>
-                          <div>
-                            <p className="font-medium text-gray-900 text-sm">{c.name}</p>
-                            <p className="text-[11px] text-gray-500">{c.trade}{c.payRate ? ` · ₦${c.payRate.toLocaleString()}/${c.payRateUnit}` : ""} · {c.skilledCount + c.unskilledCount} workers</p>
-                          </div>
+                  {hrSectionOpen.employee && projectStaff.filter(s => !hrSearch || s.name.toLowerCase().includes(hrSearch.toLowerCase()) || s.trade.toLowerCase().includes(hrSearch.toLowerCase())).map(s => (
+                    <div key={s.id} className="flex items-center justify-between px-5 py-2.5 text-sm pl-10">
+                      <div className="flex items-center gap-3">
+                        <div className="w-7 h-7 rounded-full flex items-center justify-center text-white text-[10px] font-bold" style={{ backgroundColor: "#3B82F6" }}>{s.name.charAt(0)}</div>
+                        <div>
+                          <p className="font-medium text-gray-900 text-sm">{s.name}</p>
+                          <p className="text-[11px] text-gray-500">{s.trade}{s.dailyRate ? ` · ₦${s.dailyRate.toLocaleString()}/day` : ""}</p>
                         </div>
-                        <button onClick={() => removeContractor(c.id)} className="p-1 rounded hover:bg-red-50 text-red-400 hover:text-red-600"><Trash2 className="w-3.5 h-3.5" /></button>
                       </div>
-                    ))}
-                  </div>
-                )}
-                {/* Section: Vendors */}
-                {projectVendors.filter(v => !hrSearch || v.name.toLowerCase().includes(hrSearch.toLowerCase()) || v.trade.toLowerCase().includes(hrSearch.toLowerCase())).length > 0 && (
-                  <div>
-                    <div className="px-5 py-2 bg-gray-50 flex items-center gap-2 cursor-pointer select-none" onClick={() => setHrSectionOpen(prev => ({ ...prev, vendor: !prev.vendor }))}>
-                      <span className="text-xs font-semibold uppercase tracking-wider text-orange-600 flex items-center gap-1">
-                        <Building2 className="w-3 h-3" /> {
-                          basicInfo.contractingModel === "developer" ? "Main + Sub Contractors" :
-                          basicInfo.contractingModel === "contractor" ? "Subcontractors" :
-                          "Trade Contractors"
-                        }
-                      </span>
-                      <span className="text-[10px] bg-orange-100 text-orange-700 px-1.5 py-0.5 rounded-full font-medium">{projectVendors.length}</span>
-                      {hrSectionOpen.vendor ? <ChevronDown className="w-3 h-3 text-gray-400 ml-auto" /> : <ChevronRight className="w-3 h-3 text-gray-400 ml-auto" />}
+                      <button onClick={() => removeStaff(s.id)} className="p-1 rounded hover:bg-red-50 text-red-400 hover:text-red-600"><Trash2 className="w-3.5 h-3.5" /></button>
                     </div>
-                    {hrSectionOpen.vendor && projectVendors.filter(v => !hrSearch || v.name.toLowerCase().includes(hrSearch.toLowerCase()) || v.trade.toLowerCase().includes(hrSearch.toLowerCase())).map(v => {
-                      const assignedStages = (vendorStageAssignments[v.id] || [])
-                        .map(sid => stages.find(s => s.id === sid))
-                        .filter(Boolean);
-                      const reps = v.representatives || [];
-                      const repCount = reps.length;
-                      return (
-                        <div key={v.id}>
-                          <div className="flex items-center justify-between px-5 py-2.5 text-sm pl-10">
-                            <div className="flex items-center gap-3">
-                              <div className="w-7 h-7 rounded-full flex items-center justify-center text-white text-[10px] font-bold" style={{ backgroundColor: "#E8973A" }}>{v.name.charAt(0)}</div>
-                              <div>
-                                <p className="font-medium text-gray-900 text-sm flex items-center gap-2">
-                                  {v.name}
-                                  {basicInfo.contractingModel === "developer" && v.isMainContractor && (
-                                    <span className="text-[10px] bg-blue-100 text-blue-700 px-1.5 py-0.5 rounded-full font-medium">Main Contractor</span>
-                                  )}
-                                </p>
-                                <p className="text-[11px] text-gray-500">{v.trade} · {v.contractType}
-                                {v.parentContractorId && projectVendors.find(p => p.id === v.parentContractorId) && (
-                                  <span className="ml-1 text-[10px] text-gray-400">— Sub of {projectVendors.find(p => p.id === v.parentContractorId)!.name}</span>
+                  ))}
+                </div>
+              )}
+              {/* Section: Individual Contractors */}
+              {projectContractors.filter(c => !hrSearch || c.name.toLowerCase().includes(hrSearch.toLowerCase()) || c.trade.toLowerCase().includes(hrSearch.toLowerCase())).length > 0 && (
+                <div>
+                  <div className="px-5 py-2 bg-gray-50 flex items-center gap-2 cursor-pointer select-none" onClick={() => setHrSectionOpen(prev => ({ ...prev, contractor: !prev.contractor }))}>
+                    <span className="text-xs font-semibold uppercase tracking-wider text-purple-600 flex items-center gap-1">
+                      <Users className="w-3 h-3" /> {
+                        basicInfo.contractingModel === "developer" ? "Direct Hires" :
+                        basicInfo.contractingModel === "contractor" ? "Self-Perform" :
+                        "Direct Hires"
+                      }
+                    </span>
+                    <span className="text-[10px] bg-purple-100 text-purple-700 px-1.5 py-0.5 rounded-full font-medium">{projectContractors.length}</span>
+                    {hrSectionOpen.contractor ? <ChevronDown className="w-3 h-3 text-gray-400 ml-auto" /> : <ChevronRight className="w-3 h-3 text-gray-400 ml-auto" />}
+                  </div>
+                  {hrSectionOpen.contractor && projectContractors.filter(c => !hrSearch || c.name.toLowerCase().includes(hrSearch.toLowerCase()) || c.trade.toLowerCase().includes(hrSearch.toLowerCase())).map(c => (
+                    <div key={c.id} className="flex items-center justify-between px-5 py-2.5 text-sm pl-10">
+                      <div className="flex items-center gap-3">
+                        <div className="w-7 h-7 rounded-full flex items-center justify-center text-white text-[10px] font-bold" style={{ backgroundColor: "#8B5CF6" }}>{c.name.charAt(0)}</div>
+                        <div>
+                          <p className="font-medium text-gray-900 text-sm">{c.name}</p>
+                          <p className="text-[11px] text-gray-500">{c.trade}{c.payRate ? ` · ₦${c.payRate.toLocaleString()}/${c.payRateUnit}` : ""} · {c.skilledCount + c.unskilledCount} workers</p>
+                        </div>
+                      </div>
+                      <button onClick={() => removeContractor(c.id)} className="p-1 rounded hover:bg-red-50 text-red-400 hover:text-red-600"><Trash2 className="w-3.5 h-3.5" /></button>
+                    </div>
+                  ))}
+                </div>
+              )}
+              {/* Section: Contractor Companies */}
+              {projectVendors.filter(v => !hrSearch || v.name.toLowerCase().includes(hrSearch.toLowerCase()) || v.trade.toLowerCase().includes(hrSearch.toLowerCase())).length > 0 && (
+                <div>
+                  <div className="px-5 py-2 bg-gray-50 flex items-center gap-2 cursor-pointer select-none" onClick={() => setHrSectionOpen(prev => ({ ...prev, vendor: !prev.vendor }))}>
+                    <span className="text-xs font-semibold uppercase tracking-wider text-orange-600 flex items-center gap-1">
+                      <Building2 className="w-3 h-3" /> {
+                        basicInfo.contractingModel === "developer" ? "Main + Sub Contractors" :
+                        basicInfo.contractingModel === "contractor" ? "Subcontractors" :
+                        "Trade Contractors"
+                      }
+                    </span>
+                    <span className="text-[10px] bg-orange-100 text-orange-700 px-1.5 py-0.5 rounded-full font-medium">{projectVendors.length}</span>
+                    {hrSectionOpen.vendor ? <ChevronDown className="w-3 h-3 text-gray-400 ml-auto" /> : <ChevronRight className="w-3 h-3 text-gray-400 ml-auto" />}
+                  </div>
+                  {hrSectionOpen.vendor && projectVendors.filter(v => !hrSearch || v.name.toLowerCase().includes(hrSearch.toLowerCase()) || v.trade.toLowerCase().includes(hrSearch.toLowerCase())).map(v => {
+                    const assignedStages = (vendorStageAssignments[v.id] || [])
+                      .map(sid => stages.find(s => s.id === sid))
+                      .filter(Boolean);
+                    const reps = v.representatives || [];
+                    const repCount = reps.length;
+                    return (
+                      <div key={v.id}>
+                        <div className="flex items-center justify-between px-5 py-2.5 text-sm pl-10">
+                          <div className="flex items-center gap-3">
+                            <div className="w-7 h-7 rounded-full flex items-center justify-center text-white text-[10px] font-bold" style={{ backgroundColor: "#E8973A" }}>{v.name.charAt(0)}</div>
+                            <div>
+                              <p className="font-medium text-gray-900 text-sm flex items-center gap-2">
+                                {v.name}
+                                {basicInfo.contractingModel === "developer" && v.isMainContractor && (
+                                  <span className="text-[10px] bg-blue-100 text-blue-700 px-1.5 py-0.5 rounded-full font-medium">Main Contractor</span>
                                 )}
                               </p>
-                                {assignedStages.length > 0 && (
-                                  <p className="text-[10px] text-gray-400 mt-0.5 flex gap-1 flex-wrap">
-                                    {assignedStages.map(s => (
-                                      <span key={s!.id} className="inline-block px-1.5 py-0.5 bg-gray-100 rounded text-gray-500">{s!.name}</span>
-                                    ))}
-                                  </p>
-                                )}
-                              </div>
-                            </div>
-                            <div className="flex items-center gap-1">
-                              {basicInfo.contractingModel === "developer" && (
-                                <button onClick={() => assignMainContractor(v.id)}
-                                  className={`px-2 py-1 rounded text-[10px] font-medium border hover:bg-blue-50 ${
-                                    v.isMainContractor ? "bg-blue-100 text-blue-700 border-blue-200" : "text-blue-600"
-                                  }`}
-                                  style={{ borderColor: v.isMainContractor ? "#BFDBFE" : "#E2E8F0" }}
-                                  title={v.isMainContractor ? "Remove Main Contractor status" : "Designate as Main Contractor"}>
-                                  {v.isMainContractor ? "★ Main" : "Set as Main"}
-                                </button>
+                              <p className="text-[11px] text-gray-500">{v.trade} · {v.contractType}
+                              {v.parentContractorId && projectVendors.find(p => p.id === v.parentContractorId) && (
+                                <span className="ml-1 text-[10px] text-gray-400">— Sub of {projectVendors.find(p => p.id === v.parentContractorId)!.name}</span>
                               )}
-                              <button onClick={() => setRepExpandedVendorId(repExpandedVendorId === v.id ? null : v.id)}
-                                className="px-2 py-1 rounded text-[10px] font-medium border hover:bg-gray-50 text-gray-600"
-                                style={{ borderColor: "#E2E8F0" }}>
-                                Reps ({repCount})
-                              </button>
-                              <button onClick={() => removeVendor(v.id)} className="p-1 rounded hover:bg-red-50 text-red-400 hover:text-red-600"><Trash2 className="w-3.5 h-3.5" /></button>
+                            </p>
+                              {assignedStages.length > 0 && (
+                                <p className="text-[10px] text-gray-400 mt-0.5 flex gap-1 flex-wrap">
+                                  {assignedStages.map(s => (
+                                    <span key={s!.id} className="inline-block px-1.5 py-0.5 bg-gray-100 rounded text-gray-500">{s!.name}</span>
+                                  ))}
+                                </p>
+                              )}
                             </div>
                           </div>
-                          {/* Representatives section */}
-                          {repExpandedVendorId === v.id && (
-                            <div className="px-5 pb-3 pl-16">
-                              <div className="rounded-lg border p-3 space-y-2" style={{ borderColor: "#E2E8F0", backgroundColor: "#F7F8FA" }}>
-                                {reps.length === 0 && (
-                                  <p className="text-xs text-gray-400">No representatives added yet.</p>
-                                )}
-                                {reps.map(r => (
-                                  <div key={r.id} className="flex items-center justify-between gap-2 bg-white rounded px-3 py-2 border" style={{ borderColor: "#E2E8F0" }}>
-                                    <div className="flex-1 min-w-0">
-                                      <p className="text-xs font-medium text-gray-900">{r.fullName}</p>
-                                      <p className="text-[10px] text-gray-500">{r.position} · {r.email} · {r.phone}</p>
-                                    </div>
-                                    <div className="flex items-center gap-1 shrink-0">
-                                      <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-medium ${r.isActive ? "bg-green-100 text-green-700" : "bg-gray-100 text-gray-500"}`}>
-                                        {r.isActive ? "Active" : "Inactive"}
-                                      </span>
-                                      <button onClick={() => toggleRepresentativeActive(v.id, r.id)}
-                                        className="p-0.5 rounded hover:bg-gray-100 text-gray-400 hover:text-gray-600"
-                                        title="Toggle active status">
-                                        <X className="w-3 h-3" />
-                                      </button>
-                                      <button onClick={() => removeRepresentative(v.id, r.id)}
-                                        className="p-0.5 rounded hover:bg-red-50 text-red-400 hover:text-red-600"
-                                        title="Remove representative">
-                                        <Trash2 className="w-3 h-3" />
-                                      </button>
-                                    </div>
-                                  </div>
-                                ))}
-                                {/* Add new rep form */}
-                                <div className="grid grid-cols-4 gap-2">
-                                  <input type="text" value={newRepForm.fullName}
-                                    onChange={e => setNewRepForm(prev => ({ ...prev, fullName: e.target.value }))}
-                                    placeholder="Full name" className="px-2 py-1.5 text-xs rounded border" style={{ borderColor: "#E2E8F0", backgroundColor: "white" }} />
-                                  <input type="text" value={newRepForm.email}
-                                    onChange={e => setNewRepForm(prev => ({ ...prev, email: e.target.value }))}
-                                    placeholder="Email" className="px-2 py-1.5 text-xs rounded border" style={{ borderColor: "#E2E8F0", backgroundColor: "white" }} />
-                                  <input type="text" value={newRepForm.phone}
-                                    onChange={e => setNewRepForm(prev => ({ ...prev, phone: e.target.value }))}
-                                    placeholder="Phone" className="px-2 py-1.5 text-xs rounded border" style={{ borderColor: "#E2E8F0", backgroundColor: "white" }} />
-                                  <input type="text" value={newRepForm.position}
-                                    onChange={e => setNewRepForm(prev => ({ ...prev, position: e.target.value }))}
-                                    placeholder="Position" className="px-2 py-1.5 text-xs rounded border" style={{ borderColor: "#E2E8F0", backgroundColor: "white" }} />
-                                </div>
-                                <button onClick={() => addRepresentative(v.id)} disabled={!newRepForm.fullName.trim()}
-                                  className="flex items-center gap-1 px-2 py-1 rounded text-[10px] font-medium text-white disabled:opacity-50"
-                                  style={{ backgroundColor: "#E8973A" }}>
-                                  <Plus className="w-3 h-3" /> Add Representative
-                                </button>
-                              </div>
-                            </div>
-                          )}
+                          <div className="flex items-center gap-1">
+                            {basicInfo.contractingModel === "developer" && (
+                              <button onClick={() => assignMainContractor(v.id)}
+                                className={`px-2 py-1 rounded text-[10px] font-medium border hover:bg-blue-50 ${
+                                  v.isMainContractor ? "bg-blue-100 text-blue-700 border-blue-200" : "text-blue-600"
+                                }`}
+                                style={{ borderColor: v.isMainContractor ? "#BFDBFE" : "#E2E8F0" }}
+                                title={v.isMainContractor ? "Remove Main Contractor status" : "Designate as Main Contractor"}>
+                                {v.isMainContractor ? "★ Main" : "Set as Main"}
+                              </button>
+                            )}
+                            <button onClick={() => setRepExpandedVendorId(repExpandedVendorId === v.id ? null : v.id)}
+                              className="px-2 py-1 rounded text-[10px] font-medium border hover:bg-gray-50 text-gray-600"
+                              style={{ borderColor: "#E2E8F0" }}>
+                              Reps ({repCount})
+                            </button>
+                            <button onClick={() => removeVendor(v.id)} className="p-1 rounded hover:bg-red-50 text-red-400 hover:text-red-600"><Trash2 className="w-3.5 h-3.5" /></button>
+                          </div>
                         </div>
-                      );
-                    })}
-                  </div>
-                )}
-                {/* Empty search */}
-                {allHumanResources.length > 0 && projectStaff.filter(s => !hrSearch || s.name.toLowerCase().includes(hrSearch.toLowerCase())).length === 0 && projectContractors.filter(c => !hrSearch || c.name.toLowerCase().includes(hrSearch.toLowerCase())).length === 0 && projectVendors.filter(v => !hrSearch || v.name.toLowerCase().includes(hrSearch.toLowerCase())).length === 0 && (
-                  <div className="px-5 py-6 text-center text-sm text-gray-400">No resources match your search.</div>
-                )}
-              </div>
+                        {/* Representatives section */}
+                        {repExpandedVendorId === v.id && (
+                          <div className="px-5 pb-3 pl-16">
+                            <div className="rounded-lg border p-3 space-y-2" style={{ borderColor: "#E2E8F0", backgroundColor: "#F7F8FA" }}>
+                              {reps.length === 0 && (
+                                <p className="text-xs text-gray-400">No representatives added yet.</p>
+                              )}
+                              {reps.map(r => (
+                                <div key={r.id} className="flex items-center justify-between gap-2 bg-white rounded px-3 py-2 border" style={{ borderColor: "#E2E8F0" }}>
+                                  <div className="flex-1 min-w-0">
+                                    <p className="text-xs font-medium text-gray-900">{r.fullName}</p>
+                                    <p className="text-[10px] text-gray-500">{r.position} · {r.email} · {r.phone}</p>
+                                  </div>
+                                  <div className="flex items-center gap-1 shrink-0">
+                                    <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-medium ${r.isActive ? "bg-green-100 text-green-700" : "bg-gray-100 text-gray-500"}`}>
+                                      {r.isActive ? "Active" : "Inactive"}
+                                    </span>
+                                    <button onClick={() => toggleRepresentativeActive(v.id, r.id)}
+                                      className="p-0.5 rounded hover:bg-gray-100 text-gray-400 hover:text-gray-600"
+                                      title="Toggle active status">
+                                      <X className="w-3 h-3" />
+                                    </button>
+                                    <button onClick={() => removeRepresentative(v.id, r.id)}
+                                      className="p-0.5 rounded hover:bg-red-50 text-red-400 hover:text-red-600"
+                                      title="Remove representative">
+                                      <Trash2 className="w-3 h-3" />
+                                    </button>
+                                  </div>
+                                </div>
+                              ))}
+                              {/* Add new rep form */}
+                              <div className="grid grid-cols-4 gap-2">
+                                <input type="text" value={newRepForm.fullName}
+                                  onChange={e => setNewRepForm(prev => ({ ...prev, fullName: e.target.value }))}
+                                  placeholder="Full name" className="px-2 py-1.5 text-xs rounded border" style={{ borderColor: "#E2E8F0", backgroundColor: "white" }} />
+                                <input type="text" value={newRepForm.email}
+                                  onChange={e => setNewRepForm(prev => ({ ...prev, email: e.target.value }))}
+                                  placeholder="Email" className="px-2 py-1.5 text-xs rounded border" style={{ borderColor: "#E2E8F0", backgroundColor: "white" }} />
+                                <input type="text" value={newRepForm.phone}
+                                  onChange={e => setNewRepForm(prev => ({ ...prev, phone: e.target.value }))}
+                                  placeholder="Phone" className="px-2 py-1.5 text-xs rounded border" style={{ borderColor: "#E2E8F0", backgroundColor: "white" }} />
+                                <input type="text" value={newRepForm.position}
+                                  onChange={e => setNewRepForm(prev => ({ ...prev, position: e.target.value }))}
+                                  placeholder="Position" className="px-2 py-1.5 text-xs rounded border" style={{ borderColor: "#E2E8F0", backgroundColor: "white" }} />
+                              </div>
+                              <button onClick={() => addRepresentative(v.id)} disabled={!newRepForm.fullName.trim()}
+                                className="flex items-center gap-1 px-2 py-1 rounded text-[10px] font-medium text-white disabled:opacity-50"
+                                style={{ backgroundColor: "#E8973A" }}>
+                                <Plus className="w-3 h-3" /> Add Representative
+                              </button>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+              {/* Empty search */}
+              {allHumanResources.length > 0 && projectStaff.filter(s => !hrSearch || s.name.toLowerCase().includes(hrSearch.toLowerCase())).length === 0 && projectContractors.filter(c => !hrSearch || c.name.toLowerCase().includes(hrSearch.toLowerCase())).length === 0 && projectVendors.filter(v => !hrSearch || v.name.toLowerCase().includes(hrSearch.toLowerCase())).length === 0 && (
+                <div className="px-5 py-6 text-center text-sm text-gray-400">No resources match your search.</div>
+              )}
             </div>
-          )}
-        </>
-      )}
+          </div>
+        )}
 
-      {/* ──── MATERIALS ──── */}
-      {resourceTab === "material" && (<>
+        {/* ──── INLINE ROLE ASSIGNMENTS ──── */}
+        {allHumanResources.length > 0 && (<>
+          <div className="rounded-xl border" style={{ borderColor: "#E2E8F0", backgroundColor: "white" }}>
+            <div className="px-5 py-3 border-b" style={{ borderColor: "#E2E8F0" }}>
+              <h3 className="text-sm font-semibold" style={{ color: "#1A202C" }}>Project Role Assignments</h3>
+            </div>
+            <div className="divide-y" style={{ borderColor: "#E2E8F0" }}>
+              {projectStaff.map(s => (
+                <div key={s.id} className="flex items-center justify-between px-5 py-2.5 text-sm">
+                  <div className="flex items-center gap-2">
+                    <div className="w-7 h-7 rounded-full flex items-center justify-center text-white text-[10px] font-bold" style={{ backgroundColor: "#3B82F6" }}>{s.name.charAt(0)}</div>
+                    <p className="font-medium text-gray-900 text-xs">{s.name} <span className="text-gray-400 font-normal">(Employee)</span></p>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <select value={humanResourceRoles.find(r => r.humanResourceId === s.id)?.projectRoleId || ""}
+                      onChange={e => e.target.value ? assignRoleToResource(s.id, e.target.value) : removeRoleFromResource(s.id)}
+                      className="px-2 py-1 text-xs rounded border" style={{ borderColor: "#E2E8F0" }}>
+                      <option value="">No role</option>
+                      {projectRoles.map(r => <option key={r.id} value={r.id}>{r.name}</option>)}
+                    </select>
+                    {getResourceRole(s.id) && (
+                      <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-blue-100 text-blue-700">{getResourceRole(s.id)}</span>
+                    )}
+                  </div>
+                </div>
+              ))}
+              {projectContractors.map(c => (
+                <div key={c.id} className="flex items-center justify-between px-5 py-2.5 text-sm">
+                  <div className="flex items-center gap-2">
+                    <div className="w-7 h-7 rounded-full flex items-center justify-center text-white text-[10px] font-bold" style={{ backgroundColor: "#8B5CF6" }}>{c.name.charAt(0)}</div>
+                    <p className="font-medium text-gray-900 text-xs">{c.name} <span className="text-gray-400 font-normal">(Contractor)</span></p>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <select value={humanResourceRoles.find(r => r.humanResourceId === c.id)?.projectRoleId || ""}
+                      onChange={e => e.target.value ? assignRoleToResource(c.id, e.target.value) : removeRoleFromResource(c.id)}
+                      className="px-2 py-1 text-xs rounded border" style={{ borderColor: "#E2E8F0" }}>
+                      <option value="">No role</option>
+                      {projectRoles.map(r => <option key={r.id} value={r.id}>{r.name}</option>)}
+                    </select>
+                    {getResourceRole(c.id) && (
+                      <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-purple-100 text-purple-700">{getResourceRole(c.id)}</span>
+                    )}
+                  </div>
+                </div>
+              ))}
+              {projectVendors.flatMap(v => (v.representatives || []).map(r => ({ ...r, companyName: v.name }))).map(r => (
+                <div key={r.id} className="flex items-center justify-between px-5 py-2.5 text-sm">
+                  <div className="flex items-center gap-2">
+                    <div className="w-7 h-7 rounded-full flex items-center justify-center text-white text-[10px] font-bold" style={{ backgroundColor: "#E8973A" }}>{r.fullName.charAt(0)}</div>
+                    <p className="font-medium text-gray-900 text-xs">{r.fullName} <span className="text-gray-400 font-normal">({r.companyName})</span></p>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <select value={humanResourceRoles.find(hr => hr.humanResourceId === r.id)?.projectRoleId || ""}
+                      onChange={e => e.target.value ? assignRoleToResource(r.id, e.target.value) : removeRoleFromResource(r.id)}
+                      className="px-2 py-1 text-xs rounded border" style={{ borderColor: "#E2E8F0" }}>
+                      <option value="">No role</option>
+                      {projectRoles.map(role => <option key={role.id} value={role.id}>{role.name}</option>)}
+                    </select>
+                    {getResourceRole(r.id) && (
+                      <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-orange-100 text-orange-700">{getResourceRole(r.id)}</span>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </>)}
+      </div>
+    );
+  };
+
+  const renderMaterials = () => {
+    const materialCategories = ["Aggregates", "Reinforcement", "Concrete", "Steel", "Finishing", "Plumbing", "Electrical", "Roofing", "Lumber / Formwork", "Hardware", "Paint & Coatings", "Waterproofing", "Insulation", "Other"];
+    const materialUnits = ["bags", "tonnes", "kg", "litres", "gallons", "m³", "m²", "linear metres", "pieces", "rolls", "sheets", "pails", "drums"];
+    return (
+      <div className="space-y-4">
         <div className="rounded-xl border p-6" style={{ borderColor: "#E2E8F0", backgroundColor: "white" }}>
           <h2 className="text-lg font-bold mb-4" style={{ color: "#1A202C" }}>Select Materials</h2>
-
-          {/* Smart selector */}
           <div className="space-y-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Search Material from Inventory</label>
@@ -2234,14 +2286,12 @@ export function ProjectSetupPage() {
                 }}
               />
             </div>
-
             {selectedMaterialIds.length > 0 && (
               <p className="text-sm text-gray-500">
                 <span className="font-medium">{selectedMaterialIds.length}</span> material(s) selected. Click "Add Selected" to add to project.
               </p>
             )}
           </div>
-
           <div className="flex justify-end mt-4">
             <button onClick={addMaterial} disabled={selectedMaterialIds.length === 0}
               className="flex items-center gap-1.5 px-4 py-2 rounded-lg text-white text-sm font-medium disabled:opacity-50"
@@ -2251,7 +2301,6 @@ export function ProjectSetupPage() {
           </div>
         </div>
 
-        {/* Registered Materials List */}
         {projectMaterials.length > 0 && (
           <div className="rounded-xl border" style={{ borderColor: "#E2E8F0", backgroundColor: "white" }}>
             <div className="px-5 py-3 border-b flex items-center justify-between" style={{ borderColor: "#E2E8F0" }}>
@@ -2274,14 +2323,47 @@ export function ProjectSetupPage() {
             </div>
           </div>
         )}
-      </>)}
 
-      {/* ──── EQUIPMENT ──── */}
-      {resourceTab === "equipment" && (<>
+        {/* Procurement Request Modal */}
+        {showProcurementModal && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+            <div className="rounded-xl w-full max-w-md" style={{ backgroundColor: "white" }}>
+              <div className="flex items-center justify-between p-5 border-b" style={{ borderColor: "#E2E8F0" }}>
+                <h3 className="text-base font-bold" style={{ color: "#1A202C" }}>Submit Procurement Request</h3>
+                <button onClick={() => setShowProcurementModal(false)} className="text-gray-400 hover:text-gray-600 text-xl leading-none">&times;</button>
+              </div>
+              <div className="p-5 space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Material Name</label>
+                  <input type="text" value={procurementQuery} disabled className="w-full px-3 py-2 rounded-lg border text-sm bg-gray-50" style={{ borderColor: "#E2E8F0" }} />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Quantity Required</label>
+                  <input type="number" placeholder="e.g. 500" className="w-full px-3 py-2 rounded-lg border text-sm" style={{ borderColor: "#E2E8F0", backgroundColor: "#F7F8FA" }} />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Notes</label>
+                  <textarea rows={3} placeholder="Specifications, delivery date, etc." className="w-full px-3 py-2 rounded-lg border text-sm" style={{ borderColor: "#E2E8F0", backgroundColor: "#F7F8FA" }} />
+                </div>
+              </div>
+              <div className="flex items-center justify-end gap-3 p-5 border-t" style={{ borderColor: "#E2E8F0" }}>
+                <button onClick={() => setShowProcurementModal(false)} className="px-4 py-2 rounded-lg border text-sm text-gray-600" style={{ borderColor: "#E2E8F0" }}>Cancel</button>
+                <button onClick={() => { alert("Procurement request submitted."); setShowProcurementModal(false); }} className="px-4 py-2 rounded-lg text-sm text-white font-medium" style={{ backgroundColor: "#E8973A" }}>Submit Request</button>
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+    );
+  };
+
+  const renderEquipment = () => {
+    const equipmentCategories = ["Earthwork", "Lifting", "Concreting", "Compaction", "Piling", "Transport", "Generators / Power", "Pumping", "Safety", "Other"];
+    const equipmentStatuses = ["Available", "Assigned", "Under Maintenance"];
+    return (
+      <div className="space-y-4">
         <div className="rounded-xl border p-6" style={{ borderColor: "#E2E8F0", backgroundColor: "white" }}>
           <h2 className="text-lg font-bold mb-4" style={{ color: "#1A202C" }}>Select Equipment</h2>
-
-          {/* Smart selector */}
           <div className="space-y-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Search Equipment from Company Fleet</label>
@@ -2300,9 +2382,7 @@ export function ProjectSetupPage() {
                 }}
               />
             </div>
-
           </div>
-
           <div className="flex justify-end mt-4">
             <button onClick={addEquipment} disabled={selectedFleetEquipmentIds.length === 0}
               className="flex items-center gap-1.5 px-4 py-2 rounded-lg text-white text-sm font-medium disabled:opacity-50"
@@ -2312,7 +2392,6 @@ export function ProjectSetupPage() {
           </div>
         </div>
 
-        {/* Registered Equipment List */}
         {projectEquipment.length > 0 && (
           <div className="rounded-xl border" style={{ borderColor: "#E2E8F0", backgroundColor: "white" }}>
             <div className="px-5 py-3 border-b flex items-center justify-between" style={{ borderColor: "#E2E8F0" }}>
@@ -2335,187 +2414,212 @@ export function ProjectSetupPage() {
             </div>
           </div>
         )}
-      </>)}
 
-      {/* ──── INLINE ROLE ASSIGNMENTS ──── */}
-      {allHumanResources.length > 0 && (<>
-        <div className="rounded-xl border" style={{ borderColor: "#E2E8F0", backgroundColor: "white" }}>
-          <div className="px-5 py-3 border-b" style={{ borderColor: "#E2E8F0" }}>
-            <h3 className="text-sm font-semibold" style={{ color: "#1A202C" }}>Project Role Assignments</h3>
-          </div>
-          <div className="divide-y" style={{ borderColor: "#E2E8F0" }}>
-            {projectStaff.map(s => (
-              <div key={s.id} className="flex items-center justify-between px-5 py-2.5 text-sm">
-                <div className="flex items-center gap-2">
-                  <div className="w-7 h-7 rounded-full flex items-center justify-center text-white text-[10px] font-bold" style={{ backgroundColor: "#3B82F6" }}>{s.name.charAt(0)}</div>
-                  <p className="font-medium text-gray-900 text-xs">{s.name} <span className="text-gray-400 font-normal">(Employee)</span></p>
-                </div>
-                <div className="flex items-center gap-2">
-                  <select value={humanResourceRoles.find(r => r.humanResourceId === s.id)?.projectRoleId || ""}
-                    onChange={e => e.target.value ? assignRoleToResource(s.id, e.target.value) : removeRoleFromResource(s.id)}
-                    className="px-2 py-1 text-xs rounded border" style={{ borderColor: "#E2E8F0" }}>
-                    <option value="">No role</option>
-                    {projectRoles.map(r => <option key={r.id} value={r.id}>{r.name}</option>)}
-                  </select>
-                  {getResourceRole(s.id) && (
-                    <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-blue-100 text-blue-700">{getResourceRole(s.id)}</span>
-                  )}
-                </div>
+        {/* External Equipment Modal */}
+        {showExternalEquipmentModal && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+            <div className="rounded-xl w-full max-w-md" style={{ backgroundColor: "white" }}>
+              <div className="flex items-center justify-between p-5 border-b" style={{ borderColor: "#E2E8F0" }}>
+                <h3 className="text-base font-bold" style={{ color: "#1A202C" }}>Add External Equipment</h3>
+                <button onClick={() => setShowExternalEquipmentModal(false)} className="text-gray-400 hover:text-gray-600 text-xl leading-none">&times;</button>
               </div>
-            ))}
-            {projectContractors.map(c => (
-              <div key={c.id} className="flex items-center justify-between px-5 py-2.5 text-sm">
-                <div className="flex items-center gap-2">
-                  <div className="w-7 h-7 rounded-full flex items-center justify-center text-white text-[10px] font-bold" style={{ backgroundColor: "#8B5CF6" }}>{c.name.charAt(0)}</div>
-                  <p className="font-medium text-gray-900 text-xs">{c.name} <span className="text-gray-400 font-normal">(Contractor)</span></p>
-                </div>
-                <div className="flex items-center gap-2">
-                  <select value={humanResourceRoles.find(r => r.humanResourceId === c.id)?.projectRoleId || ""}
-                    onChange={e => e.target.value ? assignRoleToResource(c.id, e.target.value) : removeRoleFromResource(c.id)}
-                    className="px-2 py-1 text-xs rounded border" style={{ borderColor: "#E2E8F0" }}>
-                    <option value="">No role</option>
-                    {projectRoles.map(r => <option key={r.id} value={r.id}>{r.name}</option>)}
-                  </select>
-                  {getResourceRole(c.id) && (
-                    <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-purple-100 text-purple-700">{getResourceRole(c.id)}</span>
-                  )}
-                </div>
-              </div>
-            ))}
-            {projectVendors.flatMap(v => (v.representatives || []).map(r => ({ ...r, companyName: v.name }))).map(r => (
-              <div key={r.id} className="flex items-center justify-between px-5 py-2.5 text-sm">
-                <div className="flex items-center gap-2">
-                  <div className="w-7 h-7 rounded-full flex items-center justify-center text-white text-[10px] font-bold" style={{ backgroundColor: "#E8973A" }}>{r.fullName.charAt(0)}</div>
-                  <p className="font-medium text-gray-900 text-xs">{r.fullName} <span className="text-gray-400 font-normal">({r.companyName})</span></p>
-                </div>
-                <div className="flex items-center gap-2">
-                  <select value={humanResourceRoles.find(hr => hr.humanResourceId === r.id)?.projectRoleId || ""}
-                    onChange={e => e.target.value ? assignRoleToResource(r.id, e.target.value) : removeRoleFromResource(r.id)}
-                    className="px-2 py-1 text-xs rounded border" style={{ borderColor: "#E2E8F0" }}>
-                    <option value="">No role</option>
-                    {projectRoles.map(role => <option key={role.id} value={role.id}>{role.name}</option>)}
-                  </select>
-                  {getResourceRole(r.id) && (
-                    <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-orange-100 text-orange-700">{getResourceRole(r.id)}</span>
-                  )}
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      </>)}
-
-      {/* Procurement Request Modal */}
-      {showProcurementModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
-          <div className="rounded-xl w-full max-w-md" style={{ backgroundColor: "white" }}>
-            <div className="flex items-center justify-between p-5 border-b" style={{ borderColor: "#E2E8F0" }}>
-              <h3 className="text-base font-bold" style={{ color: "#1A202C" }}>Submit Procurement Request</h3>
-              <button onClick={() => setShowProcurementModal(false)} className="text-gray-400 hover:text-gray-600 text-xl leading-none">&times;</button>
-            </div>
-            <div className="p-5 space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Material Name</label>
-                <input type="text" value={procurementQuery} disabled className="w-full px-3 py-2 rounded-lg border text-sm bg-gray-50" style={{ borderColor: "#E2E8F0" }} />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Quantity Required</label>
-                <input type="number" placeholder="e.g. 500" className="w-full px-3 py-2 rounded-lg border text-sm" style={{ borderColor: "#E2E8F0", backgroundColor: "#F7F8FA" }} />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Notes</label>
-                <textarea rows={3} placeholder="Specifications, delivery date, etc." className="w-full px-3 py-2 rounded-lg border text-sm" style={{ borderColor: "#E2E8F0", backgroundColor: "#F7F8FA" }} />
-              </div>
-            </div>
-            <div className="flex items-center justify-end gap-3 p-5 border-t" style={{ borderColor: "#E2E8F0" }}>
-              <button onClick={() => setShowProcurementModal(false)} className="px-4 py-2 rounded-lg border text-sm text-gray-600" style={{ borderColor: "#E2E8F0" }}>Cancel</button>
-              <button onClick={() => { alert("Procurement request submitted."); setShowProcurementModal(false); }} className="px-4 py-2 rounded-lg text-sm text-white font-medium" style={{ backgroundColor: "#E8973A" }}>Submit Request</button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* External Equipment Modal */}
-      {showExternalEquipmentModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
-          <div className="rounded-xl w-full max-w-md" style={{ backgroundColor: "white" }}>
-            <div className="flex items-center justify-between p-5 border-b" style={{ borderColor: "#E2E8F0" }}>
-              <h3 className="text-base font-bold" style={{ color: "#1A202C" }}>Add External Equipment</h3>
-              <button onClick={() => setShowExternalEquipmentModal(false)} className="text-gray-400 hover:text-gray-600 text-xl leading-none">&times;</button>
-            </div>
-            <div className="p-5 space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Equipment Type</label>
-                <div className="grid grid-cols-2 gap-2">
-                  {(["client-supplied", "rented", "external"] as const).map(opt => (
-                    <button key={opt} onClick={() => setExternalEquipType(opt)}
-                      className={`px-3 py-2 rounded-lg border text-sm font-medium text-left transition-colors ${
-                        externalEquipType === opt ? "bg-amber-50 border-amber-400 text-amber-700" : "hover:bg-gray-50"
-                      }`}
-                    >
-                      {opt === "client-supplied" ? "Client Supplied" : opt === "rented" ? "Rented / Borrowed" : "External"}
-                    </button>
-                  ))}
-                </div>
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Equipment Name</label>
-                <input type="text" value={equipmentForm.name} onChange={e => setEquipmentForm({ ...equipmentForm, name: e.target.value })}
-                  className="w-full px-3 py-2 rounded-lg border text-sm" style={{ borderColor: "#E2E8F0", backgroundColor: "#F7F8FA" }} placeholder="e.g. Tower Crane" />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Category</label>
-                <select value={equipmentForm.category} onChange={e => setEquipmentForm({ ...equipmentForm, category: e.target.value })}
-                  className="w-full px-3 py-2 rounded-lg border text-sm" style={{ borderColor: "#E2E8F0", backgroundColor: "#F7F8FA" }}>
-                  <option value="">Select category</option>
-                  {equipmentCategories.map(c => <option key={c} value={c}>{c}</option>)}
-                </select>
-              </div>
-              {externalEquipType === "rented" && (
+              <div className="p-5 space-y-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Rental Cost per Day (₦)</label>
-                  <input type="number" value={equipmentForm.rentalCostPerDay || ""} onChange={e => setEquipmentForm({ ...equipmentForm, rentalCostPerDay: Number(e.target.value) })}
-                    className="w-full px-3 py-2 rounded-lg border text-sm" style={{ borderColor: "#E2E8F0", backgroundColor: "#F7F8FA" }} placeholder="e.g. 120000" />
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Equipment Type</label>
+                  <div className="grid grid-cols-2 gap-2">
+                    {(["client-supplied", "rented", "external"] as const).map(opt => (
+                      <button key={opt} onClick={() => setExternalEquipType(opt)}
+                        className={`px-3 py-2 rounded-lg border text-sm font-medium text-left transition-colors ${
+                          externalEquipType === opt ? "bg-amber-50 border-amber-400 text-amber-700" : "hover:bg-gray-50"
+                        }`}
+                      >
+                        {opt === "client-supplied" ? "Client Supplied" : opt === "rented" ? "Rented / Borrowed" : "External"}
+                      </button>
+                    ))}
+                  </div>
                 </div>
-              )}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Estimated Days on Site</label>
-                <input type="number" value={equipmentForm.estimatedDays || ""} onChange={e => setEquipmentForm({ ...equipmentForm, estimatedDays: Number(e.target.value) })}
-                  className="w-full px-3 py-2 rounded-lg border text-sm" style={{ borderColor: "#E2E8F0", backgroundColor: "#F7F8FA" }} placeholder="e.g. 180" />
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Equipment Name</label>
+                  <input type="text" value={equipmentForm.name} onChange={e => setEquipmentForm({ ...equipmentForm, name: e.target.value })}
+                    className="w-full px-3 py-2 rounded-lg border text-sm" style={{ borderColor: "#E2E8F0", backgroundColor: "#F7F8FA" }} placeholder="e.g. Tower Crane" />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Category</label>
+                  <select value={equipmentForm.category} onChange={e => setEquipmentForm({ ...equipmentForm, category: e.target.value })}
+                    className="w-full px-3 py-2 rounded-lg border text-sm" style={{ borderColor: "#E2E8F0", backgroundColor: "#F7F8FA" }}>
+                    <option value="">Select category</option>
+                    {equipmentCategories.map(c => <option key={c} value={c}>{c}</option>)}
+                  </select>
+                </div>
+                {externalEquipType === "rented" && (
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Rental Cost per Day (₦)</label>
+                    <input type="number" value={equipmentForm.rentalCostPerDay || ""} onChange={e => setEquipmentForm({ ...equipmentForm, rentalCostPerDay: Number(e.target.value) })}
+                      className="w-full px-3 py-2 rounded-lg border text-sm" style={{ borderColor: "#E2E8F0", backgroundColor: "#F7F8FA" }} placeholder="e.g. 120000" />
+                  </div>
+                )}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Estimated Days on Site</label>
+                  <input type="number" value={equipmentForm.estimatedDays || ""} onChange={e => setEquipmentForm({ ...equipmentForm, estimatedDays: Number(e.target.value) })}
+                    className="w-full px-3 py-2 rounded-lg border text-sm" style={{ borderColor: "#E2E8F0", backgroundColor: "#F7F8FA" }} placeholder="e.g. 180" />
+                </div>
+              </div>
+              <div className="flex items-center justify-end gap-3 p-5 border-t" style={{ borderColor: "#E2E8F0" }}>
+                <button onClick={() => setShowExternalEquipmentModal(false)} className="px-4 py-2 rounded-lg border text-sm text-gray-600" style={{ borderColor: "#E2E8F0" }}>Cancel</button>
+                <button onClick={() => {
+                  if (!equipmentForm.name || !equipmentForm.category) return;
+                  const isRented = externalEquipType === "rented";
+                  const newEquip: EquipmentResource = {
+                    id: `EQ-${String(projectEquipment.length + 1).padStart(3, "0")}`,
+                    projectId: projectId!,
+                    name: equipmentForm.name,
+                    category: equipmentForm.category,
+                    ownership: externalEquipType === "client-supplied" ? "client-supplied" : externalEquipType === "rented" ? "rented" : "company-owned",
+                    rentalCostPerDay: isRented ? equipmentForm.rentalCostPerDay || undefined : undefined,
+                    estimatedDays: equipmentForm.estimatedDays || 1,
+                    totalEstimatedCost: isRented ? (equipmentForm.rentalCostPerDay || 0) * (equipmentForm.estimatedDays || 1) : 0,
+                    status: "Available",
+                  };
+                  setProjectEquipment(prev => [...prev, newEquip]);
+                  setShowExternalEquipmentModal(false);
+                  setEquipmentForm(EMPTY_EQUIPMENT_FORM);
+                }} disabled={!equipmentForm.name || !equipmentForm.category}
+                  className="px-4 py-2 rounded-lg text-sm text-white font-medium disabled:opacity-50" style={{ backgroundColor: "#E8973A" }}>
+                  Add Equipment
+                </button>
               </div>
             </div>
-            <div className="flex items-center justify-end gap-3 p-5 border-t" style={{ borderColor: "#E2E8F0" }}>
-              <button onClick={() => setShowExternalEquipmentModal(false)} className="px-4 py-2 rounded-lg border text-sm text-gray-600" style={{ borderColor: "#E2E8F0" }}>Cancel</button>
-              <button onClick={() => {
-                if (!equipmentForm.name || !equipmentForm.category) return;
-                const isRented = externalEquipType === "rented";
-                const newEquip: EquipmentResource = {
-                  id: `EQ-${String(projectEquipment.length + 1).padStart(3, "0")}`,
-                  projectId: projectId!,
-                  name: equipmentForm.name,
-                  category: equipmentForm.category,
-                  ownership: externalEquipType === "client-supplied" ? "client-supplied" : externalEquipType === "rented" ? "rented" : "company-owned",
-                  rentalCostPerDay: isRented ? equipmentForm.rentalCostPerDay || undefined : undefined,
-                  estimatedDays: equipmentForm.estimatedDays || 1,
-                  totalEstimatedCost: isRented ? (equipmentForm.rentalCostPerDay || 0) * (equipmentForm.estimatedDays || 1) : 0,
-                  status: "Available",
-                };
-                setProjectEquipment(prev => [...prev, newEquip]);
-                setShowExternalEquipmentModal(false);
-                setEquipmentForm(EMPTY_EQUIPMENT_FORM);
-              }} disabled={!equipmentForm.name || !equipmentForm.category}
-                className="px-4 py-2 rounded-lg text-sm text-white font-medium disabled:opacity-50" style={{ backgroundColor: "#E8973A" }}>
-                Add Equipment
-              </button>
-            </div>
           </div>
-        </div>
-      )}
-    </div>
+        )}
+      </div>
     );
   };
 
-  // Step 4 — Calendar
+  // Step 3 — Daily Reporting
+  const renderDailyReportingSetup = () => (
+    <div className="space-y-4">
+      {/* ──── Daily Reporting Configuration ──── */}
+      <div className="rounded-xl border p-6" style={{ borderColor: "#E2E8F0", backgroundColor: "white" }}>
+        <h2 className="text-lg font-bold mb-4" style={{ color: "#1A202C" }}>Daily Reporting Setup</h2>
+        <p className="text-sm text-gray-500 mb-4">Configure who can submit daily reports and set up recurring reporting tasks.</p>
+
+        {/* Contributor mode */}
+        <div className="mb-4">
+          <label className="block text-sm font-medium text-gray-700 mb-2">Who can submit daily reports?</label>
+          <div className="flex gap-2">
+            {(["employees-only", "contractors-only", "both"] as const).map(mode => (
+              <button key={mode} onClick={() => setReportContributorMode(mode)}
+                className={`px-3 py-1.5 text-xs font-medium rounded-lg border transition-colors ${
+                  reportContributorMode === mode ? "bg-amber-50 border-amber-400 text-amber-700" : "hover:bg-gray-50 text-gray-600"
+                }`}
+              >
+                {mode === "employees-only" ? "Employees Only" : mode === "contractors-only" ? "Contractor Reps Only" : "Both"}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* Employee contributors */}
+        {(reportContributorMode === "employees-only" || reportContributorMode === "both") && (
+          <div className="mb-4">
+            <label className="block text-sm font-medium text-gray-700 mb-1">Employee Contributors</label>
+            <div className="flex flex-wrap gap-1.5">
+              {projectStaff.map(s => {
+                const selected = reportContributorEmployeeIds.includes(s.id);
+                return (
+                  <button key={s.id} onClick={() => setReportContributorEmployeeIds(prev =>
+                    prev.includes(s.id) ? prev.filter(id => id !== s.id) : [...prev, s.id]
+                  )}
+                    className={`px-2 py-1 rounded-lg text-[10px] font-medium border transition-colors ${
+                      selected ? "bg-blue-50 border-blue-300 text-blue-700" : "hover:bg-gray-50 text-gray-600"
+                    }`}
+                  >
+                    {s.name}
+                  </button>
+                );
+              })}
+              {projectStaff.length === 0 && <span className="text-[10px] text-gray-400">No employees registered.</span>}
+            </div>
+          </div>
+        )}
+
+        {/* Contractor rep contributors */}
+        {(reportContributorMode === "contractors-only" || reportContributorMode === "both") && (
+          <div className="mb-4">
+            <label className="block text-sm font-medium text-gray-700 mb-1">Contractor Representative Contributors</label>
+            <div className="flex flex-wrap gap-1.5">
+              {projectVendors.flatMap(v => (v.representatives || []).map(r => ({ ...r, vendorName: v.name }))).map(r => {
+                const selected = reportContributorRepIds.includes(r.id);
+                return (
+                  <button key={r.id} onClick={() => setReportContributorRepIds(prev =>
+                    prev.includes(r.id) ? prev.filter(id => id !== r.id) : [...prev, r.id]
+                  )}
+                    className={`px-2 py-1 rounded-lg text-[10px] font-medium border transition-colors ${
+                      selected ? "bg-orange-50 border-orange-300 text-orange-700" : "hover:bg-gray-50 text-gray-600"
+                    }`}
+                  >
+                    {r.fullName} ({r.vendorName})
+                  </button>
+                );
+              })}
+              {projectVendors.reduce((sum, v) => sum + (v.representatives?.length || 0), 0) === 0 && (
+                <span className="text-[10px] text-gray-400">No contractor representatives registered. Add reps in Resources → Human Resources → Contractors.</span>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* Recurring Reporting Tasks */}
+        <div className="border-t pt-4" style={{ borderColor: "#E2E8F0" }}>
+          <h3 className="text-sm font-semibold text-gray-700 mb-3">Recurring Reporting Tasks</h3>
+          {recurringReportTasks.length > 0 && (
+            <div className="space-y-1.5 mb-3">
+              {recurringReportTasks.map(t => (
+                <div key={t.id} className="flex items-center justify-between px-3 py-2 rounded-lg border text-xs" style={{ borderColor: "#E2E8F0", backgroundColor: "#F7F8FA" }}>
+                  <div className="flex items-center gap-2">
+                    <button onClick={() => toggleRecurringTask(t.id)} className={`w-4 h-4 rounded border flex items-center justify-center ${t.isActive ? "bg-green-500 border-green-500" : "border-gray-300"}`}>
+                      {t.isActive && <CheckCircle className="w-3 h-3 text-white" />}
+                    </button>
+                    <div>
+                      <p className="font-medium text-gray-900">{t.name}</p>
+                      <p className="text-[10px] text-gray-500 capitalize">{t.frequency} · Assigned to: {projectStaff.find(s => s.id === t.assignedTo)?.name || t.assignedTo}</p>
+                    </div>
+                  </div>
+                  <button onClick={() => removeRecurringTask(t.id)} className="p-1 rounded hover:bg-red-50 text-red-400 hover:text-red-600">
+                    <Trash2 className="w-3 h-3" />
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+          <div className="grid grid-cols-3 gap-2 mb-2">
+            <input type="text" value={newRecurringTask.name} onChange={e => setNewRecurringTask(prev => ({ ...prev, name: e.target.value }))}
+              placeholder="Task name (e.g. Daily Site Report)" className="px-2 py-1.5 text-xs rounded border" style={{ borderColor: "#E2E8F0", backgroundColor: "white" }} />
+            <select value={newRecurringTask.frequency} onChange={e => setNewRecurringTask(prev => ({ ...prev, frequency: e.target.value as "daily" | "weekly" | "monthly" }))}
+              className="px-2 py-1.5 text-xs rounded border" style={{ borderColor: "#E2E8F0", backgroundColor: "white" }}>
+              <option value="daily">Daily</option>
+              <option value="weekly">Weekly</option>
+              <option value="monthly">Monthly</option>
+            </select>
+            <select value={newRecurringTask.assignedTo} onChange={e => setNewRecurringTask(prev => ({ ...prev, assignedTo: e.target.value }))}
+              className="px-2 py-1.5 text-xs rounded border" style={{ borderColor: "#E2E8F0", backgroundColor: "white" }}>
+              <option value="">Assign to...</option>
+              {projectStaff.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+              {projectVendors.flatMap(v => (v.representatives || []).map(r => ({ ...r, vendorName: v.name }))).map(r =>
+                <option key={r.id} value={r.id}>{r.fullName} ({r.vendorName})</option>
+              )}
+            </select>
+          </div>
+          <button onClick={addRecurringTask} disabled={!newRecurringTask.name.trim() || !newRecurringTask.assignedTo}
+            className="flex items-center gap-1 px-3 py-1.5 rounded text-xs font-medium text-white disabled:opacity-50" style={{ backgroundColor: "#E8973A" }}>
+            <Plus className="w-3 h-3" /> Add Recurring Task
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+
+  // Step 6 — Calendar
   const renderCalendar = () => (
     <div className="space-y-4">
       <div className="rounded-xl border p-6" style={{ borderColor: "#E2E8F0", backgroundColor: "white" }}>
@@ -2675,128 +2779,10 @@ export function ProjectSetupPage() {
         )}
       </div>
 
-      {/* ──── Daily Reporting Configuration ──── */}
-      <div className="rounded-xl border p-6" style={{ borderColor: "#E2E8F0", backgroundColor: "white" }}>
-        <h2 className="text-lg font-bold mb-4" style={{ color: "#1A202C" }}>Daily Reporting Setup</h2>
-        <p className="text-sm text-gray-500 mb-4">Configure who can submit daily reports and set up recurring reporting tasks.</p>
-
-        {/* Contributor mode */}
-        <div className="mb-4">
-          <label className="block text-sm font-medium text-gray-700 mb-2">Who can submit daily reports?</label>
-          <div className="flex gap-2">
-            {(["employees-only", "contractors-only", "both"] as const).map(mode => (
-              <button key={mode} onClick={() => setReportContributorMode(mode)}
-                className={`px-3 py-1.5 text-xs font-medium rounded-lg border transition-colors ${
-                  reportContributorMode === mode ? "bg-amber-50 border-amber-400 text-amber-700" : "hover:bg-gray-50 text-gray-600"
-                }`}
-              >
-                {mode === "employees-only" ? "Employees Only" : mode === "contractors-only" ? "Contractor Reps Only" : "Both"}
-              </button>
-            ))}
-          </div>
-        </div>
-
-        {/* Employee contributors */}
-        {(reportContributorMode === "employees-only" || reportContributorMode === "both") && (
-          <div className="mb-4">
-            <label className="block text-sm font-medium text-gray-700 mb-1">Employee Contributors</label>
-            <div className="flex flex-wrap gap-1.5">
-              {projectStaff.map(s => {
-                const selected = reportContributorEmployeeIds.includes(s.id);
-                return (
-                  <button key={s.id} onClick={() => setReportContributorEmployeeIds(prev =>
-                    prev.includes(s.id) ? prev.filter(id => id !== s.id) : [...prev, s.id]
-                  )}
-                    className={`px-2 py-1 rounded-lg text-[10px] font-medium border transition-colors ${
-                      selected ? "bg-blue-50 border-blue-300 text-blue-700" : "hover:bg-gray-50 text-gray-600"
-                    }`}
-                  >
-                    {s.name}
-                  </button>
-                );
-              })}
-              {projectStaff.length === 0 && <span className="text-[10px] text-gray-400">No employees registered.</span>}
-            </div>
-          </div>
-        )}
-
-        {/* Contractor rep contributors */}
-        {(reportContributorMode === "contractors-only" || reportContributorMode === "both") && (
-          <div className="mb-4">
-            <label className="block text-sm font-medium text-gray-700 mb-1">Contractor Representative Contributors</label>
-            <div className="flex flex-wrap gap-1.5">
-              {projectVendors.flatMap(v => (v.representatives || []).map(r => ({ ...r, vendorName: v.name }))).map(r => {
-                const selected = reportContributorRepIds.includes(r.id);
-                return (
-                  <button key={r.id} onClick={() => setReportContributorRepIds(prev =>
-                    prev.includes(r.id) ? prev.filter(id => id !== r.id) : [...prev, r.id]
-                  )}
-                    className={`px-2 py-1 rounded-lg text-[10px] font-medium border transition-colors ${
-                      selected ? "bg-orange-50 border-orange-300 text-orange-700" : "hover:bg-gray-50 text-gray-600"
-                    }`}
-                  >
-                    {r.fullName} ({r.vendorName})
-                  </button>
-                );
-              })}
-              {projectVendors.reduce((sum, v) => sum + (v.representatives?.length || 0), 0) === 0 && (
-                <span className="text-[10px] text-gray-400">No contractor representatives registered. Add reps in Resources → Human Resources → Contractors.</span>
-              )}
-            </div>
-          </div>
-        )}
-
-        {/* Recurring Reporting Tasks */}
-        <div className="border-t pt-4" style={{ borderColor: "#E2E8F0" }}>
-          <h3 className="text-sm font-semibold text-gray-700 mb-3">Recurring Reporting Tasks</h3>
-          {recurringReportTasks.length > 0 && (
-            <div className="space-y-1.5 mb-3">
-              {recurringReportTasks.map(t => (
-                <div key={t.id} className="flex items-center justify-between px-3 py-2 rounded-lg border text-xs" style={{ borderColor: "#E2E8F0", backgroundColor: "#F7F8FA" }}>
-                  <div className="flex items-center gap-2">
-                    <button onClick={() => toggleRecurringTask(t.id)} className={`w-4 h-4 rounded border flex items-center justify-center ${t.isActive ? "bg-green-500 border-green-500" : "border-gray-300"}`}>
-                      {t.isActive && <CheckCircle className="w-3 h-3 text-white" />}
-                    </button>
-                    <div>
-                      <p className="font-medium text-gray-900">{t.name}</p>
-                      <p className="text-[10px] text-gray-500 capitalize">{t.frequency} · Assigned to: {projectStaff.find(s => s.id === t.assignedTo)?.name || t.assignedTo}</p>
-                    </div>
-                  </div>
-                  <button onClick={() => removeRecurringTask(t.id)} className="p-1 rounded hover:bg-red-50 text-red-400 hover:text-red-600">
-                    <Trash2 className="w-3 h-3" />
-                  </button>
-                </div>
-              ))}
-            </div>
-          )}
-          <div className="grid grid-cols-3 gap-2 mb-2">
-            <input type="text" value={newRecurringTask.name} onChange={e => setNewRecurringTask(prev => ({ ...prev, name: e.target.value }))}
-              placeholder="Task name (e.g. Daily Site Report)" className="px-2 py-1.5 text-xs rounded border" style={{ borderColor: "#E2E8F0", backgroundColor: "white" }} />
-            <select value={newRecurringTask.frequency} onChange={e => setNewRecurringTask(prev => ({ ...prev, frequency: e.target.value as "daily" | "weekly" | "monthly" }))}
-              className="px-2 py-1.5 text-xs rounded border" style={{ borderColor: "#E2E8F0", backgroundColor: "white" }}>
-              <option value="daily">Daily</option>
-              <option value="weekly">Weekly</option>
-              <option value="monthly">Monthly</option>
-            </select>
-            <select value={newRecurringTask.assignedTo} onChange={e => setNewRecurringTask(prev => ({ ...prev, assignedTo: e.target.value }))}
-              className="px-2 py-1.5 text-xs rounded border" style={{ borderColor: "#E2E8F0", backgroundColor: "white" }}>
-              <option value="">Assign to...</option>
-              {projectStaff.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
-              {projectVendors.flatMap(v => (v.representatives || []).map(r => ({ ...r, vendorName: v.name }))).map(r =>
-                <option key={r.id} value={r.id}>{r.fullName} ({r.vendorName})</option>
-              )}
-            </select>
-          </div>
-          <button onClick={addRecurringTask} disabled={!newRecurringTask.name.trim() || !newRecurringTask.assignedTo}
-            className="flex items-center gap-1 px-3 py-1.5 rounded text-xs font-medium text-white disabled:opacity-50" style={{ backgroundColor: "#E8973A" }}>
-            <Plus className="w-3 h-3" /> Add Recurring Task
-          </button>
-        </div>
-      </div>
     </div>
   );
 
-  // Step 5 — Baseline
+  // Step 8 — Summary
   const renderSummary = () => {
     const taskDates = projectTasks.length > 0
       ? (() => {
@@ -2979,10 +2965,13 @@ export function ProjectSetupPage() {
       <div className="mb-6">
         {currentStep === 0 && renderBasicInfo()}
         {currentStep === 1 && renderProjectType()}
-        {currentStep === 2 && renderResourceRegistration()}
-        {currentStep === 3 && renderCalendar()}
-        {currentStep === 4 && renderScheduleBuilder()}
-        {currentStep === 5 && renderSummary()}
+        {currentStep === 2 && renderHumanResources()}
+        {currentStep === 3 && renderDailyReportingSetup()}
+        {currentStep === 4 && renderMaterials()}
+        {currentStep === 5 && renderEquipment()}
+        {currentStep === 6 && renderCalendar()}
+        {currentStep === 7 && renderScheduleBuilder()}
+        {currentStep === 8 && renderSummary()}
       </div>
 
       <div className="rounded-xl border p-4 flex items-center justify-between" style={{ borderColor: "#E2E8F0", backgroundColor: "white" }}>
