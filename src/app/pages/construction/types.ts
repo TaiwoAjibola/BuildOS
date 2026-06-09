@@ -1,6 +1,7 @@
 export type ProjectStatus = "Active" | "On Hold" | "Completed" | "Cancelled";
 export type RAGStatus = "on-track" | "at-risk" | "delayed";
 export type ContractType = "Lump Sum" | "Remeasurable" | "Cost Plus";
+export type ContractingModel = "developer" | "contractor" | "gc";
 export type Weather = "Sunny" | "Cloudy" | "Drizzle" | "Rainy";
 
 export type Sector =
@@ -105,6 +106,7 @@ export interface Project {
   category?: string;
   descriptor?: string;
   structure?: ProjectStructureItem[];
+  contractingModel?: ContractingModel;
   // Setup lock/unlock
   setupLocked?: boolean;
   setupAuditLog?: SetupAuditLog[];
@@ -172,6 +174,7 @@ export interface Vendor {
   // Organization model (items 43-44)
   isMainContractor?: boolean;
   subcontractorIds?: string[];
+  parentContractorId?: string;
   representatives?: VendorRepresentative[];
 }
 
@@ -183,6 +186,7 @@ export interface VendorRepresentative {
   phone: string;
   position: string;
   isActive: boolean;
+  isReviewer?: boolean;
 }
 
 export interface ProjectRole {
@@ -249,9 +253,12 @@ export interface DailyReport {
   weather: Weather;
   submittedBy: string;
   submittedAt: string;
-  status: "draft" | "submitted";
+  status: "draft" | "pending-review" | "submitted";
   unlockedBy: string | null;
   unlockReason: string | null;
+  reviewedBy?: string;
+  reviewedAt?: string;
+  reviewNotes?: string;
   manpower: DailyManpower[];
   equipment: DailyEquipment[];
   materials: DailyMaterial[];

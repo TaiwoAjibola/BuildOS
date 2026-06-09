@@ -64,6 +64,7 @@ export function ProjectSetupPage() {
     location: project?.location || "",
     siteAddress: project?.siteAddress || "",
     description: project?.description || "",
+    contractingModel: project?.contractingModel || "developer" as "developer" | "contractor" | "gc",
   });
 
   // Step 1 — Project Type
@@ -1029,6 +1030,25 @@ export function ProjectSetupPage() {
           </select>
         </div>
         <div>
+          <label className="block text-sm font-medium text-gray-700 mb-2">Contracting Model</label>
+          <div className="flex gap-2">
+            {([
+              { value: "developer" as const, label: "Developer", desc: "We hire a main contractor who manages subs" },
+              { value: "contractor" as const, label: "Contractor", desc: "We self-perform and hire subs directly" },
+              { value: "gc" as const, label: "General Contractor", desc: "We manage trade contractors directly" },
+            ]).map(opt => (
+              <button key={opt.value} onClick={() => setBasicInfo({ ...basicInfo, contractingModel: opt.value })}
+                className={`flex-1 px-3 py-2 rounded-lg border text-xs font-medium text-left transition-colors ${
+                  basicInfo.contractingModel === opt.value ? "bg-amber-50 border-amber-400 text-amber-700" : "hover:bg-gray-50 text-gray-600"
+                }`}
+              >
+                <span className="block font-semibold">{opt.label}</span>
+                <span className="block mt-0.5 font-normal opacity-70">{opt.desc}</span>
+              </button>
+            ))}
+          </div>
+        </div>
+        <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">Planned Start Date</label>
           <input
             type="date" value={basicInfo.plannedStartDate}
@@ -1882,9 +1902,15 @@ export function ProjectSetupPage() {
                     </tr>
                   </thead>
                   <tbody>
-                    {projectVendors.map(v => (
+                    {projectVendors.map(v => {
+                      const parent = v.parentContractorId ? projectVendors.find(p => p.id === v.parentContractorId) : null;
+                      return (
                       <tr key={v.id} style={{ borderBottom: "1px solid #E2E8F0" }}>
-                        <td className="px-3 py-2.5 font-medium text-gray-900">{v.name}</td>
+                        <td className="px-3 py-2.5 font-medium text-gray-900">
+                          {parent && <span className="text-[10px] text-gray-400 mr-1">↳ </span>}
+                          {v.name}
+                          {parent && <span className="text-[10px] text-gray-400 ml-1">(sub of {parent.name})</span>}
+                        </td>
                         {stages.map(s => {
                           const assigned = vendorStageAssignments[v.id] || [];
                           return (
@@ -1896,7 +1922,8 @@ export function ProjectSetupPage() {
                           );
                         })}
                       </tr>
-                    ))}
+                    );
+                  })}
                   </tbody>
                 </table>
               </div>
@@ -1985,11 +2012,15 @@ export function ProjectSetupPage() {
                               <div>
                                 <p className="font-medium text-gray-900 text-sm flex items-center gap-2">
                                   {v.name}
-                                  {v.isMainContractor && (
+                                  {basicInfo.contractingModel === "developer" && v.isMainContractor && (
                                     <span className="text-[10px] bg-blue-100 text-blue-700 px-1.5 py-0.5 rounded-full font-medium">Main Contractor</span>
                                   )}
                                 </p>
-                                <p className="text-[11px] text-gray-500">{v.trade} · {v.contractType}</p>
+                                <p className="text-[11px] text-gray-500">{v.trade} · {v.contractType}
+                                {v.parentContractorId && projectVendors.find(p => p.id === v.parentContractorId) && (
+                                  <span className="ml-1 text-[10px] text-gray-400">— Sub of {projectVendors.find(p => p.id === v.parentContractorId)!.name}</span>
+                                )}
+                              </p>
                                 {assignedStages.length > 0 && (
                                   <p className="text-[10px] text-gray-400 mt-0.5 flex gap-1 flex-wrap">
                                     {assignedStages.map(s => (
@@ -2000,7 +2031,7 @@ export function ProjectSetupPage() {
                               </div>
                             </div>
                             <div className="flex items-center gap-1">
-                              {!v.isMainContractor && (
+                              {basicInfo.contractingModel === "developer" && !v.isMainContractor && (
                                 <button onClick={() => assignMainContractor(v.id)}
                                   className="px-2 py-1 rounded text-[10px] font-medium border hover:bg-blue-50 text-blue-600"
                                   style={{ borderColor: "#E2E8F0" }} title="Designate as Main Contractor">

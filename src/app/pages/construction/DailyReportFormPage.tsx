@@ -256,6 +256,10 @@ export function DailyReportFormPage() {
 
   function handleSave(status: "draft" | "submitted") {
     setSaving(true);
+    // If project has a main contractor, submitted reports need review
+    const effectiveStatus = status === "submitted" && project?.contractingModel === "developer" && project?.mainContractorId
+      ? "pending-review" as const
+      : status;
     const report: DailyReport = {
       id: existingDraft?.id || nextId("DR"),
       projectId: projectId || "",
@@ -263,7 +267,7 @@ export function DailyReportFormPage() {
       weather,
       submittedBy: existingDraft?.submittedBy || staffList[0],
       submittedAt: existingDraft?.submittedAt || new Date().toISOString(),
-      status,
+      status: effectiveStatus,
       unlockedBy: null,
       unlockReason: null,
       manpower: manpowerRows,
@@ -278,6 +282,8 @@ export function DailyReportFormPage() {
       showToast(
         status === "draft"
           ? "Report saved as draft"
+          : effectiveStatus === "pending-review"
+          ? "Report submitted for review"
           : "Report submitted successfully"
       );
       setTimeout(() => navigate(".."), 1200);

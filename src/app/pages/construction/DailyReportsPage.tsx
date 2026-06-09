@@ -1,5 +1,5 @@
 import { useParams, useNavigate } from "react-router";
-import { Plus, FileText, Filter, Search, Sun, Cloud, CloudDrizzle, CloudRain, Eye, CheckCircle, Edit } from "lucide-react";
+import { Plus, FileText, Filter, Search, Sun, Cloud, CloudDrizzle, CloudRain, Eye, CheckCircle, Edit, ThumbsUp, ThumbsDown } from "lucide-react";
 import { useState } from "react";
 import { getReportsByProject, getProjectById, fmtDate } from "./mockData";
 import type { DailyReport } from "./types";
@@ -26,7 +26,24 @@ export function DailyReportsPage() {
   const [dateTo, setDateTo] = useState("");
   const [searchTerm, setSearchTerm] = useState("");
 
-  const filtered = allReports.filter(r => {
+  // Local state for review actions (approve/reject)
+  const [localReports, setLocalReports] = useState<DailyReport[]>(allReports);
+  const reports = localReports;
+
+  const approveReport = (reportId: string) => {
+    setLocalReports(prev => prev.map(r =>
+      r.id === reportId ? { ...r, status: "submitted" as const, reviewedBy: "Project Manager", reviewedAt: new Date().toISOString(), reviewNotes: undefined } : r
+    ));
+  };
+  const rejectReport = (reportId: string) => {
+    const reason = prompt("Reason for rejection:");
+    if (!reason) return;
+    setLocalReports(prev => prev.map(r =>
+      r.id === reportId ? { ...r, status: "draft" as const, reviewedBy: "Project Manager", reviewedAt: new Date().toISOString(), reviewNotes: reason } : r
+    ));
+  };
+
+  const filtered = reports.filter(r => {
     if (statusFilter !== "all" && r.status !== statusFilter) return false;
     if (dateFrom && r.reportDate < dateFrom) return false;
     if (dateTo && r.reportDate > dateTo) return false;
@@ -116,6 +133,7 @@ export function DailyReportsPage() {
               >
                 <option value="all">All Status</option>
                 <option value="draft">Draft</option>
+                <option value="pending-review">Pending Review</option>
                 <option value="submitted">Submitted</option>
               </select>
             </div>
@@ -166,10 +184,12 @@ export function DailyReportsPage() {
                     <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium ${
                       r.status === "draft"
                         ? "bg-amber-100 text-amber-700"
+                        : r.status === "pending-review"
+                        ? "bg-blue-100 text-blue-700"
                         : "bg-green-100 text-green-700"
                     }`}>
-                      {r.status === "draft" ? <Edit className="w-3 h-3" /> : <CheckCircle className="w-3 h-3" />}
-                      {r.status === "draft" ? "Draft" : "Submitted"}
+                      {r.status === "draft" ? <Edit className="w-3 h-3" /> : r.status === "pending-review" ? <Eye className="w-3 h-3" /> : <CheckCircle className="w-3 h-3" />}
+                      {r.status === "draft" ? "Draft" : r.status === "pending-review" ? "Pending Review" : "Submitted"}
                     </span>
                   </td>
                   <td className="px-4 py-3 text-center text-sm text-gray-700">{r.manpower.length}</td>
@@ -190,6 +210,18 @@ export function DailyReportsPage() {
                       >
                         <Edit className="w-4 h-4" />
                       </button>
+                      {r.status === "pending-review" && (
+                        <>
+                          <button onClick={e => { e.stopPropagation(); approveReport(r.id); }}
+                            className="p-1.5 rounded-md hover:bg-green-50 text-green-500 hover:text-green-700 transition-colors" title="Approve">
+                            <ThumbsUp className="w-4 h-4" />
+                          </button>
+                          <button onClick={e => { e.stopPropagation(); rejectReport(r.id); }}
+                            className="p-1.5 rounded-md hover:bg-red-50 text-red-400 hover:text-red-600 transition-colors" title="Reject">
+                            <ThumbsDown className="w-4 h-4" />
+                          </button>
+                        </>
+                      )}
                     </div>
                   </td>
                 </tr>
