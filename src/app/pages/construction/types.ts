@@ -196,19 +196,37 @@ export interface ProjectRole {
   permissions: string[];
 }
 
+export const DAILY_REPORT_SECTIONS = [
+  { key: "daily-manpower", label: "Manpower", description: "Labour & workforce tracking" },
+  { key: "daily-equipment", label: "Equipment", description: "Equipment usage & maintenance" },
+  { key: "daily-materials", label: "Materials", description: "Material stock & usage" },
+  { key: "daily-scope", label: "Scope & Delivery", description: "Work progress & deliverables" },
+  { key: "daily-expenses", label: "Expenses", description: "Daily expenditure tracking" },
+  { key: "daily-communications", label: "Communications", description: "Communication log entries" },
+] as const;
+
+export const ALL_PERMISSIONS = [
+  { key: "daily-all", label: "All Daily Reports", description: "Full access to all daily report sections", group: "Daily Reports" },
+  { key: "daily-read", label: "Read Only", description: "View-only access to all daily report sections", group: "Daily Reports" },
+  ...DAILY_REPORT_SECTIONS.map(s => ({ key: s.key, label: s.label, description: s.description, group: "Daily Reports" as const })),
+  { key: "setup-all", label: "Full Setup Access", description: "Full access to project setup", group: "Project Setup" },
+  { key: "setup-read", label: "Setup Read Only", description: "View project setup configuration", group: "Project Setup" },
+  { key: "finance-all", label: "Full Finance Access", description: "Full access to project finances", group: "Finance" },
+] as const;
+
 export const DEFAULT_PROJECT_ROLES: ProjectRole[] = [
-  { id: "role-pm", name: "Project Manager (PM)", description: "Overall project leadership", permissions: ["daily-all", "setup-all", "finance-all"] },
-  { id: "role-apm", name: "Assistant Project Manager", description: "Support PM in execution", permissions: ["daily-all", "setup-read"] },
-  { id: "role-ss", name: "Site Supervisor", description: "Day-to-day site supervision", permissions: ["daily-progress", "daily-labour", "daily-activity"] },
-  { id: "role-hse", name: "HSE Officer", description: "Health, safety & environment", permissions: ["daily-safety", "daily-incident", "daily-toolbox"] },
-  { id: "role-qa", name: "Quality Assurance Officer", description: "Quality control & inspections", permissions: ["daily-quality"] },
-  { id: "role-qs", name: "Quantity Surveyor", description: "Cost & measurement", permissions: ["daily-material", "daily-measurement"] },
-  { id: "role-se", name: "Site Engineer", description: "Technical execution", permissions: ["daily-progress", "daily-quality"] },
-  { id: "role-pe", name: "Planning Engineer", description: "Schedule & planning", permissions: ["daily-progress"] },
-  { id: "role-pc", name: "Procurement Coordinator", description: "Material procurement", permissions: ["daily-material"] },
-  { id: "role-dc", name: "Document Controller", description: "Document management", permissions: ["daily-read"] },
-  { id: "role-cr", name: "Contractor Representative", description: "Contractor site representative", permissions: ["daily-progress", "daily-labour"] },
-  { id: "role-cl", name: "Client Representative", description: "Client-side oversight", permissions: ["daily-read"] },
+  { id: "role-pm",  name: "Project Manager (PM)",       description: "Overall project leadership",                    permissions: ["daily-all", "setup-all", "finance-all"] },
+  { id: "role-apm", name: "Assistant Project Manager",  description: "Support PM in execution",                      permissions: ["daily-all", "setup-read"] },
+  { id: "role-ss",  name: "Site Supervisor",             description: "Day-to-day site supervision",                  permissions: ["daily-manpower", "daily-scope", "daily-equipment"] },
+  { id: "role-hse", name: "HSE Officer",                 description: "Health, safety & environment",                permissions: ["daily-equipment"] },
+  { id: "role-qa",  name: "Quality Assurance Officer",   description: "Quality control & inspections",               permissions: ["daily-scope"] },
+  { id: "role-qs",  name: "Quantity Surveyor",           description: "Cost & measurement",                         permissions: ["daily-materials", "daily-expenses"] },
+  { id: "role-se",  name: "Site Engineer",               description: "Technical execution",                        permissions: ["daily-scope", "daily-materials"] },
+  { id: "role-pe",  name: "Planning Engineer",           description: "Schedule & planning",                        permissions: ["daily-scope"] },
+  { id: "role-pc",  name: "Procurement Coordinator",     description: "Material procurement",                       permissions: ["daily-materials"] },
+  { id: "role-dc",  name: "Document Controller",         description: "Document management",                        permissions: ["daily-read"] },
+  { id: "role-cr",  name: "Contractor Representative",   description: "Contractor site representative",             permissions: ["daily-manpower", "daily-scope"] },
+  { id: "role-cl",  name: "Client Representative",       description: "Client-side oversight",                      permissions: ["daily-read"] },
 ];
 
 export interface HumanResourceRole {

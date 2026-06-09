@@ -1,7 +1,9 @@
 import { useState } from "react";
-import { Settings, Save, Plus, ToggleLeft, ToggleRight, X, Check, Tags, Layers, Sun, Truck, Building2, Users, Package, UserCog, ArrowRight, ChevronDown, ChevronRight } from "lucide-react";
-import type { Sector, ScheduleLevelConfig, WeatherConfig } from "./types";
+import { Settings, Save, Plus, ToggleLeft, ToggleRight, X, Check, Tags, Layers, Sun, Truck, Building2, Users, Package, UserCog, ArrowRight, ChevronDown, ChevronRight, Shield, Edit3, Trash2 } from "lucide-react";
+import type { Sector, ScheduleLevelConfig, WeatherConfig, ProjectRole } from "./types";
+import { ALL_PERMISSIONS } from "./types";
 import { defaultScheduleLevels, defaultWeatherConfig, defaultProjectTypes } from "./mockData";
+import { useRoles } from "../../contexts/RolesContext";
 
 const defaultTradeTypes = [
   "Masonry", "Concreting labor", "Carpentry (formwork)", "Carpentry (roofing)",
@@ -21,9 +23,17 @@ const defaultReportSettings: ReportSetting[] = [
   { id: "rs6", key: "daily_report_reminder", label: "Daily report submission reminder", enabled: true },
 ];
 
-type SectionId = "project-types" | "schedule-levels" | "weather" | "hr-classification" | "trade-types" | "report-settings";
+type SectionId = "project-types" | "schedule-levels" | "weather" | "hr-classification" | "trade-types" | "report-settings" | "project-roles";
 
 export function SettingsPage() {
+  const { roles, addRole, updateRole, deleteRole, isDefaultRole } = useRoles();
+  const [editingRole, setEditingRole] = useState<string | null>(null);
+  const [newRoleName, setNewRoleName] = useState("");
+  const [newRoleDesc, setNewRoleDesc] = useState("");
+  const [roleFormName, setRoleFormName] = useState("");
+  const [roleFormDesc, setRoleFormDesc] = useState("");
+  const [roleFormPerms, setRoleFormPerms] = useState<string[]>([]);
+
   const [tradeTypes, setTradeTypes] = useState<string[]>(defaultTradeTypes);
   const [reportSettings, setReportSettings] = useState<ReportSetting[]>(defaultReportSettings);
   const [newTrade, setNewTrade] = useState("");
@@ -140,6 +150,46 @@ export function SettingsPage() {
   function removeCategory(sector: string, cat: string) {
     setProjectTypes(prev => prev.map(pt => pt.sector === sector ? { ...pt, categories: pt.categories.filter(c => c !== cat) } : pt));
   }
+
+  function startEditRole(role: ProjectRole) {
+    setEditingRole(role.id);
+    setRoleFormName(role.name);
+    setRoleFormDesc(role.description);
+    setRoleFormPerms([...role.permissions]);
+  }
+
+  function cancelEditRole() {
+    setEditingRole(null);
+    setRoleFormName("");
+    setRoleFormDesc("");
+    setRoleFormPerms([]);
+  }
+
+  function saveRoleEdit() {
+    if (!editingRole || !roleFormName.trim()) return;
+    updateRole(editingRole, { name: roleFormName.trim(), description: roleFormDesc.trim(), permissions: roleFormPerms });
+    cancelEditRole();
+  }
+
+  function addCustomRole() {
+    if (!newRoleName.trim()) return;
+    addRole({ name: newRoleName.trim(), description: newRoleDesc.trim(), permissions: [] });
+    setNewRoleName("");
+    setNewRoleDesc("");
+  }
+
+  function toggleRolePerm(perm: string) {
+    setRoleFormPerms(prev =>
+      prev.includes(perm) ? prev.filter(p => p !== perm) : [...prev, perm]
+    );
+  }
+
+  const PERMISSION_GROUPS = ALL_PERMISSIONS.reduce<Record<string, typeof ALL_PERMISSIONS>>((acc, p) => {
+    const g = p.group;
+    if (!acc[g]) acc[g] = [];
+    acc[g].push(p);
+    return acc;
+  }, {} as Record<string, typeof ALL_PERMISSIONS>);
 
   return (
     <div className="space-y-5">
@@ -271,6 +321,100 @@ export function SettingsPage() {
               <p className="text-xs text-orange-700 mb-1">Managed within the Project Module.</p>
               <p className="text-xs text-gray-500 mb-3">Vendors and subcontractors are created and managed in the Resources Overview page and assigned to projects.</p>
               <a href="/apps/construction/resources" className="inline-flex items-center gap-1 text-xs font-medium text-orange-700 hover:text-orange-900">Manage Vendors in Resources <ArrowRight className="w-3 h-3" /></a>
+            </div>
+          </div>
+        </Section>
+
+        <Section id="project-roles" icon={<Shield className="w-4 h-4 text-orange-500" />} title="Project Roles" description="Define project roles and map them to daily report section permissions. Roles are used across all projects.">
+          <div className="space-y-3">
+            {roles.map(role => (
+              <div key={role.id} className="border border-gray-200 rounded-lg overflow-hidden">
+                {editingRole === role.id ? (
+                  <div className="p-4 space-y-3">
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <label className="block text-xs font-semibold text-gray-700 mb-1">Role Name</label>
+                        <input value={roleFormName} onChange={e => setRoleFormName(e.target.value)}
+                          className="w-full px-3 py-1.5 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-orange-500" />
+                      </div>
+                      <div>
+                        <label className="block text-xs font-semibold text-gray-700 mb-1">Description</label>
+                        <input value={roleFormDesc} onChange={e => setRoleFormDesc(e.target.value)}
+                          className="w-full px-3 py-1.5 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-orange-500" />
+                      </div>
+                    </div>
+                    <div>
+                      <label className="block text-xs font-semibold text-gray-700 mb-2">Permissions</label>
+                      {Object.entries(PERMISSION_GROUPS).map(([group, perms]) => (
+                        <div key={group} className="mb-3">
+                          <p className="text-xs font-medium text-gray-500 mb-1.5">{group}</p>
+                          <div className="flex flex-wrap gap-2">
+                            {perms.map(p => {
+                              const isOn = roleFormPerms.includes(p.key);
+                              return (
+                                <button key={p.key} onClick={() => toggleRolePerm(p.key)}
+                                  className={`text-xs px-2.5 py-1 rounded-full border transition-colors ${isOn ? "bg-orange-50 text-orange-700 border-orange-300" : "bg-gray-50 text-gray-500 border-gray-200 hover:border-gray-300"}`}
+                                  title={p.description}>
+                                  {p.label}
+                                </button>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                    <div className="flex justify-end gap-2 pt-2 border-t border-gray-100">
+                      <button onClick={cancelEditRole} className="px-3 py-1.5 text-xs font-medium text-gray-600 border border-gray-300 rounded-md hover:bg-gray-50">Cancel</button>
+                      <button onClick={saveRoleEdit} className="px-3 py-1.5 text-xs font-medium text-white bg-orange-600 rounded-md hover:bg-orange-700">Save</button>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="p-3">
+                    <div className="flex items-start justify-between">
+                      <div className="flex items-center gap-2 min-w-0">
+                        <Shield className="w-4 h-4 text-gray-400 shrink-0" />
+                        <div className="min-w-0">
+                          <p className="text-sm font-medium text-gray-900">{role.name}</p>
+                          {role.description && <p className="text-xs text-gray-500 truncate">{role.description}</p>}
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-1 shrink-0 ml-2">
+                        <button onClick={() => startEditRole(role)} className="p-1.5 text-gray-400 hover:text-orange-600 hover:bg-orange-50 rounded-lg"><Edit3 className="w-3.5 h-3.5" /></button>
+                        {!isDefaultRole(role.id) && (
+                          <button onClick={() => deleteRole(role.id)} className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg"><Trash2 className="w-3.5 h-3.5" /></button>
+                        )}
+                      </div>
+                    </div>
+                    {role.permissions.length > 0 && (
+                      <div className="flex flex-wrap gap-1.5 mt-2 ml-6">
+                        {role.permissions.map(p => {
+                          const permDef = ALL_PERMISSIONS.find(ap => ap.key === p);
+                          return (
+                            <span key={p} className="text-[10px] font-medium px-1.5 py-0.5 rounded-full bg-gray-100 text-gray-600">
+                              {permDef?.label ?? p}
+                            </span>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+
+          {/* Add custom role */}
+          <div className="mt-4 pt-4 border-t border-gray-100">
+            <p className="text-xs font-semibold text-gray-700 mb-2">Add Custom Role</p>
+            <div className="flex items-center gap-2">
+              <input value={newRoleName} onChange={e => setNewRoleName(e.target.value)} placeholder="Role name..."
+                className="flex-1 max-w-xs border border-gray-300 rounded-md px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-orange-500" />
+              <input value={newRoleDesc} onChange={e => setNewRoleDesc(e.target.value)} placeholder="Description (optional)"
+                className="flex-1 max-w-xs border border-gray-300 rounded-md px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-orange-500" />
+              <button onClick={addCustomRole} disabled={!newRoleName.trim()}
+                className="flex items-center gap-1 px-3 py-1.5 bg-orange-600 text-white rounded-md text-sm font-medium hover:bg-orange-700 disabled:opacity-40">
+                <Plus className="w-3.5 h-3.5" /> Add Role
+              </button>
             </div>
           </div>
         </Section>

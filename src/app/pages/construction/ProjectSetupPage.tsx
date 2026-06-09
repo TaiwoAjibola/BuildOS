@@ -3,11 +3,10 @@ import { useState, useMemo, useRef, useEffect } from "react";
 import {
   CheckCircle, Circle, ArrowRight, ArrowLeft, Lock, Calendar,
   Building2, Users, Layers, FileText, Plus, X, Trash2, ChevronRight, ChevronDown, Tags, Download, Upload,
-  Shield, Edit3
 } from "lucide-react";
 import { getProjectById, staffList, tradeTypes, clusters, tasks as allTasks, fmtDate, vendors as allVendors, defaultScheduleLevels, hrEmployees, materialInventory, equipmentInventory } from "./mockData";
 import type { Task, Vendor, VendorRepresentative, ProjectCalendar, Sector, ProjectStructureItem, ScheduleLevelConfig, HumanResource, HumanResourceSource, MaterialResource, EquipmentResource, ResourceAssignment, ProjectRole, HumanResourceRole } from "./types";
-import { DEFAULT_PROJECT_ROLES } from "./types";
+import { useRoles } from "../../contexts/RolesContext";
 import { SECTOR_CATEGORIES, getBlockLabel, getStructureConfig, DEFAULT_WBS_LEVELS } from "./types";
 import { useResources } from "../../contexts/ResourceContext";
 import { SearchableMultiSelect } from "../../components/SearchableMultiSelect";
@@ -190,11 +189,9 @@ export function ProjectSetupPage() {
     setProjectVendors(prev => prev.map(v => ({ ...v, isMainContractor: v.id === vendorId })));
   };
 
-  // Project roles
-  const [projectRoles, setProjectRoles] = useState<ProjectRole[]>(DEFAULT_PROJECT_ROLES);
+  // Project roles (defined globally in Settings, assigned per-project)
+  const { roles: projectRoles } = useRoles();
   const [humanResourceRoles, setHumanResourceRoles] = useState<HumanResourceRole[]>([]);
-  const [newRoleName, setNewRoleName] = useState("");
-  const [newRoleDescription, setNewRoleDescription] = useState("");
   const assignRoleToResource = (humanResourceId: string, projectRoleId: string) => {
     setHumanResourceRoles(prev => {
       const existing = prev.find(r => r.humanResourceId === humanResourceId);
@@ -204,17 +201,6 @@ export function ProjectSetupPage() {
   };
   const removeRoleFromResource = (humanResourceId: string) => {
     setHumanResourceRoles(prev => prev.filter(r => r.humanResourceId !== humanResourceId));
-  };
-  const addCustomRole = () => {
-    if (!newRoleName.trim()) return;
-    const role: ProjectRole = { id: `role-custom-${Date.now()}`, name: newRoleName.trim(), description: newRoleDescription.trim(), permissions: [] };
-    setProjectRoles(prev => [...prev, role]);
-    setNewRoleName("");
-    setNewRoleDescription("");
-  };
-  const removeCustomRole = (roleId: string) => {
-    setProjectRoles(prev => prev.filter(r => r.id !== roleId));
-    setHumanResourceRoles(prev => prev.filter(r => r.projectRoleId !== roleId));
   };
   const getRoleName = (roleId: string) => projectRoles.find(r => r.id === roleId)?.name || "Unknown";
   const getResourceRole = (resourceId: string) => {
@@ -2246,43 +2232,7 @@ export function ProjectSetupPage() {
           <h2 className="text-lg font-bold mb-4" style={{ color: "#1A202C" }}>Project Roles</h2>
           <p className="text-sm text-gray-500 mb-4">Configure project-specific roles and assign them to team members. These are different from HR job titles.</p>
 
-          {/* Role list */}
-          <div className="space-y-2 mb-4">
-            <h3 className="text-sm font-semibold text-gray-700">Standard & Custom Roles</h3>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
-              {projectRoles.map(role => (
-                <div key={role.id} className="flex items-center justify-between px-3 py-2 rounded-lg border text-sm" style={{ borderColor: "#E2E8F0", backgroundColor: "#F7F8FA" }}>
-                  <div className="flex items-center gap-2">
-                    <Shield className="w-4 h-4 text-gray-400" />
-                    <div>
-                      <p className="font-medium text-gray-900 text-xs">{role.name}</p>
-                      {role.description && <p className="text-[10px] text-gray-500">{role.description}</p>}
-                    </div>
-                  </div>
-                  {role.id.startsWith("role-custom-") && (
-                    <button onClick={() => removeCustomRole(role.id)} className="p-1 rounded hover:bg-red-50 text-red-400 hover:text-red-600">
-                      <Trash2 className="w-3 h-3" />
-                    </button>
-                  )}
-                </div>
-              ))}
-            </div>
-          </div>
-
-          {/* Add custom role */}
-          <div className="rounded-lg border p-3 space-y-2" style={{ borderColor: "#E2E8F0", backgroundColor: "#F7F8FA" }}>
-            <h3 className="text-xs font-semibold text-gray-700">Add Custom Role</h3>
-            <div className="flex gap-2">
-              <input type="text" value={newRoleName} onChange={e => setNewRoleName(e.target.value)}
-                placeholder="Role name (e.g. Logistics Coordinator)" className="flex-1 px-3 py-1.5 text-xs rounded border" style={{ borderColor: "#E2E8F0", backgroundColor: "white" }} />
-              <input type="text" value={newRoleDescription} onChange={e => setNewRoleDescription(e.target.value)}
-                placeholder="Description (optional)" className="flex-1 px-3 py-1.5 text-xs rounded border" style={{ borderColor: "#E2E8F0", backgroundColor: "white" }} />
-              <button onClick={addCustomRole} disabled={!newRoleName.trim()}
-                className="flex items-center gap-1 px-3 py-1.5 rounded text-xs font-medium text-white disabled:opacity-50" style={{ backgroundColor: "#E8973A" }}>
-                <Plus className="w-3 h-3" /> Add Role
-              </button>
-            </div>
-          </div>
+          <p className="text-xs text-gray-500 mb-3">Roles are defined in <a href="/apps/construction/settings" className="text-orange-600 hover:underline font-medium">Settings → Project Roles</a>. Assign roles to team members below.</p>
         </div>
 
         {/* Role Assignments */}

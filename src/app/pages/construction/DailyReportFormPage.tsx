@@ -1,8 +1,9 @@
 import { useParams, useNavigate } from "react-router";
 import { useState, useEffect, useMemo } from "react";
-import { Save, Send, ArrowLeft, Plus, Trash2, Sun, Cloud, CloudDrizzle, CloudRain, AlertTriangle, DollarSign, MessageSquare, Phone, Mail } from "lucide-react";
+import { Save, Send, ArrowLeft, Plus, Trash2, Sun, Cloud, CloudDrizzle, CloudRain, AlertTriangle, DollarSign, MessageSquare, Phone, Mail, Shield } from "lucide-react";
 import { getProjectById, getTasksByProject, getVendorsByProject, getReportsByProject, fmtDate, staffList } from "./mockData";
-import type { DailyReport, DailyManpower, DailyEquipment, DailyMaterial, DailyScope, DailyExpense, CommunicationLogEntry, Weather } from "./types";
+import type { DailyReport, DailyManpower, DailyEquipment, DailyMaterial, DailyScope, DailyExpense, CommunicationLogEntry, Weather, ProjectRole } from "./types";
+import { useRoles } from "../../contexts/RolesContext";
 
 const equipmentCategories = [
   "Earthwork", "Lifting", "Concreting", "Transportation",
@@ -158,6 +159,55 @@ export function DailyReportFormPage() {
   const [saving, setSaving] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
 
+  // Role-based section access
+  const { roles } = useRoles();
+  const [currentRoleId, setCurrentRoleId] = useState(roles[0]?.id || "");
+  const currentRole = roles.find(r => r.id === currentRoleId);
+  const perms = currentRole?.permissions || [];
+
+  const hasAccess = (permKey: string) =>
+    perms.includes("daily-all") || perms.includes(permKey);
+
+  const isReadOnly =
+    perms.includes("daily-read") && !perms.includes("daily-all");
+
+  const ALL_STEPS = [
+    { label: "Manpower", count: manpowerRows.length, perm: "daily-manpower" as const },
+    { label: "Equipment", count: equipmentRows.length, perm: "daily-equipment" as const },
+    { label: "Materials", count: materialRows.length, perm: "daily-materials" as const },
+    { label: "Scope & Delivery", count: scopeRows.length, perm: "daily-scope" as const },
+    { label: "Expenses", count: expenseRows.length, perm: "daily-expenses" as const },
+    { label: "Communications", count: commLogRows.length, perm: "daily-communications" as const },
+  ];
+
+  const accessibleIndices = ALL_STEPS.map((s, i) => hasAccess(s.perm) ? i : -1).filter(i => i >= 0);
+
+  useEffect(() => {
+    if (step !== 0 && !hasAccess(ALL_STEPS[step].perm)) {
+      setStep(accessibleIndices[0] ?? 0);
+    }
+  }, [currentRoleId]);
+
+  function goToStep(targetStep: number) {
+    if (hasAccess(ALL_STEPS[targetStep].perm)) {
+      setStep(targetStep);
+    }
+  }
+
+  function goNext() {
+    const idx = accessibleIndices.indexOf(step);
+    if (idx < accessibleIndices.length - 1) {
+      setStep(accessibleIndices[idx + 1]);
+    }
+  }
+
+  function goPrev() {
+    const idx = accessibleIndices.indexOf(step);
+    if (idx > 0) {
+      setStep(accessibleIndices[idx - 1]);
+    }
+  }
+
   useEffect(() => {
     if (toast) {
       const t = setTimeout(() => setToast(null), 3000);
@@ -290,16 +340,7 @@ export function DailyReportFormPage() {
     }, 600);
   }
 
-  const steps = [
-    { label: "Manpower", count: manpowerRows.length },
-    { label: "Equipment", count: equipmentRows.length },
-    { label: "Materials", count: materialRows.length },
-    { label: "Scope & Delivery", count: scopeRows.length },
-    { label: "Expenses", count: expenseRows.length },
-    { label: "Communications", count: commLogRows.length },
-  ];
-
-  const progressPct = ((step + 1) / steps.length) * 100;
+  const progressPct = ((step + 1) / ALL_STEPS.length) * 100;
 
   return (
     <div className="space-y-6" style={{ backgroundColor: "#F7F8FA" }}>
@@ -331,47 +372,57 @@ export function DailyReportFormPage() {
         </div>
       </div>
 
+      {/* Role Selector */}
+      <div className="flex items-center justify-end gap-2">
+        <Shield className="w-4 h-4 text-gray-400" />
+        <span className="text-xs text-gray-500">Viewing as role:</span>
+        <select value={currentRoleId} onChange={e => setCurrentRoleId(e.target.value)}
+          className="text-xs border border-gray-300 rounded-md px-2 py-1 bg-white focus:outline-none focus:ring-1 focus:ring-orange-500">
+          {roles.map(r => <option key={r.id} value={r.id}>{r.name}</option>)}
+        </select>
+        {isReadOnly && <span className="text-xs font-medium text-amber-600 bg-amber-50 px-2 py-0.5 rounded-full">Read Only</span>}
+      </div>
+
       {/* Progress Stepper */}
       <div className="bg-white rounded-lg border border-[#E2E8F0] p-4">
         <div className="flex items-center justify-between mb-3">
-          {steps.map((s, i) => (
-            <button
-              key={s.label}
-              onClick={() => setStep(i)}
-              className="flex flex-col items-center gap-1"
-            >
-              <div
-                className={`flex items-center justify-center rounded-full text-sm font-semibold transition-all ${
-                  i === step
-                    ? "text-white"
-                    : i < step
-                    ? "text-white"
-                    : "text-gray-400 bg-gray-100"
-                }`}
-                style={{
-                  width: 36,
-                  height: 36,
-                  backgroundColor: i === step ? "#E8973A" : i < step ? "#22C55E" : undefined,
-                }}
+          {ALL_STEPS.map((s, i) => {
+            const permitted = hasAccess(s.perm);
+            const isActive = i === step;
+            const isDone = i < step;
+            return (
+              <button
+                key={s.label}
+                onClick={() => goToStep(i)}
+                disabled={!permitted}
+                className={`flex flex-col items-center gap-1 ${!permitted ? "opacity-30 cursor-not-allowed" : ""}`}
+                title={!permitted ? `You don't have access to this section` : s.label}
               >
-                {i < step ? (
-                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
-                  </svg>
-                ) : (
-                  i + 1
-                )}
-              </div>
-              <span
-                className={`text-xs font-medium ${
-                  i === step ? "text-gray-900" : "text-gray-400"
-                }`}
-              >
-                {s.label}
-              </span>
-              <span className="text-[10px] text-gray-400 -mt-0.5">{s.count} item{s.count !== 1 ? "s" : ""}</span>
-            </button>
-          ))}
+                <div
+                  className={`flex items-center justify-center rounded-full text-sm font-semibold transition-all ${
+                    isActive ? "text-white" : isDone ? "text-white" : "text-gray-400 bg-gray-100"
+                  }`}
+                  style={{
+                    width: 36,
+                    height: 36,
+                    backgroundColor: isActive ? "#E8973A" : isDone ? "#22C55E" : undefined,
+                  }}
+                >
+                  {isDone ? (
+                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                    </svg>
+                  ) : (
+                    i + 1
+                  )}
+                </div>
+                <span className={`text-xs font-medium ${isActive ? "text-gray-900" : "text-gray-400"}`}>
+                  {s.label}
+                </span>
+                <span className="text-[10px] text-gray-400 -mt-0.5">{s.count} item{s.count !== 1 ? "s" : ""}</span>
+              </button>
+            );
+          })}
         </div>
         <div className="w-full h-1.5 bg-gray-100 rounded-full overflow-hidden">
           <div
@@ -1268,24 +1319,24 @@ export function DailyReportFormPage() {
       {/* Navigation Buttons */}
       <div className="flex items-center justify-between">
         <div>
-          {step > 0 && (
+          {accessibleIndices.indexOf(step) > 0 && (
             <button
-              onClick={() => setStep(s => s - 1)}
+              onClick={goPrev}
               className="flex items-center gap-1.5 px-4 py-2 rounded-md text-sm font-medium text-gray-700 border border-[#E2E8F0] hover:bg-gray-50 transition-colors"
               style={{ minHeight: 44 }}
             >
-              Previous: {steps[step - 1].label}
+              Previous: {ALL_STEPS[accessibleIndices[accessibleIndices.indexOf(step) - 1]].label}
             </button>
           )}
         </div>
         <div className="flex items-center gap-3">
-          {step < steps.length - 1 ? (
+          {accessibleIndices.indexOf(step) < accessibleIndices.length - 1 ? (
             <button
-              onClick={() => setStep(s => s + 1)}
+              onClick={goNext}
               className="flex items-center gap-1.5 px-4 py-2 rounded-md text-sm font-medium text-white hover:opacity-90 transition-opacity"
               style={{ backgroundColor: "#E8973A", minHeight: 44 }}
             >
-              Next: {steps[step + 1].label}
+              Next: {ALL_STEPS[accessibleIndices[accessibleIndices.indexOf(step) + 1]].label}
             </button>
           ) : (
             <div className="flex items-center gap-3">
