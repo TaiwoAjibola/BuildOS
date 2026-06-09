@@ -6,7 +6,7 @@ import {
   LayoutDashboard, FolderKanban, Users, BarChart3, Settings,
   Calendar, FileText, Truck, AlertTriangle, GitCompare,
   Clock, CheckSquare, ShieldCheck, FileSpreadsheet, Briefcase,
-  DollarSign, MessageSquare, Wallet,
+  DollarSign, MessageSquare, Wallet, ClipboardList, ListTodo,
 } from "lucide-react";
 
 export function ConstructionLayout() {
@@ -28,6 +28,8 @@ export function ConstructionLayout() {
       label: "Management",
       items: [
         { label: "Schedule", href: "/apps/construction/schedule", icon: <Calendar className="w-4 h-4" />, end: true },
+        { label: "Tasks", href: "/apps/construction/tasks", icon: <ClipboardList className="w-4 h-4" />, end: true },
+        { label: "My Tasks", href: "/apps/construction/my-tasks", icon: <ListTodo className="w-4 h-4" />, end: true },
         { label: "Daily Reports", href: "/apps/construction/daily-reports", icon: <FileText className="w-4 h-4" />, end: true },
         { label: "Resources", href: "/apps/construction/resources", icon: <Truck className="w-4 h-4" />, end: true },
         { label: "Issues", href: "/apps/construction/issues", icon: <AlertTriangle className="w-4 h-4" />, end: true },

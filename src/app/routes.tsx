@@ -201,6 +201,8 @@ export const router = createBrowserRouter([
               { index: true, Component: ProjectsListPage },
               { path: "dashboard", Component: PortfolioDashboardPage },
               { path: "schedule", Component: ScheduleOverviewPage },
+              { path: "tasks", lazy: () => import("./pages/construction/TasksPage").then(m => ({ Component: m.TasksPage })) },
+              { path: "my-tasks", lazy: () => import("./pages/construction/MyTasksPage").then(m => ({ Component: m.MyTasksPage })) },
               { path: "daily-reports", Component: DailyReportsOverviewPage },
               { path: "resources", Component: ResourcesOverviewPage },
               { path: "resources/:resourceId", Component: GlobalResourceDetailPage },
