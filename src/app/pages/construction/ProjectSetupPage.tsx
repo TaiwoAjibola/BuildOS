@@ -702,59 +702,61 @@ export function ProjectSetupPage() {
 
   // Progress indicator rendering
   const renderProgress = () => (
-    <div className="flex items-center justify-center mb-8">
-      {STEPS.map((step, idx) => {
-        const StepIcon = step.icon;
-        const isCompleted = completedSteps.has(idx);
-        const isCurrent = currentStep === idx;
-        const isClickable = idx < currentStep || completedSteps.has(idx);
+    <div className="overflow-x-auto -mx-6 px-6 mb-8">
+      <div className="flex items-center justify-center min-w-max">
+        {STEPS.map((step, idx) => {
+          const StepIcon = step.icon;
+          const isCompleted = completedSteps.has(idx);
+          const isCurrent = currentStep === idx;
+          const isClickable = idx < currentStep || completedSteps.has(idx);
 
-        return (
-          <div key={step.id} className="flex items-center">
-            <button
-              onClick={() => isClickable && goToStep(idx)}
-              disabled={!isClickable}
-              className={`flex flex-col items-center gap-1.5 transition-opacity ${isClickable ? "cursor-pointer" : "cursor-default"} ${!isClickable ? "opacity-50" : ""}`}
-            >
-              <div
-                className={`w-10 h-10 rounded-full flex items-center justify-center text-sm font-bold transition-colors ${
-                  isCompleted
-                    ? "bg-green-500 text-white"
-                    : isCurrent
-                      ? "text-white"
-                      : "bg-gray-200 text-gray-500"
-                }`}
-                style={isCurrent && !isCompleted ? { backgroundColor: "#E8973A" } : {}}
+          return (
+            <div key={step.id} className="flex items-center">
+              <button
+                onClick={() => isClickable && goToStep(idx)}
+                disabled={!isClickable}
+                className={`flex flex-col items-center gap-1.5 transition-opacity ${isClickable ? "cursor-pointer" : "cursor-default"} ${!isClickable ? "opacity-50" : ""}`}
               >
-                {isCompleted ? (
-                  <CheckCircle className="w-5 h-5" />
-                ) : (
-                  <StepIcon className="w-5 h-5" />
-                )}
-              </div>
-              <span
-                className={`text-xs font-medium whitespace-nowrap ${
-                  isCompleted
-                    ? "text-green-600"
-                    : isCurrent
-                      ? "font-semibold"
-                      : "text-gray-400"
-                }`}
-                style={isCurrent && !isCompleted ? { color: "#E8973A" } : {}}
-              >
-                {step.label}
-              </span>
-            </button>
-            {idx < STEPS.length - 1 && (
-              <div
-                className={`w-16 sm:w-24 h-0.5 mx-2 rounded-full ${
-                  completedSteps.has(idx) ? "bg-green-500" : "bg-gray-200"
-                }`}
-              />
-            )}
-          </div>
-        );
-      })}
+                <div
+                  className={`w-10 h-10 rounded-full flex items-center justify-center text-sm font-bold transition-colors ${
+                    isCompleted
+                      ? "bg-green-500 text-white"
+                      : isCurrent
+                        ? "text-white"
+                        : "bg-gray-200 text-gray-500"
+                  }`}
+                  style={isCurrent && !isCompleted ? { backgroundColor: "#E8973A" } : {}}
+                >
+                  {isCompleted ? (
+                    <CheckCircle className="w-5 h-5" />
+                  ) : (
+                    <StepIcon className="w-5 h-5" />
+                  )}
+                </div>
+                <span
+                  className={`text-xs font-medium whitespace-nowrap ${
+                    isCompleted
+                      ? "text-green-600"
+                      : isCurrent
+                        ? "font-semibold"
+                        : "text-gray-400"
+                  }`}
+                  style={isCurrent && !isCompleted ? { color: "#E8973A" } : {}}
+                >
+                  {step.label}
+                </span>
+              </button>
+              {idx < STEPS.length - 1 && (
+                <div
+                  className={`w-12 sm:w-16 lg:w-24 h-0.5 mx-1.5 sm:mx-2 rounded-full ${
+                    completedSteps.has(idx) ? "bg-green-500" : "bg-gray-200"
+                  }`}
+                />
+              )}
+            </div>
+          );
+        })}
+      </div>
     </div>
   );
 
