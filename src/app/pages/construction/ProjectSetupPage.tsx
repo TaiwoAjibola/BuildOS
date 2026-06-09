@@ -44,6 +44,7 @@ const EMPTY_VENDOR_FORM = {
   isNominated: false, contractSum: 0, blockAssignment: "",
   skilledCount: 0, unskilledCount: 0, mandaysEstimate: 0,
   status: "Awarded" as Vendor["status"],
+  isMainContractor: false,
 };
 
 export function ProjectSetupPage() {
@@ -151,8 +152,6 @@ export function ProjectSetupPage() {
   const [projectVendors, setProjectVendors] = useState<Vendor[]>([]);
   const [vendorForm, setVendorForm] = useState(EMPTY_VENDOR_FORM);
   const [selectedExistingVendor, setSelectedExistingVendor] = useState("");
-  const [vendorStageAssignments, setVendorStageAssignments] = useState<Record<string, string[]>>({});
-
   const [isNewVendor, setIsNewVendor] = useState(false);
   const [humanSubType, setHumanSubType] = useState<HumanResourceSource>("vendor");
 
@@ -335,7 +334,9 @@ export function ProjectSetupPage() {
       plannedDuration: dur, actualDuration: null, percentComplete: 0,
       predecessorId: null, dependencyType: null, lagDays: 0,
       vendorId: null, ragStatus: "on-track", ragOverride: false, notes: "",
-      structureEntryId: taskForm.structureEntryId || undefined,
+      structureEntryId: taskForm.parentTaskId
+        ? projectTasks.find(t => t.id === taskForm.parentTaskId)?.structureEntryId
+        : undefined,
     };
     setProjectTasks(prev => [...prev, task]);
     setExpanded(prev => {
@@ -344,7 +345,7 @@ export function ProjectSetupPage() {
       if (task.parentTaskId) next.add(task.parentTaskId);
       return next;
     });
-    setTaskForm({ name: "", level: 4, parentTaskId: "", plannedStart: "", plannedEnd: "", structureEntryId: "" });
+    setTaskForm({ name: "", level: 4, parentTaskId: "", plannedStart: "", plannedEnd: "" });
     setShowAddTask(false);
   };
 
@@ -459,16 +460,6 @@ export function ProjectSetupPage() {
     }
   };
 
-  const toggleStageForVendor = (vendorId: string, stageId: string) => {
-    setVendorStageAssignments(prev => {
-      const current = prev[vendorId] || [];
-      const updated = current.includes(stageId)
-        ? current.filter(s => s !== stageId)
-        : [...current, stageId];
-      return { ...prev, [vendorId]: updated };
-    });
-  };
-
   const addVendor = () => {
     if (selectedVendorIds.length === 0) return;
     const existingNames = new Set(projectVendors.map(v => v.name));
@@ -493,24 +484,17 @@ export function ProjectSetupPage() {
           unskilledCount: v?.unskilledCount || 0,
           mandaysEstimate: v?.mandaysEstimate || 0,
           status: v?.status || "Awarded",
+          isMainContractor: v?.isMainContractor || false,
+          subcontractorIds: v?.subcontractorIds || [],
+          parentContractorId: v?.parentContractorId || undefined,
         };
       });
-    newV.forEach(nv => {
-      if (!vendorStageAssignments[nv.id]) {
-        setVendorStageAssignments(prev => ({ ...prev, [nv.id]: [] }));
-      }
-    });
     setProjectVendors(prev => [...prev, ...newV]);
     setSelectedVendorIds([]);
   };
 
   const removeVendor = (id: string) => {
     setProjectVendors(prev => prev.filter(v => v.id !== id));
-    setVendorStageAssignments(prev => {
-      const next = { ...prev };
-      delete next[id];
-      return next;
-    });
   };
 
   // Vendor representatives
@@ -1386,22 +1370,6 @@ export function ProjectSetupPage() {
                   </select>
                 </div>
               )}
-              {structureEntries.length > 0 && (
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">{blockLabel}</label>
-                  <select
-                    value={taskForm.structureEntryId}
-                    onChange={e => setTaskForm({ ...taskForm, structureEntryId: e.target.value })}
-                    className="w-full px-3 py-2 rounded-lg border text-sm"
-                    style={{ borderColor: "#E2E8F0", backgroundColor: "#F7F8FA" }}
-                  >
-                    <option value="">All / Not specified</option>
-                    {structureEntries.map(se => (
-                      <option key={se.id} value={se.id}>{se.name}</option>
-                    ))}
-                  </select>
-                </div>
-              )}
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Planned Start</label>
@@ -1454,123 +1422,116 @@ export function ProjectSetupPage() {
               <button onClick={() => setAssignModalTaskId(null)} className="text-gray-400 hover:text-gray-600 text-xl leading-none">&times;</button>
             </div>
             <div ref={assignModalRef} className="p-5 space-y-4 max-h-[60vh] overflow-y-auto">
-              {/* Existing assignments */}
-              {resourceAssignments.filter(a => a.taskId === assignModalTaskId).length > 0 && (
-                <div>
-                  <h4 className="text-sm font-semibold text-gray-700 mb-3 flex items-center gap-2">
-                    <Users className="w-4 h-4" /> Assigned Resources
-                    <span className="text-xs text-gray-400 font-normal">({resourceAssignments.filter(a => a.taskId === assignModalTaskId).length})</span>
-                  </h4>
-                  <div className="grid grid-cols-1 gap-2">
-                    {resourceAssignments.filter(a => a.taskId === assignModalTaskId).map(ass => {
-                      const isHuman = ass.resourceType === "human";
-                      const resName = isHuman
-                        ? ([...projectStaff, ...projectContractors, ...projectVendors.map(v => ({ id: v.id, name: v.name, trade: v.trade }))] as { id: string; name: string; trade?: string }[]).find(r => r.id === ass.humanResourceId)?.name || "Unknown"
-                        : ass.resourceType === "material"
-                          ? projectMaterials.find(m => m.id === ass.materialResourceId)?.name || "Unknown"
-                          : projectEquipment.find(e => e.id === ass.equipmentResourceId)?.name || "Unknown";
-                      const subtypeLabel = isHuman
-                        ? projectStaff.some(s => s.id === ass.humanResourceId) ? "Employee"
-                          : projectContractors.some(c => c.id === ass.humanResourceId) ? "Contractor"
-                          : "Contractor"
-                        : ass.resourceType === "material" ? "Material" : "Equipment";
-                      const badgeColor = ass.resourceType === "human" ? "bg-blue-100 text-blue-700" : ass.resourceType === "material" ? "bg-green-100 text-green-700" : "bg-amber-100 text-amber-700";
-                      const hideCostQty = isHuman && (subtypeLabel === "Employee" || subtypeLabel === "Contractor");
-                      const isEmptyQtyCost = !hideCostQty && ass.plannedQty === 0 && ass.plannedCost === 0;
-                      const displayLabel = subtypeLabel;
-                      const resourceId = ass.humanResourceId || ass.materialResourceId || ass.equipmentResourceId || "";
-                      return (
-                        <div key={ass.id} className="flex items-center justify-between px-4 py-3 bg-gray-50 rounded-lg text-sm border" style={{ borderColor: "#E2E8F0" }}>
-                          <div className="flex items-center gap-3">
-                            <div className={`w-8 h-8 rounded-lg flex items-center justify-center text-xs font-bold ${badgeColor}`}>
-                              {isHuman ? "H" : ass.resourceType === "material" ? "M" : "E"}
-                            </div>
-                            <div>
-                              <p className="font-medium text-gray-900">{resName}</p>
-                              <p className="text-xs text-gray-500">{displayLabel}</p>
-                            </div>
-                          </div>
-                          <div className="flex items-center gap-4">
-                            <div className="text-right">
-                              {hideCostQty || isEmptyQtyCost ? (
-                                <p className="text-xs text-gray-400 italic">Managed in records</p>
-                              ) : (
-                                <>
-                                  <p className="text-sm font-medium text-gray-900">{ass.plannedQty} × {ass.plannedCost > 0 ? `₦${ass.plannedCost.toLocaleString()}` : "N/A"}</p>
-                                  <p className="text-xs text-gray-400">Total: ₦{((ass.plannedCost || 0) * ass.plannedQty).toLocaleString()}</p>
-                                </>
-                              )}
-                            </div>
-                            {/* Hierarchy actions for human resources */}
-                            {isHuman && (displayLabel === "Contractor") && (
-                              <div className="flex items-center gap-1 mr-1">
-                                {ass.reportsToAssignmentId ? (
-                                  <button
-                                    onClick={() => setResourceAssignments(prev => prev.map(a => a.id === ass.id ? { ...a, reportsToAssignmentId: undefined } : a))}
-                                    className="p-1 rounded text-[10px] text-gray-400 hover:text-orange-600 hover:bg-orange-50 transition-colors"
-                                    title="Remove relationship"
-                                  >
-                                    <X className="w-3 h-3" />
-                                  </button>
-                                ) : (
-                                  <button
-                                    onClick={() => {
-                                      const leadCandidates = resourceAssignments.filter(
-                                        a => a.taskId === ass.taskId && a.id !== ass.id && a.resourceType === "human" && a.humanResourceId
-                                      );
-                                      if (leadCandidates.length > 0) {
-                                        const choice = window.confirm(
-                                          `Set "${resName}" as supporting resource?\n\nClick OK to choose a lead from ${leadCandidates.length} other assigned resources.`
-                                        );
-                                        if (!choice) return;
-                                        const names = leadCandidates.map(a => {
-                                          const n = ([...projectStaff, ...projectContractors, ...projectVendors] as { id: string; name: string }[]).find(r => r.id === a.humanResourceId)?.name || "Unknown";
-                                          return `${a.id}|${n}`;
-                                        });
-                                        const sel = window.prompt(
-                                          `Enter the assignment ID of the lead resource:\n\n${names.map(n => `  ${n.split("|")[0]} — ${n.split("|")[1]}`).join("\n")}`
-                                        );
-                                        if (sel && leadCandidates.find(a => a.id === sel.trim())) {
-                                          setResourceAssignments(prev => prev.map(a => a.id === ass.id ? { ...a, reportsToAssignmentId: sel.trim() } : a));
-                                        }
-                                      }
-                                    }}
-                                    className="p-1 rounded text-[10px] text-gray-400 hover:text-orange-600 hover:bg-orange-50 transition-colors"
-                                    title="Nominate supporting resource"
-                                  >
-                                    <ChevronRight className="w-3 h-3" />
-                                  </button>
-                                )}
-                              </div>
-                            )}
-                            <button onClick={() => {
-                              setResourceAssignments(prev => prev.filter(a => a.id !== ass.id));
-                              if (ass.resourceType === "human" && ass.humanResourceId) {
-                                const vendor = projectVendors.find(v => v.id === ass.humanResourceId);
-                                if (vendor) {
-                                  setProjectTasks(prev => prev.map(t => {
-                                    if (t.id !== ass.taskId) return t;
-                                    if (t.vendorId === vendor.id) {
-                                      const subs = t.subVendorIds || [];
-                                      return subs.length > 0 ? { ...t, vendorId: subs[0], subVendorIds: subs.slice(1) } : { ...t, vendorId: null, subVendorIds: [] };
-                                    }
-                                    return { ...t, subVendorIds: (t.subVendorIds || []).filter(sid => sid !== vendor.id) };
-                                  }));
-                                }
-                              }
-                            }} className="p-1.5 rounded-lg hover:bg-red-50 text-red-400 hover:text-red-600 transition-colors"><Trash2 className="w-3.5 h-3.5" /></button>
+              {/* ── Main Contractor ── */}
+              {(() => {
+                const task = projectTasks.find(t => t.id === assignModalTaskId);
+                if (!task) return null;
+                const currentMain = task.vendorId ? projectVendors.find(v => v.id === task.vendorId) : null;
+                const availableMains = projectVendors.filter(v => v.isMainContractor && v.id !== task.vendorId && !(task.subVendorIds || []).includes(v.id));
+                return (
+                  <div>
+                    <h4 className="text-sm font-semibold text-gray-700 mb-2 flex items-center gap-2">
+                      <Building2 className="w-4 h-4" /> Main Contractor
+                    </h4>
+                    {currentMain ? (
+                      <div className="flex items-center justify-between px-4 py-3 bg-blue-50 rounded-lg text-sm border border-blue-200">
+                        <div className="flex items-center gap-3">
+                          <div className="w-8 h-8 rounded-lg flex items-center justify-center text-xs font-bold bg-blue-100 text-blue-700">M</div>
+                          <div>
+                            <p className="font-medium text-gray-900">{currentMain.name}</p>
+                            <p className="text-xs text-gray-500">{currentMain.trade}</p>
                           </div>
                         </div>
-                      );
-                    })}
+                        <div className="flex items-center gap-2">
+                          {availableMains.length > 0 && (
+                            <select value="" onChange={e => {
+                              if (!e.target.value) return;
+                              const now = Date.now();
+                              setProjectTasks(prev => prev.map(t => t.id === assignModalTaskId ? { ...t, vendorId: e.target.value, subVendorIds: (t.subVendorIds || []) } : t));
+                              setResourceAssignments(prev => [...prev.filter(a => a.taskId !== assignModalTaskId || a.humanResourceId !== task.vendorId), { id: `RA-${now}`, taskId: assignModalTaskId!, projectId: projectId!, resourceType: "human", humanResourceId: e.target.value, plannedQty: 0, plannedCost: 0 }]);
+                              if (task.vendorId) setResourceAssignments(prev => prev.filter(a => !(a.taskId === assignModalTaskId && a.humanResourceId === task.vendorId)));
+                            }}
+                              className="text-xs px-2 py-1 rounded border bg-white text-gray-600" style={{ borderColor: "#E2E8F0" }}>
+                              <option value="">Change…</option>
+                              {availableMains.map(v => <option key={v.id} value={v.id}>{v.name}</option>)}
+                            </select>
+                          )}
+                          <button onClick={() => {
+                            setProjectTasks(prev => prev.map(t => t.id === assignModalTaskId ? { ...t, vendorId: null } : t));
+                            setResourceAssignments(prev => prev.filter(a => !(a.taskId === assignModalTaskId && a.humanResourceId === task.vendorId)));
+                          }} className="p-1 rounded hover:bg-red-50 text-red-400 hover:text-red-600"><X className="w-3.5 h-3.5" /></button>
+                        </div>
+                      </div>
+                    ) : projectVendors.some(v => v.isMainContractor) ? (
+                      <select value="" onChange={e => {
+                        if (!e.target.value) return;
+                        const now = Date.now();
+                        setProjectTasks(prev => prev.map(t => t.id === assignModalTaskId ? { ...t, vendorId: e.target.value } : t));
+                        setResourceAssignments(prev => [...prev, { id: `RA-${now}`, taskId: assignModalTaskId!, projectId: projectId!, resourceType: "human", humanResourceId: e.target.value, plannedQty: 0, plannedCost: 0 }]);
+                      }}
+                        className="w-full px-3 py-2 rounded-lg border text-sm" style={{ borderColor: "#E2E8F0", backgroundColor: "#F7F8FA" }}>
+                        <option value="">Set main contractor…</option>
+                        {projectVendors.filter(v => v.isMainContractor).map(v => <option key={v.id} value={v.id}>{v.name} — {v.trade}</option>)}
+                      </select>
+                    ) : (
+                      <p className="text-xs text-gray-400 italic">No main contractors registered. Mark a contractor as "Main" in the Contractors step.</p>
+                    )}
                   </div>
-                </div>
-              )}
+                );
+              })()}
 
-              {/* Add new assignment */}
+              {/* ── Subcontractors ── */}
+              {(() => {
+                const task = projectTasks.find(t => t.id === assignModalTaskId);
+                if (!task) return null;
+                const subs = (task.subVendorIds || []).map(sid => projectVendors.find(v => v.id === sid)).filter(Boolean) as Vendor[];
+                const availableSubs = projectVendors.filter(v => v.id !== task.vendorId && !(task.subVendorIds || []).includes(v.id));
+                return (
+                  <div>
+                    <h4 className="text-sm font-semibold text-gray-700 mb-2 flex items-center gap-2">
+                      <Users className="w-4 h-4" /> Subcontractors
+                      {subs.length > 0 && <span className="text-xs text-gray-400 font-normal">({subs.length})</span>}
+                    </h4>
+                    {subs.length > 0 && (
+                      <div className="space-y-1.5 mb-2">
+                        {subs.map(sub => (
+                          <div key={sub!.id} className="flex items-center justify-between px-3 py-2 bg-gray-50 rounded-lg text-sm border" style={{ borderColor: "#E2E8F0" }}>
+                            <div className="flex items-center gap-2">
+                              <div className="w-6 h-6 rounded flex items-center justify-center text-[10px] font-bold bg-orange-100 text-orange-700">S</div>
+                              <span className="font-medium text-gray-900">{sub!.name}</span>
+                              <span className="text-xs text-gray-500">{sub!.trade}</span>
+                            </div>
+                            <button onClick={() => {
+                              setProjectTasks(prev => prev.map(t => t.id === assignModalTaskId ? { ...t, subVendorIds: (t.subVendorIds || []).filter(sid => sid !== sub!.id) } : t));
+                              setResourceAssignments(prev => prev.filter(a => !(a.taskId === assignModalTaskId && a.humanResourceId === sub!.id)));
+                            }} className="p-1 rounded hover:bg-red-50 text-red-400 hover:text-red-600"><X className="w-3 h-3" /></button>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                    {availableSubs.length > 0 ? (
+                      <select value="" onChange={e => {
+                        if (!e.target.value) return;
+                        const now = Date.now();
+                        setProjectTasks(prev => prev.map(t => t.id === assignModalTaskId ? { ...t, subVendorIds: [...(t.subVendorIds || []), e.target.value] } : t));
+                        setResourceAssignments(prev => [...prev, { id: `RA-${now}`, taskId: assignModalTaskId!, projectId: projectId!, resourceType: "human", humanResourceId: e.target.value, plannedQty: 0, plannedCost: 0 }]);
+                      }}
+                        className="w-full px-3 py-2 rounded-lg border text-sm" style={{ borderColor: "#E2E8F0", backgroundColor: "#F7F8FA" }}>
+                        <option value="">Add subcontractor…</option>
+                        {availableSubs.map(v => <option key={v.id} value={v.id}>{v.name} — {v.trade}</option>)}
+                      </select>
+                    ) : (
+                      subs.length > 0 && <p className="text-xs text-gray-400 italic">All vendors assigned</p>
+                    )}
+                    {projectVendors.length === 0 && <p className="text-xs text-gray-400 italic">No vendors registered. Add contractors first.</p>}
+                  </div>
+                );
+              })()}
+
+              {/* ── Other Resources ── */}
               <div>
                 <h4 className="text-sm font-semibold text-gray-700 mb-3 flex items-center gap-2">
-                  <Plus className="w-4 h-4" /> Assign New Resource
+                  <Plus className="w-4 h-4" /> Other Resources
                 </h4>
                 <div className="space-y-3">
                   <div>
@@ -1594,26 +1555,24 @@ export function ProjectSetupPage() {
                     </div>
                   </div>
                   <div>
-                    <label className="block text-xs font-medium text-gray-600 mb-1">Resource</label>
-                    {assignForm.resourceType === "human" && projectStaff.length + projectContractors.length + projectVendors.length === 0 && <p className="text-xs text-gray-400 mt-1">No human resources registered. Go to Resources step first.</p>}
-                    {assignForm.resourceType === "material" && projectMaterials.length === 0 && <p className="text-xs text-gray-400 mt-1">No materials registered. Go to Resources step first.</p>}
-                    {assignForm.resourceType === "equipment" && projectEquipment.length === 0 && <p className="text-xs text-gray-400 mt-1">No equipment registered. Go to Resources step first.</p>}
-                     {assignForm.resourceType === "human" && (projectStaff.length + projectContractors.length + projectVendors.length > 0) && (
-                       <div className="mb-16">
-                         <SearchableMultiSelect
-                           options={[
-                             ...projectStaff.map(r => ({ label: `${r.name} — ${r.trade}`, value: r.id, group: "Employees" })),
-                             ...projectContractors.map(r => ({ label: `${r.name} — ${r.trade}${r.payRate ? ` (₦${r.payRate.toLocaleString()}/${r.payRateUnit})` : ""}`, value: r.id, group: "Contractors" })),
-                             ...projectVendors.map(r => ({ label: `${r.name} — ${r.trade}`, value: r.id, group: "Contractors" })),
-                           ]}
-                           value={selectedResourceIds}
-                           onChange={setSelectedResourceIds}
-                           placeholder="Select resources..."
-                           searchPlaceholder="Search resources..."
-                         />
-                       </div>
-                     )}
-                     {assignForm.resourceType === "material" && (
+                    {assignForm.resourceType === "human" && projectStaff.length + projectContractors.length === 0 && <p className="text-xs text-gray-400 mt-1">No employees or individual contractors registered.</p>}
+                    {assignForm.resourceType === "material" && projectMaterials.length === 0 && <p className="text-xs text-gray-400 mt-1">No materials registered. Go to Materials step first.</p>}
+                    {assignForm.resourceType === "equipment" && projectEquipment.length === 0 && <p className="text-xs text-gray-400 mt-1">No equipment registered. Go to Equipment step first.</p>}
+                    {assignForm.resourceType === "human" && (projectStaff.length + projectContractors.length > 0) && (
+                      <div className="mb-16">
+                        <SearchableMultiSelect
+                          options={[
+                            ...projectStaff.map(r => ({ label: `${r.name} — ${r.trade}`, value: r.id, group: "Employees" })),
+                            ...projectContractors.map(r => ({ label: `${r.name} — ${r.trade}${r.payRate ? ` (₦${r.payRate.toLocaleString()}/${r.payRateUnit})` : ""}`, value: r.id, group: "Contractors" })),
+                          ]}
+                          value={selectedResourceIds}
+                          onChange={setSelectedResourceIds}
+                          placeholder="Select employees or individual contractors..."
+                          searchPlaceholder="Search..."
+                        />
+                      </div>
+                    )}
+                    {assignForm.resourceType === "material" && (
                       <div className="mb-16">
                         <SearchableMultiSelect
                           options={projectMaterials.map(m => ({ label: `${m.name} (${m.category})`, value: m.id, group: m.category }))}
@@ -1622,9 +1581,7 @@ export function ProjectSetupPage() {
                           placeholder="Select materials..."
                           onNotFoundAction={{
                             label: "Submit Procurement Request",
-                            onClick: (q) => {
-                              alert(`Procurement request for "${q}" will be submitted.`);
-                            },
+                            onClick: (q) => { alert(`Procurement request for "${q}" will be submitted.`); },
                           }}
                         />
                       </div>
@@ -1638,9 +1595,7 @@ export function ProjectSetupPage() {
                           placeholder="Select equipment..."
                           onNotFoundAction={{
                             label: "Add External Equipment",
-                            onClick: (q) => {
-                              alert(`External equipment form for "${q}" will be opened.`);
-                            },
+                            onClick: (q) => { alert(`External equipment form for "${q}" will be opened.`); },
                           }}
                         />
                       </div>
@@ -1653,10 +1608,8 @@ export function ProjectSetupPage() {
                     let hideCost = false;
                     let costLabel = "Planned Cost (₦)";
                     if (assignForm.resourceType === "human") {
-                      const isContractor = projectContractors.some(c => c.id === rId);
-                      const isVendor = projectVendors.some(v => v.id === rId);
                       const isEmployee = projectStaff.some(s => s.id === rId);
-                      if (isEmployee || isVendor) { hideQty = true; hideCost = true; }
+                      if (isEmployee) { hideQty = true; hideCost = true; }
                     }
                     if (assignForm.resourceType === "material") {
                       const mat = projectMaterials.find(m => m.id === rId);
@@ -1667,7 +1620,7 @@ export function ProjectSetupPage() {
                       if (eq?.ownership === "company-owned") hideCost = true;
                     }
                     if (hideQty && hideCost) {
-                      return <p className="text-xs text-gray-500 mt-1 italic">Cost and quantity are managed through existing records for this resource type.</p>;
+                      return <p className="text-xs text-gray-500 mt-1 italic">Cost and quantity managed through existing records.</p>;
                     }
                     return (
                       <div className="grid grid-cols-2 gap-3">
@@ -1702,22 +1655,6 @@ export function ProjectSetupPage() {
                         plannedCost: assignForm.plannedCost,
                       }));
                       setResourceAssignments(prev => [...prev, ...newAssignments]);
-                      if (assignForm.resourceType === "human") {
-                        setProjectTasks(prev => prev.map(t => {
-                          if (t.id !== assignModalTaskId) return t;
-                          let updated = { ...t };
-                          selectedResourceIds.forEach(rid => {
-                            const vendor = projectVendors.find(v => v.id === rid);
-                            if (!vendor) return;
-                            if (!updated.vendorId) { updated = { ...updated, vendorId: vendor.id }; }
-                            else {
-                              const subs = updated.subVendorIds || [];
-                              if (!subs.includes(vendor.id)) { updated = { ...updated, subVendorIds: [...subs, vendor.id] }; }
-                            }
-                          });
-                          return updated;
-                        }));
-                      }
                       setSelectedResourceIds([]);
                       setAssignForm({ resourceType: "human", resourceId: "", plannedQty: 0, plannedCost: 0 });
                     }}
@@ -1739,7 +1676,7 @@ export function ProjectSetupPage() {
     </div>
   );
 
-  // Step 3 — Vendor Registration & Stage Assignment
+  // Step 3 — Vendor Registration
   const renderHumanResources = () => {
     const stages = projectTasks.filter(t => t.level === 1);
 
@@ -1952,50 +1889,6 @@ export function ProjectSetupPage() {
           </div>
         )}
 
-        {/* Stage Assignment — only when viewing Contractors */}
-        {humanSubType === "vendor" && projectVendors.length > 0 && stages.length > 0 && (
-          <div className="rounded-xl border p-5" style={{ borderColor: "#E2E8F0", backgroundColor: "white" }}>
-            <h3 className="text-base font-bold mb-4" style={{ color: "#1A202C" }}>Assign Resources to Schedule Phases</h3>
-            <p className="text-sm text-gray-500 mb-4">For each resource, select which stages of the schedule they will work on.</p>
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead>
-                  <tr style={{ backgroundColor: "#F7F8FA", borderBottom: "1px solid #E2E8F0" }}>
-                    <th className="text-left px-3 py-2.5 font-medium text-gray-500">Contractor</th>
-                    {stages.map(s => (
-                      <th key={s.id} className="text-center px-3 py-2.5 font-medium text-gray-500 min-w-[120px]">{s.name}</th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody>
-                  {projectVendors.map(v => {
-                    const parent = v.parentContractorId ? projectVendors.find(p => p.id === v.parentContractorId) : null;
-                    return (
-                    <tr key={v.id} style={{ borderBottom: "1px solid #E2E8F0" }}>
-                      <td className="px-3 py-2.5 font-medium text-gray-900">
-                        {parent && <span className="text-[10px] text-gray-400 mr-1">↳ </span>}
-                        {v.name}
-                        {parent && <span className="text-[10px] text-gray-400 ml-1">(sub of {parent.name})</span>}
-                      </td>
-                      {stages.map(s => {
-                        const assigned = vendorStageAssignments[v.id] || [];
-                        return (
-                          <td key={s.id} className="text-center px-3 py-2.5">
-                            <input type="checkbox" checked={assigned.includes(s.id)}
-                              onChange={() => toggleStageForVendor(v.id, s.id)}
-                              className="w-4 h-4 rounded" style={{ accentColor: "#E8973A" }} />
-                          </td>
-                        );
-                      })}
-                    </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
-          </div>
-        )}
-
         {/* Registered list — show all human resources */}
         {allHumanResources.length > 0 && (
           <div className="rounded-xl border" style={{ borderColor: "#E2E8F0", backgroundColor: "white" }}>
@@ -2077,9 +1970,6 @@ export function ProjectSetupPage() {
                     {hrSectionOpen.vendor ? <ChevronDown className="w-3 h-3 text-gray-400 ml-auto" /> : <ChevronRight className="w-3 h-3 text-gray-400 ml-auto" />}
                   </div>
                   {hrSectionOpen.vendor && projectVendors.filter(v => !hrSearch || v.name.toLowerCase().includes(hrSearch.toLowerCase()) || v.trade.toLowerCase().includes(hrSearch.toLowerCase())).map(v => {
-                    const assignedStages = (vendorStageAssignments[v.id] || [])
-                      .map(sid => stages.find(s => s.id === sid))
-                      .filter(Boolean);
                     const reps = v.representatives || [];
                     const repCount = reps.length;
                     return (
@@ -2099,13 +1989,6 @@ export function ProjectSetupPage() {
                                 <span className="ml-1 text-[10px] text-gray-400">— Sub of {projectVendors.find(p => p.id === v.parentContractorId)!.name}</span>
                               )}
                             </p>
-                              {assignedStages.length > 0 && (
-                                <p className="text-[10px] text-gray-400 mt-0.5 flex gap-1 flex-wrap">
-                                  {assignedStages.map(s => (
-                                    <span key={s!.id} className="inline-block px-1.5 py-0.5 bg-gray-100 rounded text-gray-500">{s!.name}</span>
-                                  ))}
-                                </p>
-                              )}
                             </div>
                           </div>
                           <div className="flex items-center gap-1">
