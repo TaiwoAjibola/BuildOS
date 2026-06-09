@@ -316,11 +316,11 @@ export function SettingsPage() {
             <div className="rounded-lg border border-orange-200 bg-orange-50/30 p-4">
               <div className="flex items-center gap-2 mb-3">
                 <Building2 className="w-4 h-4 text-orange-600" />
-                <h4 className="text-sm font-semibold text-orange-900">Vendors</h4>
+                <h4 className="text-sm font-semibold text-orange-900">Contractors</h4>
               </div>
               <p className="text-xs text-orange-700 mb-1">Managed within the Project Module.</p>
-              <p className="text-xs text-gray-500 mb-3">Vendors and subcontractors are created and managed in the Resources Overview page and assigned to projects.</p>
-              <a href="/apps/construction/resources" className="inline-flex items-center gap-1 text-xs font-medium text-orange-700 hover:text-orange-900">Manage Vendors in Resources <ArrowRight className="w-3 h-3" /></a>
+              <p className="text-xs text-gray-500 mb-3">Contractors and subcontractors are created and managed in the Resources Overview page and assigned to projects.</p>
+              <a href="/apps/construction/resources" className="inline-flex items-center gap-1 text-xs font-medium text-orange-700 hover:text-orange-900">Manage Contractors in Resources <ArrowRight className="w-3 h-3" /></a>
             </div>
           </div>
         </Section>

@@ -125,9 +125,10 @@ export function ProjectSetupPage() {
   const [showAddTask, setShowAddTask] = useState(false);
   const [taskForm, setTaskForm] = useState({
     name: "", level: 4 as 1 | 2 | 3 | 4, parentTaskId: "",
-    plannedStart: "", plannedEnd: "",
+    plannedStart: "", plannedEnd: "", structureEntryId: "",
   });
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
+  const [structureFilter, setStructureFilter] = useState("");
 
   // Resource assignments for Schedule Builder
   const [resourceAssignments, setResourceAssignments] = useState<ResourceAssignment[]>([]);
@@ -148,7 +149,7 @@ export function ProjectSetupPage() {
   const [vendorForm, setVendorForm] = useState(EMPTY_VENDOR_FORM);
   const [selectedExistingVendor, setSelectedExistingVendor] = useState("");
   const [vendorStageAssignments, setVendorStageAssignments] = useState<Record<string, string[]>>({});
-  const [resourceTab, setResourceTab] = useState<"human" | "material" | "equipment" | "roles">("human");
+  const [resourceTab, setResourceTab] = useState<"human" | "material" | "equipment">("human");
   const [isNewVendor, setIsNewVendor] = useState(false);
   const [humanSubType, setHumanSubType] = useState<HumanResourceSource>("vendor");
 
@@ -184,9 +185,9 @@ export function ProjectSetupPage() {
   const [repExpandedVendorId, setRepExpandedVendorId] = useState<string | null>(null);
   const [newRepForm, setNewRepForm] = useState({ fullName: "", email: "", phone: "", position: "" });
 
-  // Main contractor selection
+  // Main contractor selection — toggle on/off, allow multiple
   const assignMainContractor = (vendorId: string) => {
-    setProjectVendors(prev => prev.map(v => ({ ...v, isMainContractor: v.id === vendorId })));
+    setProjectVendors(prev => prev.map(v => v.id === vendorId ? { ...v, isMainContractor: !v.isMainContractor } : v));
   };
 
   // Project roles (defined globally in Settings, assigned per-project)
@@ -331,6 +332,7 @@ export function ProjectSetupPage() {
       plannedDuration: dur, actualDuration: null, percentComplete: 0,
       predecessorId: null, dependencyType: null, lagDays: 0,
       vendorId: null, ragStatus: "on-track", ragOverride: false, notes: "",
+      structureEntryId: taskForm.structureEntryId || undefined,
     };
     setProjectTasks(prev => [...prev, task]);
     setExpanded(prev => {
@@ -339,7 +341,7 @@ export function ProjectSetupPage() {
       if (task.parentTaskId) next.add(task.parentTaskId);
       return next;
     });
-    setTaskForm({ name: "", level: 4, parentTaskId: "", plannedStart: "", plannedEnd: "" });
+    setTaskForm({ name: "", level: 4, parentTaskId: "", plannedStart: "", plannedEnd: "", structureEntryId: "" });
     setShowAddTask(false);
   };
 
@@ -402,7 +404,7 @@ export function ProjectSetupPage() {
             plannedStart: s, plannedEnd: e, actualStart: null, actualEnd: null,
             plannedDuration: dur, actualDuration: null, percentComplete: 0,
             predecessorId: null, dependencyType: null, lagDays: 0,
-      vendorId: null, subVendorIds: [], ragStatus: "on-track", ragOverride: false, notes: "",
+      vendorId: null, subVendorIds: [], ragStatus: "on-track", ragOverride: false, notes: "", structureEntryId: undefined,
             });
           }
           if (newTasks.length > 0) {
@@ -1100,9 +1102,10 @@ export function ProjectSetupPage() {
 
   // Step 2 — Schedule Builder
   const renderTaskTree = (parentId: string | null, depth: number): React.ReactNode => {
-    const children = projectTasks.filter(t => t.parentTaskId === parentId);
+    const children = projectTasks.filter(t => t.parentTaskId === parentId && (!structureFilter || t.structureEntryId === structureFilter));
     if (children.length === 0 && depth === 0) {
-      return rootTasks.map(t => renderTaskTree(t.id, 1));
+      const filteredRoots = rootTasks.filter(t => !structureFilter || t.structureEntryId === structureFilter);
+      return filteredRoots.map(t => renderTaskTree(t.id, 1));
     }
     return children.flatMap(task => {
       const isExpanded = expanded.has(task.id);
@@ -1135,6 +1138,15 @@ export function ProjectSetupPage() {
             <span className="text-xs font-mono opacity-60 w-16 flex-shrink-0">{task.id}</span>
             <span className="flex-1 truncate font-medium flex items-center gap-2">
               {task.name}
+              {task.structureEntryId && (() => {
+                const se = structureEntries.find(e => e.id === task.structureEntryId);
+                return se ? (
+                  <span className="inline-flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded-full font-medium"
+                    style={{ backgroundColor: isLevel1 ? "rgba(232,151,58,0.2)" : "#FFF3E0", color: isLevel1 ? "#E8973A" : "#E8973A" }}>
+                    {se.name}
+                  </span>
+                ) : null;
+              })()}
               {task.level === 1 && task.vendorId && (
                 <span className="inline-flex items-center gap-1 text-xs" style={{ color: isLevel1 ? "rgba(255,255,255,0.7)" : "#6B7280" }}>
                   <Building2 className="w-3 h-3 flex-shrink-0" />
@@ -1225,6 +1237,43 @@ export function ProjectSetupPage() {
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-lg font-bold" style={{ color: "#1A202C" }}>Task Hierarchy Builder</h2>
           <div className="flex items-center gap-2">
+            {structureEntries.length > 0 && (
+              <button
+                onClick={() => {
+                  const newTasks: Task[] = [];
+                  let nextId = maxTaskId;
+                  structureEntries.forEach(se => {
+                    nextId++;
+                    const s = basicInfo.plannedStartDate || new Date().toISOString().split("T")[0];
+                    const e = basicInfo.plannedEndDate || new Date(Date.now() + 90 * 86400000).toISOString().split("T")[0];
+                    newTasks.push({
+                      id: `ST-${String(nextId).padStart(3, "0")}`,
+                      projectId: projectId!,
+                      parentTaskId: null,
+                      level: 1,
+                      name: `${se.name}`,
+                      plannedStart: s, plannedEnd: e,
+                      actualStart: null, actualEnd: null,
+                      plannedDuration: Math.max(1, Math.round((new Date(e).getTime() - new Date(s).getTime()) / 86400000) + 1),
+                      actualDuration: null, percentComplete: 0,
+                      predecessorId: null, dependencyType: null, lagDays: 0,
+                      vendorId: null, ragStatus: "on-track", ragOverride: false, notes: "",
+                      structureEntryId: se.id,
+                    });
+                  });
+                  setProjectTasks(prev => [...prev, ...newTasks]);
+                  setExpanded(prev => {
+                    const next = new Set(prev);
+                    newTasks.forEach(t => next.add(t.id));
+                    return next;
+                  });
+                }}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium border hover:bg-gray-50 text-gray-600"
+                style={{ borderColor: "#E2E8F0" }}
+              >
+                <Building2 className="w-3.5 h-3.5" /> Generate from {blockLabel}
+              </button>
+            )}
             <button
               onClick={() => setShowAddTask(true)}
               className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-white text-sm font-medium"
@@ -1234,6 +1283,25 @@ export function ProjectSetupPage() {
             </button>
           </div>
         </div>
+        {structureEntries.length > 0 && (
+          <div className="flex items-center gap-2 mb-3">
+            <span className="text-xs text-gray-500 font-medium">Filter by {blockLabel}:</span>
+            {(["", ...structureEntries.map(se => se.id)] as const).map(id => {
+              const se = id ? structureEntries.find(e => e.id === id) : null;
+              return (
+                <button key={id || "all"}
+                  onClick={() => setStructureFilter(id)}
+                  className={`px-2 py-1 rounded text-[10px] font-medium border transition-colors ${
+                    (id ? structureFilter === id : !structureFilter) ? "bg-gray-100 text-gray-700 border-gray-200" : "bg-white text-gray-600 hover:bg-gray-50"
+                  }`}
+                  style={{ borderColor: "#E2E8F0" }}
+                >
+                  {id ? se?.name || id : "All"}
+                </button>
+              );
+            })}
+          </div>
+        )}
 
         {projectTasks.length === 0 ? (
           <div className="text-center py-12 text-gray-400">
@@ -1313,6 +1381,22 @@ export function ProjectSetupPage() {
                   </select>
                 </div>
               )}
+              {structureEntries.length > 0 && (
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">{blockLabel}</label>
+                  <select
+                    value={taskForm.structureEntryId}
+                    onChange={e => setTaskForm({ ...taskForm, structureEntryId: e.target.value })}
+                    className="w-full px-3 py-2 rounded-lg border text-sm"
+                    style={{ borderColor: "#E2E8F0", backgroundColor: "#F7F8FA" }}
+                  >
+                    <option value="">All / Not specified</option>
+                    {structureEntries.map(se => (
+                      <option key={se.id} value={se.id}>{se.name}</option>
+                    ))}
+                  </select>
+                </div>
+              )}
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Planned Start</label>
@@ -1383,10 +1467,10 @@ export function ProjectSetupPage() {
                       const subtypeLabel = isHuman
                         ? projectStaff.some(s => s.id === ass.humanResourceId) ? "Employee"
                           : projectContractors.some(c => c.id === ass.humanResourceId) ? "Contractor"
-                          : "Vendor"
+                          : "Contractor"
                         : ass.resourceType === "material" ? "Material" : "Equipment";
                       const badgeColor = ass.resourceType === "human" ? "bg-blue-100 text-blue-700" : ass.resourceType === "material" ? "bg-green-100 text-green-700" : "bg-amber-100 text-amber-700";
-                      const hideCostQty = isHuman && (subtypeLabel === "Employee" || subtypeLabel === "Vendor");
+                      const hideCostQty = isHuman && (subtypeLabel === "Employee" || subtypeLabel === "Contractor");
                       const isEmptyQtyCost = !hideCostQty && ass.plannedQty === 0 && ass.plannedCost === 0;
                       const displayLabel = subtypeLabel;
                       const resourceId = ass.humanResourceId || ass.materialResourceId || ass.equipmentResourceId || "";
@@ -1413,7 +1497,7 @@ export function ProjectSetupPage() {
                               )}
                             </div>
                             {/* Hierarchy actions for human resources */}
-                            {isHuman && (displayLabel === "Vendor" || displayLabel === "Contractor") && (
+                            {isHuman && (displayLabel === "Contractor") && (
                               <div className="flex items-center gap-1 mr-1">
                                 {ass.reportsToAssignmentId ? (
                                   <button
@@ -1515,7 +1599,7 @@ export function ProjectSetupPage() {
                            options={[
                              ...projectStaff.map(r => ({ label: `${r.name} — ${r.trade}`, value: r.id, group: "Employees" })),
                              ...projectContractors.map(r => ({ label: `${r.name} — ${r.trade}${r.payRate ? ` (₦${r.payRate.toLocaleString()}/${r.payRateUnit})` : ""}`, value: r.id, group: "Contractors" })),
-                             ...projectVendors.map(r => ({ label: `${r.name} — ${r.trade}`, value: r.id, group: "Vendors" })),
+                             ...projectVendors.map(r => ({ label: `${r.name} — ${r.trade}`, value: r.id, group: "Contractors" })),
                            ]}
                            value={selectedResourceIds}
                            onChange={setSelectedResourceIds}
@@ -1680,13 +1764,13 @@ export function ProjectSetupPage() {
       <div className="space-y-4">
         {/* Resource Type Tabs */}
         <div className="flex gap-1 bg-gray-100 rounded-lg p-1 max-w-md">
-          {(["human", "material", "equipment", "roles"] as const).map(tab => (
+          {(["human", "material", "equipment"] as const).map(tab => (
             <button key={tab} onClick={() => setResourceTab(tab)}
               className={`flex-1 px-4 py-2 text-sm font-medium rounded-md transition-colors capitalize ${
                 resourceTab === tab ? "bg-white text-gray-900 shadow-sm" : "text-gray-500 hover:text-gray-700"
               }`}
             >
-              {tab === "human" ? "Human Resources" : tab === "material" ? "Materials" : tab === "equipment" ? "Equipment" : "Project Roles"}
+              {tab === "human" ? "Human Resources" : tab === "material" ? "Materials" : "Equipment"}
             </button>
           ))}
         </div>
@@ -1697,13 +1781,17 @@ export function ProjectSetupPage() {
           <div className="flex gap-1.5">
             <SubPill label="Employees" value="employee" />
             <SubPill label="Individual Contractors" value="individual-contractor" />
-            <SubPill label="Vendors" value="vendor" />
+            <SubPill label="Contractors" value="vendor" />
           </div>
 
           {/* ── Employee Form ── */}
           {humanSubType === "employee" && (
             <div className="rounded-xl border p-6" style={{ borderColor: "#E2E8F0", backgroundColor: "white" }}>
-              <h2 className="text-lg font-bold mb-4" style={{ color: "#1A202C" }}>Select Employee</h2>
+              <h2 className="text-lg font-bold mb-4" style={{ color: "#1A202C" }}>{
+                basicInfo.contractingModel === "developer" ? "Select Employee (Our Team)" :
+                basicInfo.contractingModel === "contractor" ? "Select Employee (Self-Perform)" :
+                "Select Employee (Management Team)"
+              }</h2>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Choose Employees from HR</label>
                 <SearchableMultiSelect
@@ -1731,7 +1819,11 @@ export function ProjectSetupPage() {
           {/* ── Individual Contractor Form ── */}
           {humanSubType === "individual-contractor" && (
             <div className="rounded-xl border p-6" style={{ borderColor: "#E2E8F0", backgroundColor: "white" }}>
-              <h2 className="text-lg font-bold mb-4" style={{ color: "#1A202C" }}>Select Contractor</h2>
+              <h2 className="text-lg font-bold mb-4" style={{ color: "#1A202C" }}>{
+                basicInfo.contractingModel === "developer" ? "Select Individual Contractor (Direct Hires)" :
+                basicInfo.contractingModel === "contractor" ? "Select Individual Contractor (Self-Perform)" :
+                "Select Individual Contractor (Direct Hires)"
+              }</h2>
               <div className="mb-4">
                 <label className="block text-sm font-medium text-gray-700 mb-1">Choose Contractors</label>
                 <SearchableMultiSelect
@@ -1844,22 +1936,26 @@ export function ProjectSetupPage() {
             </div>
           )}
 
-          {/* ── Vendor Form (existing) ── */}
+          {/* ── Contractor Companies Form ── */}
           {humanSubType === "vendor" && (
             <div className="rounded-xl border p-6" style={{ borderColor: "#E2E8F0", backgroundColor: "white" }}>
-              <h2 className="text-lg font-bold mb-4" style={{ color: "#1A202C" }}>Select Vendor</h2>
+              <h2 className="text-lg font-bold mb-4" style={{ color: "#1A202C" }}>{
+                basicInfo.contractingModel === "developer" ? "Select Contractor (Main + Subs)" :
+                basicInfo.contractingModel === "contractor" ? "Select Subcontractor" :
+                "Select Trade Contractor"
+              }</h2>
               <div className="mb-4">
-                <label className="block text-sm font-medium text-gray-700 mb-1">Choose Vendors</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Choose Contractors</label>
                 <SearchableMultiSelect
                   options={(uniqueVendors as { id: string; name: string; trade: string }[]).filter(v => !projectVendors.some(pv => pv.name === v.name)).map(v => ({ label: `${v.name} — ${v.trade}`, value: v.id, group: v.trade }))}
                   value={selectedVendorIds}
                   onChange={setSelectedVendorIds}
-                  placeholder="Search vendors..."
+                  placeholder="Search contractors..."
                 />
               </div>
               {selectedVendorIds.length > 0 && (
                 <p className="text-sm text-gray-500 mt-2">
-                  <span className="font-medium">{selectedVendorIds.length}</span> vendor(s) selected.
+                  <span className="font-medium">{selectedVendorIds.length}</span> contractor(s) selected.
                 </p>
               )}
               <div className="flex justify-end mt-4">
@@ -1881,7 +1977,7 @@ export function ProjectSetupPage() {
                 <table className="w-full text-sm">
                   <thead>
                     <tr style={{ backgroundColor: "#F7F8FA", borderBottom: "1px solid #E2E8F0" }}>
-                      <th className="text-left px-3 py-2.5 font-medium text-gray-500">Vendor</th>
+                      <th className="text-left px-3 py-2.5 font-medium text-gray-500">Contractor</th>
                       {stages.map(s => (
                         <th key={s.id} className="text-center px-3 py-2.5 font-medium text-gray-500 min-w-[120px]">{s.name}</th>
                       ))}
@@ -1931,7 +2027,11 @@ export function ProjectSetupPage() {
                   <div>
                     <div className="px-5 py-2 bg-gray-50 flex items-center gap-2 cursor-pointer select-none" onClick={() => setHrSectionOpen(prev => ({ ...prev, employee: !prev.employee }))}>
                       <span className="text-xs font-semibold uppercase tracking-wider text-blue-600 flex items-center gap-1">
-                        <Users className="w-3 h-3" /> Employees
+                        <Users className="w-3 h-3" /> {
+                          basicInfo.contractingModel === "developer" ? "Our Team" :
+                          basicInfo.contractingModel === "contractor" ? "Self-Perform" :
+                          "Management Team"
+                        }
                       </span>
                       <span className="text-[10px] bg-blue-100 text-blue-700 px-1.5 py-0.5 rounded-full font-medium">{projectStaff.length}</span>
                       {hrSectionOpen.employee ? <ChevronDown className="w-3 h-3 text-gray-400 ml-auto" /> : <ChevronRight className="w-3 h-3 text-gray-400 ml-auto" />}
@@ -1955,7 +2055,11 @@ export function ProjectSetupPage() {
                   <div>
                     <div className="px-5 py-2 bg-gray-50 flex items-center gap-2 cursor-pointer select-none" onClick={() => setHrSectionOpen(prev => ({ ...prev, contractor: !prev.contractor }))}>
                       <span className="text-xs font-semibold uppercase tracking-wider text-purple-600 flex items-center gap-1">
-                        <Users className="w-3 h-3" /> Contractors
+                        <Users className="w-3 h-3" /> {
+                          basicInfo.contractingModel === "developer" ? "Direct Hires" :
+                          basicInfo.contractingModel === "contractor" ? "Self-Perform" :
+                          "Direct Hires"
+                        }
                       </span>
                       <span className="text-[10px] bg-purple-100 text-purple-700 px-1.5 py-0.5 rounded-full font-medium">{projectContractors.length}</span>
                       {hrSectionOpen.contractor ? <ChevronDown className="w-3 h-3 text-gray-400 ml-auto" /> : <ChevronRight className="w-3 h-3 text-gray-400 ml-auto" />}
@@ -1979,7 +2083,11 @@ export function ProjectSetupPage() {
                   <div>
                     <div className="px-5 py-2 bg-gray-50 flex items-center gap-2 cursor-pointer select-none" onClick={() => setHrSectionOpen(prev => ({ ...prev, vendor: !prev.vendor }))}>
                       <span className="text-xs font-semibold uppercase tracking-wider text-orange-600 flex items-center gap-1">
-                        <Building2 className="w-3 h-3" /> Vendors
+                        <Building2 className="w-3 h-3" /> {
+                          basicInfo.contractingModel === "developer" ? "Main + Sub Contractors" :
+                          basicInfo.contractingModel === "contractor" ? "Subcontractors" :
+                          "Trade Contractors"
+                        }
                       </span>
                       <span className="text-[10px] bg-orange-100 text-orange-700 px-1.5 py-0.5 rounded-full font-medium">{projectVendors.length}</span>
                       {hrSectionOpen.vendor ? <ChevronDown className="w-3 h-3 text-gray-400 ml-auto" /> : <ChevronRight className="w-3 h-3 text-gray-400 ml-auto" />}
@@ -2017,11 +2125,14 @@ export function ProjectSetupPage() {
                               </div>
                             </div>
                             <div className="flex items-center gap-1">
-                              {basicInfo.contractingModel === "developer" && !v.isMainContractor && (
+                              {basicInfo.contractingModel === "developer" && (
                                 <button onClick={() => assignMainContractor(v.id)}
-                                  className="px-2 py-1 rounded text-[10px] font-medium border hover:bg-blue-50 text-blue-600"
-                                  style={{ borderColor: "#E2E8F0" }} title="Designate as Main Contractor">
-                                  Set as Main
+                                  className={`px-2 py-1 rounded text-[10px] font-medium border hover:bg-blue-50 ${
+                                    v.isMainContractor ? "bg-blue-100 text-blue-700 border-blue-200" : "text-blue-600"
+                                  }`}
+                                  style={{ borderColor: v.isMainContractor ? "#BFDBFE" : "#E2E8F0" }}
+                                  title={v.isMainContractor ? "Remove Main Contractor status" : "Designate as Main Contractor"}>
+                                  {v.isMainContractor ? "★ Main" : "Set as Main"}
                                 </button>
                               )}
                               <button onClick={() => setRepExpandedVendorId(repExpandedVendorId === v.id ? null : v.id)}
@@ -2226,30 +2337,18 @@ export function ProjectSetupPage() {
         )}
       </>)}
 
-      {/* ──── PROJECT ROLES ──── */}
-      {resourceTab === "roles" && (<>
-        <div className="rounded-xl border p-6" style={{ borderColor: "#E2E8F0", backgroundColor: "white" }}>
-          <h2 className="text-lg font-bold mb-4" style={{ color: "#1A202C" }}>Project Roles</h2>
-          <p className="text-sm text-gray-500 mb-4">Configure project-specific roles and assign them to team members. These are different from HR job titles.</p>
-
-          <p className="text-xs text-gray-500 mb-3">Roles are defined in <a href="/apps/construction/settings" className="text-orange-600 hover:underline font-medium">Settings → Project Roles</a>. Assign roles to team members below.</p>
-        </div>
-
-        {/* Role Assignments */}
+      {/* ──── INLINE ROLE ASSIGNMENTS ──── */}
+      {allHumanResources.length > 0 && (<>
         <div className="rounded-xl border" style={{ borderColor: "#E2E8F0", backgroundColor: "white" }}>
           <div className="px-5 py-3 border-b" style={{ borderColor: "#E2E8F0" }}>
-            <h3 className="text-sm font-semibold" style={{ color: "#1A202C" }}>Assign Roles to Team Members</h3>
+            <h3 className="text-sm font-semibold" style={{ color: "#1A202C" }}>Project Role Assignments</h3>
           </div>
           <div className="divide-y" style={{ borderColor: "#E2E8F0" }}>
-            {/* Employees */}
             {projectStaff.map(s => (
               <div key={s.id} className="flex items-center justify-between px-5 py-2.5 text-sm">
                 <div className="flex items-center gap-2">
                   <div className="w-7 h-7 rounded-full flex items-center justify-center text-white text-[10px] font-bold" style={{ backgroundColor: "#3B82F6" }}>{s.name.charAt(0)}</div>
-                  <div>
-                    <p className="font-medium text-gray-900 text-xs">{s.name}</p>
-                    <p className="text-[10px] text-gray-500">{s.trade} (Employee)</p>
-                  </div>
+                  <p className="font-medium text-gray-900 text-xs">{s.name} <span className="text-gray-400 font-normal">(Employee)</span></p>
                 </div>
                 <div className="flex items-center gap-2">
                   <select value={humanResourceRoles.find(r => r.humanResourceId === s.id)?.projectRoleId || ""}
@@ -2264,15 +2363,11 @@ export function ProjectSetupPage() {
                 </div>
               </div>
             ))}
-            {/* Contractors */}
             {projectContractors.map(c => (
               <div key={c.id} className="flex items-center justify-between px-5 py-2.5 text-sm">
                 <div className="flex items-center gap-2">
                   <div className="w-7 h-7 rounded-full flex items-center justify-center text-white text-[10px] font-bold" style={{ backgroundColor: "#8B5CF6" }}>{c.name.charAt(0)}</div>
-                  <div>
-                    <p className="font-medium text-gray-900 text-xs">{c.name}</p>
-                    <p className="text-[10px] text-gray-500">{c.trade} (Contractor)</p>
-                  </div>
+                  <p className="font-medium text-gray-900 text-xs">{c.name} <span className="text-gray-400 font-normal">(Contractor)</span></p>
                 </div>
                 <div className="flex items-center gap-2">
                   <select value={humanResourceRoles.find(r => r.humanResourceId === c.id)?.projectRoleId || ""}
@@ -2287,15 +2382,11 @@ export function ProjectSetupPage() {
                 </div>
               </div>
             ))}
-            {/* Vendors - list representatives */}
-            {projectVendors.flatMap(v => (v.representatives || []).map(r => ({ ...r, vendorName: v.name }))).map(r => (
+            {projectVendors.flatMap(v => (v.representatives || []).map(r => ({ ...r, companyName: v.name }))).map(r => (
               <div key={r.id} className="flex items-center justify-between px-5 py-2.5 text-sm">
                 <div className="flex items-center gap-2">
                   <div className="w-7 h-7 rounded-full flex items-center justify-center text-white text-[10px] font-bold" style={{ backgroundColor: "#E8973A" }}>{r.fullName.charAt(0)}</div>
-                  <div>
-                    <p className="font-medium text-gray-900 text-xs">{r.fullName}</p>
-                    <p className="text-[10px] text-gray-500">{r.position} · {r.vendorName} (Vendor Rep)</p>
-                  </div>
+                  <p className="font-medium text-gray-900 text-xs">{r.fullName} <span className="text-gray-400 font-normal">({r.companyName})</span></p>
                 </div>
                 <div className="flex items-center gap-2">
                   <select value={humanResourceRoles.find(hr => hr.humanResourceId === r.id)?.projectRoleId || ""}
@@ -2310,9 +2401,6 @@ export function ProjectSetupPage() {
                 </div>
               </div>
             ))}
-            {projectStaff.length + projectContractors.length + projectVendors.reduce((sum, v) => sum + (v.representatives?.length || 0), 0) === 0 && (
-              <div className="px-5 py-6 text-center text-xs text-gray-400">No team members registered yet. Add employees, contractors, or vendors first.</div>
-            )}
           </div>
         </div>
       </>)}
@@ -2652,7 +2740,7 @@ export function ProjectSetupPage() {
                 );
               })}
               {projectVendors.reduce((sum, v) => sum + (v.representatives?.length || 0), 0) === 0 && (
-                <span className="text-[10px] text-gray-400">No vendor representatives registered. Add reps in Resources → Human Resources → Vendors.</span>
+                <span className="text-[10px] text-gray-400">No contractor representatives registered. Add reps in Resources → Human Resources → Contractors.</span>
               )}
             </div>
           </div>
@@ -2753,7 +2841,7 @@ export function ProjectSetupPage() {
           </div>
           <div className="rounded-lg border p-4 text-center" style={{ borderColor: "#E2E8F0", backgroundColor: "#F7F8FA" }}>
             <p className="text-2xl font-bold" style={{ color: "#1A202C" }}>{projectVendors.length}</p>
-            <p className="text-xs" style={{ color: "#718096" }}>Vendors</p>
+            <p className="text-xs" style={{ color: "#718096" }}>Contractors</p>
           </div>
           <div className="rounded-lg border p-4 text-center" style={{ borderColor: "#E2E8F0", backgroundColor: "#F7F8FA" }}>
             <p className="text-2xl font-bold" style={{ color: "#1A202C" }}>

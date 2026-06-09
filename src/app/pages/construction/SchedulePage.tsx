@@ -1056,13 +1056,13 @@ function EditTaskPanel({ task, allTasks, wbsMap, onSave, onClose }: { task: Task
             </div>
           </div>
           <div>
-            <label className="block text-xs font-medium text-gray-500 mb-1">Vendor</label>
+            <label className="block text-xs font-medium text-gray-500 mb-1">Contractor</label>
             <select
               value={edit.vendorId || ""}
               onChange={e => set("vendorId", e.target.value || null)}
               className="w-full border border-[#E2E8F0] rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#E8973A]"
             >
-              <option value="">No vendor assigned</option>
+              <option value="">No contractor assigned</option>
               {getVendorsByProject(edit.projectId).map(v => (
                 <option key={v.id} value={v.id}>{v.name} — {v.trade}</option>
               ))}

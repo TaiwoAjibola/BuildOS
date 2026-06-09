@@ -138,6 +138,7 @@ export interface Task {
   lagDays: number;
   vendorId: string | null;
   subVendorIds: string[];
+  structureEntryId?: string;
   ragStatus: RAGStatus;
   ragOverride: boolean;
   notes: string;
