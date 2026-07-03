@@ -1,8 +1,11 @@
 import { useState } from "react";
 import {
-  GitBranch, Plus, Search, Edit, Trash2, X, AlertTriangle,
-  CheckCircle, Info, ArrowUpRight, ArrowDownLeft,
+  Plus, Edit, Trash2, X, AlertTriangle,
+  Info, Download,
 } from "lucide-react";
+import { DataTable, type Column } from "../../components/DataTable";
+import { useChangelog } from "../../stores/changelogStore";
+import { exportCSV } from "../../utils/exportCSV";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 type MappingStatus = "mapped" | "unmapped";
@@ -23,6 +26,17 @@ interface ProcessMapping {
   status: MappingStatus;
   lastUpdated: string;
   updatedBy: string;
+}
+
+interface TableRow {
+  id: string;
+  application: string;
+  process: string;
+  status: MappingStatus;
+  debitAccounts: string;
+  creditAccounts: string;
+  linkedFields: string;
+  mapping: ProcessMapping;
 }
 
 // ── Chart of Accounts ─────────────────────────────────────────────────────────
@@ -404,8 +418,8 @@ function MappingModal({
 
 // ── Main Page ─────────────────────────────────────────────────────────────────
 export function ProcessMappingPage() {
+  const { logChange } = useChangelog();
   const [mappings, setMappings]   = useState<ProcessMapping[]>(SEED_MAPPINGS);
-  const [search, setSearch]       = useState("");
   const [appFilter, setAppFilter] = useState<string>("All");
   const [statusFilter, setStatusFilter] = useState<MappingStatus | "All">("All");
   const [showModal, setShowModal] = useState(false);
@@ -414,10 +428,7 @@ export function ProcessMappingPage() {
   const filtered = mappings.filter((m) => {
     const matchApp    = appFilter === "All" || m.application === appFilter;
     const matchStatus = statusFilter === "All" || m.status === statusFilter;
-    const matchSearch = !search
-      || m.process.toLowerCase().includes(search.toLowerCase())
-      || m.application.toLowerCase().includes(search.toLowerCase());
-    return matchApp && matchStatus && matchSearch;
+    return matchApp && matchStatus;
   });
 
   const unmappedCount = mappings.filter((m) => m.status === "unmapped").length;
@@ -426,29 +437,125 @@ export function ProcessMappingPage() {
   function openCreate() { setEditItem(undefined); setShowModal(true); }
 
   function save(m: ProcessMapping) {
+    const isNew = !mappings.find((x) => x.id === m.id);
     setMappings((prev) => {
       const exists = prev.find((x) => x.id === m.id);
       return exists ? prev.map((x) => x.id === m.id ? m : x) : [m, ...prev];
     });
+    logChange({
+      module: "finance",
+      action: isNew ? "created" : "updated",
+      entityType: "process_mapping",
+      entityId: m.id,
+      summary: `${isNew ? "Created" : "Updated"} mapping for ${m.application} / ${m.process}`,
+      performedBy: m.updatedBy,
+    });
   }
 
   function remove(id: string) {
+    const target = mappings.find((m) => m.id === id);
     setMappings((prev) => prev.map((m) =>
       m.id === id ? { ...m, status: "unmapped", lines: [] } : m,
     ));
-  }
-
-  // Flatten to rows for table
-  type FlatRow = { mapping: ProcessMapping; line: AccountMappingLine | null; lineIdx: number; isFirst: boolean; lineCount: number };
-  const flatRows: FlatRow[] = [];
-  for (const m of filtered) {
-    if (m.lines.length === 0) {
-      flatRows.push({ mapping: m, line: null, lineIdx: 0, isFirst: true, lineCount: 0 });
-    } else {
-      m.lines.forEach((line, lineIdx) => {
-        flatRows.push({ mapping: m, line, lineIdx, isFirst: lineIdx === 0, lineCount: m.lines.length });
+    if (target) {
+      logChange({
+        module: "finance",
+        action: "unmapped",
+        entityType: "process_mapping",
+        entityId: id,
+        summary: `Unmapped ${target.application} / ${target.process}`,
+        performedBy: "Sola Adeleke",
       });
     }
+  }
+
+  const tableData: TableRow[] = filtered.map((m) => ({
+    id: m.id,
+    application: m.application,
+    process: m.process,
+    status: m.status,
+    debitAccounts: m.lines.filter((l) => l.action === "debit").map((l) => l.account).join(", "),
+    creditAccounts: m.lines.filter((l) => l.action === "credit").map((l) => l.account).join(", "),
+    linkedFields: m.lines.map((l) => l.field).join(", "),
+    mapping: m,
+  }));
+
+  const columns: Column<TableRow>[] = [
+    {
+      key: "application",
+      label: "Source App",
+      sortable: true,
+      filterable: true,
+      render: (row) => (
+        <span className={`px-2 py-0.5 text-xs font-medium rounded-full ${APP_COLORS[row.application] ?? "bg-gray-100 text-gray-600"}`}>
+          {row.application}
+        </span>
+      ),
+    },
+    {
+      key: "process",
+      label: "Process Name",
+      sortable: true,
+      filterable: true,
+      render: (row) => <span className="font-medium text-gray-900">{row.process}</span>,
+    },
+    {
+      key: "linkedFields",
+      label: "Linked Process",
+      sortable: true,
+      filterable: true,
+      render: (row) => row.linkedFields || <span className="text-amber-500 text-xs">Not configured</span>,
+    },
+    {
+      key: "debitAccounts",
+      label: "Debit Account",
+      sortable: true,
+      filterable: true,
+      render: (row) => row.debitAccounts || <span className="text-gray-400 text-xs">—</span>,
+    },
+    {
+      key: "creditAccounts",
+      label: "Credit Account",
+      sortable: true,
+      filterable: true,
+      render: (row) => row.creditAccounts || <span className="text-gray-400 text-xs">—</span>,
+    },
+    {
+      key: "actions",
+      label: "Actions",
+      sortable: false,
+      filterable: false,
+      className: "text-right",
+      render: (row) => (
+        <div className="flex items-center justify-end gap-1">
+          <button onClick={() => openEdit(row.mapping)}
+            className="p-1.5 text-gray-400 hover:text-emerald-600 hover:bg-emerald-50 rounded-lg transition-colors">
+            <Edit className="w-3.5 h-3.5" />
+          </button>
+          {row.status === "mapped" && (
+            <button onClick={() => remove(row.mapping.id)}
+              className="p-1.5 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors">
+              <Trash2 className="w-3.5 h-3.5" />
+            </button>
+          )}
+        </div>
+      ),
+    },
+  ];
+
+  function handleExport() {
+    exportCSV(
+      "process-mappings",
+      ["Application", "Process", "Status", "Linked Fields", "Debit Accounts", "Credit Accounts"],
+      filtered.map((m) => [
+        m.application,
+        m.process,
+        m.status,
+        m.lines.map((l) => l.field).join("; "),
+        m.lines.filter((l) => l.action === "debit").map((l) => l.account).join("; "),
+        m.lines.filter((l) => l.action === "credit").map((l) => l.account).join("; "),
+      ]),
+    );
   }
 
   return (
@@ -509,12 +616,6 @@ export function ProcessMappingPage() {
 
       {/* Filters */}
       <div className="flex items-center gap-3 flex-wrap">
-        <div className="relative w-72">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-          <input value={search} onChange={(e) => setSearch(e.target.value)}
-            placeholder="Search processes…"
-            className="w-full pl-9 pr-4 py-2 border border-gray-200 rounded-md text-sm outline-none focus:ring-2 focus:ring-emerald-500" />
-        </div>
         <div className="flex gap-1 bg-white border border-gray-200 rounded-lg p-1">
           {["All", ...APPLICATIONS].map((a) => (
             <button key={a} onClick={() => setAppFilter(a)}
@@ -531,134 +632,28 @@ export function ProcessMappingPage() {
               }`}>{s}</button>
           ))}
         </div>
-        <span className="text-xs text-gray-400">{filtered.length} process{filtered.length !== 1 ? "es" : ""}</span>
       </div>
 
-      {/* Flat table */}
-      <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
-        <table className="w-full text-sm">
-          <thead className="border-b border-gray-100 bg-gray-50">
-            <tr>
-              <th className="text-left px-5 py-3 text-xs font-semibold text-gray-500">Application</th>
-              <th className="text-left px-5 py-3 text-xs font-semibold text-gray-500">Process</th>
-              <th className="text-left px-5 py-3 text-xs font-semibold text-gray-500">Field (Source)</th>
-              <th className="text-left px-5 py-3 text-xs font-semibold text-gray-500">Action</th>
-              <th className="text-left px-5 py-3 text-xs font-semibold text-gray-500">GL Account</th>
-              <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500">GL Code</th>
-              <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500">Status</th>
-              <th className="text-right px-5 py-3 text-xs font-semibold text-gray-500">Actions</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-gray-50">
-            {flatRows.map((row, idx) => {
-              const { mapping: m, line, isFirst, lineCount } = row;
-              const isGroupStart = isFirst;
-              const isLastInGroup = line !== null
-                ? row.lineIdx === lineCount - 1
-                : true;
-
-              return (
-                <tr
-                  key={`${m.id}-${row.lineIdx}`}
-                  className={`hover:bg-gray-50/80 transition-colors ${isGroupStart && idx > 0 ? "border-t-2 border-gray-200" : ""}`}
-                >
-                  {/* Application — only on first row of group */}
-                  <td className="px-5 py-2.5 align-top">
-                    {isFirst && (
-                      <span className={`px-2 py-0.5 text-xs font-medium rounded-full ${APP_COLORS[m.application] ?? "bg-gray-100 text-gray-600"}`}>
-                        {m.application}
-                      </span>
-                    )}
-                  </td>
-
-                  {/* Process — only on first row of group */}
-                  <td className="px-5 py-2.5 align-top">
-                    {isFirst && (
-                      <span className="font-medium text-gray-900">{m.process}</span>
-                    )}
-                  </td>
-
-                  {/* Field / mapping line */}
-                  <td className="px-5 py-2.5 text-gray-600">
-                    {line ? line.field : <span className="text-amber-500 text-xs">Not configured</span>}
-                  </td>
-
-                  {/* Action */}
-                  <td className="px-5 py-2.5">
-                    {line ? (
-                      line.action === "debit" ? (
-                        <span className="inline-flex items-center gap-1 text-xs text-blue-700 bg-blue-50 px-2 py-0.5 rounded-full font-medium">
-                          <ArrowUpRight className="w-3 h-3" /> Debit
-                        </span>
-                      ) : (
-                        <span className="inline-flex items-center gap-1 text-xs text-purple-700 bg-purple-50 px-2 py-0.5 rounded-full font-medium">
-                          <ArrowDownLeft className="w-3 h-3" /> Credit
-                        </span>
-                      )
-                    ) : null}
-                  </td>
-
-                  {/* GL Account name */}
-                  <td className="px-5 py-2.5 text-sm text-gray-700">
-                    {line ? line.account : null}
-                  </td>
-
-                  {/* GL Code */}
-                  <td className="px-4 py-2.5">
-                    {line && (
-                      <span className="font-mono text-xs bg-gray-100 text-gray-600 px-1.5 py-0.5 rounded">
-                        {line.glCode}
-                      </span>
-                    )}
-                  </td>
-
-                  {/* Status — only on first row */}
-                  <td className="px-4 py-2.5 align-top">
-                    {isFirst && (
-                      m.status === "mapped" ? (
-                        <span className="inline-flex items-center gap-1 text-xs text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full font-medium">
-                          <CheckCircle className="w-3 h-3" /> Mapped
-                        </span>
-                      ) : (
-                        <span className="inline-flex items-center gap-1 text-xs text-amber-700 bg-amber-50 px-2 py-0.5 rounded-full font-medium">
-                          <AlertTriangle className="w-3 h-3" /> Unmapped
-                        </span>
-                      )
-                    )}
-                  </td>
-
-                  {/* Actions — only on first row */}
-                  <td className="px-5 py-2.5 align-top">
-                    {isFirst && (
-                      <div className="flex items-center justify-end gap-1">
-                        <button onClick={() => openEdit(m)}
-                          className="p-1.5 text-gray-400 hover:text-emerald-600 hover:bg-emerald-50 rounded-lg transition-colors">
-                          <Edit className="w-3.5 h-3.5" />
-                        </button>
-                        {m.status === "mapped" && (
-                          <button onClick={() => remove(m.id)}
-                            className="p-1.5 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors">
-                            <Trash2 className="w-3.5 h-3.5" />
-                          </button>
-                        )}
-                      </div>
-                    )}
-                  </td>
-                </tr>
-              );
-              void isLastInGroup;
-            })}
-            {flatRows.length === 0 && (
-              <tr>
-                <td colSpan={8} className="px-5 py-12 text-center text-sm text-gray-400">
-                  <GitBranch className="w-8 h-8 mx-auto mb-2 opacity-30" />
-                  No mappings found
-                </td>
-              </tr>
-            )}
-          </tbody>
-        </table>
-      </div>
+      {/* DataTable */}
+      <DataTable
+        columns={columns}
+        data={tableData}
+        keyExtractor={(row) => row.id}
+        searchPlaceholder="Search processes…"
+        searchFields={[
+          (row) => row.application,
+          (row) => row.process,
+          (row) => row.linkedFields,
+          (row) => row.debitAccounts,
+          (row) => row.creditAccounts,
+        ]}
+        headerExtra={
+          <button onClick={handleExport}
+            className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-600 text-white rounded-md text-sm hover:bg-emerald-700">
+            <Download className="w-3.5 h-3.5" /> Export CSV
+          </button>
+        }
+      />
 
       {showModal && (
         <MappingModal

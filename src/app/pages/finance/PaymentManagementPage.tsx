@@ -1,6 +1,8 @@
 import { useState } from "react";
-import { Search, Download, CreditCard, Clock, CheckCircle, XCircle, Send, Wallet, Eye, X, ChevronDown, ChevronUp } from "lucide-react";
+import { Download, CreditCard, Clock, CheckCircle, XCircle, Send, Eye, X } from "lucide-react";
 import { exportCSV } from "../../utils/exportCSV";
+import { DataTable, type Column } from "../../components/DataTable";
+import { useChangelog } from "../../stores/changelogStore";
 
 type PaymentType = "Expense" | "Payroll" | "Vendor" | "Contractor";
 type PaymentStatus = "Approved Request" | "Sent to Finance" | "Payment Initiated" | "Payment Completed" | "Failed";
@@ -51,31 +53,45 @@ const STATUS_OPTS: Array<PaymentStatus | "All"> = ["All", "Approved Request", "S
 
 export function PaymentManagementPage() {
   const [payments, setPayments] = useState<Payment[]>(mockPayments);
-  const [search, setSearch] = useState("");
   const [typeFilter, setTypeFilter] = useState<PaymentType | "All">("All");
   const [statusFilter, setStatusFilter] = useState<PaymentStatus | "All">("All");
   const [viewPayment, setViewPayment] = useState<Payment | null>(null);
-  const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
+  const { logChange } = useChangelog();
 
   const fmt = (n: number) => `$${n.toLocaleString()}`;
 
-  const filtered = payments
-    .filter((p) => {
-      if (typeFilter !== "All" && p.type !== typeFilter) return false;
-      if (statusFilter !== "All" && p.status !== statusFilter) return false;
-      if (search && !p.id.toLowerCase().includes(search.toLowerCase()) && !p.recipient.toLowerCase().includes(search.toLowerCase()) && !p.reference.toLowerCase().includes(search.toLowerCase())) return false;
-      return true;
-    })
-    .sort((a, b) => sortDir === "desc" ? b.amount - a.amount : a.amount - b.amount);
+  const filtered = payments.filter((p) => {
+    if (typeFilter !== "All" && p.type !== typeFilter) return false;
+    if (statusFilter !== "All" && p.status !== statusFilter) return false;
+    return true;
+  });
 
   function advancePayment(id: string) {
+    const payment = payments.find(p => p.id === id);
+    if (!payment) return;
+    const idx = PAYMENT_FLOW.indexOf(payment.status);
+    if (idx < 0 || idx >= PAYMENT_FLOW.length - 1) return;
+    const next = PAYMENT_FLOW[idx + 1];
+
     setPayments((prev) => prev.map((p) => {
       if (p.id !== id) return p;
-      const idx = PAYMENT_FLOW.indexOf(p.status);
-      if (idx < 0 || idx >= PAYMENT_FLOW.length - 1) return p;
-      const next = PAYMENT_FLOW[idx + 1];
-      return { ...p, status: next, initiatedBy: next === "Payment Initiated" ? "Current User" : p.initiatedBy, completedAt: next === "Payment Completed" ? "Apr 13, 2026" : p.completedAt };
+      return {
+        ...p,
+        status: next,
+        initiatedBy: next === "Payment Initiated" ? "Current User" : p.initiatedBy,
+        completedAt: next === "Payment Completed" ? "Apr 13, 2026" : p.completedAt,
+      };
     }));
+
+    logChange({
+      module: "Finance",
+      action: next,
+      entityType: "Payment",
+      entityId: id,
+      summary: `Payment ${id} advanced to ${next}`,
+      performedBy: "Current User",
+    });
+
     setViewPayment(null);
   }
 
@@ -87,6 +103,98 @@ export function PaymentManagementPage() {
   const totalCompleted = payments.filter((p) => p.status === "Payment Completed").reduce((s, p) => s + p.amount, 0);
   const pending = payments.filter((p) => !["Payment Completed", "Failed"].includes(p.status)).length;
 
+  const columns: Column<Payment>[] = [
+    {
+      key: "id",
+      label: "Payment ID",
+      sortable: true,
+      filterable: true,
+      render: (p) => <span className="font-mono text-xs text-gray-500">{p.id}</span>,
+    },
+    {
+      key: "type",
+      label: "Type",
+      sortable: true,
+      filterable: true,
+      render: (p) => (
+        <span className={`px-2 py-0.5 text-xs rounded-full font-medium ${typeColors[p.type]}`}>{p.type}</span>
+      ),
+    },
+    {
+      key: "recipient",
+      label: "Payee",
+      sortable: true,
+      filterable: true,
+      render: (p) => <span className="text-sm text-gray-900">{p.recipient}</span>,
+    },
+    {
+      key: "reference",
+      label: "Description",
+      sortable: true,
+      filterable: true,
+      minWidth: 200,
+      render: (p) => <span className="text-xs font-mono text-gray-500">{p.reference}</span>,
+    },
+    {
+      key: "amount",
+      label: "Amount ($)",
+      sortable: true,
+      filterable: false,
+      className: "text-right",
+      headerClassName: "text-right",
+      render: (p) => <span className="text-sm font-semibold text-gray-900">{fmt(p.amount)}</span>,
+    },
+    {
+      key: "method",
+      label: "Method",
+      sortable: true,
+      filterable: true,
+      render: (p) => <span className="text-sm text-gray-600">{p.method}</span>,
+    },
+    {
+      key: "bank",
+      label: "Bank",
+      sortable: true,
+      filterable: true,
+      render: (p) => (
+        <span className={`text-sm ${p.bank ? "text-gray-600" : "text-gray-400 italic"}`}>
+          {p.bank ?? "—"}
+        </span>
+      ),
+    },
+    {
+      key: "status",
+      label: "Status",
+      sortable: true,
+      filterable: true,
+      render: (p) => (
+        <span className={`inline-flex items-center gap-1 px-2 py-0.5 text-xs rounded-full font-medium ${statusConfig[p.status].badge}`}>
+          {statusConfig[p.status].icon}{p.status}
+        </span>
+      ),
+    },
+    {
+      key: "date",
+      label: "Date",
+      sortable: true,
+      filterable: false,
+      render: (p) => <span className="text-sm text-gray-500">{p.date}</span>,
+    },
+    {
+      key: "actions",
+      label: "Actions",
+      sortable: false,
+      filterable: false,
+      className: "text-right",
+      headerClassName: "text-right",
+      render: (p) => (
+        <button onClick={() => setViewPayment(p)} className="text-emerald-600 hover:text-emerald-700">
+          <Eye className="w-3.5 h-3.5" />
+        </button>
+      ),
+    },
+  ];
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
@@ -94,9 +202,6 @@ export function PaymentManagementPage() {
           <h1 className="text-xl font-semibold text-gray-900">Payment Management</h1>
           <p className="text-sm text-gray-500 mt-0.5">Process and track all outgoing payments</p>
         </div>
-        <button onClick={handleExport} className="flex items-center gap-2 px-3 py-2 text-sm border border-gray-300 rounded-lg hover:bg-gray-50">
-          <Download className="w-4 h-4" /> Export
-        </button>
       </div>
 
       {/* Summary */}
@@ -139,10 +244,6 @@ export function PaymentManagementPage() {
 
       {/* Filters */}
       <div className="flex items-center gap-3 flex-wrap">
-        <div className="relative max-w-xs flex-1">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-          <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search payments..." className="w-full pl-9 pr-4 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500" />
-        </div>
         <div className="flex items-center gap-1 bg-white border border-gray-200 rounded-lg p-1">
           {TYPE_OPTS.map((t) => (
             <button key={t} onClick={() => setTypeFilter(t)} className={`px-3 py-1.5 text-xs font-medium rounded-md whitespace-nowrap transition-colors ${typeFilter === t ? "bg-emerald-600 text-white" : "text-gray-600 hover:bg-gray-100"}`}>{t}</button>
@@ -153,52 +254,19 @@ export function PaymentManagementPage() {
         </select>
       </div>
 
-      {/* Table */}
-      <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
-        <table className="w-full">
-          <thead className="bg-gray-50 border-b border-gray-100">
-            <tr>
-              <th className="text-left px-5 py-3 text-xs font-semibold text-gray-500">Payment ID</th>
-              <th className="text-left px-5 py-3 text-xs font-semibold text-gray-500">Type</th>
-              <th className="text-left px-5 py-3 text-xs font-semibold text-gray-500">Reference</th>
-              <th className="text-left px-5 py-3 text-xs font-semibold text-gray-500">Recipient</th>
-              <th className="text-left px-5 py-3 text-xs font-semibold text-gray-500 cursor-pointer select-none" onClick={() => setSortDir((d) => d === "asc" ? "desc" : "asc")}>
-                <span className="flex items-center gap-1">Amount {sortDir === "asc" ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}</span>
-              </th>
-              <th className="text-left px-5 py-3 text-xs font-semibold text-gray-500">Method</th>
-              <th className="text-left px-5 py-3 text-xs font-semibold text-gray-500">Date</th>
-              <th className="text-left px-5 py-3 text-xs font-semibold text-gray-500">Status</th>
-              <th className="text-right px-5 py-3 text-xs font-semibold text-gray-500">Actions</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-gray-50">
-            {filtered.map((p) => (
-              <tr key={p.id} className="hover:bg-gray-50 transition-colors">
-                <td className="px-5 py-3 text-xs font-mono text-gray-500">{p.id}</td>
-                <td className="px-5 py-3"><span className={`px-2 py-0.5 text-xs rounded-full font-medium ${typeColors[p.type]}`}>{p.type}</span></td>
-                <td className="px-5 py-3 text-xs font-mono text-gray-500">{p.reference}</td>
-                <td className="px-5 py-3 text-sm text-gray-900">{p.recipient}</td>
-                <td className="px-5 py-3 text-sm font-semibold text-gray-900">{fmt(p.amount)}</td>
-                <td className="px-5 py-3 text-sm text-gray-600">{p.method}</td>
-                <td className="px-5 py-3 text-sm text-gray-500">{p.date}</td>
-                <td className="px-5 py-3">
-                  <span className={`inline-flex items-center gap-1 px-2 py-0.5 text-xs rounded-full font-medium ${statusConfig[p.status].badge}`}>
-                    {statusConfig[p.status].icon}{p.status}
-                  </span>
-                </td>
-                <td className="px-5 py-3 text-right">
-                  <button onClick={() => setViewPayment(p)} className="text-xs text-emerald-600 hover:underline">
-                    <Eye className="w-3.5 h-3.5" />
-                  </button>
-                </td>
-              </tr>
-            ))}
-            {filtered.length === 0 && (
-              <tr><td colSpan={9} className="px-5 py-12 text-center text-sm text-gray-400">No payments found</td></tr>
-            )}
-          </tbody>
-        </table>
-      </div>
+      {/* DataTable */}
+      <DataTable
+        columns={columns}
+        data={filtered}
+        keyExtractor={(p) => p.id}
+        searchPlaceholder="Search payments..."
+        searchFields={[(p) => p.id, (p) => p.recipient, (p) => p.reference]}
+        headerExtra={
+          <button onClick={handleExport} className="flex items-center gap-2 px-3 py-2 text-sm border border-gray-300 rounded-lg hover:bg-gray-50">
+            <Download className="w-4 h-4" /> Export
+          </button>
+        }
+      />
 
       {/* View/Process Modal */}
       {viewPayment && (

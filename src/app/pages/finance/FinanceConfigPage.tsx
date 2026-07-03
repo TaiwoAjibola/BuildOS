@@ -1,7 +1,9 @@
 import { useState } from "react";
-import { Save, Plus, Edit, Trash2, Settings2, Info, CreditCard, Building2, X, CheckCircle, Percent, Palette } from "lucide-react";
+import { Save, Plus, Edit, Trash2, Settings2, Info, CreditCard, Building2, X, CheckCircle, Percent, Palette, Download } from "lucide-react";
 import { useFinance } from "../../stores/financeStore";
 import { useChangelog } from "../../stores/changelogStore";
+import { DataTable, type Column } from "../../components/DataTable";
+import { exportCSV } from "../../utils/exportCSV";
 import type { AccrualTypeConfig } from "./types";
 
 interface BankAccount {
@@ -55,6 +57,13 @@ const initialTaxEntries: TaxEntry[] = [
 
 const CURRENCIES = ["USD", "NGN", "GBP", "EUR", "GHS", "ZAR"];
 const FISCAL_MONTHS = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+
+const typeColors: Record<TaxType, string> = {
+  VAT: "bg-blue-100 text-blue-700",
+  WHT: "bg-purple-100 text-purple-700",
+  PAYE: "bg-amber-100 text-amber-700",
+  Custom: "bg-gray-100 text-gray-600",
+};
 
 export function FinanceConfigPage() {
   const [bankAccounts, setBankAccounts] = useState<BankAccount[]>(initialBankAccounts);
@@ -149,6 +158,31 @@ export function FinanceConfigPage() {
     setShowTaxModal(false);
   }
 
+  function handleTaxExport() {
+    exportCSV("tax-rules", ["Tax Name", "Type", "Rate", "GL Code", "Applies To", "Active"], taxEntries.map(t => [t.name, t.type, t.type === "PAYE" ? "Variable" : t.rate + "%", t.glCode, t.appliesTo, t.enabled ? "Yes" : "No"]));
+  }
+
+  const taxColumns: Column<TaxEntry>[] = [
+    { key: "name", label: "Tax Name", sortable: true, filterable: true, render: t => <span className="text-sm font-medium text-gray-900">{t.name}</span> },
+    { key: "type", label: "Type", sortable: true, filterable: true, render: t => <span className={`px-2 py-0.5 rounded text-xs font-semibold ${typeColors[t.type]}`}>{t.type}</span> },
+    { key: "rate", label: "Rate", sortable: true, render: t =>
+      t.type === "PAYE" ? <span className="text-xs text-gray-400 italic">Variable</span> : <span className="text-sm font-medium text-gray-900">{t.rate}%</span>
+    },
+    { key: "glCode", label: "GL Code", sortable: true, filterable: true, render: t => <span className="font-mono text-xs bg-gray-100 text-gray-600 px-2 py-0.5 rounded">{t.glCode}</span> },
+    { key: "appliesTo", label: "Applies To", sortable: true, filterable: true, render: t => <span className="text-sm text-gray-500">{t.appliesTo}</span> },
+    { key: "active", label: "Active", className: "text-center", render: t =>
+      <button onClick={() => toggleTax(t.id)} className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors ${t.enabled ? "bg-emerald-500" : "bg-gray-200"}`}>
+        <span className={`inline-block h-3.5 w-3.5 transform rounded-full bg-white transition-transform ${t.enabled ? "translate-x-4.5" : "translate-x-1"}`} />
+      </button>
+    },
+    { key: "actions", label: "Actions", className: "text-right", render: t =>
+      <div className="flex items-center justify-end gap-1">
+        <button onClick={() => openTaxEdit(t)} className="p-1.5 text-gray-400 hover:text-emerald-600 hover:bg-emerald-50 rounded-lg transition-colors"><Edit className="w-3.5 h-3.5" /></button>
+        <button onClick={() => { setTaxEntries((prev) => prev.filter((x) => x.id !== t.id)); logChange({ module: "Finance", action: "Deleted", entityType: "TaxRule", entityId: t.id, summary: `Tax rule "${t.name}" deleted`, performedBy: "Sola Adeleke" }); }} className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"><Trash2 className="w-3.5 h-3.5" /></button>
+      </div>
+    },
+  ];
+
   // ── Accrual Type Config ──────────────────────────────────────────────────
   const { accrualTypeConfigs, setAccrualTypeConfigs } = useFinance();
   const { logChange } = useChangelog();
@@ -185,6 +219,23 @@ export function FinanceConfigPage() {
     }
     setShowAccrualTypeModal(false);
   }
+
+  function handleAccrualTypeExport() {
+    exportCSV("accrual-types", ["Type Key", "Display Label", "Color", "Description"], accrualTypeConfigs.map(tc => [tc.type, tc.label, tc.color, tc.description || ""]));
+  }
+
+  const accrualTypeColumns: Column<AccrualTypeConfig>[] = [
+    { key: "type", label: "Type Key", sortable: true, filterable: true, render: tc => <span className="font-mono text-xs text-gray-500 bg-gray-100 px-2 py-0.5 rounded">{tc.type}</span> },
+    { key: "label", label: "Display Label", sortable: true, filterable: true, render: tc => <span className="text-sm font-medium text-gray-900">{tc.label}</span> },
+    { key: "color", label: "Color", render: tc => <span className={`inline-block px-2 py-0.5 text-xs rounded-full font-medium ${tc.color}`}>{tc.type}</span> },
+    { key: "description", label: "Description", sortable: true, filterable: true, render: tc => <span className="text-sm text-gray-500 max-w-xs truncate">{tc.description || "—"}</span> },
+    { key: "actions", label: "Actions", className: "text-right", render: tc =>
+      <div className="flex items-center justify-end gap-1">
+        <button onClick={() => openAccrualTypeEdit(tc)} className="p-1.5 text-gray-400 hover:text-emerald-600 hover:bg-emerald-50 rounded-lg transition-colors"><Edit className="w-3.5 h-3.5" /></button>
+        <button onClick={() => { setAccrualTypeConfigs(prev => prev.filter(x => x.id !== tc.id)); logChange({ module: "Finance", action: "Deleted", entityType: "AccrualTypeConfig", entityId: tc.id, summary: `Accrual type "${tc.label}" deleted`, performedBy: "Sola Adeleke" }); }} className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"><Trash2 className="w-3.5 h-3.5" /></button>
+      </div>
+    },
+  ];
 
   const ACCRUAL_TYPE_COLORS = [
     "bg-blue-100 text-blue-700", "bg-amber-100 text-amber-700", "bg-purple-100 text-purple-700",
@@ -327,57 +378,12 @@ export function FinanceConfigPage() {
         </div>
 
         {/* Tax Rules Table */}
-        <table className="w-full">
-          <thead className="border-b border-gray-100 bg-gray-50">
-            <tr>
-              <th className="text-left px-5 py-2.5 text-xs font-semibold text-gray-500">Tax Name</th>
-              <th className="text-left px-5 py-2.5 text-xs font-semibold text-gray-500">Type</th>
-              <th className="text-left px-5 py-2.5 text-xs font-semibold text-gray-500">Rate</th>
-              <th className="text-left px-5 py-2.5 text-xs font-semibold text-gray-500">GL Code</th>
-              <th className="text-left px-5 py-2.5 text-xs font-semibold text-gray-500">Applies To</th>
-              <th className="text-center px-5 py-2.5 text-xs font-semibold text-gray-500">Active</th>
-              <th className="text-right px-5 py-2.5 text-xs font-semibold text-gray-500">Actions</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-gray-50">
-            {taxEntries.map((t) => {
-              const typeColors: Record<TaxType, string> = {
-                VAT: "bg-blue-100 text-blue-700",
-                WHT: "bg-purple-100 text-purple-700",
-                PAYE: "bg-amber-100 text-amber-700",
-                Custom: "bg-gray-100 text-gray-600",
-              };
-              return (
-                <tr key={t.id} className="hover:bg-gray-50">
-                  <td className="px-5 py-3 text-sm font-medium text-gray-900">{t.name}</td>
-                  <td className="px-5 py-3">
-                    <span className={`px-2 py-0.5 rounded text-xs font-semibold ${typeColors[t.type]}`}>{t.type}</span>
-                  </td>
-                  <td className="px-5 py-3">
-                    {t.type === "PAYE" ? (
-                      <span className="text-xs text-gray-400 italic">Variable</span>
-                    ) : (
-                      <span className="text-sm font-medium text-gray-900">{t.rate}%</span>
-                    )}
-                  </td>
-                  <td className="px-5 py-3"><span className="font-mono text-xs bg-gray-100 text-gray-600 px-2 py-0.5 rounded">{t.glCode}</span></td>
-                  <td className="px-5 py-3 text-sm text-gray-500">{t.appliesTo}</td>
-                  <td className="px-5 py-3 text-center">
-                    <button onClick={() => toggleTax(t.id)} className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors ${t.enabled ? "bg-emerald-500" : "bg-gray-200"}`}>
-                      <span className={`inline-block h-3.5 w-3.5 transform rounded-full bg-white transition-transform ${t.enabled ? "translate-x-4.5" : "translate-x-1"}`} />
-                    </button>
-                  </td>
-                  <td className="px-5 py-3">
-                    <div className="flex items-center justify-end gap-1">
-                      <button onClick={() => openTaxEdit(t)} className="p-1.5 text-gray-400 hover:text-emerald-600 hover:bg-emerald-50 rounded-lg transition-colors"><Edit className="w-3.5 h-3.5" /></button>
-                      <button onClick={() => { setTaxEntries((prev) => prev.filter((x) => x.id !== t.id)); logChange({ module: "Finance", action: "Deleted", entityType: "TaxRule", entityId: t.id, summary: `Tax rule "${t.name}" deleted`, performedBy: "Sola Adeleke" }); }} className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"><Trash2 className="w-3.5 h-3.5" /></button>
-                    </div>
-                  </td>
-                </tr>
-              );
-            })}
-          </tbody>
-        </table>
+        <DataTable columns={taxColumns} data={taxEntries} keyExtractor={t => t.id}
+          searchPlaceholder="Search tax rules..."
+          searchFields={[t => t.name, t => t.type, t => t.glCode, t => t.appliesTo]}
+          emptyMessage="No tax rules found"
+          headerExtra={<button onClick={handleTaxExport} className="flex items-center gap-2 px-3 py-1.5 text-xs border border-gray-300 rounded-lg hover:bg-gray-50"><Download className="w-3.5 h-3.5" /> Export</button>}
+        />
       </div>
 
       {/* Accrual Types */}
@@ -391,35 +397,12 @@ export function FinanceConfigPage() {
             <Plus className="w-3.5 h-3.5" /> Add Accrual Type
           </button>
         </div>
-        <table className="w-full">
-          <thead className="border-b border-gray-100 bg-gray-50">
-            <tr>
-              <th className="text-left px-5 py-2.5 text-xs font-semibold text-gray-500">Type Key</th>
-              <th className="text-left px-5 py-2.5 text-xs font-semibold text-gray-500">Display Label</th>
-              <th className="text-left px-5 py-2.5 text-xs font-semibold text-gray-500">Color</th>
-              <th className="text-left px-5 py-2.5 text-xs font-semibold text-gray-500">Description</th>
-              <th className="text-right px-5 py-2.5 text-xs font-semibold text-gray-500">Actions</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-gray-50">
-            {accrualTypeConfigs.map(tc => (
-              <tr key={tc.id} className="hover:bg-gray-50">
-                <td className="px-5 py-3"><span className="font-mono text-xs text-gray-500 bg-gray-100 px-2 py-0.5 rounded">{tc.type}</span></td>
-                <td className="px-5 py-3 text-sm font-medium text-gray-900">{tc.label}</td>
-                <td className="px-5 py-3">
-                  <span className={`inline-block px-2 py-0.5 text-xs rounded-full font-medium ${tc.color}`}>{tc.type}</span>
-                </td>
-                <td className="px-5 py-3 text-sm text-gray-500 max-w-xs truncate">{tc.description || "—"}</td>
-                <td className="px-5 py-3">
-                  <div className="flex items-center justify-end gap-1">
-                    <button onClick={() => openAccrualTypeEdit(tc)} className="p-1.5 text-gray-400 hover:text-emerald-600 hover:bg-emerald-50 rounded-lg transition-colors"><Edit className="w-3.5 h-3.5" /></button>
-                    <button onClick={() => { setAccrualTypeConfigs(prev => prev.filter(x => x.id !== tc.id)); logChange({ module: "Finance", action: "Deleted", entityType: "AccrualTypeConfig", entityId: tc.id, summary: `Accrual type "${tc.label}" deleted`, performedBy: "Sola Adeleke" }); }} className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"><Trash2 className="w-3.5 h-3.5" /></button>
-                  </div>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+        <DataTable columns={accrualTypeColumns} data={accrualTypeConfigs} keyExtractor={tc => tc.id}
+          searchPlaceholder="Search accrual types..."
+          searchFields={[tc => tc.type, tc => tc.label, tc => tc.description || ""]}
+          emptyMessage="No accrual types found"
+          headerExtra={<button onClick={handleAccrualTypeExport} className="flex items-center gap-2 px-3 py-1.5 text-xs border border-gray-300 rounded-lg hover:bg-gray-50"><Download className="w-3.5 h-3.5" /> Export</button>}
+        />
       </div>
 
       {/* Bank Account Modal */}

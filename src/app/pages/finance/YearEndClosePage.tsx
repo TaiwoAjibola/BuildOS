@@ -1,11 +1,13 @@
 import { useState } from "react";
 import {
-  CalendarCheck, CheckCircle, XCircle, AlertTriangle, Lock,
-  ChevronRight, FileText, Eye, Database, LogOut,
+  CheckCircle, AlertTriangle, Lock,
+  ChevronRight, FileText, Database, LogOut, Download,
 } from "lucide-react";
-import { useFinance } from "../../stores/financeStore";
+import { useFinance, type IncomeStatementRow } from "../../stores/financeStore";
 import { useChangelog } from "../../stores/changelogStore";
 import type { FiscalYear } from "./types";
+import { DataTable, type Column } from "../../components/DataTable";
+import { exportCSV } from "../../utils/exportCSV";
 
 const CLOSE_STEPS = [
   { id: "verify", label: "Verify Transactions", icon: <FileText className="w-4 h-4" />, desc: "Ensure all ledger entries are complete and the trial balance is balanced before proceeding." },
@@ -16,6 +18,44 @@ const CLOSE_STEPS = [
 
 const fmt = (n: number) => `₦${n.toLocaleString()}`;
 
+interface ClosingEntry {
+  label: string;
+  dr: string;
+  cr: string;
+  amount: number;
+}
+
+interface BSRow {
+  section: string;
+  account: string;
+  amount: number;
+  isSection: boolean;
+}
+
+const ceColumns: Column<ClosingEntry>[] = [
+  { key: "label", label: "Description", render: r => <span className="text-sm text-gray-900">{r.label}</span> },
+  { key: "dr", label: "Debit", render: r => <span className="text-sm font-mono text-gray-700">{r.dr}</span> },
+  { key: "cr", label: "Credit", render: r => <span className="text-sm font-mono text-gray-700">{r.cr}</span> },
+  { key: "amount", label: "Amount", render: r => <span className="text-sm font-semibold text-gray-900">{fmt(r.amount)}</span>, className: "text-right" },
+];
+
+const isColumns: Column<IncomeStatementRow>[] = [
+  { key: "label", label: "Item", render: r => <span className={`text-sm ${r.isTotal ? "font-semibold text-gray-900" : r.isSection ? "font-semibold text-gray-700" : "text-gray-900"}`}>{r.label}</span> },
+  {
+    key: "amount", label: "Amount",
+    render: r => {
+      if (r.isSection) return <span className="text-sm" />;
+      return <span className={`text-sm font-mono ${r.amount >= 0 ? "text-emerald-600 font-semibold" : "text-red-600 font-semibold"}`}>{fmt(r.amount)}</span>;
+    },
+    className: "text-right",
+  },
+];
+
+const bsColumns: Column<BSRow>[] = [
+  { key: "account", label: "Account", render: r => r.isSection ? <span className="text-sm font-bold text-gray-900">{r.account}</span> : <span className="text-sm text-gray-600 ml-6">{r.account}</span> },
+  { key: "amount", label: "Amount", render: r => <span className={`text-sm font-mono ${r.isSection ? "font-bold text-gray-900" : "text-gray-800"}`}>{fmt(r.amount)}</span>, className: "text-right" },
+];
+
 export function YearEndClosePage() {
   const { fiscalYears, setFiscalYears, getTrialBalance, getBalanceSheet, getIncomeStatement, accounts } = useFinance();
   const { logChange } = useChangelog();
@@ -24,7 +64,7 @@ export function YearEndClosePage() {
     return open?.id ?? fiscalYears[0]?.id ?? "";
   });
   const [currentStep, setCurrentStep] = useState(0);
-  const [closingEntries, setClosingEntries] = useState<{ label: string; dr: string; cr: string; amount: number }[]>([]);
+  const [closingEntries, setClosingEntries] = useState<ClosingEntry[]>([]);
   const [statementsGenerated, setStatementsGenerated] = useState(false);
   const [showConfirmLock, setShowConfirmLock] = useState(false);
   const [locked, setLocked] = useState(false);
@@ -77,16 +117,23 @@ export function YearEndClosePage() {
     setShowConfirmLock(false);
   }
 
+  const bsRows: BSRow[] = [];
+  for (const section of balanceSheet) {
+    bsRows.push({ section: section.section, account: section.section, amount: section.total, isSection: true });
+    for (const item of section.items) {
+      bsRows.push({ section: section.section, account: item.account, amount: item.amount, isSection: false });
+    }
+  }
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-xl font-semibold text-gray-900">Year-End Close</h1>
-          <p className="text-sm text-gray-500 mt-0.5">Close a fiscal year — verify transactions, select appropriation account, zeroise income statements, and lock the period.</p>
+          <p className="text-sm text-gray-500 mt-0.5">Close a fiscal year &mdash; verify transactions, select appropriation account, zeroise income statements, and lock the period.</p>
         </div>
       </div>
 
-      {/* Fiscal Year Selector */}
       <div className="bg-white rounded-xl border border-gray-200 p-4">
         <div className="flex items-center gap-4">
           <label className="text-sm font-semibold text-gray-700">Select Fiscal Year:</label>
@@ -94,7 +141,7 @@ export function YearEndClosePage() {
             className="px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500">
             {fiscalYears.map(fy => (
               <option key={fy.id} value={fy.id}>
-                {fy.label} ({fy.startDate} — {fy.endDate}) · {fy.status.toUpperCase()}
+                {fy.label} ({fy.startDate} &mdash; {fy.endDate}) &middot; {fy.status.toUpperCase()}
               </option>
             ))}
           </select>
@@ -108,7 +155,6 @@ export function YearEndClosePage() {
 
       {!isClosed ? (
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          {/* Steps Sidebar */}
           <div className="space-y-2">
             {CLOSE_STEPS.map((step, i) => (
               <button
@@ -136,7 +182,6 @@ export function YearEndClosePage() {
             ))}
           </div>
 
-          {/* Step Content */}
           <div className="lg:col-span-2 bg-white rounded-xl border border-gray-200 p-6">
             {currentStep === 0 && (
               <div className="space-y-4">
@@ -193,28 +238,20 @@ export function YearEndClosePage() {
                     Generate Closing Entries
                   </button>
                 ) : (
-                  <div className="border border-gray-200 rounded-xl overflow-hidden">
-                    <table className="w-full text-sm">
-                      <thead className="bg-gray-50 border-b border-gray-200">
-                        <tr>
-                          <th className="text-left px-4 py-2 text-xs font-semibold text-gray-500">Description</th>
-                          <th className="text-left px-4 py-2 text-xs font-semibold text-gray-500">Debit</th>
-                          <th className="text-left px-4 py-2 text-xs font-semibold text-gray-500">Credit</th>
-                          <th className="text-right px-4 py-2 text-xs font-semibold text-gray-500">Amount</th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-gray-50">
-                        {closingEntries.map((e, i) => (
-                          <tr key={i} className="hover:bg-gray-50">
-                            <td className="px-4 py-2 text-sm text-gray-900">{e.label}</td>
-                            <td className="px-4 py-2 text-sm font-mono text-gray-700">{e.dr}</td>
-                            <td className="px-4 py-2 text-sm font-mono text-gray-700">{e.cr}</td>
-                            <td className="px-4 py-2 text-right text-sm font-semibold text-gray-900">{fmt(e.amount)}</td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
+                  <DataTable
+                    columns={ceColumns}
+                    data={closingEntries}
+                    keyExtractor={r => r.label}
+                    headerExtra={
+                      <button onClick={() => {
+                        const headers = ["Description", "Debit", "Credit", "Amount"];
+                        const rows = closingEntries.map(e => [e.label, e.dr, e.cr, fmt(e.amount)]);
+                        exportCSV(`closing-entries-${selectedFy?.label ?? "fy"}`, headers, rows);
+                      }} className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-gray-600 border border-gray-300 rounded-lg hover:bg-gray-100 transition-colors">
+                        <Download className="w-3 h-3" /> Export CSV
+                      </button>
+                    }
+                  />
                 )}
                 <div className="flex justify-end">
                   <button onClick={() => setCurrentStep(3)} className="flex items-center gap-2 px-4 py-2 text-sm bg-emerald-600 text-white rounded-lg hover:bg-emerald-700">
@@ -238,10 +275,9 @@ export function YearEndClosePage() {
                   </div>
                 </div>
 
-                {/* Summary before closing */}
                 <div className="border border-gray-200 rounded-xl overflow-hidden">
                   <div className="bg-gray-50 px-4 py-2 border-b border-gray-200">
-                    <h4 className="text-sm font-semibold text-gray-900">Closing Summary — {selectedFy?.label}</h4>
+                    <h4 className="text-sm font-semibold text-gray-900">Closing Summary &mdash; {selectedFy?.label}</h4>
                   </div>
                   <div className="p-4 space-y-3">
                     <div className="flex items-center justify-between text-sm">
@@ -275,52 +311,49 @@ export function YearEndClosePage() {
           <p className="text-sm text-gray-500 mt-1">{selectedFy?.label} was closed on {selectedFy?.closedAt} by {selectedFy?.closedBy}.</p>
           <p className="text-sm text-gray-400 mt-0.5">No further transactions can be posted to this period.</p>
 
-          {/* Final Statements */}
           <div className="mt-6 max-w-2xl mx-auto text-left space-y-4">
             <button onClick={() => setStatementsGenerated(!statementsGenerated)} className="flex items-center gap-2 text-sm text-emerald-600 hover:text-emerald-700 font-medium mx-auto">
               <FileText className="w-4 h-4" /> {statementsGenerated ? "Hide" : "View"} Final Statements
             </button>
             {statementsGenerated && (
               <div className="space-y-4">
-                <div className="border border-gray-200 rounded-xl overflow-hidden">
-                  <div className="bg-gray-50 px-4 py-2 border-b border-gray-200">
-                    <h4 className="text-sm font-semibold text-gray-900">Income Statement — {selectedFy?.label}</h4>
-                  </div>
-                  <table className="w-full text-sm">
-                    <tbody className="divide-y divide-gray-50">
-                      {incomeStatement.map((r, i) => (
-                        <tr key={i} className={r.isTotal ? "bg-gray-50 font-semibold" : r.isSection ? "bg-gray-50/50" : ""}>
-                          <td className="px-4 py-2 text-sm text-gray-900">{r.label}</td>
-                          <td className="px-4 py-2 text-right text-sm font-mono">
-                            {r.isSection ? "" : <span className={r.amount >= 0 ? "text-emerald-600" : "text-red-600"}>{fmt(r.amount)}</span>}
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
+                <div>
+                  <h4 className="text-sm font-semibold text-gray-900 mb-2">Income Statement &mdash; {selectedFy?.label}</h4>
+                  <DataTable
+                    columns={isColumns}
+                    data={incomeStatement}
+                    keyExtractor={r => r.label}
+                    headerExtra={
+                      <button onClick={() => {
+                        const headers = ["Item", "Amount"];
+                        const rows = incomeStatement.map(r => [r.label, r.isSection ? "" : fmt(r.amount)]);
+                        exportCSV(`income-statement-${selectedFy?.label ?? "fy"}`, headers, rows);
+                      }} className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-gray-600 border border-gray-300 rounded-lg hover:bg-gray-100 transition-colors">
+                        <Download className="w-3 h-3" /> Export CSV
+                      </button>
+                    }
+                  />
                 </div>
-                <div className="border border-gray-200 rounded-xl overflow-hidden">
-                  <div className="bg-gray-50 px-4 py-2 border-b border-gray-200">
-                    <h4 className="text-sm font-semibold text-gray-900">Balance Sheet — {selectedFy?.label}</h4>
-                  </div>
-                  <div className="divide-y divide-gray-100">
-                    {balanceSheet.map(section => (
-                      <div key={section.section} className="p-4">
-                        <div className="flex items-center justify-between mb-2">
-                          <h5 className="text-sm font-semibold text-gray-900">{section.section}</h5>
-                          <span className="text-sm font-bold text-gray-900">{fmt(section.total)}</span>
-                        </div>
-                        <div className="space-y-1">
-                          {section.items.map((item, i) => (
-                            <div key={i} className="flex items-center justify-between text-sm pl-4">
-                              <span className="text-gray-600">{item.account}</span>
-                              <span className="font-mono text-gray-800">{fmt(item.amount)}</span>
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    ))}
-                  </div>
+                <div>
+                  <h4 className="text-sm font-semibold text-gray-900 mb-2">Balance Sheet &mdash; {selectedFy?.label}</h4>
+                  <DataTable
+                    columns={bsColumns}
+                    data={bsRows}
+                    keyExtractor={r => r.section + r.account}
+                    headerExtra={
+                      <button onClick={() => {
+                        const headers = ["Section", "Account", "Amount"];
+                        const rows: string[][] = [];
+                        balanceSheet.forEach(s => {
+                          rows.push([s.section, "", fmt(s.total)]);
+                          s.items.forEach(i => rows.push(["", i.account, fmt(i.amount)]));
+                        });
+                        exportCSV(`balance-sheet-${selectedFy?.label ?? "fy"}`, headers, rows);
+                      }} className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-gray-600 border border-gray-300 rounded-lg hover:bg-gray-100 transition-colors">
+                        <Download className="w-3 h-3" /> Export CSV
+                      </button>
+                    }
+                  />
                 </div>
               </div>
             )}
@@ -328,7 +361,6 @@ export function YearEndClosePage() {
         </div>
       )}
 
-      {/* Confirm Lock Modal */}
       {showConfirmLock && (
         <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
           <div className="bg-white rounded-2xl shadow-xl w-full max-w-sm mx-4 p-6 text-center">

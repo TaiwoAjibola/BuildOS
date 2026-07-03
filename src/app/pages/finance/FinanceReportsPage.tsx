@@ -1,6 +1,8 @@
-import { useState } from "react";
-import { BarChart3, Download, FileText, TrendingUp, TrendingDown, DollarSign, ScrollText, Eye } from "lucide-react";
-import { useFinance } from "../../stores/financeStore";
+import { useState, useEffect, useMemo } from "react";
+import { BarChart3, Download, TrendingUp, TrendingDown, DollarSign, ScrollText } from "lucide-react";
+import { useFinance, type TrialBalanceRow, type IncomeStatementRow } from "../../stores/financeStore";
+import { DataTable, type Column } from "../../components/DataTable";
+import { useChangelog } from "../../stores/changelogStore";
 import { exportCSV } from "../../utils/exportCSV";
 
 type ReportType = "Trial Balance" | "Balance Sheet" | "Income Statement" | "Cash Flow" | "Budget vs Actual";
@@ -22,7 +24,27 @@ const templates: ReportTemplate[] = [
   { id: "budget", type: "Budget vs Actual", icon: <TrendingDown className="w-5 h-5" />, description: "Compare planned budgets against actual spend by project", color: "text-red-600", bg: "bg-red-50" },
 ];
 
-const CASHFLOW_DATA = [
+interface CashFlowRow {
+  label: string;
+  value: string;
+  positive?: boolean | null;
+}
+
+interface BudgetRow {
+  label: string;
+  value: string;
+  sub?: string;
+  positive?: boolean | null;
+}
+
+interface BSRow {
+  section: string;
+  account: string;
+  amount: number;
+  isSection: boolean;
+}
+
+const CASHFLOW_DATA: CashFlowRow[] = [
   { label: "Operating Cash Flow", value: "+$1,394,800", positive: true as const },
   { label: "Investing Activities", value: "−$240,000", positive: false as const },
   { label: "Financing Activities", value: "−$120,000", positive: false as const },
@@ -31,7 +53,7 @@ const CASHFLOW_DATA = [
   { label: "Closing Balance", value: "$3,834,800", positive: true as const },
 ];
 
-const BUDGET_DATA = [
+const BUDGET_DATA: BudgetRow[] = [
   { label: "Lekki Tower A", value: "65% utilised", sub: "$8.1M of $12.5M" },
   { label: "Riverside Residential", value: "42% utilised", sub: "$3.4M of $8.2M" },
   { label: "Mall Renovation", value: "105% OVER BUDGET", sub: "$19.3M of $18.4M", positive: false as const },
@@ -41,8 +63,47 @@ const BUDGET_DATA = [
 
 const fmt = (n: number) => `₦${n.toLocaleString()}`;
 
+// ── Column definitions ──────────────────────────────────────────────────────
+
+const tbColumns: Column<TrialBalanceRow>[] = [
+  { key: "code", label: "Account Code", render: r => <span className="font-mono text-xs text-gray-500">{r.code}</span>, sortable: true, filterable: true },
+  { key: "accountName", label: "Account Name", render: r => <span className="text-sm text-gray-900">{r.accountName}</span>, sortable: true, filterable: true },
+  { key: "type", label: "Type", render: r => <span className="px-2 py-0.5 text-xs rounded-full bg-gray-100 text-gray-600">{r.type}</span>, sortable: true, filterable: true },
+  { key: "debit", label: "Debit", render: r => r.debit > 0 ? <span className="text-sm font-mono text-gray-900">{fmt(r.debit)}</span> : <span className="text-sm font-mono text-gray-400">—</span>, sortable: true, className: "text-right" },
+  { key: "credit", label: "Credit", render: r => r.credit > 0 ? <span className="text-sm font-mono text-gray-900">{fmt(r.credit)}</span> : <span className="text-sm font-mono text-gray-400">—</span>, sortable: true, className: "text-right" },
+];
+
+const isColumns: Column<IncomeStatementRow>[] = [
+  { key: "label", label: "Item", render: r => <span className={`text-sm ${r.isTotal ? "font-semibold text-gray-900" : r.isSection ? "font-semibold text-gray-700" : "text-gray-900"}`}>{r.label}</span>, sortable: true, filterable: true },
+  {
+    key: "amount", label: "Amount",
+    render: r => {
+      if (r.isSection) return <span className="text-sm" />;
+      return <span className={`text-sm font-mono ${r.amount >= 0 ? "text-emerald-600 font-semibold" : "text-red-600 font-semibold"}`}>{fmt(r.amount)}</span>;
+    },
+    sortable: true, className: "text-right",
+  },
+];
+
+const cfColumns: Column<CashFlowRow>[] = [
+  { key: "label", label: "Metric", render: r => <span className="text-sm text-gray-900">{r.label}</span>, sortable: true, filterable: true },
+  { key: "value", label: "Value", render: r => <span className={`text-sm font-semibold ${r.positive === true ? "text-emerald-600" : r.positive === false ? "text-red-600" : "text-gray-900"}`}>{r.value}</span>, sortable: true, className: "text-right" },
+];
+
+const budgetColumns: Column<BudgetRow>[] = [
+  { key: "label", label: "Project", render: r => <span className="text-sm text-gray-900">{r.label}</span>, sortable: true, filterable: true },
+  { key: "value", label: "Utilisation", render: r => <span className={`text-sm font-semibold ${r.positive === false ? "text-red-600" : "text-gray-900"}`}>{r.value}</span>, sortable: true, className: "text-right" },
+  { key: "sub", label: "Details", render: r => <span className="text-xs text-gray-400">{r.sub ?? "—"}</span>, sortable: false, filterable: false, className: "text-right" },
+];
+
+const bsColumns: Column<BSRow>[] = [
+  { key: "account", label: "Account", render: r => r.isSection ? <span className="text-sm font-bold text-gray-900">{r.account}</span> : <span className="text-sm text-gray-600 ml-6">{r.account}</span>, sortable: true, filterable: true },
+  { key: "amount", label: "Amount", render: r => <span className={`text-sm font-mono ${r.isSection ? "font-bold text-gray-900" : "text-gray-800"}`}>{fmt(r.amount)}</span>, sortable: true, className: "text-right" },
+];
+
 export function FinanceReportsPage() {
   const { fiscalYears, getTrialBalance, getBalanceSheet, getIncomeStatement } = useFinance();
+  const { logChange } = useChangelog();
   const [selectedReport, setSelectedReport] = useState<string>("trial-balance");
   const [selectedFyId, setSelectedFyId] = useState<string>(() => {
     const current = fiscalYears.find(fy => fy.isCurrent);
@@ -58,6 +119,28 @@ export function FinanceReportsPage() {
   const totalCredits = tb.reduce((s, r) => s + r.credit, 0);
 
   const active = templates.find((t) => t.id === selectedReport)!;
+
+  useEffect(() => {
+    logChange({
+      module: "Finance",
+      action: "Generated Report",
+      entityType: "Report",
+      entityId: selectedReport,
+      summary: `Generated ${active.type} for ${selectedFy?.label ?? "All years"}`,
+      performedBy: "current-user",
+    });
+  }, [selectedReport, selectedFyId]);
+
+  const bsRows = useMemo<BSRow[]>(() => {
+    const rows: BSRow[] = [];
+    for (const section of balanceSheet) {
+      rows.push({ section: section.section, account: section.section, amount: section.total, isSection: true });
+      for (const item of section.items) {
+        rows.push({ section: section.section, account: item.account, amount: item.amount, isSection: false });
+      }
+    }
+    return rows;
+  }, [balanceSheet]);
 
   function handleExport() {
     const rows: string[][] = [];
@@ -76,6 +159,41 @@ export function FinanceReportsPage() {
       incomeStatement.forEach(r => rows.push([r.label, r.isSection ? "" : fmt(r.amount)]));
     }
     exportCSV(`finance-report-${selectedReport}-${selectedFy?.label ?? "all"}`, rows[0] ?? [], rows.slice(1));
+  }
+
+  function exportTB() {
+    const headers = ["Account Code", "Account Name", "Type", "Debit", "Credit"];
+    const rows = tb.map(r => [r.code, r.accountName, r.type, fmt(r.debit), fmt(r.credit)]);
+    rows.push(["", "", "Total", fmt(totalDebits), fmt(totalCredits)]);
+    exportCSV(`trial-balance-${selectedFy?.label ?? "all"}`, headers, rows);
+  }
+
+  function exportBS() {
+    const headers = ["Section", "Account", "Amount"];
+    const rows: string[][] = [];
+    balanceSheet.forEach(s => {
+      rows.push([s.section, "", fmt(s.total)]);
+      s.items.forEach(i => rows.push(["", i.account, fmt(i.amount)]));
+    });
+    exportCSV(`balance-sheet-${selectedFy?.label ?? "all"}`, headers, rows);
+  }
+
+  function exportIS() {
+    const headers = ["Item", "Amount"];
+    const rows = incomeStatement.map(r => [r.label, r.isSection ? "" : fmt(r.amount)]);
+    exportCSV(`income-statement-${selectedFy?.label ?? "all"}`, headers, rows);
+  }
+
+  function exportCF() {
+    const headers = ["Metric", "Value"];
+    const rows = CASHFLOW_DATA.map(r => [r.label, r.value]);
+    exportCSV("cash-flow", headers, rows);
+  }
+
+  function exportBudget() {
+    const headers = ["Project", "Utilisation", "Details"];
+    const rows = BUDGET_DATA.map(r => [r.label, r.value, r.sub ?? ""]);
+    exportCSV("budget-vs-actual", headers, rows);
   }
 
   return (
@@ -130,39 +248,22 @@ export function FinanceReportsPage() {
               <div className="bg-gray-50 px-6 py-3">
                 <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Trial Balance — {selectedFy?.label}</p>
               </div>
-              <table className="w-full">
-                <thead className="border-b border-gray-100">
-                  <tr>
-                    <th className="text-left px-6 py-3 text-xs font-semibold text-gray-500">Account Code</th>
-                    <th className="text-left px-6 py-3 text-xs font-semibold text-gray-500">Account Name</th>
-                    <th className="text-left px-6 py-3 text-xs font-semibold text-gray-500">Type</th>
-                    <th className="text-right px-6 py-3 text-xs font-semibold text-gray-500">Debit</th>
-                    <th className="text-right px-6 py-3 text-xs font-semibold text-gray-500">Credit</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-gray-50">
-                  {tb.map(r => (
-                    <tr key={r.code} className="hover:bg-gray-50">
-                      <td className="px-6 py-3 font-mono text-xs text-gray-500">{r.code}</td>
-                      <td className="px-6 py-3 text-sm text-gray-900">{r.accountName}</td>
-                      <td className="px-6 py-3"><span className="px-2 py-0.5 text-xs rounded-full bg-gray-100 text-gray-600">{r.type}</span></td>
-                      <td className="px-6 py-3 text-right text-sm font-mono text-gray-900">{r.debit > 0 ? fmt(r.debit) : "—"}</td>
-                      <td className="px-6 py-3 text-right text-sm font-mono text-gray-900">{r.credit > 0 ? fmt(r.credit) : "—"}</td>
-                    </tr>
-                  ))}
-                </tbody>
-                <tfoot className="bg-gray-50 border-t border-gray-200 font-semibold">
-                  <tr>
-                    <td colSpan={3} className="px-6 py-3 text-sm text-gray-900 text-right">Total</td>
-                    <td className="px-6 py-3 text-right text-sm font-mono text-gray-900">{fmt(totalDebits)}</td>
-                    <td className="px-6 py-3 text-right text-sm font-mono text-gray-900">{fmt(totalCredits)}</td>
-                  </tr>
-                </tfoot>
-              </table>
-              <div className="px-6 py-3 bg-gray-50 border-t border-gray-100">
+              <DataTable
+                columns={tbColumns}
+                data={tb}
+                keyExtractor={r => r.code}
+                searchFields={[r => r.accountName, r => r.code, r => r.type]}
+                headerExtra={
+                  <button onClick={exportTB} className="flex items-center gap-1 px-2 py-1 text-xs bg-emerald-600 text-white rounded hover:bg-emerald-700">
+                    <Download className="w-3 h-3" /> CSV
+                  </button>
+                }
+              />
+              <div className="px-6 py-3 bg-gray-50 border-t border-gray-100 flex items-center justify-between">
                 <span className={`text-xs font-semibold ${Math.abs(totalDebits - totalCredits) < 0.01 ? "text-emerald-600" : "text-red-600"}`}>
                   {Math.abs(totalDebits - totalCredits) < 0.01 ? "✓ Trial Balance is balanced" : "✗ Trial Balance is NOT balanced"}
                 </span>
+                <span className="text-xs font-semibold text-gray-500">Total Debits: {fmt(totalDebits)} / Total Credits: {fmt(totalCredits)}</span>
               </div>
             </div>
           )}
@@ -172,24 +273,17 @@ export function FinanceReportsPage() {
               <div className="bg-gray-50 px-6 py-3">
                 <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Balance Sheet — {selectedFy?.label}</p>
               </div>
-              <div className="divide-y divide-gray-100">
-                {balanceSheet.map(section => (
-                  <div key={section.section} className="p-6">
-                    <div className="flex items-center justify-between mb-3">
-                      <h3 className="text-sm font-semibold text-gray-900">{section.section}</h3>
-                      <span className="text-sm font-bold text-gray-900">{fmt(section.total)}</span>
-                    </div>
-                    <div className="space-y-1.5">
-                      {section.items.map((item, i) => (
-                        <div key={i} className="flex items-center justify-between text-sm pl-6">
-                          <span className="text-gray-600">{item.account}</span>
-                          <span className="font-mono text-gray-800">{fmt(item.amount)}</span>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                ))}
-              </div>
+              <DataTable
+                columns={bsColumns}
+                data={bsRows}
+                keyExtractor={r => `${r.section}-${r.account}`}
+                searchFields={[r => r.account]}
+                headerExtra={
+                  <button onClick={exportBS} className="flex items-center gap-1 px-2 py-1 text-xs bg-emerald-600 text-white rounded hover:bg-emerald-700">
+                    <Download className="w-3 h-3" /> CSV
+                  </button>
+                }
+              />
               <div className="px-6 py-3 bg-gray-50 border-t border-gray-100">
                 <div className="flex items-center justify-between">
                   <span className="text-xs font-semibold text-gray-500">Assets = Liabilities + Equity</span>
@@ -206,63 +300,51 @@ export function FinanceReportsPage() {
               <div className="bg-gray-50 px-6 py-3">
                 <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Income Statement — {selectedFy?.label}</p>
               </div>
-              <table className="w-full">
-                <thead className="border-b border-gray-100">
-                  <tr>
-                    <th className="text-left px-6 py-3 text-xs font-semibold text-gray-500">Item</th>
-                    <th className="text-right px-6 py-3 text-xs font-semibold text-gray-500">Amount</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-gray-50">
-                  {incomeStatement.map((r, i) => (
-                    <tr key={i} className={`${r.isTotal ? "bg-gray-50 font-semibold" : r.isSection ? "bg-gray-50/50" : ""}`}>
-                      <td className="px-6 py-3 text-sm text-gray-900">{r.label}</td>
-                      <td className="px-6 py-3 text-right text-sm font-mono">
-                        {r.isSection ? "" : <span className={r.amount >= 0 ? "text-emerald-600 font-semibold" : "text-red-600 font-semibold"}>{fmt(r.amount)}</span>}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+              <DataTable
+                columns={isColumns}
+                data={incomeStatement}
+                keyExtractor={r => `is-${r.label}`}
+                searchFields={[r => r.label]}
+                headerExtra={
+                  <button onClick={exportIS} className="flex items-center gap-1 px-2 py-1 text-xs bg-emerald-600 text-white rounded hover:bg-emerald-700">
+                    <Download className="w-3 h-3" /> CSV
+                  </button>
+                }
+              />
             </div>
           )}
 
           {selectedReport === "cashflow" && (
             <div className="border border-gray-100 rounded-xl overflow-hidden">
               <div className="bg-gray-50 px-6 py-3"><p className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Cash Flow Statement</p></div>
-              <table className="w-full">
-                <thead className="border-b border-gray-100">
-                  <tr><th className="text-left px-6 py-3 text-xs font-semibold text-gray-500">Metric</th><th className="text-right px-6 py-3 text-xs font-semibold text-gray-500">Value</th></tr>
-                </thead>
-                <tbody className="divide-y divide-gray-50">
-                  {CASHFLOW_DATA.map((r, i) => (
-                    <tr key={i} className={i === 0 ? "bg-gray-50" : ""}>
-                      <td className="px-6 py-3 text-sm text-gray-900">{r.label}</td>
-                      <td className={`px-6 py-3 text-sm font-semibold text-right ${r.positive === true ? "text-emerald-600" : r.positive === false ? "text-red-600" : "text-gray-900"}`}>{r.value}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+              <DataTable
+                columns={cfColumns}
+                data={CASHFLOW_DATA}
+                keyExtractor={r => `cf-${r.label}`}
+                searchFields={[r => r.label]}
+                headerExtra={
+                  <button onClick={exportCF} className="flex items-center gap-1 px-2 py-1 text-xs bg-emerald-600 text-white rounded hover:bg-emerald-700">
+                    <Download className="w-3 h-3" /> CSV
+                  </button>
+                }
+              />
             </div>
           )}
 
           {selectedReport === "budget" && (
             <div className="border border-gray-100 rounded-xl overflow-hidden">
               <div className="bg-gray-50 px-6 py-3"><p className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Budget vs Actual</p></div>
-              <table className="w-full">
-                <thead className="border-b border-gray-100">
-                  <tr><th className="text-left px-6 py-3 text-xs font-semibold text-gray-500">Project</th><th className="text-right px-6 py-3 text-xs font-semibold text-gray-500">Utilisation</th><th className="text-right px-6 py-3 text-xs font-semibold text-gray-500">Details</th></tr>
-                </thead>
-                <tbody className="divide-y divide-gray-50">
-                  {BUDGET_DATA.map((r, i) => (
-                    <tr key={i}>
-                      <td className="px-6 py-3 text-sm text-gray-900">{r.label}</td>
-                      <td className={`px-6 py-3 text-sm font-semibold text-right ${r.positive === false ? "text-red-600" : "text-gray-900"}`}>{r.value}</td>
-                      <td className="px-6 py-3 text-xs text-gray-400 text-right">{r.sub ?? "—"}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+              <DataTable
+                columns={budgetColumns}
+                data={BUDGET_DATA}
+                keyExtractor={r => `budget-${r.label}`}
+                searchFields={[r => r.label]}
+                headerExtra={
+                  <button onClick={exportBudget} className="flex items-center gap-1 px-2 py-1 text-xs bg-emerald-600 text-white rounded hover:bg-emerald-700">
+                    <Download className="w-3 h-3" /> CSV
+                  </button>
+                }
+              />
             </div>
           )}
 
