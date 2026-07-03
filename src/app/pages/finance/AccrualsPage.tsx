@@ -29,11 +29,10 @@ const emptyForm = {
   title: "", description: "", amount: "",
   debitAccount: "", creditAccount: "",
   reversalDate: "", reference: "", sourceModule: "Procurement" as string,
-  sourceRef: "", notes: "",
 };
 
 export function AccrualsPage() {
-  const { accruals, setAccruals, fiscalYears } = useFinance();
+  const { accruals, setAccruals, fiscalYears, accounts } = useFinance();
   const [search, setSearch] = useState("");
   const [typeFilter, setTypeFilter] = useState<AccrualType | "All">("All");
   const [statusFilter, setStatusFilter] = useState<AccrualStatus | "All">("All");
@@ -51,24 +50,23 @@ export function AccrualsPage() {
   });
 
   function handleCreate() {
-    if (!form.title.trim() || !form.amount || !form.reversalDate) return;
+    if (!form.title.trim() || !form.amount || !form.reversalDate || !form.debitAccount || !form.creditAccount) return;
     const accrual: Accrual = {
       id: `acc-${Date.now()}`,
       type: form.type,
       title: form.title.trim(),
       description: form.description.trim(),
       amount: parseFloat(form.amount),
-      debitAccount: form.debitAccount.trim() || "TBD",
-      creditAccount: form.creditAccount.trim() || "TBD",
+      debitAccount: form.debitAccount,
+      creditAccount: form.creditAccount,
       status: "active",
       createdAt: new Date().toISOString().split("T")[0],
       createdBy: "Sola Adeleke",
       reversalDate: form.reversalDate,
       reference: form.reference.trim() || `ACCR-${Date.now()}`,
       sourceModule: form.sourceModule,
-      sourceRef: form.sourceRef.trim(),
+      sourceRef: form.reference.trim() || `ACCR-${Date.now()}`,
       fiscalYearId: currentFy?.id ?? "fy2",
-      notes: form.notes.trim() || undefined,
     };
     setAccruals(prev => [accrual, ...prev]);
     setShowModal(false);
@@ -235,7 +233,7 @@ export function AccrualsPage() {
             <div className="px-6 py-5 space-y-4">
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-xs font-semibold text-gray-700 mb-1.5">Accrual Type *</label>
+                  <label className="block text-xs font-semibold text-gray-700 mb-1.5">Accrual Type * <span className="text-gray-400 font-normal">(dropdown)</span></label>
                   <select value={form.type} onChange={e => setForm({ ...form, type: e.target.value as AccrualType })} className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500">
                     {ACCRUAL_TYPES.map(t => <option key={t} value={t}>{ACCRUAL_LABELS[t]}</option>)}
                   </select>
@@ -255,12 +253,22 @@ export function AccrualsPage() {
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-xs font-semibold text-gray-700 mb-1.5">Debit Account</label>
-                  <input value={form.debitAccount} onChange={e => setForm({ ...form, debitAccount: e.target.value })} placeholder="e.g. 5200 Material Costs" className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500" />
+                  <label className="block text-xs font-semibold text-gray-700 mb-1.5">Debit Account * <span className="text-gray-400 font-normal">(dropdown)</span></label>
+                  <select value={form.debitAccount} onChange={e => setForm({ ...form, debitAccount: e.target.value })} className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500">
+                    <option value="">Select debit account...</option>
+                    {accounts.filter(a => a.parentId !== null).map(a => (
+                      <option key={a.id} value={`${a.code} ${a.name}`}>{a.code} — {a.name} ({a.type})</option>
+                    ))}
+                  </select>
                 </div>
                 <div>
-                  <label className="block text-xs font-semibold text-gray-700 mb-1.5">Credit Account</label>
-                  <input value={form.creditAccount} onChange={e => setForm({ ...form, creditAccount: e.target.value })} placeholder="e.g. 2120 Accrued Expenses" className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500" />
+                  <label className="block text-xs font-semibold text-gray-700 mb-1.5">Credit Account * <span className="text-gray-400 font-normal">(dropdown)</span></label>
+                  <select value={form.creditAccount} onChange={e => setForm({ ...form, creditAccount: e.target.value })} className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500">
+                    <option value="">Select credit account...</option>
+                    {accounts.filter(a => a.parentId !== null).map(a => (
+                      <option key={a.id} value={`${a.code} ${a.name}`}>{a.code} — {a.name} ({a.type})</option>
+                    ))}
+                  </select>
                 </div>
               </div>
               <div className="grid grid-cols-2 gap-4">
@@ -269,25 +277,16 @@ export function AccrualsPage() {
                   <input type="date" value={form.reversalDate} onChange={e => setForm({ ...form, reversalDate: e.target.value })} className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500" />
                 </div>
                 <div>
-                  <label className="block text-xs font-semibold text-gray-700 mb-1.5">Source Module</label>
+                  <label className="block text-xs font-semibold text-gray-700 mb-1.5">Source Module <span className="text-gray-400 font-normal">(dropdown)</span></label>
                   <select value={form.sourceModule} onChange={e => setForm({ ...form, sourceModule: e.target.value })} className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500">
                     {SOURCE_MODULES.map(m => <option key={m} value={m}>{m}</option>)}
                   </select>
                 </div>
               </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-xs font-semibold text-gray-700 mb-1.5">Reference</label>
-                  <input value={form.reference} onChange={e => setForm({ ...form, reference: e.target.value })} placeholder="e.g. PO-0031" className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500" />
-                </div>
-                <div>
-                  <label className="block text-xs font-semibold text-gray-700 mb-1.5">Source Reference</label>
-                  <input value={form.sourceRef} onChange={e => setForm({ ...form, sourceRef: e.target.value })} placeholder="e.g. GRN-0031" className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500" />
-                </div>
-              </div>
               <div>
-                <label className="block text-xs font-semibold text-gray-700 mb-1.5">Notes</label>
-                <textarea value={form.notes} onChange={e => setForm({ ...form, notes: e.target.value })} rows={2} placeholder="Optional additional notes" className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 resize-none" />
+                <label className="block text-xs font-semibold text-gray-700 mb-1.5">Reference</label>
+                <input value={form.reference} onChange={e => setForm({ ...form, reference: e.target.value })} placeholder="e.g. PO-0031" className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500" />
+                <p className="text-xs text-gray-400 mt-1">Reference to the source document (PO, GRN, PR, etc.)</p>
               </div>
               {currentFy && (
                 <div className="bg-blue-50 border border-blue-100 rounded-lg px-3 py-2 text-xs text-blue-700">
