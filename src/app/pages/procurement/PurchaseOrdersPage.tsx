@@ -2,8 +2,11 @@ import { useState } from "react";
 import {
   ShoppingCart, Plus, Search, ChevronDown, ChevronRight,
   FileText, Truck, CheckCircle, Clock, XCircle, Send, Download, Package, X, Trash2,
-  CreditCard, Building2, LinkIcon,
+  CreditCard, Building2, LinkIcon, DownloadCloud,
 } from "lucide-react";
+import { DataTable, type Column } from "../../components/DataTable";
+import { useChangelog } from "../../stores/changelogStore";
+import { exportCSV } from "../../utils/exportCSV";
 
 type POStatus = "draft" | "sent" | "confirmed" | "partially_received" | "completed" | "cancelled";
 type PaymentStatus = "unpaid" | "confirmation_requested" | "paid";
@@ -337,28 +340,166 @@ function RecordReceiptModal({ po, onClose, onDone }: { po: PurchaseOrder; onClos
 }
 
 export function PurchaseOrdersPage() {
+  const { logChange } = useChangelog();
   const [poList, setPoList] = useState<PurchaseOrder[]>(purchaseOrders);
   const [activeTab, setActiveTab] = useState<POStatus | "all">("all");
-  const [search, setSearch] = useState("");
-  const [expanded, setExpanded] = useState<string | null>(null);
   const [showNewPO, setShowNewPO] = useState(false);
   const [sendPO, setSendPO] = useState<PurchaseOrder | null>(null);
   const [receiptPO, setReceiptPO] = useState<PurchaseOrder | null>(null);
 
-  function sendToFinance(id: string) {
+  function sendToFinance(po: PurchaseOrder) {
     const ref = `FIN-${String(Math.floor(Math.random() * 9000) + 1000)}`;
-    setPoList((prev) => prev.map((p) => p.id === id ? { ...p, sentToFinance: true, financeRef: ref } : p));
+    setPoList((prev) => prev.map((p) => p.id === po.id ? { ...p, sentToFinance: true, financeRef: ref } : p));
+    logChange({ module: "Procurement", action: "Sent to Finance", entityType: "PurchaseOrder", entityId: po.id, summary: `PO ${po.id} sent to finance (${ref})`, performedBy: "Current User" });
   }
 
-  function requestPaymentConfirmation(id: string) {
-    setPoList((prev) => prev.map((p) => p.id === id ? { ...p, paymentStatus: "confirmation_requested" as PaymentStatus } : p));
+  function requestPaymentConfirmation(po: PurchaseOrder) {
+    setPoList((prev) => prev.map((p) => p.id === po.id ? { ...p, paymentStatus: "confirmation_requested" as PaymentStatus } : p));
+    logChange({ module: "Procurement", action: "Payment Confirmation Requested", entityType: "PurchaseOrder", entityId: po.id, summary: `Payment confirmation requested for PO ${po.id}`, performedBy: "Current User" });
   }
 
-  const filtered = poList.filter(po => {
-    const matchTab = activeTab === "all" || po.status === activeTab;
-    const matchSearch = po.id.toLowerCase().includes(search.toLowerCase()) || po.supplier.toLowerCase().includes(search.toLowerCase()) || po.prRef.toLowerCase().includes(search.toLowerCase());
-    return matchTab && matchSearch;
-  });
+  function markPaid(po: PurchaseOrder) {
+    setPoList((prev) => prev.map((p) => p.id === po.id ? { ...p, paymentStatus: "paid" as PaymentStatus } : p));
+    logChange({ module: "Procurement", action: "Paid", entityType: "PurchaseOrder", entityId: po.id, summary: `PO ${po.id} marked as paid`, performedBy: "Current User" });
+  }
+
+  function deletePO(po: PurchaseOrder) {
+    if (!window.confirm(`Delete ${po.id}?`)) return;
+    setPoList((prev) => prev.filter((p) => p.id !== po.id));
+    logChange({ module: "Procurement", action: "Deleted", entityType: "PurchaseOrder", entityId: po.id, summary: `PO ${po.id} deleted`, performedBy: "Current User" });
+  }
+
+  const filtered = poList.filter(po => activeTab === "all" || po.status === activeTab);
+
+  const columns: Column<PurchaseOrder>[] = [
+    {
+      key: "id",
+      label: "PO ID",
+      sortable: true,
+      filterable: true,
+      render: (po) => <span className="font-mono text-xs font-semibold text-gray-900">{po.id}</span>,
+    },
+    {
+      key: "supplier",
+      label: "Supplier / Vendor",
+      sortable: true,
+      filterable: true,
+      render: (po) => (
+        <div>
+          <p className="font-medium text-gray-900">{po.supplier}</p>
+          <p className="text-xs text-gray-400">{po.supplierContact}</p>
+        </div>
+      ),
+    },
+    {
+      key: "description",
+      label: "Description / Items",
+      sortable: true,
+      filterable: true,
+      minWidth: 200,
+      render: (po) => (
+        <div className="text-sm text-gray-600">
+          {po.items.length} item{po.items.length > 1 ? "s" : ""}: {po.items.map(it => it.material).join(", ")}
+        </div>
+      ),
+    },
+    {
+      key: "totalValue",
+      label: "Total ($)",
+      sortable: true,
+      className: "text-right",
+      headerClassName: "text-right",
+      render: (po) => <span className="font-semibold text-gray-900">{fmt(po.totalValue)}</span>,
+    },
+    {
+      key: "date",
+      label: "Date",
+      sortable: true,
+      render: (po) => <span className="text-gray-600 text-sm">{po.expectedDate}</span>,
+    },
+    {
+      key: "status",
+      label: "Status",
+      sortable: true,
+      filterable: true,
+      render: (po) => {
+        const cfg = statusConfig[po.status];
+        return (
+          <span className={`inline-flex items-center gap-1 text-xs px-2 py-1 rounded-full font-medium ${cfg.badge}`}>
+            {cfg.icon}{cfg.label}
+          </span>
+        );
+      },
+    },
+    {
+      key: "paymentStatus",
+      label: "Payment Status",
+      sortable: true,
+      filterable: true,
+      render: (po) => (
+        <span className={`inline-flex items-center text-xs px-2 py-1 rounded-full font-medium ${PAYMENT_STATUS_CFG[po.paymentStatus].badge}`}>
+          {PAYMENT_STATUS_CFG[po.paymentStatus].label}
+        </span>
+      ),
+    },
+    {
+      key: "actions",
+      label: "Actions",
+      sortable: false,
+      filterable: false,
+      render: (po) => (
+        <div className="flex items-center gap-1">
+          {po.status === "draft" && (
+            <>
+              <button onClick={(e) => { e.stopPropagation(); setSendPO(po); }} className="p-1.5 text-blue-600 hover:bg-blue-50 rounded-md transition-colors" title="Send to Supplier">
+                <Send className="w-3.5 h-3.5" />
+              </button>
+              <button onClick={(e) => { e.stopPropagation(); deletePO(po); }} className="p-1.5 text-red-500 hover:bg-red-50 rounded-md transition-colors" title="Delete PO">
+                <Trash2 className="w-3.5 h-3.5" />
+              </button>
+            </>
+          )}
+          {["confirmed", "partially_received", "completed"].includes(po.status) && !po.sentToFinance && (
+            <button onClick={(e) => { e.stopPropagation(); sendToFinance(po); }} className="p-1.5 text-indigo-600 hover:bg-indigo-50 rounded-md transition-colors" title="Send to Finance">
+              <Building2 className="w-3.5 h-3.5" />
+            </button>
+          )}
+          {po.status === "confirmed" && po.paymentStatus === "unpaid" && (
+            <button onClick={(e) => { e.stopPropagation(); requestPaymentConfirmation(po); }} className="p-1.5 text-green-600 hover:bg-green-50 rounded-md transition-colors" title="Request Payment Confirmation">
+              <CreditCard className="w-3.5 h-3.5" />
+            </button>
+          )}
+          {po.status === "confirmed" && po.paymentStatus === "confirmation_requested" && (
+            <button onClick={(e) => { e.stopPropagation(); markPaid(po); }} className="p-1.5 text-emerald-600 hover:bg-emerald-50 rounded-md transition-colors" title="Mark as Paid">
+              <CheckCircle className="w-3.5 h-3.5" />
+            </button>
+          )}
+          {po.status === "partially_received" && (
+            <button onClick={(e) => { e.stopPropagation(); setReceiptPO(po); }} className="p-1.5 text-amber-600 hover:bg-amber-50 rounded-md transition-colors" title="Record Delivery">
+              <Truck className="w-3.5 h-3.5" />
+            </button>
+          )}
+          {po.status === "sent" && (
+            <span className="text-xs text-gray-400 italic">Awaiting confirmation</span>
+          )}
+          {po.status === "completed" && po.paymentStatus === "paid" && (
+            <span className="text-xs text-green-600 font-medium">Completed</span>
+          )}
+        </div>
+      ),
+    },
+  ];
+
+  function handleExport() {
+    const headers = ["PO ID", "PR Ref", "Supplier", "Contact", "Status", "Payment Status", "Total Value", "Expected Date", "Items"];
+    const rows = filtered.map(po => [
+      po.id, po.prRef, po.supplier, po.supplierContact,
+      statusConfig[po.status].label, PAYMENT_STATUS_CFG[po.paymentStatus].label,
+      String(po.totalValue), po.expectedDate,
+      po.items.map(it => `${it.material} (${it.qty} ${it.unit} @ ₦${it.unitCost})`).join("; "),
+    ]);
+    exportCSV("purchase-orders", headers, rows);
+  }
 
   const totalValue = poList.filter(po => po.status !== "cancelled").reduce((a, po) => a + po.totalValue, 0);
   const accrualCandidates = poList.filter(po => (po.status === "confirmed" || po.status === "partially_received") && po.paymentStatus !== "paid");
@@ -406,153 +547,23 @@ export function PurchaseOrdersPage() {
         })}
       </div>
 
-      <div className="relative max-w-sm">
-        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-        <input type="text" placeholder="Search POs..." value={search} onChange={e => setSearch(e.target.value)}
-          className="w-full pl-9 pr-4 py-2 border border-gray-300 rounded-md text-sm outline-none focus:ring-2 focus:ring-blue-500" />
-      </div>
-
-      {/* Cards */}
-      <div className="space-y-3">
-        {filtered.map(po => {
-          const cfg = statusConfig[po.status];
-          const isExpanded = expanded === po.id;
-          const receivedPct = po.totalValue > 0 ? Math.round((po.receivedValue / po.totalValue) * 100) : 0;
-          return (
-            <div key={po.id} className="bg-white rounded-lg border border-gray-200 overflow-hidden">
-              <div className="flex items-center gap-4 px-5 py-4 cursor-pointer hover:bg-gray-50" onClick={() => setExpanded(isExpanded ? null : po.id)}>
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2.5 flex-wrap">
-                    <span className="text-sm font-semibold text-gray-900">{po.id}</span>
-                    <span className="text-xs text-gray-400 bg-gray-100 px-2 py-0.5 rounded">PR: {po.prRef}</span>
-                    {po.mrRef && po.mrRef !== "—" && (
-                      <span className="text-xs text-blue-600 bg-blue-50 px-2 py-0.5 rounded flex items-center gap-1">
-                        <LinkIcon className="w-3 h-3" />MR: {po.mrRef}
-                      </span>
-                    )}
-                    <span className={`flex items-center gap-1 text-xs px-2 py-1 rounded-full font-medium ${cfg.badge}`}>{cfg.icon}{cfg.label}</span>
-                    <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${PAYMENT_STATUS_CFG[po.paymentStatus].badge}`}>
-                      {PAYMENT_STATUS_CFG[po.paymentStatus].label}
-                    </span>
-                    {po.sentToFinance && (
-                      <span className="text-xs px-2 py-0.5 bg-indigo-50 text-indigo-700 rounded-full flex items-center gap-1">
-                        <Building2 className="w-3 h-3" />Finance: {po.financeRef}
-                      </span>
-                    )}
-                    {(po.status === "confirmed" || po.status === "partially_received") && po.paymentStatus !== "paid" && (
-                      <span className="text-xs px-2 py-0.5 bg-purple-50 text-purple-700 rounded-full flex items-center gap-1">
-                        <Clock className="w-3 h-3" />Accrual Pending
-                      </span>
-                    )}
-                  </div>
-                  <p className="text-sm text-gray-700 font-medium mt-1">{po.supplier}</p>
-                  <p className="text-xs text-gray-400 mt-0.5">{po.supplierContact} · {po.totalItems} line item{po.totalItems > 1 ? "s" : ""}</p>
-                </div>
-                {po.status === "partially_received" && (
-                  <div className="w-32 flex-shrink-0">
-                    <div className="flex justify-between text-xs text-gray-500 mb-1">
-                      <span>Received</span><span>{receivedPct}%</span>
-                    </div>
-                    <div className="w-full bg-gray-100 rounded-full h-2">
-                      <div className="bg-amber-400 h-2 rounded-full" style={{ width: `${receivedPct}%` }} />
-                    </div>
-                  </div>
-                )}
-                <div className="text-right flex-shrink-0">
-                  <p className="text-base font-bold text-gray-900">{fmt(po.totalValue)}</p>
-                  <p className="text-xs text-gray-400 mt-0.5">Expected: {po.expectedDate}</p>
-                </div>
-                {isExpanded ? <ChevronDown className="w-4 h-4 text-gray-400 flex-shrink-0" /> : <ChevronRight className="w-4 h-4 text-gray-400 flex-shrink-0" />}
-              </div>
-              {isExpanded && (
-                <div className="border-t border-gray-100 bg-gray-50 px-5 py-4">
-                  <div className="grid grid-cols-3 gap-6 mb-4 text-sm">
-                    <div>
-                      <p className="text-xs text-gray-500 mb-0.5">Supplier</p>
-                      <p className="font-medium text-gray-900">{po.supplier}</p>
-                      <p className="text-xs text-gray-400">{po.supplierContact}</p>
-                    </div>
-                    <div>
-                      <p className="text-xs text-gray-500 mb-0.5">Created by</p>
-                      <p className="font-medium text-gray-900">{po.createdBy}</p>
-                      <p className="text-xs text-gray-400">{po.createdDate}</p>
-                    </div>
-                    <div>
-                      <p className="text-xs text-gray-500 mb-0.5">Expected Delivery</p>
-                      <p className="font-medium text-gray-900">{po.expectedDate}</p>
-                    </div>
-                  </div>
-                  <table className="w-full text-sm bg-white rounded-md border border-gray-200 mb-4">
-                    <thead>
-                      <tr className="bg-gray-50 border-b border-gray-200 text-left">
-                        <th className="px-3 py-2 text-xs font-medium text-gray-500">Material</th>
-                        <th className="px-3 py-2 text-xs font-medium text-gray-500 text-right">Ordered</th>
-                        <th className="px-3 py-2 text-xs font-medium text-gray-500 text-right">Received</th>
-                        <th className="px-3 py-2 text-xs font-medium text-gray-500 text-right">Unit Cost</th>
-                        <th className="px-3 py-2 text-xs font-medium text-gray-500 text-right">Line Total</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-gray-100">
-                      {po.items.map((item, i) => (
-                        <tr key={i} className="hover:bg-gray-50">
-                          <td className="px-3 py-2 font-medium text-gray-900">{item.material}</td>
-                          <td className="px-3 py-2 text-right text-gray-700">{item.qty.toLocaleString()} {item.unit}</td>
-                          <td className="px-3 py-2 text-right">
-                            <span className={item.received >= item.qty ? "text-green-700 font-medium" : item.received > 0 ? "text-amber-600 font-medium" : "text-gray-400"}>
-                              {item.received.toLocaleString()} {item.unit}
-                            </span>
-                          </td>
-                          <td className="px-3 py-2 text-right text-gray-600">{fmt(item.unitCost)}</td>
-                          <td className="px-3 py-2 text-right font-semibold text-gray-900">{fmt(item.qty * item.unitCost)}</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                    <tfoot className="bg-gray-50 border-t border-gray-200">
-                      <tr>
-                        <td colSpan={4} className="px-3 py-2 text-sm font-medium text-gray-700 text-right">Total</td>
-                        <td className="px-3 py-2 text-right font-bold text-gray-900">{fmt(po.totalValue)}</td>
-                      </tr>
-                    </tfoot>
-                  </table>
-                  <div className="flex justify-end gap-2 flex-wrap">
-                    <button className="flex items-center gap-1.5 px-4 py-2 text-sm border border-gray-300 rounded-md hover:bg-gray-50"><Download className="w-3.5 h-3.5" /> Download PDF</button>
-                    {po.status === "draft" && (
-                      <button onClick={() => setSendPO(po)} className="flex items-center gap-1.5 px-4 py-2 text-sm bg-blue-700 text-white rounded-md hover:bg-blue-800">
-                        <Send className="w-3.5 h-3.5" /> Send to Supplier
-                      </button>
-                    )}
-                    {["confirmed", "partially_received", "completed"].includes(po.status) && !po.sentToFinance && (
-                      <button onClick={() => sendToFinance(po.id)} className="flex items-center gap-1.5 px-4 py-2 text-sm bg-indigo-600 text-white rounded-md hover:bg-indigo-700">
-                        <Building2 className="w-3.5 h-3.5" /> Send to Finance
-                      </button>
-                    )}
-                    {po.status === "confirmed" && po.paymentStatus === "unpaid" && (
-                      <button onClick={() => requestPaymentConfirmation(po.id)} className="flex items-center gap-1.5 px-4 py-2 text-sm bg-green-600 text-white rounded-md hover:bg-green-700">
-                        <CreditCard className="w-3.5 h-3.5" /> Request Payment Confirmation
-                      </button>
-                    )}
-                    {po.status === "confirmed" && po.paymentStatus === "confirmation_requested" && (
-                      <span className="flex items-center gap-1.5 px-4 py-2 text-sm bg-amber-50 border border-amber-200 text-amber-700 rounded-md">
-                        <Clock className="w-3.5 h-3.5" /> Payment Confirmation Pending
-                      </span>
-                    )}
-                    {po.status === "partially_received" && (
-                      <button onClick={() => setReceiptPO(po)} className="flex items-center gap-1.5 px-4 py-2 text-sm bg-amber-500 text-white rounded-md hover:bg-amber-600">
-                        <Truck className="w-3.5 h-3.5" /> Record More Deliveries
-                      </button>
-                    )}
-                  </div>
-                </div>
-              )}
-            </div>
-          );
-        })}
-      </div>
+      <DataTable<PurchaseOrder>
+        columns={columns}
+        data={filtered}
+        keyExtractor={(po) => po.id}
+        searchPlaceholder="Search by PO ID, supplier, or material..."
+        searchFields={[po => po.id, po => po.supplier, po => po.items.map(i => i.material).join(" ")]}
+        headerExtra={
+          <button onClick={handleExport} className="flex items-center gap-1.5 px-3 py-1.5 text-xs border border-gray-300 rounded-lg hover:bg-gray-100 text-gray-700 transition-colors">
+            <DownloadCloud className="w-3.5 h-3.5" /> Export CSV
+          </button>
+        }
+      />
 
       {showNewPO && (
         <NewPOModal
           onClose={() => setShowNewPO(false)}
-          onSave={(po) => { setPoList(prev => [po, ...prev]); setShowNewPO(false); }}
+          onSave={(po) => { setPoList(prev => [po, ...prev]); logChange({ module: "Procurement", action: "Created", entityType: "PurchaseOrder", entityId: po.id, summary: `PO ${po.id} created — ${po.supplier} (${fmt(po.totalValue)})`, performedBy: "Current User" }); setShowNewPO(false); }}
         />
       )}
       {sendPO && (
@@ -561,6 +572,7 @@ export function PurchaseOrdersPage() {
           onClose={() => setSendPO(null)}
           onDone={() => {
             setPoList(prev => prev.map(p => p.id === sendPO.id ? { ...p, status: "sent" as const } : p));
+            logChange({ module: "Procurement", action: "Sent", entityType: "PurchaseOrder", entityId: sendPO.id, summary: `PO ${sendPO.id} sent to supplier (${sendPO.supplier})`, performedBy: "Current User" });
             setSendPO(null);
           }}
         />
@@ -577,6 +589,7 @@ export function PurchaseOrdersPage() {
               const allReceived = newItems.every(it => it.received >= it.qty);
               return { ...p, items: newItems, receivedValue: newReceivedValue, status: (allReceived ? "completed" : "partially_received") as typeof p.status };
             }));
+            logChange({ module: "Procurement", action: "Delivery Recorded", entityType: "PurchaseOrder", entityId: receiptPO.id, summary: `Delivery recorded for PO ${receiptPO.id}`, performedBy: "Current User" });
             setReceiptPO(null);
           }}
         />

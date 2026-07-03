@@ -1,12 +1,13 @@
 import { useState } from "react";
 import {
-  ShoppingCart, Plus, Search, ChevronDown, ChevronRight,
-  CheckCircle, X, Trash2, Send,
-  Users, ArrowRight, LinkIcon,
+  ShoppingCart, Plus, CheckCircle, X, Trash2, Send, Download,
+  Users, LinkIcon,
 } from "lucide-react";
+import { DataTable, type Column } from "../../components/DataTable";
+import { useChangelog } from "../../stores/changelogStore";
+import { exportCSV } from "../../utils/exportCSV";
 import { AdvancedFilter, applyFiltersAndSort, type FilterFieldDef, type ActiveFilters, type SortConfig } from "../../components/AdvancedFilter";
 
-// ── Types ─────────────────────────────────────────────────────────────────────
 type PRStatus = "draft" | "pending_approval" | "approved" | "sent_to_suppliers" | "quotes_received" | "po_created" | "cancelled";
 type SupplierStatus = "not_sent" | "request_sent" | "quote_received" | "po_created" | "approved" | "paid" | "delivered";
 
@@ -36,7 +37,6 @@ interface PurchaseRequest {
   items: PRItem[];
 }
 
-// ── Seed data ─────────────────────────────────────────────────────────────────
 const SEED_PRS: PurchaseRequest[] = [
   {
     id: "PR-0018", materialRequestRef: "MR-0038", project: "Industrial Warehouse",
@@ -109,7 +109,6 @@ const SEED_PRS: PurchaseRequest[] = [
   },
 ];
 
-// ── Helpers ───────────────────────────────────────────────────────────────────
 function fmt(n: number) {
   if (n >= 1_000_000) return `₦${(n / 1_000_000).toFixed(2)}M`;
   if (n >= 1000) return `₦${(n / 1000).toFixed(0)}K`;
@@ -124,20 +123,6 @@ const PR_STATUS_CFG: Record<PRStatus, { label: string; badge: string }> = {
   quotes_received:    { label: "Quotes Received",    badge: "bg-purple-100 text-purple-700" },
   po_created:         { label: "PO Created",         badge: "bg-teal-100 text-teal-700" },
   cancelled:          { label: "Cancelled",          badge: "bg-red-100 text-red-700" },
-};
-
-const SUPPLIER_PIPELINE: { key: SupplierStatus; label: string; color: string }[] = [
-  { key: "not_sent",       label: "Not Sent",    color: "bg-gray-100 text-gray-400" },
-  { key: "request_sent",   label: "Sent",        color: "bg-blue-100 text-blue-600" },
-  { key: "quote_received", label: "Quote Rcvd",  color: "bg-purple-100 text-purple-700" },
-  { key: "po_created",     label: "PO Created",  color: "bg-teal-100 text-teal-700" },
-  { key: "approved",       label: "Approved",    color: "bg-green-100 text-green-700" },
-  { key: "paid",           label: "Paid",        color: "bg-emerald-100 text-emerald-700" },
-  { key: "delivered",      label: "Delivered",   color: "bg-gray-100 text-gray-500" },
-];
-
-const SUPPLIER_STEP: Record<SupplierStatus, number> = {
-  not_sent: 0, request_sent: 1, quote_received: 2, po_created: 3, approved: 4, paid: 5, delivered: 6,
 };
 
 const TABS: { key: PRStatus | "all"; label: string }[] = [
@@ -162,62 +147,6 @@ const PR_PROJECTS   = ["Industrial Warehouse", "Downtown Office Complex", "River
 const PR_UNITS      = ["Tonnes", "Bags", "Metres", "Sheets", "Rolls", "Units", "Cartons", "Litres"];
 const ALL_SUPPLIERS = ["Alpha Aggregates", "SteelMart Int'l", "CemCo Nigeria Ltd", "ElectraHub", "PlumbTech Ltd", "DangCem Enterprises", "BuildPlus Supplies", "BetaCo Supplies", "UniTrade Ltd"];
 
-// ── Supplier pipeline row ─────────────────────────────────────────────────────
-function SupplierPipelineRow({
-  sup,
-  onAdvance,
-}: {
-  sup: SupplierProgress;
-  onAdvance: (s: SupplierStatus) => void;
-}) {
-  const step = SUPPLIER_STEP[sup.status];
-  const nextStage = SUPPLIER_PIPELINE[step + 1];
-  return (
-    <div className="flex items-start gap-3 py-3 border-b border-gray-100 last:border-0">
-      <div className="w-36 flex-shrink-0">
-        <p className="text-xs font-semibold text-gray-800 truncate">{sup.supplier}</p>
-        {sup.quoteRef && (
-          <p className="text-xs text-purple-600 mt-0.5">{sup.quoteRef} · {fmt(sup.quoteAmount ?? 0)}</p>
-        )}
-        {sup.poRef && (
-          <p className="text-xs text-teal-600 mt-0.5 flex items-center gap-1">
-            <LinkIcon className="w-3 h-3" />{sup.poRef}
-          </p>
-        )}
-      </div>
-
-      <div className="flex items-center gap-1 flex-1 overflow-x-auto pb-1">
-        {SUPPLIER_PIPELINE.map((stage, i) => {
-          const done   = i < step;
-          const active = i === step;
-          return (
-            <div key={stage.key} className="flex items-center gap-1 flex-shrink-0">
-              <span className={`text-xs px-2 py-0.5 rounded-md font-medium ${
-                active ? stage.color : done ? "bg-gray-50 text-gray-400" : "text-gray-200"
-              }`}>
-                {done ? "✓ " : ""}{stage.label}
-              </span>
-              {i < SUPPLIER_PIPELINE.length - 1 && (
-                <ArrowRight className="w-3 h-3 text-gray-200 flex-shrink-0" />
-              )}
-            </div>
-          );
-        })}
-      </div>
-
-      {nextStage && sup.status !== "not_sent" && (
-        <button
-          onClick={() => onAdvance(nextStage.key)}
-          className="text-xs text-blue-600 hover:text-blue-800 border border-blue-200 rounded px-2 py-1 flex-shrink-0 whitespace-nowrap"
-        >
-          → {nextStage.label}
-        </button>
-      )}
-    </div>
-  );
-}
-
-// ── New PR modal ──────────────────────────────────────────────────────────────
 interface NewPRItemForm { material: string; qty: string; unit: string; estimatedUnitCost: string; }
 
 function NewPRModal({
@@ -380,7 +309,6 @@ function NewPRModal({
   );
 }
 
-// ── Send to Suppliers modal ───────────────────────────────────────────────────
 function SendToSuppliersModal({
   pr,
   onClose,
@@ -432,12 +360,10 @@ function SendToSuppliersModal({
   );
 }
 
-// ── Main Page ─────────────────────────────────────────────────────────────────
 export function PurchaseRequestsPage() {
+  const { logChange } = useChangelog();
   const [prList,      setPrList]      = useState<PurchaseRequest[]>(SEED_PRS);
   const [activeTab,   setActiveTab]   = useState<PRStatus | "all">("all");
-  const [search,      setSearch]      = useState("");
-  const [expanded,    setExpanded]    = useState<string | null>(null);
   const [showNewPR,   setShowNewPR]   = useState(false);
   const [sendFor,     setSendFor]     = useState<PurchaseRequest | null>(null);
   const [advFilters,  setAdvFilters]  = useState<ActiveFilters>({});
@@ -445,18 +371,112 @@ export function PurchaseRequestsPage() {
 
   const filtered = applyFiltersAndSort(
     prList.filter((pr) => {
-      const matchTab    = activeTab === "all" || pr.status === activeTab;
-      const matchSearch = pr.id.toLowerCase().includes(search.toLowerCase())
-        || pr.project.toLowerCase().includes(search.toLowerCase())
-        || pr.materialRequestRef.toLowerCase().includes(search.toLowerCase());
-      return matchTab && matchSearch;
+      const matchTab = activeTab === "all" || pr.status === activeTab;
+      return matchTab;
     }),
     advFilters,
     advSort,
   );
 
+  const columns: Column<PurchaseRequest>[] = [
+    {
+      key: "id",
+      label: "PR ID",
+      sortable: true,
+      filterable: true,
+      render: (pr) => <span className="font-mono text-sm">{pr.id}</span>,
+    },
+    {
+      key: "project",
+      label: "Title / Description",
+      sortable: true,
+      filterable: true,
+      minWidth: 200,
+      render: (pr) => (
+        <div>
+          <p className="font-medium text-gray-900">{pr.project}</p>
+          <p className="text-xs text-gray-400">{pr.materialRequestRef}</p>
+        </div>
+      ),
+    },
+    {
+      key: "raisedBy",
+      label: "Requester",
+      sortable: true,
+      filterable: true,
+      render: (pr) => pr.raisedBy,
+    },
+    {
+      key: "department",
+      label: "Department",
+      sortable: true,
+      filterable: true,
+      render: (pr) => pr.project,
+    },
+    {
+      key: "estimatedValue",
+      label: "Total ($)",
+      sortable: true,
+      className: "text-right",
+      headerClassName: "text-right",
+      render: (pr) => <span className="font-semibold">{fmt(pr.estimatedValue)}</span>,
+    },
+    {
+      key: "raisedDate",
+      label: "Date",
+      sortable: true,
+      render: (pr) => pr.raisedDate,
+    },
+    {
+      key: "status",
+      label: "Status",
+      sortable: true,
+      filterable: true,
+      render: (pr) => {
+        const cfg = PR_STATUS_CFG[pr.status];
+        return <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${cfg.badge}`}>{cfg.label}</span>;
+      },
+    },
+    {
+      key: "actions",
+      label: "Actions",
+      sortable: false,
+      filterable: false,
+      render: (pr) => (
+        <div className="flex items-center gap-1">
+          {pr.status === "pending_approval" && (
+            <>
+              <button onClick={(e) => { e.stopPropagation(); rejectPR(pr.id); }}
+                className="px-2 py-1 text-xs border border-red-200 text-red-700 rounded hover:bg-red-50">Reject</button>
+              <button onClick={(e) => { e.stopPropagation(); approvePR(pr.id); }}
+                className="px-2 py-1 text-xs bg-green-600 text-white rounded hover:bg-green-700">Approve</button>
+            </>
+          )}
+          {pr.status === "approved" && (
+            <button onClick={(e) => { e.stopPropagation(); setSendFor(pr); }}
+              className="px-2 py-1 text-xs bg-blue-700 text-white rounded hover:bg-blue-800 flex items-center gap-1">
+              <Send className="w-3 h-3" /> Send
+            </button>
+          )}
+          {(pr.status === "quotes_received" || pr.status === "sent_to_suppliers") && (
+            <button onClick={(e) => { e.stopPropagation(); }}
+              className="px-2 py-1 text-xs bg-purple-700 text-white rounded hover:bg-purple-800 flex items-center gap-1">
+              <ShoppingCart className="w-3 h-3" /> PO
+            </button>
+          )}
+        </div>
+      ),
+    },
+  ];
+
   function approvePR(id: string) {
     setPrList((prev) => prev.map((pr) => pr.id === id ? { ...pr, status: "approved" as PRStatus } : pr));
+    logChange({ module: "procurement", action: "approved", entityType: "purchase_request", entityId: id, summary: `Approved PR ${id}`, performedBy: "Amaka Osei" });
+  }
+
+  function rejectPR(id: string) {
+    setPrList((prev) => prev.map((pr) => pr.id === id ? { ...pr, status: "cancelled" as PRStatus } : pr));
+    logChange({ module: "procurement", action: "rejected", entityType: "purchase_request", entityId: id, summary: `Rejected PR ${id}`, performedBy: "Amaka Osei" });
   }
 
   function sendToSuppliers(id: string) {
@@ -470,20 +490,28 @@ export function PurchaseRequestsPage() {
         },
       ),
     );
+    logChange({ module: "procurement", action: "sent_to_suppliers", entityType: "purchase_request", entityId: id, summary: `Sent PR ${id} to suppliers`, performedBy: "Amaka Osei" });
   }
 
-  function advanceSupplier(prId: string, supplierName: string, newStatus: SupplierStatus) {
-    setPrList((prev) =>
-      prev.map((pr) => {
-        if (pr.id !== prId) return pr;
-        const sups = pr.suppliers.map((s) => s.supplier === supplierName ? { ...s, status: newStatus } : s);
-        const statuses = sups.map((s) => s.status);
-        let prStatus = pr.status;
-        if (statuses.some((s) => s === "quote_received")) prStatus = "quotes_received";
-        if (statuses.some((s) => s === "po_created"))     prStatus = "po_created";
-        return { ...pr, suppliers: sups, status: prStatus };
-      }),
+  function handleExport() {
+    exportCSV("purchase-requests",
+      ["PR ID", "Title / Description", "Requester", "Department", "Total", "Date", "Status"],
+      filtered.map(pr => [
+        pr.id,
+        pr.project,
+        pr.raisedBy,
+        pr.project,
+        fmt(pr.estimatedValue),
+        pr.raisedDate,
+        PR_STATUS_CFG[pr.status].label,
+      ]),
     );
+  }
+
+  function handleCreatePR(pr: PurchaseRequest) {
+    setPrList((prev) => [pr, ...prev]);
+    setShowNewPR(false);
+    logChange({ module: "procurement", action: "created", entityType: "purchase_request", entityId: pr.id, summary: `Created PR ${pr.id} for ${pr.project}`, performedBy: "Amaka Osei" });
   }
 
   return (
@@ -498,7 +526,6 @@ export function PurchaseRequestsPage() {
         </button>
       </div>
 
-      {/* Tabs */}
       <div className="flex gap-1 border-b border-gray-200 overflow-x-auto">
         {TABS.map((tab) => {
           const count = tab.key === "all" ? prList.length : prList.filter((pr) => pr.status === tab.key).length;
@@ -514,152 +541,28 @@ export function PurchaseRequestsPage() {
         })}
       </div>
 
-      {/* Filters */}
       <div className="flex items-center gap-2 flex-wrap">
-        <div className="relative w-72">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-          <input value={search} onChange={(e) => setSearch(e.target.value)}
-            placeholder="Search by PR, MR ref, project…"
-            className="w-full pl-9 pr-4 py-2 border border-gray-200 rounded-md text-sm outline-none focus:ring-2 focus:ring-blue-500" />
-        </div>
         <AdvancedFilter fields={PR_FILTER_FIELDS} filters={advFilters} onFiltersChange={setAdvFilters} sort={advSort} onSortChange={setAdvSort} />
         <span className="text-xs text-gray-400">{filtered.length} result{filtered.length !== 1 ? "s" : ""}</span>
       </div>
 
-      {/* Cards */}
-      <div className="space-y-3">
-        {filtered.map((pr) => {
-          const statusCfg = PR_STATUS_CFG[pr.status];
-          const isExpanded = expanded === pr.id;
-          const bestQuote = pr.suppliers.reduce<SupplierProgress | null>((best, s) => {
-            if (!s.quoteAmount) return best;
-            return (!best || s.quoteAmount < (best.quoteAmount ?? Infinity)) ? s : best;
-          }, null);
-
-          return (
-            <div key={pr.id} className="bg-white rounded-xl border border-gray-200 overflow-hidden">
-              <div className="flex items-center gap-4 px-5 py-4 cursor-pointer hover:bg-gray-50"
-                onClick={() => setExpanded(isExpanded ? null : pr.id)}>
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2.5 flex-wrap">
-                    <span className="text-sm font-semibold text-gray-900">{pr.id}</span>
-                    <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${statusCfg.badge}`}>{statusCfg.label}</span>
-                    <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${pr.procurementType === "rfq" ? "bg-purple-100 text-purple-700" : "bg-gray-100 text-gray-600"}`}>
-                      {pr.procurementType === "rfq" ? "RFQ" : "Direct"}
-                    </span>
-                  </div>
-                  <p className="text-sm text-gray-600 mt-1">{pr.project}</p>
-                  <p className="text-xs text-gray-400 mt-0.5">
-                    Linked: <span className="font-mono text-gray-500">{pr.materialRequestRef}</span>
-                    {" · "}{pr.totalItems} item{pr.totalItems > 1 ? "s" : ""}
-                    {" · "}<Users className="w-3 h-3 inline-block align-middle" /> {pr.suppliers.length} supplier{pr.suppliers.length > 1 ? "s" : ""}
-                  </p>
-                </div>
-                <div className="text-right flex-shrink-0 min-w-[170px]">
-                  <p className="text-sm font-semibold text-gray-900">Est. {fmt(pr.estimatedValue)}</p>
-                  {bestQuote?.quoteAmount && (
-                    <p className="text-xs text-purple-600 mt-0.5">Best: {fmt(bestQuote.quoteAmount)} ({bestQuote.supplier})</p>
-                  )}
-                  <p className="text-xs text-gray-400 mt-0.5">Required by: {pr.requiredDate}</p>
-                </div>
-                {isExpanded ? <ChevronDown className="w-4 h-4 text-gray-400 flex-shrink-0" /> : <ChevronRight className="w-4 h-4 text-gray-400 flex-shrink-0" />}
-              </div>
-
-              {isExpanded && (
-                <div className="border-t border-gray-100 bg-gray-50 px-5 py-4 space-y-5">
-                  {/* Traceability bar */}
-                  <div className="flex items-center gap-2 text-xs bg-white border border-gray-200 rounded-lg px-3 py-2">
-                    <LinkIcon className="w-3.5 h-3.5 text-gray-400" />
-                    <span className="text-gray-500">Material Request:</span>
-                    <span className="font-semibold text-blue-600">{pr.materialRequestRef}</span>
-                    <span className="text-gray-300 mx-1">|</span>
-                    <span className="text-gray-500">Raised by {pr.raisedBy} · {pr.raisedDate}</span>
-                  </div>
-
-                  {/* Items table */}
-                  <div>
-                    <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Line Items</p>
-                    <table className="w-full text-sm bg-white rounded-lg border border-gray-200">
-                      <thead className="bg-gray-50 border-b border-gray-100">
-                        <tr>
-                          <th className="px-3 py-2 text-left text-xs text-gray-500 font-medium">Material</th>
-                          <th className="px-3 py-2 text-right text-xs text-gray-500 font-medium">Qty</th>
-                          <th className="px-3 py-2 text-right text-xs text-gray-500 font-medium">Est. Unit</th>
-                          <th className="px-3 py-2 text-right text-xs text-gray-500 font-medium">Est. Total</th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-gray-50">
-                        {pr.items.map((it, i) => (
-                          <tr key={i}>
-                            <td className="px-3 py-2 font-medium text-gray-900">{it.material}</td>
-                            <td className="px-3 py-2 text-right text-gray-600">{it.qty.toLocaleString()} {it.unit}</td>
-                            <td className="px-3 py-2 text-right text-gray-600">{fmt(it.estimatedUnitCost)}</td>
-                            <td className="px-3 py-2 text-right font-semibold text-gray-900">{fmt(it.qty * it.estimatedUnitCost)}</td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-
-                  {/* Supplier pipeline */}
-                  <div>
-                    <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">
-                      Supplier Tracking
-                      {bestQuote?.quoteAmount && (
-                        <span className="ml-2 text-green-600 normal-case font-normal">
-                          — Lowest quote: {bestQuote.supplier} at {fmt(bestQuote.quoteAmount)}
-                        </span>
-                      )}
-                    </p>
-                    <div className="bg-white border border-gray-200 rounded-xl px-4">
-                      {pr.suppliers.map((sup) => (
-                        <SupplierPipelineRow
-                          key={sup.supplier}
-                          sup={sup}
-                          onAdvance={(newStatus) => advanceSupplier(pr.id, sup.supplier, newStatus)}
-                        />
-                      ))}
-                    </div>
-                  </div>
-
-                  {/* Actions */}
-                  <div className="flex gap-2 justify-end">
-                    {pr.status === "pending_approval" && (
-                      <>
-                        <button className="px-3 py-2 text-sm border border-red-200 text-red-700 rounded-lg hover:bg-red-50">Reject</button>
-                        <button onClick={() => approvePR(pr.id)} className="px-3 py-2 text-sm bg-green-600 text-white rounded-lg hover:bg-green-700 flex items-center gap-1.5">
-                          <CheckCircle className="w-4 h-4" /> Approve
-                        </button>
-                      </>
-                    )}
-                    {pr.status === "approved" && (
-                      <button onClick={() => setSendFor(pr)} className="px-3 py-2 text-sm bg-blue-700 text-white rounded-lg hover:bg-blue-800 flex items-center gap-2">
-                        <Send className="w-4 h-4" /> Send to Suppliers
-                      </button>
-                    )}
-                    {(pr.status === "quotes_received" || pr.status === "sent_to_suppliers") && (
-                      <button className="px-3 py-2 text-sm bg-purple-700 text-white rounded-lg hover:bg-purple-800 flex items-center gap-2">
-                        <ShoppingCart className="w-4 h-4" /> Create PO from Quote
-                      </button>
-                    )}
-                  </div>
-                </div>
-              )}
-            </div>
-          );
-        })}
-        {filtered.length === 0 && (
-          <div className="text-center py-12 text-gray-400">
-            <ShoppingCart className="w-8 h-8 mx-auto mb-2 opacity-40" />
-            <p className="text-sm">No purchase requests found</p>
-          </div>
-        )}
-      </div>
+      <DataTable<PurchaseRequest>
+        columns={columns}
+        data={filtered}
+        keyExtractor={(pr) => pr.id}
+        searchPlaceholder="Search PRs, projects, references…"
+        searchFields={[(pr) => pr.id, (pr) => pr.project, (pr) => pr.raisedBy, (pr) => pr.materialRequestRef]}
+        headerExtra={
+          <button onClick={handleExport} className="flex items-center gap-1 text-xs text-gray-600 hover:text-gray-800 px-2 py-1 rounded-lg border border-gray-200 hover:bg-gray-100">
+            <Download className="w-3 h-3" /> Export
+          </button>
+        }
+      />
 
       {showNewPR && (
         <NewPRModal
           onClose={() => setShowNewPR(false)}
-          onSave={(pr) => { setPrList((prev) => [pr, ...prev]); setShowNewPR(false); }}
+          onSave={handleCreatePR}
         />
       )}
 
@@ -673,4 +576,3 @@ export function PurchaseRequestsPage() {
     </div>
   );
 }
-

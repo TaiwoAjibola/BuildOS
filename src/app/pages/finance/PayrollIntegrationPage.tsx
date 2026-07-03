@@ -1,6 +1,8 @@
 import { useState } from "react";
-import { Search, Download, CheckCircle, Clock, XCircle, Send, Eye, X, Users, AlertCircle } from "lucide-react";
+import { Download, CheckCircle, Clock, Send, Users, AlertCircle, Plus, Trash2 } from "lucide-react";
 import { exportCSV } from "../../utils/exportCSV";
+import { DataTable, type Column } from "../../components/DataTable";
+import { useChangelog } from "../../stores/changelogStore";
 
 type PayrollStatus = "Draft" | "Sent for Approval" | "Approved" | "Paid";
 
@@ -57,20 +59,13 @@ const mockEmployees: PayrollEmployee[] = [
 const STATUS_FLOW: PayrollStatus[] = ["Draft", "Sent for Approval", "Approved", "Paid"];
 
 export function PayrollIntegrationPage() {
+  const { logChange } = useChangelog();
   const [payrolls, setPayrolls] = useState<PayrollRun[]>(mockPayrollRuns);
-  const [search, setSearch] = useState("");
-  const [statusFilter, setStatusFilter] = useState<PayrollStatus | "All">("All");
   const [activeRun, setActiveRun] = useState<PayrollRun>(mockPayrollRuns[0]);
 
   const fmt = (n: number) => `$${n.toLocaleString()}`;
 
-  const filtered = payrolls.filter((p) => {
-    if (statusFilter !== "All" && p.status !== statusFilter) return false;
-    if (search && !p.id.toLowerCase().includes(search.toLowerCase()) && !p.period.toLowerCase().includes(search.toLowerCase())) return false;
-    return true;
-  });
-
-  function advance(id: string) {
+  function advance(id: string, action: string) {
     setPayrolls((prev) => prev.map((p) => {
       if (p.id !== id) return p;
       const idx = STATUS_FLOW.indexOf(p.status);
@@ -91,12 +86,165 @@ export function PayrollIntegrationPage() {
       if (idx >= STATUS_FLOW.length - 1) return prev;
       return { ...prev, status: STATUS_FLOW[idx + 1] };
     });
+
+    if (action === "submit") {
+      logChange({ module: "Finance", action: "Sent to Finance", entityType: "PayrollRun", entityId: id, summary: "Payroll run sent to finance", performedBy: "Current User" });
+    } else if (action === "approve") {
+      logChange({ module: "Finance", action: "Approved", entityType: "PayrollRun", entityId: id, summary: "Payroll run approved", performedBy: "Current User" });
+    } else if (action === "pay") {
+      logChange({ module: "Finance", action: "Paid", entityType: "PayrollRun", entityId: id, summary: "Payroll run marked as paid", performedBy: "Current User" });
+    }
+  }
+
+  function handleDelete(id: string) {
+    setPayrolls((prev) => prev.filter((p) => p.id !== id));
+    setActiveRun((prev) => (prev.id === id ? payrolls[0] : prev));
+    logChange({ module: "Finance", action: "Deleted", entityType: "PayrollRun", entityId: id, summary: "Payroll run deleted", performedBy: "Current User" });
+  }
+
+  function handleCreate() {
+    const now = new Date();
+    const newRun: PayrollRun = {
+      id: `PRLL-${now.toLocaleString("default", { month: "short" }).toUpperCase()}${now.getFullYear().toString().slice(-2)}`,
+      period: `${now.toLocaleString("default", { month: "long" })} ${now.getFullYear()}`,
+      department: "All Departments",
+      headcount: 0,
+      grossPay: 0,
+      deductions: 0,
+      netPay: 0,
+      status: "Draft",
+    };
+    setPayrolls((prev) => [newRun, ...prev]);
+    setActiveRun(newRun);
+    logChange({ module: "Finance", action: "Created", entityType: "PayrollRun", entityId: newRun.id, summary: `Payroll run ${newRun.period} created`, performedBy: "Current User" });
   }
 
   function handleExport() {
     exportCSV("payroll", ["ID", "Period", "Headcount", "Gross Pay", "Deductions", "Net Pay", "Status"],
       payrolls.map((p) => [p.id, p.period, String(p.headcount), fmt(p.grossPay), fmt(p.deductions), fmt(p.netPay), p.status]));
   }
+
+  const payrollColumns: Column<PayrollRun>[] = [
+    {
+      key: "period",
+      label: "Period",
+      sortable: true,
+      filterable: true,
+      render: (r) => <span className="font-medium text-gray-900">{r.period}</span>,
+    },
+    {
+      key: "headcount",
+      label: "Headcount",
+      sortable: true,
+      render: (r) => r.headcount,
+    },
+    {
+      key: "grossPay",
+      label: "Gross Pay ($)",
+      sortable: true,
+      className: "text-right",
+      headerClassName: "text-right",
+      render: (r) => fmt(r.grossPay),
+    },
+    {
+      key: "deductions",
+      label: "Deductions ($)",
+      sortable: true,
+      className: "text-right",
+      headerClassName: "text-right",
+      render: (r) => fmt(r.deductions),
+    },
+    {
+      key: "netPay",
+      label: "Net Pay ($)",
+      sortable: true,
+      className: "text-right",
+      headerClassName: "text-right",
+      render: (r) => fmt(r.netPay),
+    },
+    {
+      key: "status",
+      label: "Status",
+      sortable: true,
+      filterable: true,
+      render: (r) => (
+        <span className={`inline-flex items-center gap-1 px-2 py-0.5 text-xs rounded-full font-medium ${statusConfig[r.status].badge}`}>
+          {statusConfig[r.status].icon}{r.status}
+        </span>
+      ),
+    },
+    {
+      key: "actions",
+      label: "Actions",
+      sortable: false,
+      filterable: false,
+      render: (r) => (
+        <div className="flex items-center gap-1">
+          {r.status === "Draft" && (
+            <>
+              <button onClick={() => advance(r.id, "submit")} className="px-2 py-1 text-xs bg-blue-600 text-white rounded hover:bg-blue-700">Submit</button>
+              <button onClick={() => handleDelete(r.id)} className="p-1 text-xs text-red-500 hover:text-red-700"><Trash2 className="w-3.5 h-3.5" /></button>
+            </>
+          )}
+          {r.status === "Sent for Approval" && (
+            <button onClick={() => advance(r.id, "approve")} className="px-2 py-1 text-xs bg-emerald-600 text-white rounded hover:bg-emerald-700">Approve</button>
+          )}
+          {r.status === "Approved" && (
+            <button onClick={() => advance(r.id, "pay")} className="px-2 py-1 text-xs bg-teal-600 text-white rounded hover:bg-teal-700">Pay</button>
+          )}
+          {r.status === "Paid" && (
+            <span className="text-xs text-gray-400">—</span>
+          )}
+        </div>
+      ),
+    },
+  ];
+
+  const employeeColumns: Column<PayrollEmployee>[] = [
+    {
+      key: "employee",
+      label: "Employee",
+      render: (e) => (
+        <div>
+          <p className="text-sm font-medium text-gray-900">{e.name}</p>
+          <p className="text-xs text-gray-400">{e.role}</p>
+        </div>
+      ),
+    },
+    {
+      key: "basic",
+      label: "Basic",
+      className: "text-right",
+      headerClassName: "text-right",
+      render: (e) => <span className="text-sm text-gray-700">{fmt(e.basicSalary)}</span>,
+    },
+    {
+      key: "allowances",
+      label: "Allowances",
+      className: "text-right",
+      headerClassName: "text-right",
+      render: (e) => <span className="text-sm text-emerald-600">+{fmt(e.allowances)}</span>,
+    },
+    {
+      key: "deductions",
+      label: "Deductions",
+      className: "text-right",
+      headerClassName: "text-right",
+      render: (e) => <span className="text-sm text-red-600">−{fmt(e.deductions)}</span>,
+    },
+    {
+      key: "net",
+      label: "Net",
+      className: "text-right font-semibold text-gray-900",
+      headerClassName: "text-right",
+      render: (e) => <span>{fmt(e.net)}</span>,
+    },
+    {
+      key: "bank",
+      label: "Bank",
+      render: (e) => <span className="text-xs text-gray-500">{e.bank} {e.accountNo}</span>,
+    },
+  ];
 
   const totalNet = payrolls.filter((p) => p.status === "Paid").reduce((s, p) => s + p.netPay, 0);
 
@@ -107,9 +255,11 @@ export function PayrollIntegrationPage() {
           <h1 className="text-xl font-semibold text-gray-900">Payroll Integration</h1>
           <p className="text-sm text-gray-500 mt-0.5">Review, approve and process payroll from HR</p>
         </div>
-        <button onClick={handleExport} className="flex items-center gap-2 px-3 py-2 text-sm border border-gray-300 rounded-lg hover:bg-gray-50">
-          <Download className="w-4 h-4" /> Export
-        </button>
+        <div className="flex items-center gap-2">
+          <button onClick={handleCreate} className="flex items-center gap-2 px-3 py-2 text-sm bg-emerald-600 text-white rounded-lg hover:bg-emerald-700">
+            <Plus className="w-4 h-4" /> New Run
+          </button>
+        </div>
       </div>
 
       {/* Info Banner */}
@@ -126,8 +276,8 @@ export function PayrollIntegrationPage() {
         </div>
         <div className="bg-white rounded-xl border border-gray-200 p-4">
           <p className="text-xs text-gray-500 font-medium">Current Month</p>
-          <p className="text-2xl font-bold text-gray-900 mt-1">{fmt(mockPayrollRuns[0].netPay)}</p>
-          <p className="text-xs text-gray-400 mt-0.5">{mockPayrollRuns[0].period}</p>
+          <p className="text-2xl font-bold text-gray-900 mt-1">{fmt(mockPayrollRuns[0]?.netPay ?? 0)}</p>
+          <p className="text-xs text-gray-400 mt-0.5">{mockPayrollRuns[0]?.period}</p>
         </div>
         <div className="bg-white rounded-xl border border-gray-200 p-4">
           <p className="text-xs text-gray-500 font-medium">Headcount</p>
@@ -142,31 +292,21 @@ export function PayrollIntegrationPage() {
 
       <div className="grid grid-cols-3 gap-6">
         {/* Payroll runs */}
-        <div className="col-span-1 space-y-3">
-          <div className="flex items-center gap-2">
-            <div className="relative flex-1">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-400" />
-              <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search..." className="w-full pl-8 pr-3 py-1.5 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500" />
-            </div>
-            <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value as PayrollStatus | "All")} className="px-2 py-1.5 text-xs border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500">
-              <option value="All">All</option>
-              {STATUS_FLOW.map((s) => <option key={s} value={s}>{s}</option>)}
-            </select>
-          </div>
-
-          <div className="space-y-2">
-            {filtered.map((p) => (
-              <button key={p.id} onClick={() => setActiveRun(p)} className={`w-full text-left p-3 rounded-xl border transition-all ${activeRun.id === p.id ? "border-emerald-300 bg-emerald-50" : "border-gray-200 bg-white hover:border-gray-300"}`}>
-                <div className="flex items-center justify-between mb-1">
-                  <span className="text-sm font-semibold text-gray-900">{p.period}</span>
-                  <span className={`inline-flex items-center gap-1 px-2 py-0.5 text-xs rounded-full font-medium ${statusConfig[p.status].badge}`}>
-                    {statusConfig[p.status].icon}{p.status}
-                  </span>
-                </div>
-                <p className="text-xs text-gray-500">{p.headcount} employees · {fmt(p.netPay)} net</p>
+        <div className="col-span-1">
+          <DataTable
+            columns={payrollColumns}
+            data={payrolls}
+            keyExtractor={(r) => r.id}
+            searchPlaceholder="Search payroll..."
+            searchFields={[(r) => r.period, (r) => r.id]}
+            onRowClick={(r) => setActiveRun(r)}
+            headerExtra={
+              <button onClick={handleExport} className="flex items-center gap-1.5 px-2.5 py-1.5 text-xs border border-gray-300 rounded-lg hover:bg-gray-50">
+                <Download className="w-3.5 h-3.5" /> Export
               </button>
-            ))}
-          </div>
+            }
+            pageSize={10}
+          />
         </div>
 
         {/* Run detail */}
@@ -199,17 +339,17 @@ export function PayrollIntegrationPage() {
             {/* Action */}
             <div className="flex gap-2">
               {activeRun.status === "Draft" && (
-                <button onClick={() => advance(activeRun.id)} className="px-4 py-2 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700">
+                <button onClick={() => advance(activeRun.id, "submit")} className="px-4 py-2 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700">
                   <span className="flex items-center gap-1.5"><Send className="w-3.5 h-3.5" /> Submit for Approval</span>
                 </button>
               )}
               {activeRun.status === "Sent for Approval" && (
-                <button onClick={() => advance(activeRun.id)} className="px-4 py-2 text-sm bg-emerald-600 text-white rounded-lg hover:bg-emerald-700">
+                <button onClick={() => advance(activeRun.id, "approve")} className="px-4 py-2 text-sm bg-emerald-600 text-white rounded-lg hover:bg-emerald-700">
                   <span className="flex items-center gap-1.5"><CheckCircle className="w-3.5 h-3.5" /> Approve Payroll</span>
                 </button>
               )}
               {activeRun.status === "Approved" && (
-                <button onClick={() => advance(activeRun.id)} className="px-4 py-2 text-sm bg-teal-600 text-white rounded-lg hover:bg-teal-700">
+                <button onClick={() => advance(activeRun.id, "pay")} className="px-4 py-2 text-sm bg-teal-600 text-white rounded-lg hover:bg-teal-700">
                   <span className="flex items-center gap-1.5"><CheckCircle className="w-3.5 h-3.5" /> Mark as Paid</span>
                 </button>
               )}
@@ -222,33 +362,12 @@ export function PayrollIntegrationPage() {
               <Users className="w-4 h-4 text-gray-400" />
               <h3 className="text-sm font-semibold text-gray-900">Employee Pay Breakdown (Sample)</h3>
             </div>
-            <table className="w-full">
-              <thead className="bg-gray-50">
-                <tr>
-                  <th className="text-left px-5 py-2.5 text-xs font-semibold text-gray-500">Employee</th>
-                  <th className="text-left px-5 py-2.5 text-xs font-semibold text-gray-500">Basic</th>
-                  <th className="text-left px-5 py-2.5 text-xs font-semibold text-gray-500">Allowances</th>
-                  <th className="text-left px-5 py-2.5 text-xs font-semibold text-gray-500">Deductions</th>
-                  <th className="text-left px-5 py-2.5 text-xs font-semibold text-gray-500">Net</th>
-                  <th className="text-left px-5 py-2.5 text-xs font-semibold text-gray-500">Bank</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-50">
-                {mockEmployees.map((e) => (
-                  <tr key={e.name} className="hover:bg-gray-50">
-                    <td className="px-5 py-2.5">
-                      <p className="text-sm font-medium text-gray-900">{e.name}</p>
-                      <p className="text-xs text-gray-400">{e.role}</p>
-                    </td>
-                    <td className="px-5 py-2.5 text-sm text-gray-700">{fmt(e.basicSalary)}</td>
-                    <td className="px-5 py-2.5 text-sm text-emerald-600">+{fmt(e.allowances)}</td>
-                    <td className="px-5 py-2.5 text-sm text-red-600">−{fmt(e.deductions)}</td>
-                    <td className="px-5 py-2.5 text-sm font-semibold text-gray-900">{fmt(e.net)}</td>
-                    <td className="px-5 py-2.5 text-xs text-gray-500">{e.bank} {e.accountNo}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+            <DataTable
+              columns={employeeColumns}
+              data={mockEmployees}
+              keyExtractor={(e) => e.name}
+              pageSize={50}
+            />
           </div>
         </div>
       </div>

@@ -1,6 +1,8 @@
 import { useState } from "react";
-import { Search, Download, CheckCircle, Clock, XCircle, Eye, X, ChevronDown, ChevronUp, AlertCircle } from "lucide-react";
+import { Download, CheckCircle, Clock, XCircle, Eye, X, AlertCircle } from "lucide-react";
 import { exportCSV } from "../../utils/exportCSV";
+import { DataTable, type Column } from "../../components/DataTable";
+import { useChangelog } from "../../stores/changelogStore";
 
 type ClaimStatus = "Submitted" | "Under Review" | "Approved" | "Rejected" | "Paid";
 
@@ -42,41 +44,38 @@ const mockClaims: Claim[] = [
 
 export function ClaimsManagementPage() {
   const [claims, setClaims] = useState<Claim[]>(mockClaims);
-  const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<ClaimStatus | "All">("All");
   const [viewClaim, setViewClaim] = useState<Claim | null>(null);
-  const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
   const [rejectState, setRejectState] = useState<{ id: string; reason: string } | null>(null);
+  const { logChange } = useChangelog();
 
   const fmt = (n: number) => `$${n.toLocaleString()}`;
 
-  const filtered = claims
-    .filter((c) => {
-      if (statusFilter !== "All" && c.status !== statusFilter) return false;
-      if (search && !c.id.toLowerCase().includes(search.toLowerCase()) && !c.employee.toLowerCase().includes(search.toLowerCase()) && !c.type.toLowerCase().includes(search.toLowerCase())) return false;
-      return true;
-    })
-    .sort((a, b) => sortDir === "desc" ? b.amount - a.amount : a.amount - b.amount);
+  const filtered = statusFilter === "All" ? claims : claims.filter((c) => c.status === statusFilter);
 
   function approve(id: string) {
     setClaims((prev) => prev.map((c) => c.id === id ? { ...c, status: "Approved", reviewedBy: "Finance Manager", reviewedAt: "Apr 13, 2026" } : c));
+    logChange({ module: "Finance", action: "Approved", entityType: "Claim", entityId: id, summary: `Claim ${id} approved`, performedBy: "Current User" });
     setViewClaim(null);
   }
 
   function submitReject() {
     if (!rejectState || !rejectState.reason.trim()) return;
     setClaims((prev) => prev.map((c) => c.id === rejectState.id ? { ...c, status: "Rejected", reviewedBy: "Finance Manager", reviewedAt: "Apr 13, 2026", rejectionReason: rejectState.reason } : c));
+    logChange({ module: "Finance", action: "Rejected", entityType: "Claim", entityId: rejectState.id, summary: `Claim ${rejectState.id} rejected`, performedBy: "Current User" });
     setRejectState(null);
     setViewClaim(null);
   }
 
   function markPaid(id: string) {
     setClaims((prev) => prev.map((c) => c.id === id ? { ...c, status: "Paid", paidAt: "Apr 13, 2026" } : c));
+    logChange({ module: "Finance", action: "Paid", entityType: "Claim", entityId: id, summary: `Claim ${id} paid`, performedBy: "Current User" });
     setViewClaim(null);
   }
 
   function setUnderReview(id: string) {
     setClaims((prev) => prev.map((c) => c.id === id ? { ...c, status: "Under Review" } : c));
+    logChange({ module: "Finance", action: "Updated", entityType: "Claim", entityId: id, summary: `Claim ${id} moved to Under Review`, performedBy: "Current User" });
     setViewClaim(null);
   }
 
@@ -87,6 +86,73 @@ export function ClaimsManagementPage() {
 
   const totalApproved = claims.filter((c) => c.status === "Approved" || c.status === "Paid").reduce((s, c) => s + c.amount, 0);
 
+  const columns: Column<Claim>[] = [
+    {
+      key: "id",
+      label: "Claim ID",
+      sortable: true,
+      filterable: true,
+      render: (c) => <span className="font-mono text-xs text-gray-500">{c.id}</span>,
+    },
+    {
+      key: "employee",
+      label: "Employee",
+      sortable: true,
+      filterable: true,
+      render: (c) => (
+        <>
+          <p className="text-sm font-medium text-gray-900">{c.employee}</p>
+          <p className="text-xs text-gray-400">{c.department}</p>
+        </>
+      ),
+    },
+    {
+      key: "type",
+      label: "Type",
+      sortable: true,
+      filterable: true,
+      render: (c) => <span className="px-2 py-0.5 bg-indigo-50 text-indigo-700 text-xs rounded-full">{c.type}</span>,
+    },
+    {
+      key: "amount",
+      label: "Amount ($)",
+      sortable: true,
+      className: "text-right",
+      headerClassName: "text-right",
+      render: (c) => <span className="text-sm font-semibold text-gray-900">{fmt(c.amount)}</span>,
+    },
+    {
+      key: "date",
+      label: "Date",
+      sortable: true,
+      render: (c) => <span className="text-sm text-gray-500">{c.date}</span>,
+    },
+    {
+      key: "status",
+      label: "Status",
+      sortable: true,
+      filterable: true,
+      render: (c) => (
+        <span className={`inline-flex items-center gap-1 px-2 py-0.5 text-xs rounded-full font-medium ${statusConfig[c.status].badge}`}>
+          {statusConfig[c.status].icon}{c.status}
+        </span>
+      ),
+    },
+    {
+      key: "actions",
+      label: "Actions",
+      sortable: false,
+      filterable: false,
+      className: "text-right",
+      headerClassName: "text-right",
+      render: (c) => (
+        <button onClick={(e) => { e.stopPropagation(); setViewClaim(c); }} className="text-emerald-600 hover:text-emerald-700">
+          <Eye className="w-3.5 h-3.5" />
+        </button>
+      ),
+    },
+  ];
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
@@ -94,9 +160,6 @@ export function ClaimsManagementPage() {
           <h1 className="text-xl font-semibold text-gray-900">Claims Management</h1>
           <p className="text-sm text-gray-500 mt-0.5">Review and process employee claims from ESS</p>
         </div>
-        <button onClick={handleExport} className="flex items-center gap-2 px-3 py-2 text-sm border border-gray-300 rounded-lg hover:bg-gray-50">
-          <Download className="w-4 h-4" /> Export
-        </button>
       </div>
 
       {/* Info Banner */}
@@ -127,10 +190,6 @@ export function ClaimsManagementPage() {
 
       {/* Filters */}
       <div className="flex items-center gap-3">
-        <div className="relative flex-1 max-w-xs">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-          <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search claims..." className="w-full pl-9 pr-4 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500" />
-        </div>
         <div className="flex items-center gap-1 bg-white border border-gray-200 rounded-lg p-1">
           {STATUS_OPTS.map((s) => (
             <button key={s} onClick={() => setStatusFilter(s)} className={`px-3 py-1.5 text-xs font-medium rounded-md whitespace-nowrap transition-colors ${statusFilter === s ? "bg-emerald-600 text-white" : "text-gray-600 hover:bg-gray-100"}`}>{s}</button>
@@ -139,52 +198,12 @@ export function ClaimsManagementPage() {
       </div>
 
       {/* Table */}
-      <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
-        <table className="w-full">
-          <thead className="bg-gray-50 border-b border-gray-100">
-            <tr>
-              <th className="text-left px-5 py-3 text-xs font-semibold text-gray-500">Claim ID</th>
-              <th className="text-left px-5 py-3 text-xs font-semibold text-gray-500">Employee</th>
-              <th className="text-left px-5 py-3 text-xs font-semibold text-gray-500">Type</th>
-              <th className="text-left px-5 py-3 text-xs font-semibold text-gray-500">Description</th>
-              <th className="text-left px-5 py-3 text-xs font-semibold text-gray-500 cursor-pointer select-none" onClick={() => setSortDir((d) => d === "asc" ? "desc" : "asc")}>
-                <span className="flex items-center gap-1">Amount {sortDir === "asc" ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}</span>
-              </th>
-              <th className="text-left px-5 py-3 text-xs font-semibold text-gray-500">Date</th>
-              <th className="text-left px-5 py-3 text-xs font-semibold text-gray-500">Status</th>
-              <th className="text-right px-5 py-3 text-xs font-semibold text-gray-500">Actions</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-gray-50">
-            {filtered.map((c) => (
-              <tr key={c.id} className="hover:bg-gray-50 transition-colors">
-                <td className="px-5 py-3 text-xs font-mono text-gray-500">{c.id}</td>
-                <td className="px-5 py-3">
-                  <p className="text-sm font-medium text-gray-900">{c.employee}</p>
-                  <p className="text-xs text-gray-400">{c.department}</p>
-                </td>
-                <td className="px-5 py-3"><span className="px-2 py-0.5 bg-indigo-50 text-indigo-700 text-xs rounded-full">{c.type}</span></td>
-                <td className="px-5 py-3 text-sm text-gray-600 max-w-xs truncate">{c.description}</td>
-                <td className="px-5 py-3 text-sm font-semibold text-gray-900">{fmt(c.amount)}</td>
-                <td className="px-5 py-3 text-sm text-gray-500">{c.date}</td>
-                <td className="px-5 py-3">
-                  <span className={`inline-flex items-center gap-1 px-2 py-0.5 text-xs rounded-full font-medium ${statusConfig[c.status].badge}`}>
-                    {statusConfig[c.status].icon}{c.status}
-                  </span>
-                </td>
-                <td className="px-5 py-3 text-right">
-                  <button onClick={() => setViewClaim(c)} className="text-xs text-emerald-600 hover:underline">
-                    <Eye className="w-3.5 h-3.5" />
-                  </button>
-                </td>
-              </tr>
-            ))}
-            {filtered.length === 0 && (
-              <tr><td colSpan={8} className="px-5 py-12 text-center text-sm text-gray-400">No claims found</td></tr>
-            )}
-          </tbody>
-        </table>
-      </div>
+      <DataTable columns={columns} data={filtered} keyExtractor={c => c.id}
+        searchPlaceholder="Search claims..."
+        searchFields={[c => c.id, c => c.employee, c => c.description]}
+        emptyMessage="No claims found"
+        headerExtra={<button onClick={handleExport} className="flex items-center gap-2 px-3 py-1.5 text-xs border border-gray-300 rounded-lg hover:bg-gray-50"><Download className="w-3.5 h-3.5" /> Export</button>}
+      />
 
       {/* View Claim Modal */}
       {viewClaim && (

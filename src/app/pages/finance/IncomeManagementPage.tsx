@@ -1,6 +1,8 @@
 import { useState } from "react";
-import { Plus, Search, Download, TrendingUp, CheckCircle, Clock, ChevronDown, ChevronUp, X, Save } from "lucide-react";
+import { Plus, Download, TrendingUp, CheckCircle, Clock, X, Save } from "lucide-react";
 import { exportCSV } from "../../utils/exportCSV";
+import { DataTable, type Column } from "../../components/DataTable";
+import { useChangelog } from "../../stores/changelogStore";
 
 type IncomeStatus = "Draft" | "Confirmed" | "Invoiced" | "Received";
 
@@ -41,21 +43,17 @@ const emptyForm = { source: "", project: "", amount: "", description: "", date: 
 
 export function IncomeManagementPage() {
   const [incomes, setIncomes] = useState<Income[]>(mockIncome);
-  const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<IncomeStatus | "All">("All");
   const [showAddModal, setShowAddModal] = useState(false);
   const [form, setForm] = useState(emptyForm);
-  const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
+  const { logChange } = useChangelog();
 
   const fmt = (n: number) => `$${n.toLocaleString()}`;
 
-  const filtered = incomes
-    .filter((i) => {
-      if (statusFilter !== "All" && i.status !== statusFilter) return false;
-      if (search && !i.id.toLowerCase().includes(search.toLowerCase()) && !i.description.toLowerCase().includes(search.toLowerCase()) && !i.source.toLowerCase().includes(search.toLowerCase())) return false;
-      return true;
-    })
-    .sort((a, b) => sortDir === "desc" ? b.amount - a.amount : a.amount - b.amount);
+  const filtered = incomes.filter((i) => {
+    if (statusFilter !== "All" && i.status !== statusFilter) return false;
+    return true;
+  });
 
   function addIncome() {
     if (!form.source || !form.amount || !form.description || !form.date) return;
@@ -69,6 +67,7 @@ export function IncomeManagementPage() {
       status: "Draft",
     };
     setIncomes([newInc, ...incomes]);
+    logChange({ module: "Finance", action: "Created", entityType: "Income", entityId: newInc.id, summary: `Income ${newInc.id} created — ${newInc.description}`, performedBy: "Current User" });
     setShowAddModal(false);
     setForm(emptyForm);
   }
@@ -77,6 +76,7 @@ export function IncomeManagementPage() {
     setIncomes((prev) => prev.map((i) => {
       if (i.id !== id) return i;
       const next: IncomeStatus = i.status === "Draft" ? "Confirmed" : i.status === "Confirmed" ? "Invoiced" : i.status === "Invoiced" ? "Received" : i.status;
+      logChange({ module: "Finance", action: "Advanced", entityType: "Income", entityId: id, summary: `Income ${id} advanced to ${next}`, performedBy: "Current User" });
       return { ...i, status: next };
     }));
   }
@@ -90,6 +90,71 @@ export function IncomeManagementPage() {
   const totalPending = incomes.filter((i) => i.status !== "Received").reduce((s, i) => s + i.amount, 0);
   const total = incomes.reduce((s, i) => s + i.amount, 0);
 
+  const columns: Column<Income>[] = [
+    {
+      key: "id",
+      label: "Income ID",
+      sortable: true,
+      filterable: true,
+      render: (i) => <span className="font-mono text-xs">{i.id}</span>,
+    },
+    {
+      key: "source",
+      label: "Source",
+      sortable: true,
+      filterable: true,
+      render: (i) => <span className="px-2 py-0.5 bg-blue-50 text-blue-700 text-xs rounded-full">{i.source}</span>,
+    },
+    {
+      key: "project",
+      label: "Project",
+      sortable: true,
+      filterable: true,
+      render: (i) => <span className="text-sm text-gray-700">{i.project}</span>,
+    },
+    {
+      key: "description",
+      label: "Description",
+      sortable: true,
+      filterable: true,
+      minWidth: 200,
+      render: (i) => <span className="text-sm text-gray-600 max-w-xs truncate">{i.description}</span>,
+    },
+    {
+      key: "amount",
+      label: "Amount ($)",
+      sortable: true,
+      className: "text-right",
+      headerClassName: "text-right",
+      render: (i) => <span className="text-sm font-semibold text-emerald-700">{fmt(i.amount)}</span>,
+    },
+    {
+      key: "date",
+      label: "Date",
+      sortable: true,
+      render: (i) => <span className="text-sm text-gray-500">{i.date}</span>,
+    },
+    {
+      key: "status",
+      label: "Status",
+      sortable: true,
+      filterable: true,
+      render: (i) => <span className={`px-2 py-0.5 text-xs rounded-full font-medium ${statusConfig[i.status].badge}`}>{i.status}</span>,
+    },
+    {
+      key: "action",
+      label: "Action",
+      sortable: false,
+      filterable: false,
+      render: (i) =>
+        i.status !== "Received" ? (
+          <button onClick={() => advance(i.id)} className="text-xs text-emerald-600 hover:underline">
+            {i.status === "Draft" ? "Confirm →" : i.status === "Confirmed" ? "Invoice →" : "Mark Received →"}
+          </button>
+        ) : null,
+    },
+  ];
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
@@ -97,14 +162,9 @@ export function IncomeManagementPage() {
           <h1 className="text-xl font-semibold text-gray-900">Income Management</h1>
           <p className="text-sm text-gray-500 mt-0.5">Track and manage all income sources</p>
         </div>
-        <div className="flex items-center gap-2">
-          <button onClick={handleExport} className="flex items-center gap-2 px-3 py-2 text-sm border border-gray-300 rounded-lg hover:bg-gray-50">
-            <Download className="w-4 h-4" /> Export
-          </button>
-          <button onClick={() => setShowAddModal(true)} className="flex items-center gap-2 bg-emerald-600 text-white px-4 py-2 rounded-lg hover:bg-emerald-700 text-sm font-medium">
-            <Plus className="w-4 h-4" /> Add Income
-          </button>
-        </div>
+        <button onClick={() => setShowAddModal(true)} className="flex items-center gap-2 bg-emerald-600 text-white px-4 py-2 rounded-lg hover:bg-emerald-700 text-sm font-medium">
+          <Plus className="w-4 h-4" /> Add Income
+        </button>
       </div>
 
       {/* Summary */}
@@ -137,10 +197,6 @@ export function IncomeManagementPage() {
 
       {/* Filters */}
       <div className="flex items-center gap-3">
-        <div className="relative flex-1 max-w-xs">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-          <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search income..." className="w-full pl-9 pr-4 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500" />
-        </div>
         <div className="flex items-center gap-1 bg-white border border-gray-200 rounded-lg p-1">
           {STATUS_OPTS.map((s) => (
             <button key={s} onClick={() => setStatusFilter(s)} className={`px-3 py-1.5 text-xs font-medium rounded-md whitespace-nowrap transition-colors ${statusFilter === s ? "bg-emerald-600 text-white" : "text-gray-600 hover:bg-gray-100"}`}>{s}</button>
@@ -148,52 +204,12 @@ export function IncomeManagementPage() {
         </div>
       </div>
 
-      {/* Table */}
-      <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
-        <table className="w-full">
-          <thead className="bg-gray-50 border-b border-gray-100">
-            <tr>
-              <th className="text-left px-5 py-3 text-xs font-semibold text-gray-500">Income ID</th>
-              <th className="text-left px-5 py-3 text-xs font-semibold text-gray-500">Source</th>
-              <th className="text-left px-5 py-3 text-xs font-semibold text-gray-500">Project</th>
-              <th className="text-left px-5 py-3 text-xs font-semibold text-gray-500">Description</th>
-              <th className="text-left px-5 py-3 text-xs font-semibold text-gray-500 cursor-pointer select-none" onClick={() => setSortDir((d) => d === "asc" ? "desc" : "asc")}>
-                <span className="flex items-center gap-1">Amount {sortDir === "asc" ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}</span>
-              </th>
-              <th className="text-left px-5 py-3 text-xs font-semibold text-gray-500">Date</th>
-              <th className="text-left px-5 py-3 text-xs font-semibold text-gray-500">Status</th>
-              <th className="text-right px-5 py-3 text-xs font-semibold text-gray-500">Action</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-gray-50">
-            {filtered.map((i) => (
-              <tr key={i.id} className="hover:bg-gray-50 transition-colors">
-                <td className="px-5 py-3 text-xs font-mono text-gray-500">{i.id}</td>
-                <td className="px-5 py-3">
-                  <span className="px-2 py-0.5 bg-blue-50 text-blue-700 text-xs rounded-full">{i.source}</span>
-                </td>
-                <td className="px-5 py-3 text-sm text-gray-700">{i.project}</td>
-                <td className="px-5 py-3 text-sm text-gray-600 max-w-xs truncate">{i.description}</td>
-                <td className="px-5 py-3 text-sm font-semibold text-emerald-700">{fmt(i.amount)}</td>
-                <td className="px-5 py-3 text-sm text-gray-500">{i.date}</td>
-                <td className="px-5 py-3">
-                  <span className={`px-2 py-0.5 text-xs rounded-full font-medium ${statusConfig[i.status].badge}`}>{i.status}</span>
-                </td>
-                <td className="px-5 py-3 text-right">
-                  {i.status !== "Received" && (
-                    <button onClick={() => advance(i.id)} className="text-xs text-emerald-600 hover:underline">
-                      {i.status === "Draft" ? "Confirm →" : i.status === "Confirmed" ? "Invoice →" : "Mark Received →"}
-                    </button>
-                  )}
-                </td>
-              </tr>
-            ))}
-            {filtered.length === 0 && (
-              <tr><td colSpan={8} className="px-5 py-12 text-center text-sm text-gray-400">No income records found</td></tr>
-            )}
-          </tbody>
-        </table>
-      </div>
+      <DataTable columns={columns} data={filtered} keyExtractor={i => i.id}
+        searchPlaceholder="Search income..."
+        searchFields={[i => i.id, i => i.description, i => i.source]}
+        emptyMessage="No income records found"
+        headerExtra={<button onClick={handleExport} className="flex items-center gap-2 px-3 py-1.5 text-xs border border-gray-300 rounded-lg hover:bg-gray-50"><Download className="w-3.5 h-3.5" /> Export</button>}
+      />
 
       {/* Add Income Modal */}
       {showAddModal && (

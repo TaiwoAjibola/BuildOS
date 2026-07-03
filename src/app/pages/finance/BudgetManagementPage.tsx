@@ -1,6 +1,8 @@
 import { useState } from "react";
-import { Plus, Search, Download, Target, AlertTriangle, CheckCircle, X, Save, ChevronRight } from "lucide-react";
+import { Plus, Download, AlertTriangle, X, Save, Eye, Pencil, Copy, Trash2, Target } from "lucide-react";
 import { exportCSV } from "../../utils/exportCSV";
+import { DataTable, type Column } from "../../components/DataTable";
+import { useChangelog } from "../../stores/changelogStore";
 
 type BudgetScope = "Project" | "Department";
 type BudgetStatus = "Active" | "On Track" | "At Risk" | "Over Budget" | "Closed";
@@ -52,11 +54,12 @@ const statusConfig: Record<BudgetStatus, { badge: string; dot: string }> = {
 const emptyForm = { name: "", scope: "Project" as BudgetScope, totalBudget: "", period: "FY2026" };
 
 export function BudgetManagementPage() {
+  const { logChange } = useChangelog();
   const [budgets, setBudgets] = useState<BudgetLine[]>(mockBudgets);
-  const [search, setSearch] = useState("");
   const [scopeFilter, setScopeFilter] = useState<BudgetScope | "All">("All");
   const [selectedBudget, setSelectedBudget] = useState<BudgetLine | null>(null);
   const [showAddModal, setShowAddModal] = useState(false);
+  const [editingBudget, setEditingBudget] = useState<BudgetLine | null>(null);
   const [form, setForm] = useState(emptyForm);
 
   const fmt = (n: number) => new Intl.NumberFormat("en-US", { style: "currency", currency: "USD", minimumFractionDigits: 0 }).format(n);
@@ -64,7 +67,6 @@ export function BudgetManagementPage() {
 
   const filtered = budgets.filter((b) => {
     if (scopeFilter !== "All" && b.scope !== scopeFilter) return false;
-    if (search && !b.name.toLowerCase().includes(search.toLowerCase()) && !b.id.toLowerCase().includes(search.toLowerCase())) return false;
     return true;
   });
 
@@ -81,14 +83,137 @@ export function BudgetManagementPage() {
       status: "Active",
     };
     setBudgets([...budgets, newB]);
+    logChange({ module: "Finance", action: "Created", entityType: "Budget", entityId: newB.id, summary: `Budget ${newB.name} created`, performedBy: "Current User" });
     setShowAddModal(false);
     setForm(emptyForm);
+  }
+
+  function updateBudget() {
+    if (!editingBudget || !form.name || !form.totalBudget) return;
+    const updated: BudgetLine = {
+      ...editingBudget,
+      name: form.name,
+      scope: form.scope,
+      totalBudget: parseFloat(form.totalBudget.replace(/,/g, "")),
+      period: form.period,
+    };
+    setBudgets(budgets.map(b => b.id === updated.id ? updated : b));
+    logChange({ module: "Finance", action: "Updated", entityType: "Budget", entityId: updated.id, summary: `Budget ${updated.name} updated`, performedBy: "Current User" });
+    setEditingBudget(null);
+    setForm(emptyForm);
+  }
+
+  function deleteBudget(b: BudgetLine) {
+    if (!window.confirm(`Delete budget "${b.name}"?`)) return;
+    setBudgets(budgets.filter(x => x.id !== b.id));
+    logChange({ module: "Finance", action: "Deleted", entityType: "Budget", entityId: b.id, summary: `Budget ${b.name} deleted`, performedBy: "Current User" });
+    if (selectedBudget?.id === b.id) setSelectedBudget(null);
+  }
+
+  function cloneBudget(b: BudgetLine) {
+    const newId = `BUD-${String(budgets.length + 1).padStart(3, "0")}`;
+    const clone: BudgetLine = { ...b, id: newId, name: `${b.name} (Copy)`, spent: 0, committed: 0, status: "Active" };
+    setBudgets([...budgets, clone]);
+    logChange({ module: "Finance", action: "Created", entityType: "Budget", entityId: newId, summary: `Budget ${clone.name} created (cloned from ${b.name})`, performedBy: "Current User" });
   }
 
   function handleExport() {
     exportCSV("budgets", ["ID", "Name", "Scope", "Budget", "Spent", "Committed", "Remaining", "Period", "Status"],
       budgets.map((b) => [b.id, b.name, b.scope, fmt(b.totalBudget), fmt(b.spent), fmt(b.committed), fmt(b.totalBudget - b.spent - b.committed), b.period, b.status]));
   }
+
+  const columns: Column<BudgetLine>[] = [
+    {
+      key: "name",
+      label: "Budget Name",
+      sortable: true,
+      filterable: true,
+      minWidth: 160,
+      render: (b) => (
+        <div>
+          <p className="text-sm font-medium text-gray-900">{b.name}</p>
+          <p className="text-xs text-gray-400">{b.scope} · {b.period}</p>
+        </div>
+      ),
+    },
+    {
+      key: "department",
+      label: "Department",
+      sortable: true,
+      filterable: true,
+      render: (b) => <span className="text-sm text-gray-600">{b.scope}</span>,
+    },
+    {
+      key: "fiscalYear",
+      label: "Fiscal Year",
+      sortable: true,
+      filterable: true,
+      render: (b) => <span className="text-sm text-gray-600">{b.period}</span>,
+    },
+    {
+      key: "budgeted",
+      label: "Budgeted",
+      sortable: true,
+      className: "text-right",
+      headerClassName: "text-right",
+      render: (b) => <span className="text-sm font-semibold text-gray-900">{fmt(b.totalBudget)}</span>,
+    },
+    {
+      key: "spent",
+      label: "Spent",
+      sortable: true,
+      className: "text-right",
+      headerClassName: "text-right",
+      render: (b) => <span className="text-sm font-semibold text-red-600">{fmt(b.spent)}</span>,
+    },
+    {
+      key: "remaining",
+      label: "Remaining",
+      sortable: true,
+      className: "text-right",
+      headerClassName: "text-right",
+      render: (b) => {
+        const remaining = b.totalBudget - b.spent - b.committed;
+        return <span className={`text-sm font-semibold ${remaining >= 0 ? "text-emerald-600" : "text-red-600"}`}>{fmt(Math.max(0, remaining))}</span>;
+      },
+    },
+    {
+      key: "progress",
+      label: "Progress",
+      render: (b) => {
+        const p = pct(b.spent, b.totalBudget);
+        return (
+          <div className="flex items-center gap-2 min-w-[130px]">
+            <div className="flex-1 bg-gray-100 rounded-full h-1.5">
+              <div className={`h-1.5 rounded-full ${p > 100 ? "bg-red-500" : p >= 85 ? "bg-amber-500" : "bg-emerald-500"}`} style={{ width: `${Math.min(p, 100)}%` }} />
+            </div>
+            <span className={`text-xs font-semibold ${p > 100 ? "text-red-600" : p >= 85 ? "text-amber-600" : "text-gray-600"}`}>{p}%</span>
+          </div>
+        );
+      },
+    },
+    {
+      key: "status",
+      label: "Status",
+      sortable: true,
+      filterable: true,
+      render: (b) => <span className={`px-2 py-0.5 text-xs rounded-full font-medium ${statusConfig[b.status].badge}`}>{b.status}</span>,
+    },
+    {
+      key: "actions",
+      label: "",
+      sortable: false,
+      filterable: false,
+      render: (b) => (
+        <div className="flex items-center justify-end gap-1">
+          <button onClick={(e) => { e.stopPropagation(); setSelectedBudget(b); }} className="p-1.5 hover:bg-gray-100 rounded-lg" title="View"><Eye className="w-3.5 h-3.5 text-gray-500" /></button>
+          <button onClick={(e) => { e.stopPropagation(); setEditingBudget(b); setForm({ name: b.name, scope: b.scope, totalBudget: String(b.totalBudget), period: b.period }); }} className="p-1.5 hover:bg-gray-100 rounded-lg" title="Edit"><Pencil className="w-3.5 h-3.5 text-gray-500" /></button>
+          <button onClick={(e) => { e.stopPropagation(); cloneBudget(b); }} className="p-1.5 hover:bg-gray-100 rounded-lg" title="Clone"><Copy className="w-3.5 h-3.5 text-gray-500" /></button>
+          <button onClick={(e) => { e.stopPropagation(); deleteBudget(b); }} className="p-1.5 hover:bg-gray-100 rounded-lg" title="Delete"><Trash2 className="w-3.5 h-3.5 text-red-400" /></button>
+        </div>
+      ),
+    },
+  ];
 
   const totalBudget = budgets.reduce((s, b) => s + b.totalBudget, 0);
   const totalSpent  = budgets.reduce((s, b) => s + b.spent, 0);
@@ -102,9 +227,6 @@ export function BudgetManagementPage() {
           <p className="text-sm text-gray-500 mt-0.5">Define and track budgets by project or department</p>
         </div>
         <div className="flex items-center gap-2">
-          <button onClick={handleExport} className="flex items-center gap-2 px-3 py-2 text-sm border border-gray-300 rounded-lg hover:bg-gray-50">
-            <Download className="w-4 h-4" /> Export
-          </button>
           <button onClick={() => setShowAddModal(true)} className="flex items-center gap-2 bg-emerald-600 text-white px-4 py-2 rounded-lg hover:bg-emerald-700 text-sm font-medium">
             <Plus className="w-4 h-4" /> New Budget
           </button>
@@ -137,10 +259,6 @@ export function BudgetManagementPage() {
         {/* Budget list */}
         <div className="col-span-2 space-y-4">
           <div className="flex items-center gap-3">
-            <div className="relative flex-1">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-              <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search budgets..." className="w-full pl-9 pr-4 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500" />
-            </div>
             <div className="flex items-center gap-1 bg-white border border-gray-200 rounded-lg p-1">
               {(["All", "Project", "Department"] as const).map((s) => (
                 <button key={s} onClick={() => setScopeFilter(s)} className={`px-3 py-1.5 text-xs font-medium rounded-md transition-colors ${scopeFilter === s ? "bg-emerald-600 text-white" : "text-gray-600 hover:bg-gray-100"}`}>{s}</button>
@@ -148,48 +266,16 @@ export function BudgetManagementPage() {
             </div>
           </div>
 
-          <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
-            <table className="w-full">
-              <thead className="bg-gray-50 border-b border-gray-100">
-                <tr>
-                  <th className="text-left px-5 py-3 text-xs font-semibold text-gray-500">Name</th>
-                  <th className="text-left px-5 py-3 text-xs font-semibold text-gray-500">Budget</th>
-                  <th className="text-left px-5 py-3 text-xs font-semibold text-gray-500">Utilisation</th>
-                  <th className="text-left px-5 py-3 text-xs font-semibold text-gray-500">Status</th>
-                  <th className="text-right px-5 py-3 text-xs font-semibold text-gray-500"></th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-50">
-                {filtered.map((b) => {
-                  const p = pct(b.spent, b.totalBudget);
-                  const isSelected = selectedBudget?.id === b.id;
-                  return (
-                    <tr key={b.id} className={`hover:bg-gray-50 cursor-pointer transition-colors ${isSelected ? "bg-emerald-50" : ""}`} onClick={() => setSelectedBudget(b)}>
-                      <td className="px-5 py-3">
-                        <p className="text-sm font-medium text-gray-900">{b.name}</p>
-                        <p className="text-xs text-gray-400">{b.scope} · {b.period}</p>
-                      </td>
-                      <td className="px-5 py-3 text-sm font-semibold text-gray-900">{fmt(b.totalBudget)}</td>
-                      <td className="px-5 py-3 min-w-[130px]">
-                        <div className="flex items-center gap-2">
-                          <div className="flex-1 bg-gray-100 rounded-full h-1.5">
-                            <div className={`h-1.5 rounded-full ${p > 100 ? "bg-red-500" : p >= 85 ? "bg-amber-500" : "bg-emerald-500"}`} style={{ width: `${Math.min(p, 100)}%` }} />
-                          </div>
-                          <span className={`text-xs font-semibold ${p > 100 ? "text-red-600" : p >= 85 ? "text-amber-600" : "text-gray-600"}`}>{p}%</span>
-                        </div>
-                      </td>
-                      <td className="px-5 py-3">
-                        <span className={`px-2 py-0.5 text-xs rounded-full font-medium ${statusConfig[b.status].badge}`}>{b.status}</span>
-                      </td>
-                      <td className="px-5 py-3 text-right">
-                        <ChevronRight className={`w-4 h-4 ml-auto transition-colors ${isSelected ? "text-emerald-600" : "text-gray-300"}`} />
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
+          <DataTable
+            columns={columns}
+            data={filtered}
+            keyExtractor={b => b.id}
+            searchPlaceholder="Search budgets..."
+            searchFields={[b => b.name, b => b.scope, b => b.period]}
+            emptyMessage="No budgets found"
+            onRowClick={setSelectedBudget}
+            headerExtra={<button onClick={handleExport} className="flex items-center gap-2 px-3 py-1.5 text-xs border border-gray-300 rounded-lg hover:bg-gray-50"><Download className="w-3.5 h-3.5" /> Export</button>}
+          />
         </div>
 
         {/* Detail panel */}
@@ -289,6 +375,47 @@ export function BudgetManagementPage() {
               <button onClick={() => setShowAddModal(false)} className="px-4 py-2 text-sm text-gray-600 border border-gray-300 rounded-lg hover:bg-gray-50">Cancel</button>
               <button onClick={addBudget} className="flex items-center gap-2 px-4 py-2 text-sm bg-emerald-600 text-white rounded-lg hover:bg-emerald-700">
                 <Save className="w-3.5 h-3.5" /> Create Budget
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Edit Budget Modal */}
+      {editingBudget && (
+        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
+          <div className="bg-white rounded-2xl shadow-xl w-full max-w-md mx-4">
+            <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
+              <h2 className="text-sm font-semibold text-gray-900">Edit Budget</h2>
+              <button onClick={() => { setEditingBudget(null); setForm(emptyForm); }} className="p-1.5 hover:bg-gray-100 rounded-lg"><X className="w-4 h-4 text-gray-400" /></button>
+            </div>
+            <div className="px-6 py-5 space-y-4">
+              <div>
+                <label className="block text-xs font-semibold text-gray-700 mb-1.5">Name *</label>
+                <input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} placeholder="e.g. Project Alpha" className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500" />
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-xs font-semibold text-gray-700 mb-1.5">Scope *</label>
+                  <select value={form.scope} onChange={(e) => setForm({ ...form, scope: e.target.value as BudgetScope })} className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500">
+                    <option value="Project">Project</option>
+                    <option value="Department">Department</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-xs font-semibold text-gray-700 mb-1.5">Period</label>
+                  <input value={form.period} onChange={(e) => setForm({ ...form, period: e.target.value })} placeholder="e.g. FY2026" className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500" />
+                </div>
+              </div>
+              <div>
+                <label className="block text-xs font-semibold text-gray-700 mb-1.5">Total Budget (USD) *</label>
+                <input value={form.totalBudget} onChange={(e) => setForm({ ...form, totalBudget: e.target.value })} placeholder="e.g. 5000000" className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500" />
+              </div>
+            </div>
+            <div className="px-6 py-4 border-t border-gray-100 flex justify-end gap-2">
+              <button onClick={() => { setEditingBudget(null); setForm(emptyForm); }} className="px-4 py-2 text-sm text-gray-600 border border-gray-300 rounded-lg hover:bg-gray-50">Cancel</button>
+              <button onClick={updateBudget} className="flex items-center gap-2 px-4 py-2 text-sm bg-emerald-600 text-white rounded-lg hover:bg-emerald-700">
+                <Save className="w-3.5 h-3.5" /> Save Changes
               </button>
             </div>
           </div>
