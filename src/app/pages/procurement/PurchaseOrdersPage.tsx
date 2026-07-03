@@ -361,6 +361,8 @@ export function PurchaseOrdersPage() {
   });
 
   const totalValue = poList.filter(po => po.status !== "cancelled").reduce((a, po) => a + po.totalValue, 0);
+  const accrualCandidates = poList.filter(po => (po.status === "confirmed" || po.status === "partially_received") && po.paymentStatus !== "paid");
+  const totalAccrualExposure = accrualCandidates.reduce((s, po) => s + po.totalValue - po.receivedValue, 0);
 
   return (
     <div className="space-y-5">
@@ -375,11 +377,12 @@ export function PurchaseOrdersPage() {
       </div>
 
       {/* Stats */}
-      <div className="grid grid-cols-4 gap-4">
+      <div className="grid grid-cols-5 gap-4">
         {[
           { label: "Total POs", value: poList.length, sub: "All time", color: "bg-gray-50 border-gray-200 text-gray-900" },
           { label: "Open POs", value: poList.filter(p => ["sent", "confirmed", "partially_received"].includes(p.status)).length, sub: "Awaiting delivery", color: "bg-blue-50 border-blue-200 text-blue-700" },
           { label: "Total Open Value", value: fmt(totalValue), sub: "Outstanding", color: "bg-amber-50 border-amber-200 text-amber-700" },
+          { label: "Accrual Exposure", value: fmt(totalAccrualExposure), sub: `${accrualCandidates.length} POs awaiting invoice`, color: "bg-indigo-50 border-indigo-200 text-indigo-700" },
           { label: "Completed", value: poList.filter(p => p.status === "completed").length, sub: "This month", color: "bg-green-50 border-green-200 text-green-700" },
         ].map(s => (
           <div key={s.label} className={`p-4 rounded-lg border ${s.color}`}>
@@ -434,6 +437,11 @@ export function PurchaseOrdersPage() {
                     {po.sentToFinance && (
                       <span className="text-xs px-2 py-0.5 bg-indigo-50 text-indigo-700 rounded-full flex items-center gap-1">
                         <Building2 className="w-3 h-3" />Finance: {po.financeRef}
+                      </span>
+                    )}
+                    {(po.status === "confirmed" || po.status === "partially_received") && po.paymentStatus !== "paid" && (
+                      <span className="text-xs px-2 py-0.5 bg-purple-50 text-purple-700 rounded-full flex items-center gap-1">
+                        <Clock className="w-3 h-3" />Accrual Pending
                       </span>
                     )}
                   </div>

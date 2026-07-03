@@ -1,17 +1,9 @@
 import { useState } from "react";
 import { Plus, Search, Edit, Trash2, ChevronRight, BookOpen, X, Save } from "lucide-react";
+import { useFinance } from "../../stores/financeStore";
 import { exportCSV } from "../../utils/exportCSV";
-
-type AccountType = "Assets" | "Liabilities" | "Equity" | "Income" | "Expenses";
-
-interface Account {
-  id: string;
-  code: string;
-  name: string;
-  type: AccountType;
-  parentId: string | null;
-  description: string;
-}
+import type { AccountType } from "./types";
+import { ACCOUNT_TYPES } from "./types";
 
 const typeColors: Record<AccountType, string> = {
   Assets: "bg-blue-100 text-blue-700",
@@ -21,36 +13,17 @@ const typeColors: Record<AccountType, string> = {
   Expenses: "bg-orange-100 text-orange-700",
 };
 
-const initialAccounts: Account[] = [
-  { id: "a1",  code: "1000", name: "Assets",                type: "Assets",      parentId: null, description: "All asset accounts" },
-  { id: "a2",  code: "1100", name: "Current Assets",        type: "Assets",      parentId: "a1", description: "Short-term assets" },
-  { id: "a3",  code: "1110", name: "Cash & Bank",           type: "Assets",      parentId: "a2", description: "Cash on hand and bank balances" },
-  { id: "a4",  code: "1120", name: "Accounts Receivable",   type: "Assets",      parentId: "a2", description: "Amounts owed by customers" },
-  { id: "a5",  code: "1200", name: "Fixed Assets",          type: "Assets",      parentId: "a1", description: "Long-term physical assets" },
-  { id: "a6",  code: "1210", name: "Plant & Equipment",     type: "Assets",      parentId: "a5", description: "Machinery and equipment" },
-  { id: "a7",  code: "2000", name: "Liabilities",           type: "Liabilities", parentId: null, description: "All liability accounts" },
-  { id: "a8",  code: "2100", name: "Current Liabilities",   type: "Liabilities", parentId: "a7", description: "Short-term obligations" },
-  { id: "a9",  code: "2110", name: "Accounts Payable",      type: "Liabilities", parentId: "a8", description: "Amounts owed to suppliers" },
-  { id: "a10", code: "2120", name: "Accrued Expenses",      type: "Liabilities", parentId: "a8", description: "Expenses incurred but not yet paid" },
-  { id: "a11", code: "3000", name: "Equity",                type: "Equity",      parentId: null, description: "Owner's equity" },
-  { id: "a12", code: "3100", name: "Retained Earnings",     type: "Equity",      parentId: "a11", description: "Accumulated profits" },
-  { id: "a13", code: "4000", name: "Income",                type: "Income",      parentId: null, description: "All income accounts" },
-  { id: "a14", code: "4100", name: "Contract Revenue",      type: "Income",      parentId: "a13", description: "Revenue from construction contracts" },
-  { id: "a15", code: "4200", name: "Service Income",        type: "Income",      parentId: "a13", description: "Revenue from services rendered" },
-  { id: "a16", code: "5000", name: "Expenses",              type: "Expenses",    parentId: null, description: "All expense accounts" },
-  { id: "a17", code: "5100", name: "Labour Costs",          type: "Expenses",    parentId: "a16", description: "Wages and salaries" },
-  { id: "a18", code: "5200", name: "Material Costs",        type: "Expenses",    parentId: "a16", description: "Raw materials and supplies" },
-  { id: "a19", code: "5300", name: "Equipment Costs",       type: "Expenses",    parentId: "a16", description: "Equipment hire and maintenance" },
-  { id: "a20", code: "5400", name: "Overhead",              type: "Expenses",    parentId: "a16", description: "General overhead costs" },
-];
-
-const ACCOUNT_TYPES: AccountType[] = ["Assets", "Liabilities", "Equity", "Income", "Expenses"];
 const ALL_TYPES: Array<AccountType | "All"> = ["All", ...ACCOUNT_TYPES];
 
 const emptyForm = { code: "", name: "", type: "Assets" as AccountType, parentId: "" as string | null, description: "" };
 
+const fmt = (n: number) => {
+  const abs = `₦${Math.abs(n).toLocaleString()}`;
+  return n >= 0 ? abs : `(${abs})`;
+};
+
 export function ChartOfAccountsPage() {
-  const [accounts, setAccounts] = useState<Account[]>(initialAccounts);
+  const { accounts, setAccounts, getAccountBalance, getDescendantIds } = useFinance();
   const [search, setSearch] = useState("");
   const [typeFilter, setTypeFilter] = useState<AccountType | "All">("All");
   const [showModal, setShowModal] = useState(false);
@@ -70,7 +43,7 @@ export function ChartOfAccountsPage() {
     setShowModal(true);
   }
 
-  function openEdit(a: Account) {
+  function openEdit(a: typeof accounts[0]) {
     setForm({ code: a.code, name: a.name, type: a.type, parentId: a.parentId ?? "", description: a.description });
     setEditId(a.id);
     setShowModal(true);
@@ -81,7 +54,7 @@ export function ChartOfAccountsPage() {
     if (editId) {
       setAccounts((prev) => prev.map((a) => a.id === editId ? { ...a, ...form, parentId: form.parentId || null } : a));
     } else {
-      const newAcc: Account = { id: `a${Date.now()}`, ...form, parentId: form.parentId || null };
+      const newAcc = { id: `a${Date.now()}`, ...form, parentId: form.parentId || null };
       setAccounts((prev) => [...prev, newAcc]);
     }
     setShowModal(false);
@@ -99,11 +72,11 @@ export function ChartOfAccountsPage() {
     return 1 + getDepth(a.parentId);
   }
 
-  const topLevelAccounts = accounts.filter((a) => a.parentId === null);
   const countByType = (t: AccountType) => accounts.filter((a) => a.type === t).length;
 
   function handleExport() {
-    exportCSV("chart-of-accounts", ["Code", "Name", "Type", "Description"], accounts.map((a) => [a.code, a.name, a.type, a.description]));
+    exportCSV("chart-of-accounts", ["Code", "Name", "Type", "Balance", "Description"],
+      accounts.map((a) => [a.code, a.name, a.type, fmt(getAccountBalance(a.id)), a.description]));
   }
 
   return (
@@ -162,6 +135,7 @@ export function ChartOfAccountsPage() {
               <th className="text-left px-5 py-3 text-xs font-semibold text-gray-500">Code</th>
               <th className="text-left px-5 py-3 text-xs font-semibold text-gray-500">Account Name</th>
               <th className="text-left px-5 py-3 text-xs font-semibold text-gray-500">Type</th>
+              <th className="text-right px-5 py-3 text-xs font-semibold text-gray-500">Balance</th>
               <th className="text-left px-5 py-3 text-xs font-semibold text-gray-500">Description</th>
               <th className="text-right px-5 py-3 text-xs font-semibold text-gray-500">Actions</th>
             </tr>
@@ -183,6 +157,11 @@ export function ChartOfAccountsPage() {
                   <td className="px-5 py-3">
                     <span className={`px-2 py-0.5 text-xs rounded-full font-medium ${typeColors[a.type]}`}>{a.type}</span>
                   </td>
+                  <td className="px-5 py-3 text-right">
+                    <span className={`text-sm font-mono font-semibold ${getAccountBalance(a.id) >= 0 ? "text-gray-900" : "text-red-600"}`}>
+                      {fmt(getAccountBalance(a.id))}
+                    </span>
+                  </td>
                   <td className="px-5 py-3 text-sm text-gray-500">{a.description}</td>
                   <td className="px-5 py-3">
                     <div className="flex items-center justify-end gap-1">
@@ -198,7 +177,7 @@ export function ChartOfAccountsPage() {
               );
             })}
             {filtered.length === 0 && (
-              <tr><td colSpan={5} className="px-5 py-12 text-center text-sm text-gray-400">No accounts found</td></tr>
+              <tr><td colSpan={6} className="px-5 py-12 text-center text-sm text-gray-400">No accounts found</td></tr>
             )}
           </tbody>
         </table>

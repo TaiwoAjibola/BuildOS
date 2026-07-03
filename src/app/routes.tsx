@@ -162,6 +162,9 @@ import { FinanceTasksPage } from "./pages/finance/FinanceTasksPage";
 import { FinanceMyTasksPage } from "./pages/finance/FinanceMyTasksPage";
 import { ProcessMappingPage } from "./pages/finance/ProcessMappingPage";
 import { PostingEnginePage } from "./pages/finance/PostingEnginePage";
+import { AccrualsPage } from "./pages/finance/AccrualsPage";
+import { YearEndClosePage } from "./pages/finance/YearEndClosePage";
+import { FiscalYearsPage } from "./pages/finance/FiscalYearsPage";
 
 // HR new pages
 import { HRTasksPage } from "./pages/hr/HRTasksPage";
@@ -255,6 +258,7 @@ export const router = createBrowserRouter([
               { path: "dashboard", Component: FinanceDashboardPage },
               { path: "chart-of-accounts", Component: ChartOfAccountsPage },
               { path: "journal", Component: JournalEntryPage },
+              { path: "accruals", Component: AccrualsPage },
               { path: "expenses", Component: ExpenseManagementPage },
               { path: "income", Component: IncomeManagementPage },
               { path: "budget", Component: BudgetManagementPage },
@@ -270,6 +274,8 @@ export const router = createBrowserRouter([
               { path: "process-mapping", Component: ProcessMappingPage },
               { path: "posting-engine", Component: PostingEnginePage },
               { path: "purchase-invoice", Component: PurchaseInvoicePage },
+              { path: "year-end-close", Component: YearEndClosePage },
+              { path: "fiscal-years", Component: FiscalYearsPage },
             ],
           },
           {
