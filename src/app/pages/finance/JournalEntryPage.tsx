@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Plus, Search, Eye, Edit, Trash2, X, BookOpen, ChevronDown, ChevronRight, ArrowUpDown } from "lucide-react";
 import { exportCSV } from "../../utils/exportCSV";
+import { useChangelog } from "../../stores/changelogStore";
 
 type EntryStatus = "Draft" | "Posted" | "Reversed";
 
@@ -90,6 +91,7 @@ const STATUS_STYLES: Record<EntryStatus, string> = {
 };
 
 export function JournalEntryPage() {
+  const { logChange } = useChangelog();
   const [entries, setEntries] = useState<JournalEntry[]>(mockEntries);
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<EntryStatus | "All">("All");
@@ -151,18 +153,22 @@ export function JournalEntryPage() {
     if (!form.description || !isBalanced) return;
     if (editId) {
       setEntries((prev) => prev.map((e) => e.id === editId ? { ...e, ...form, status } : e));
+      logChange("update", `Journal Entry: ${form.description}`, "JournalEntry");
     } else {
       const newEntry: JournalEntry = {
         id: `JE-${String(entries.length + 1).padStart(3, "0")}`,
         ...form, status, createdBy: "Current User",
       };
       setEntries([newEntry, ...entries]);
+      logChange("create", `Journal Entry ${newEntry.id}: ${form.description} [${status}]`, "JournalEntry");
     }
     setModalOpen(false);
   }
 
   function deleteEntry(id: string) {
+    const entry = entries.find(e => e.id === id);
     setEntries((prev) => prev.filter((e) => e.id !== id));
+    if (entry) logChange("delete", `Journal Entry ${entry.id}: ${entry.description}`, "JournalEntry");
   }
 
   function handleExport() {

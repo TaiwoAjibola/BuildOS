@@ -6,6 +6,7 @@ import {
   BookOpen, Layers,
 } from "lucide-react";
 import { useFinance } from "../../stores/financeStore";
+import { useChangelog } from "../../stores/changelogStore";
 
 // ── Types
 type TxnStatus = "pending" | "approved" | "rejected" | "posted";
@@ -570,6 +571,7 @@ function CategoryCard({ category, transactions, onClick }: {
 // ── Main Page ─────────────────────────────────────────────────────────────────
 export function PostingEnginePage() {
   const { accounts, transactions: ledgerTransactions, setTransactions: setLedgerTransactions } = useFinance();
+  const { logChange } = useChangelog();
   const [categories, setCategories]           = useState<ProcessCategory[]>(SEED_CATEGORIES);
   const [transactions, setTransactions]       = useState<Transaction[]>(SEED_TRANSACTIONS);
   const [activeCategory, setActiveCategory]   = useState<ProcessCategory | null>(null);
@@ -581,9 +583,13 @@ export function PostingEnginePage() {
 
   function approveTransaction(id: string) {
     setTransactions(prev => prev.map(t => t.id === id ? { ...t, status: "approved", reviewedBy: "Sola Adeleke", reviewedDate: now } : t));
+    const txn = transactions.find(t => t.id === id);
+    if (txn) logChange("approve", `Posting Engine: ${txn.description}`, "PostingEngine");
   }
   function rejectTransaction(id: string, notes: string) {
     setTransactions(prev => prev.map(t => t.id === id ? { ...t, status: "rejected", reviewedBy: "Sola Adeleke", reviewedDate: now, notes: notes || undefined } : t));
+    const txn = transactions.find(t => t.id === id);
+    if (txn) logChange("reject", `Posting Engine: ${txn.description}`, "PostingEngine");
   }
   function postToLedger(id: string) {
     const txn = transactions.find(t => t.id === id);
@@ -592,6 +598,7 @@ export function PostingEnginePage() {
     if (!cat) return;
     const ledgerRef = `LGR-${String(Math.floor(1000 + Math.random() * 8999))}`;
     setTransactions(prev => prev.map(t => t.id === id ? { ...t, status: "posted", ledgerRef } : t));
+    logChange("post", `Posting Engine: ${txn.description} → Ledger (${ledgerRef})`, "PostingEngine");
     // Create corresponding entry in the FinanceContext ledger
     setLedgerTransactions(prev => [...prev, {
       id: `txn-${Date.now()}`,

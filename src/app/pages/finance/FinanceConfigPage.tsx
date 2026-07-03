@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Save, Plus, Edit, Trash2, Settings2, Info, CreditCard, Building2, X, CheckCircle, Percent, Palette } from "lucide-react";
 import { useFinance } from "../../stores/financeStore";
+import { useChangelog } from "../../stores/changelogStore";
 import type { AccrualTypeConfig } from "./types";
 
 interface BankAccount {
@@ -83,6 +84,7 @@ export function FinanceConfigPage() {
 
   function saveAll() {
     setSaved(true);
+    logChange("update", "Finance configuration saved (payment methods, bank accounts, tax entries)", "FinanceConfig");
     setTimeout(() => setSaved(false), 2500);
   }
 
@@ -139,6 +141,7 @@ export function FinanceConfigPage() {
 
   // ── Accrual Type Config ──────────────────────────────────────────────────
   const { accrualTypeConfigs, setAccrualTypeConfigs } = useFinance();
+  const { logChange } = useChangelog();
 
   const [showAccrualTypeModal, setShowAccrualTypeModal] = useState(false);
   const [accrualTypeEditId, setAccrualTypeEditId] = useState<string | null>(null);
@@ -164,8 +167,10 @@ export function FinanceConfigPage() {
       setAccrualTypeConfigs(prev => prev.map(tc =>
         tc.id === accrualTypeEditId ? { ...tc, ...accrualTypeForm } : tc
       ));
+      logChange("update", `Accrual Type: ${accrualTypeForm.label}`, "FinanceConfig");
     } else {
       setAccrualTypeConfigs(prev => [...prev, { id: `atc-${Date.now()}`, ...accrualTypeForm }]);
+      logChange("create", `Accrual Type: ${accrualTypeForm.label}`, "FinanceConfig");
     }
     setShowAccrualTypeModal(false);
   }

@@ -1,9 +1,11 @@
 import { useState } from "react";
 import {
   Search, Download, ChevronDown, ChevronUp, X,
-  ExternalLink, CheckCircle, Clock, AlertTriangle,
+  ExternalLink, CheckCircle, Clock,
 } from "lucide-react";
 import { exportCSV } from "../../utils/exportCSV";
+import { DataTable, type Column } from "../../components/DataTable";
+import { useFinance } from "../../stores/financeStore";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 type TxnType = "Income" | "Expense" | "Payroll" | "Payment" | "Transfer" | "Adjustment" | "Journal";
@@ -138,9 +140,9 @@ const typeColors: Record<TxnType, string> = {
 };
 
 const approvalBadge: Record<ApprovalStatus, { label: string; cls: string; icon: React.ReactNode }> = {
-  approved:        { label: "Approved",       cls: "bg-emerald-100 text-emerald-700", icon: <CheckCircle   className="w-3.5 h-3.5" /> },
-  pending:         { label: "Pending",        cls: "bg-amber-100 text-amber-700",     icon: <Clock         className="w-3.5 h-3.5" /> },
-  "auto-approved": { label: "Auto-Approved",  cls: "bg-gray-100 text-gray-600",       icon: <CheckCircle   className="w-3.5 h-3.5" /> },
+  approved:        { label: "Approved",       cls: "bg-emerald-100 text-emerald-700", icon: <CheckCircle className="w-3.5 h-3.5" /> },
+  pending:         { label: "Pending",        cls: "bg-amber-100 text-amber-700",     icon: <Clock       className="w-3.5 h-3.5" /> },
+  "auto-approved": { label: "Auto-Approved",  cls: "bg-gray-100 text-gray-600",       icon: <CheckCircle className="w-3.5 h-3.5" /> },
 };
 
 const APP_COLORS: Record<string, string> = {
@@ -148,8 +150,6 @@ const APP_COLORS: Record<string, string> = {
   HR:          "bg-purple-50 text-purple-700", ESS: "bg-orange-50 text-orange-700",
   Projects:    "bg-indigo-50 text-indigo-700", Finance: "bg-emerald-50 text-emerald-700",
 };
-
-const TYPE_OPTS: Array<TxnType | "All"> = ["All", "Income", "Expense", "Payroll", "Payment", "Transfer", "Adjustment", "Journal"];
 
 function fmtAmt(n: number) {
   const abs = `₦${Math.abs(n).toLocaleString()}`;
@@ -170,7 +170,6 @@ function TransactionDetailModal({ txn, onClose }: { txn: Transaction; onClose: (
           <button onClick={onClose} className="text-gray-400 hover:text-gray-600"><X className="w-5 h-5" /></button>
         </div>
         <div className="px-6 py-5 space-y-5">
-          {/* Basic Info */}
           <section>
             <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-3">Basic Information</p>
             <div className="grid grid-cols-2 gap-x-8 gap-y-3 text-sm">
@@ -204,7 +203,6 @@ function TransactionDetailModal({ txn, onClose }: { txn: Transaction; onClose: (
             </div>
           </section>
           <hr className="border-gray-100" />
-          {/* Financial Entries */}
           <section>
             <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-3">Financial Entries</p>
             <div className="bg-gray-50 border border-gray-200 rounded-xl overflow-hidden">
@@ -231,7 +229,6 @@ function TransactionDetailModal({ txn, onClose }: { txn: Transaction; onClose: (
               </table>
             </div>
           </section>
-          {/* Linked Records */}
           {txn.linkedRecords && txn.linkedRecords.length > 0 && (
             <>
               <hr className="border-gray-100" />
@@ -260,35 +257,7 @@ function TransactionDetailModal({ txn, onClose }: { txn: Transaction; onClose: (
 
 // ── Main Page ─────────────────────────────────────────────────────────────────
 export function TransactionsLedgerPage() {
-  const [search, setSearch]         = useState("");
-  const [typeFilter, setTypeFilter] = useState<TxnType | "All">("All");
-  const [sortField, setSortField]   = useState<"amount" | "date">("date");
-  const [sortDir, setSortDir]       = useState<"asc" | "desc">("desc");
-  const [dateFrom, setDateFrom]     = useState("");
-  const [dateTo, setDateTo]         = useState("");
-  const [selected, setSelected]     = useState<Transaction | null>(null);
-
-  const filtered = MOCK_TRANSACTIONS
-    .filter((t) => {
-      if (typeFilter !== "All" && t.type !== typeFilter) return false;
-      if (search && ![t.id, t.description, t.debitAccount, t.creditAccount, t.reference, t.sourceApp, t.sourceProcess]
-        .some((f) => f.toLowerCase().includes(search.toLowerCase()))) return false;
-      return true;
-    })
-    .sort((a, b) => {
-      if (sortField === "amount") return sortDir === "desc"
-        ? Math.abs(b.amount) - Math.abs(a.amount)
-        : Math.abs(a.amount) - Math.abs(b.amount);
-      return sortDir === "desc" ? b.date.localeCompare(a.date) : a.date.localeCompare(b.date);
-    });
-
-  function toggleSort(field: "amount" | "date") {
-    if (sortField === field) setSortDir((d) => d === "asc" ? "desc" : "asc");
-    else { setSortField(field); setSortDir("desc"); }
-  }
-
-  const SortIcon = ({ field }: { field: "amount" | "date" }) =>
-    sortField === field ? (sortDir === "asc" ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />) : <ChevronDown className="w-3 h-3 opacity-30" />;
+  const [selected, setSelected] = useState<Transaction | null>(null);
 
   const totalInflow  = MOCK_TRANSACTIONS.filter((t) => t.amount > 0).reduce((s, t) => s + t.amount, 0);
   const totalOutflow = MOCK_TRANSACTIONS.filter((t) => t.amount < 0).reduce((s, t) => s + Math.abs(t.amount), 0);
@@ -297,9 +266,35 @@ export function TransactionsLedgerPage() {
   function handleExport() {
     exportCSV("transactions-ledger",
       ["Transaction ID", "Type", "Description", "Debit Account", "Credit Account", "Reference", "Amount", "Date", "Source App", "Source Process", "Approval Status", "Created By"],
-      filtered.map((t) => [t.id, t.type, t.description, t.debitAccount, t.creditAccount, t.reference, fmtAmt(t.amount), t.date, t.sourceApp, t.sourceProcess, t.approvalStatus, t.createdBy]),
+      MOCK_TRANSACTIONS.map((t) => [t.id, t.type, t.description, t.debitAccount, t.creditAccount, t.reference, fmtAmt(t.amount), t.date, t.sourceApp, t.sourceProcess, t.approvalStatus, t.createdBy]),
     );
   }
+
+  const columns: Column<Transaction>[] = [
+    { key: "id", label: "Transaction ID", render: t => <span className="font-mono text-xs text-gray-500 group-hover:text-emerald-700">{t.id}</span>, sortable: true, filterable: true },
+    { key: "type", label: "Type", render: t => <span className={`px-2 py-0.5 text-xs rounded-full font-medium ${typeColors[t.type]}`}>{t.type}</span>, sortable: true, filterable: true },
+    { key: "description", label: "Description", render: t => <span className="text-sm text-gray-900 max-w-[200px] block truncate">{t.description}</span>, sortable: true, filterable: true, minWidth: 160 },
+    { key: "accounts", label: "DR / CR", render: t => (
+      <div>
+        <p className="text-xs font-mono text-gray-600 truncate max-w-[140px]">{t.debitAccount}</p>
+        <p className="text-xs font-mono text-gray-400 truncate max-w-[140px]">{t.creditAccount}</p>
+      </div>
+    ), sortable: false, filterable: false, minWidth: 160 },
+    { key: "source", label: "Source", render: t => (
+      <div>
+        <span className={`px-1.5 py-0.5 text-xs rounded font-medium ${APP_COLORS[t.sourceApp] ?? "bg-gray-100 text-gray-600"}`}>{t.sourceApp}</span>
+        <p className="text-xs text-gray-400 mt-0.5">{t.sourceProcess}</p>
+      </div>
+    ), sortable: true, filterable: true },
+    { key: "amount", label: "Amount (₦)", render: t => (
+      <span className={`text-sm font-semibold ${t.amount >= 0 ? "text-emerald-600" : "text-red-600"}`}>{fmtAmt(t.amount)}</span>
+    ), sortable: true, filterable: false, className: "text-right", headerClassName: "text-right" },
+    { key: "date", label: "Date", render: t => <span className="text-sm text-gray-500 whitespace-nowrap">{t.date}</span>, sortable: true, filterable: false },
+    { key: "approval", label: "Approval", render: t => {
+      const ab = approvalBadge[t.approvalStatus];
+      return <span className={`flex items-center gap-1 w-fit text-xs rounded-full px-2 py-0.5 font-medium ${ab.cls}`}>{ab.icon}{ab.label}</span>;
+    }, sortable: true, filterable: true },
+  ];
 
   return (
     <div className="space-y-6">
@@ -331,93 +326,16 @@ export function TransactionsLedgerPage() {
         </div>
       </div>
 
-      {/* Filters */}
-      <div className="flex items-center gap-3 flex-wrap">
-        <div className="relative flex-1 max-w-xs">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-          <input value={search} onChange={(e) => setSearch(e.target.value)}
-            placeholder="Search: ID, description, account…"
-            className="w-full pl-9 pr-4 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500" />
-        </div>
-        <div className="flex items-center gap-1 bg-white border border-gray-200 rounded-lg p-1">
-          {TYPE_OPTS.map((t) => (
-            <button key={t} onClick={() => setTypeFilter(t)}
-              className={`px-3 py-1.5 text-xs font-medium rounded-md whitespace-nowrap transition-colors ${
-                typeFilter === t ? "bg-emerald-600 text-white" : "text-gray-600 hover:bg-gray-100"
-              }`}>{t}</button>
-          ))}
-        </div>
-        <div className="flex items-center gap-2">
-          <input type="date" value={dateFrom} onChange={(e) => setDateFrom(e.target.value)}
-            className="px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500" />
-          <span className="text-xs text-gray-400">to</span>
-          <input type="date" value={dateTo} onChange={(e) => setDateTo(e.target.value)}
-            className="px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500" />
-        </div>
-      </div>
-
-      {/* Ledger Table */}
-      <div className="bg-white rounded-xl border border-gray-200 overflow-x-auto">
-        <div className="px-5 py-3 border-b border-gray-100 bg-gray-50 flex items-center justify-between">
-          <span className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Ledger Entries</span>
-          <span className="text-xs text-gray-400">{filtered.length} records · click a row to view details</span>
-        </div>
-        <table className="w-full min-w-[900px]">
-          <thead className="border-b border-gray-100">
-            <tr>
-              <th className="text-left px-5 py-3 text-xs font-semibold text-gray-500">Transaction ID</th>
-              <th className="text-left px-5 py-3 text-xs font-semibold text-gray-500">Type</th>
-              <th className="text-left px-5 py-3 text-xs font-semibold text-gray-500">Description</th>
-              <th className="text-left px-5 py-3 text-xs font-semibold text-gray-500">DR / CR Accounts</th>
-              <th className="text-left px-5 py-3 text-xs font-semibold text-gray-500">Source</th>
-              <th className="text-left px-5 py-3 text-xs font-semibold text-gray-500 cursor-pointer select-none" onClick={() => toggleSort("amount")}>
-                <span className="flex items-center gap-1">Amount <SortIcon field="amount" /></span>
-              </th>
-              <th className="text-left px-5 py-3 text-xs font-semibold text-gray-500 cursor-pointer select-none" onClick={() => toggleSort("date")}>
-                <span className="flex items-center gap-1">Date <SortIcon field="date" /></span>
-              </th>
-              <th className="text-left px-5 py-3 text-xs font-semibold text-gray-500">Approval</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-gray-50">
-            {filtered.map((t) => {
-              const ab = approvalBadge[t.approvalStatus];
-              return (
-                <tr key={t.id} onClick={() => setSelected(t)}
-                  className="hover:bg-emerald-50/40 cursor-pointer transition-colors group">
-                  <td className="px-5 py-3 text-xs font-mono text-gray-500 group-hover:text-emerald-700">{t.id}</td>
-                  <td className="px-5 py-3">
-                    <span className={`px-2 py-0.5 text-xs rounded-full font-medium ${typeColors[t.type]}`}>{t.type}</span>
-                  </td>
-                  <td className="px-5 py-3 text-sm text-gray-900 max-w-[160px] truncate">{t.description}</td>
-                  <td className="px-5 py-3">
-                    <p className="text-xs font-mono text-gray-500 truncate max-w-[130px]">{t.debitAccount}</p>
-                    <p className="text-xs font-mono text-gray-400 truncate max-w-[130px]">{t.creditAccount}</p>
-                  </td>
-                  <td className="px-5 py-3">
-                    <span className={`px-1.5 py-0.5 text-xs rounded font-medium ${APP_COLORS[t.sourceApp] ?? "bg-gray-100 text-gray-600"}`}>
-                      {t.sourceApp}
-                    </span>
-                    <p className="text-xs text-gray-400 mt-0.5">{t.sourceProcess}</p>
-                  </td>
-                  <td className={`px-5 py-3 text-sm font-semibold ${t.amount >= 0 ? "text-emerald-600" : "text-red-600"}`}>
-                    {fmtAmt(t.amount)}
-                  </td>
-                  <td className="px-5 py-3 text-sm text-gray-500 whitespace-nowrap">{t.date}</td>
-                  <td className="px-5 py-3">
-                    <span className={`flex items-center gap-1 w-fit text-xs rounded-full px-2 py-0.5 font-medium ${ab.cls}`}>
-                      {ab.icon}{ab.label}
-                    </span>
-                  </td>
-                </tr>
-              );
-            })}
-            {filtered.length === 0 && (
-              <tr><td colSpan={8} className="px-5 py-12 text-center text-sm text-gray-400">No transactions found</td></tr>
-            )}
-          </tbody>
-        </table>
-      </div>
+      {/* Data Table */}
+      <DataTable
+        columns={columns}
+        data={MOCK_TRANSACTIONS}
+        keyExtractor={t => t.id}
+        searchPlaceholder="Search: ID, description, account…"
+        searchFields={[t => t.id, t => t.description, t => t.debitAccount, t => t.creditAccount, t => t.reference, t => t.sourceApp, t => t.sourceProcess]}
+        emptyMessage="No transactions found"
+        onRowClick={setSelected}
+      />
 
       {selected && <TransactionDetailModal txn={selected} onClose={() => setSelected(null)} />}
     </div>

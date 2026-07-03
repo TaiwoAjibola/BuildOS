@@ -1,7 +1,9 @@
 import { useState } from "react";
-import { Plus, Search, Edit, Trash2, ChevronRight, BookOpen, X, Save } from "lucide-react";
+import { Plus, Search, Edit, Trash2, ChevronRight, BookOpen, X, Save, Download } from "lucide-react";
 import { useFinance } from "../../stores/financeStore";
+import { useChangelog } from "../../stores/changelogStore";
 import { exportCSV } from "../../utils/exportCSV";
+import { DataTable, type Column } from "../../components/DataTable";
 import type { AccountType } from "./types";
 import { ACCOUNT_TYPES } from "./types";
 
@@ -18,12 +20,13 @@ const ALL_TYPES: Array<AccountType | "All"> = ["All", ...ACCOUNT_TYPES];
 const emptyForm = { code: "", name: "", type: "Assets" as AccountType, parentId: "" as string | null, description: "" };
 
 const fmt = (n: number) => {
-  const abs = `₦${Math.abs(n).toLocaleString()}`;
+  const abs = `${Math.abs(n).toLocaleString()}`;
   return n >= 0 ? abs : `(${abs})`;
 };
 
 export function ChartOfAccountsPage() {
   const { accounts, setAccounts, getAccountBalance, getDescendantIds } = useFinance();
+  const { logChange } = useChangelog();
   const [search, setSearch] = useState("");
   const [typeFilter, setTypeFilter] = useState<AccountType | "All">("All");
   const [showModal, setShowModal] = useState(false);
@@ -53,16 +56,20 @@ export function ChartOfAccountsPage() {
     if (!form.code.trim() || !form.name.trim()) return;
     if (editId) {
       setAccounts((prev) => prev.map((a) => a.id === editId ? { ...a, ...form, parentId: form.parentId || null } : a));
+      logChange({ module: "Finance", action: "Updated", entityType: "Account", entityId: editId, summary: `Account ${form.code} ${form.name} updated`, performedBy: "Sola Adeleke" });
     } else {
       const newAcc = { id: `a${Date.now()}`, ...form, parentId: form.parentId || null };
       setAccounts((prev) => [...prev, newAcc]);
+      logChange({ module: "Finance", action: "Created", entityType: "Account", entityId: newAcc.id, summary: `Account ${newAcc.code} ${newAcc.name} created`, performedBy: "Sola Adeleke" });
     }
     setShowModal(false);
   }
 
   function confirmDelete() {
     if (!deleteId) return;
+    const del = accounts.find(a => a.id === deleteId);
     setAccounts((prev) => prev.filter((a) => a.id !== deleteId && a.parentId !== deleteId));
+    if (del) logChange({ module: "Finance", action: "Deleted", entityType: "Account", entityId: deleteId, summary: `Account ${del.code} ${del.name} and children deleted`, performedBy: "Sola Adeleke" });
     setDeleteId(null);
   }
 
@@ -76,24 +83,47 @@ export function ChartOfAccountsPage() {
 
   function handleExport() {
     exportCSV("chart-of-accounts", ["Code", "Name", "Type", "Balance", "Description"],
-      accounts.map((a) => [a.code, a.name, a.type, fmt(getAccountBalance(a.id)), a.description]));
+      accounts.map((a) => [a.code, a.name, a.type, getAccountBalance(a.id), a.description]));
   }
+
+  const columns: Column<typeof accounts[0]>[] = [
+    { key: "code", label: "Code", render: a => <span className="font-mono text-xs text-gray-500 bg-gray-100 px-2 py-0.5 rounded">{a.code}</span>, sortable: true, filterable: true },
+    { key: "name", label: "Account Name", render: a => {
+      const depth = getDepth(a.id);
+      return (
+        <div className="flex items-center" style={{ paddingLeft: `${depth * 16}px` }}>
+          {depth > 0 && <ChevronRight className="w-3 h-3 text-gray-300 mr-1 shrink-0" />}
+          <span className={`text-sm ${depth === 0 ? "font-semibold" : ""} text-gray-900`}>{a.name}</span>
+        </div>
+      );
+    }, sortable: true, filterable: true, minWidth: 200 },
+    { key: "type", label: "Type", render: a => (
+      <span className={`px-2 py-0.5 text-xs rounded-full font-medium ${typeColors[a.type]}`}>{a.type}</span>
+    ), sortable: true, filterable: true },
+    { key: "balance", label: "Amount (₦)", render: a => {
+      const bal = getAccountBalance(a.id);
+      return <span className={`text-sm font-mono font-semibold ${bal >= 0 ? "text-gray-900" : "text-red-600"}`}>{fmt(bal)}</span>;
+    }, sortable: true, filterable: false, className: "text-right", headerClassName: "text-right" },
+    { key: "description", label: "Description", render: a => <span className="text-sm text-gray-500">{a.description}</span>, sortable: false, filterable: false },
+    { key: "actions", label: "Actions", render: a => (
+      <div className="flex items-center justify-end gap-1">
+        <button onClick={e => { e.stopPropagation(); openEdit(a); }} className="p-1.5 text-gray-400 hover:text-emerald-600 hover:bg-emerald-50 rounded-lg transition-colors"><Edit className="w-3.5 h-3.5" /></button>
+        <button onClick={e => { e.stopPropagation(); setDeleteId(a.id); }} className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"><Trash2 className="w-3.5 h-3.5" /></button>
+      </div>
+    ), sortable: false, filterable: false, className: "text-right", headerClassName: "text-right" },
+  ];
 
   return (
     <div className="space-y-6">
-      {/* Header */}
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-xl font-semibold text-gray-900">Chart of Accounts</h1>
           <p className="text-sm text-gray-500 mt-0.5">Define and manage all financial accounts used in the system</p>
         </div>
         <div className="flex items-center gap-2">
-          <button onClick={handleExport} className="px-3 py-2 text-sm border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors">
-            Export CSV
-          </button>
+          <button onClick={handleExport} className="px-3 py-2 text-sm border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors">Export CSV</button>
           <button onClick={openCreate} className="flex items-center gap-2 bg-emerald-600 text-white px-4 py-2 rounded-lg hover:bg-emerald-700 transition-colors text-sm font-medium">
-            <Plus className="w-4 h-4" />
-            New Account
+            <Plus className="w-4 h-4" /> New Account
           </button>
         </div>
       </div>
@@ -123,65 +153,14 @@ export function ChartOfAccountsPage() {
         </div>
       </div>
 
-      {/* Accounts table */}
-      <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
-        <div className="px-5 py-3 border-b border-gray-100 flex items-center justify-between bg-gray-50">
-          <span className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Account Structure</span>
-          <span className="text-xs text-gray-400">{filtered.length} accounts</span>
-        </div>
-        <table className="w-full">
-          <thead>
-            <tr className="border-b border-gray-100">
-              <th className="text-left px-5 py-3 text-xs font-semibold text-gray-500">Code</th>
-              <th className="text-left px-5 py-3 text-xs font-semibold text-gray-500">Account Name</th>
-              <th className="text-left px-5 py-3 text-xs font-semibold text-gray-500">Type</th>
-              <th className="text-right px-5 py-3 text-xs font-semibold text-gray-500">Balance</th>
-              <th className="text-left px-5 py-3 text-xs font-semibold text-gray-500">Description</th>
-              <th className="text-right px-5 py-3 text-xs font-semibold text-gray-500">Actions</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-gray-50">
-            {filtered.map((a) => {
-              const depth = getDepth(a.id);
-              return (
-                <tr key={a.id} className="hover:bg-gray-50 transition-colors">
-                  <td className="px-5 py-3">
-                    <span className="font-mono text-xs text-gray-500 bg-gray-100 px-2 py-0.5 rounded">{a.code}</span>
-                  </td>
-                  <td className="px-5 py-3">
-                    <div className="flex items-center" style={{ paddingLeft: `${depth * 16}px` }}>
-                      {depth > 0 && <ChevronRight className="w-3 h-3 text-gray-300 mr-1 shrink-0" />}
-                      <span className={`text-sm text-gray-900 ${depth === 0 ? "font-semibold" : ""}`}>{a.name}</span>
-                    </div>
-                  </td>
-                  <td className="px-5 py-3">
-                    <span className={`px-2 py-0.5 text-xs rounded-full font-medium ${typeColors[a.type]}`}>{a.type}</span>
-                  </td>
-                  <td className="px-5 py-3 text-right">
-                    <span className={`text-sm font-mono font-semibold ${getAccountBalance(a.id) >= 0 ? "text-gray-900" : "text-red-600"}`}>
-                      {fmt(getAccountBalance(a.id))}
-                    </span>
-                  </td>
-                  <td className="px-5 py-3 text-sm text-gray-500">{a.description}</td>
-                  <td className="px-5 py-3">
-                    <div className="flex items-center justify-end gap-1">
-                      <button onClick={() => openEdit(a)} className="p-1.5 text-gray-400 hover:text-emerald-600 hover:bg-emerald-50 rounded-lg transition-colors">
-                        <Edit className="w-3.5 h-3.5" />
-                      </button>
-                      <button onClick={() => setDeleteId(a.id)} className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors">
-                        <Trash2 className="w-3.5 h-3.5" />
-                      </button>
-                    </div>
-                  </td>
-                </tr>
-              );
-            })}
-            {filtered.length === 0 && (
-              <tr><td colSpan={6} className="px-5 py-12 text-center text-sm text-gray-400">No accounts found</td></tr>
-            )}
-          </tbody>
-        </table>
-      </div>
+      <DataTable
+        columns={columns}
+        data={filtered}
+        keyExtractor={a => a.id}
+        searchPlaceholder="Search accounts..."
+        searchFields={[a => a.name, a => a.code, a => a.description]}
+        emptyMessage="No accounts found"
+      />
 
       {/* Create / Edit Modal */}
       {showModal && (
@@ -192,9 +171,7 @@ export function ChartOfAccountsPage() {
                 <BookOpen className="w-4 h-4 text-emerald-600" />
                 <h2 className="text-sm font-semibold text-gray-900">{editId ? "Edit Account" : "New Account"}</h2>
               </div>
-              <button onClick={() => setShowModal(false)} className="p-1.5 hover:bg-gray-100 rounded-lg">
-                <X className="w-4 h-4 text-gray-400" />
-              </button>
+              <button onClick={() => setShowModal(false)} className="p-1.5 hover:bg-gray-100 rounded-lg"><X className="w-4 h-4 text-gray-400" /></button>
             </div>
             <div className="px-6 py-5 space-y-4">
               <div className="grid grid-cols-2 gap-4">
@@ -230,8 +207,7 @@ export function ChartOfAccountsPage() {
             <div className="px-6 py-4 border-t border-gray-100 flex justify-end gap-2">
               <button onClick={() => setShowModal(false)} className="px-4 py-2 text-sm text-gray-600 border border-gray-300 rounded-lg hover:bg-gray-50">Cancel</button>
               <button onClick={saveAccount} className="flex items-center gap-2 px-4 py-2 text-sm bg-emerald-600 text-white rounded-lg hover:bg-emerald-700">
-                <Save className="w-3.5 h-3.5" />
-                {editId ? "Save Changes" : "Create Account"}
+                <Save className="w-3.5 h-3.5" />{editId ? "Save Changes" : "Create Account"}
               </button>
             </div>
           </div>
