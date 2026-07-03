@@ -1,5 +1,7 @@
 import { useState } from "react";
-import { Save, Plus, Edit, Trash2, Settings2, Info, CreditCard, Building2, X, CheckCircle, Percent } from "lucide-react";
+import { Save, Plus, Edit, Trash2, Settings2, Info, CreditCard, Building2, X, CheckCircle, Percent, Palette } from "lucide-react";
+import { useFinance } from "../../stores/financeStore";
+import type { AccrualTypeConfig } from "./types";
 
 interface BankAccount {
   id: string;
@@ -134,6 +136,46 @@ export function FinanceConfigPage() {
     }
     setShowTaxModal(false);
   }
+
+  // ── Accrual Type Config ──────────────────────────────────────────────────
+  const { accrualTypeConfigs, setAccrualTypeConfigs } = useFinance();
+
+  const [showAccrualTypeModal, setShowAccrualTypeModal] = useState(false);
+  const [accrualTypeEditId, setAccrualTypeEditId] = useState<string | null>(null);
+  const [accrualTypeForm, setAccrualTypeForm] = useState({
+    type: "", label: "", color: "bg-blue-100 text-blue-700", description: "",
+  });
+
+  function openAccrualTypeCreate() {
+    setAccrualTypeForm({ type: "", label: "", color: "bg-blue-100 text-blue-700", description: "" });
+    setAccrualTypeEditId(null);
+    setShowAccrualTypeModal(true);
+  }
+
+  function openAccrualTypeEdit(tc: AccrualTypeConfig) {
+    setAccrualTypeForm({ type: tc.type, label: tc.label, color: tc.color, description: tc.description });
+    setAccrualTypeEditId(tc.id);
+    setShowAccrualTypeModal(true);
+  }
+
+  function saveAccrualType() {
+    if (!accrualTypeForm.type.trim() || !accrualTypeForm.label.trim()) return;
+    if (accrualTypeEditId) {
+      setAccrualTypeConfigs(prev => prev.map(tc =>
+        tc.id === accrualTypeEditId ? { ...tc, ...accrualTypeForm } : tc
+      ));
+    } else {
+      setAccrualTypeConfigs(prev => [...prev, { id: `atc-${Date.now()}`, ...accrualTypeForm }]);
+    }
+    setShowAccrualTypeModal(false);
+  }
+
+  const ACCRUAL_TYPE_COLORS = [
+    "bg-blue-100 text-blue-700", "bg-amber-100 text-amber-700", "bg-purple-100 text-purple-700",
+    "bg-emerald-100 text-emerald-700", "bg-orange-100 text-orange-700", "bg-rose-100 text-rose-700",
+    "bg-cyan-100 text-cyan-700", "bg-indigo-100 text-indigo-700", "bg-teal-100 text-teal-700",
+    "bg-pink-100 text-pink-700",
+  ];
 
   return (
     <div className="space-y-6">
@@ -322,6 +364,48 @@ export function FinanceConfigPage() {
         </table>
       </div>
 
+      {/* Accrual Types */}
+      <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
+        <div className="px-5 py-4 border-b border-gray-100 flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <Palette className="w-4 h-4 text-gray-400" />
+            <h2 className="text-sm font-semibold text-gray-900">Accrual Types</h2>
+          </div>
+          <button onClick={openAccrualTypeCreate} className="flex items-center gap-1.5 px-3 py-1.5 text-sm border border-gray-300 rounded-lg hover:bg-gray-50">
+            <Plus className="w-3.5 h-3.5" /> Add Accrual Type
+          </button>
+        </div>
+        <table className="w-full">
+          <thead className="border-b border-gray-100 bg-gray-50">
+            <tr>
+              <th className="text-left px-5 py-2.5 text-xs font-semibold text-gray-500">Type Key</th>
+              <th className="text-left px-5 py-2.5 text-xs font-semibold text-gray-500">Display Label</th>
+              <th className="text-left px-5 py-2.5 text-xs font-semibold text-gray-500">Color</th>
+              <th className="text-left px-5 py-2.5 text-xs font-semibold text-gray-500">Description</th>
+              <th className="text-right px-5 py-2.5 text-xs font-semibold text-gray-500">Actions</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-gray-50">
+            {accrualTypeConfigs.map(tc => (
+              <tr key={tc.id} className="hover:bg-gray-50">
+                <td className="px-5 py-3"><span className="font-mono text-xs text-gray-500 bg-gray-100 px-2 py-0.5 rounded">{tc.type}</span></td>
+                <td className="px-5 py-3 text-sm font-medium text-gray-900">{tc.label}</td>
+                <td className="px-5 py-3">
+                  <span className={`inline-block px-2 py-0.5 text-xs rounded-full font-medium ${tc.color}`}>{tc.type}</span>
+                </td>
+                <td className="px-5 py-3 text-sm text-gray-500 max-w-xs truncate">{tc.description || "—"}</td>
+                <td className="px-5 py-3">
+                  <div className="flex items-center justify-end gap-1">
+                    <button onClick={() => openAccrualTypeEdit(tc)} className="p-1.5 text-gray-400 hover:text-emerald-600 hover:bg-emerald-50 rounded-lg transition-colors"><Edit className="w-3.5 h-3.5" /></button>
+                    <button onClick={() => setAccrualTypeConfigs(prev => prev.filter(x => x.id !== tc.id))} className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"><Trash2 className="w-3.5 h-3.5" /></button>
+                  </div>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+
       {/* Bank Account Modal */}
       {showBankModal && (
         <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
@@ -361,6 +445,47 @@ export function FinanceConfigPage() {
             <div className="px-6 py-4 border-t border-gray-100 flex justify-end gap-2">
               <button onClick={() => setShowBankModal(false)} className="px-4 py-2 text-sm text-gray-600 border border-gray-300 rounded-lg hover:bg-gray-50">Cancel</button>
               <button onClick={addBankAccount} className="px-4 py-2 text-sm bg-emerald-600 text-white rounded-lg hover:bg-emerald-700">Add Account</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Accrual Type Config Modal */}
+      {showAccrualTypeModal && (
+        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
+          <div className="bg-white rounded-2xl shadow-xl w-full max-w-md mx-4">
+            <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
+              <h2 className="text-sm font-semibold text-gray-900">{accrualTypeEditId ? "Edit Accrual Type" : "New Accrual Type"}</h2>
+              <button onClick={() => setShowAccrualTypeModal(false)} className="p-1.5 hover:bg-gray-100 rounded-lg"><X className="w-4 h-4 text-gray-400" /></button>
+            </div>
+            <div className="px-6 py-5 space-y-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-xs font-semibold text-gray-700 mb-1.5">Type Key *</label>
+                  <input value={accrualTypeForm.type} onChange={e => setAccrualTypeForm({ ...accrualTypeForm, type: e.target.value })} placeholder="e.g. goods-received-not-invoiced" className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500" disabled={!!accrualTypeEditId} />
+                </div>
+                <div>
+                  <label className="block text-xs font-semibold text-gray-700 mb-1.5">Display Label *</label>
+                  <input value={accrualTypeForm.label} onChange={e => setAccrualTypeForm({ ...accrualTypeForm, label: e.target.value })} placeholder="e.g. Goods Received Not Invoiced" className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500" />
+                </div>
+              </div>
+              <div>
+                <label className="block text-xs font-semibold text-gray-700 mb-1.5">Color</label>
+                <div className="flex flex-wrap gap-2">
+                  {ACCRUAL_TYPE_COLORS.map(c => (
+                    <button key={c} onClick={() => setAccrualTypeForm({ ...accrualTypeForm, color: c })}
+                      className={`w-7 h-7 rounded-full ${c.replace("text-", "text-white ")} ${accrualTypeForm.color === c ? "ring-2 ring-offset-2 ring-emerald-500" : ""}`} />
+                  ))}
+                </div>
+              </div>
+              <div>
+                <label className="block text-xs font-semibold text-gray-700 mb-1.5">Description</label>
+                <textarea value={accrualTypeForm.description} onChange={e => setAccrualTypeForm({ ...accrualTypeForm, description: e.target.value })} rows={2} placeholder="Describe the purpose of this accrual type" className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 resize-none" />
+              </div>
+            </div>
+            <div className="px-6 py-4 border-t border-gray-100 flex justify-end gap-2">
+              <button onClick={() => setShowAccrualTypeModal(false)} className="px-4 py-2 text-sm text-gray-600 border border-gray-300 rounded-lg hover:bg-gray-50">Cancel</button>
+              <button onClick={saveAccrualType} className="px-4 py-2 text-sm bg-emerald-600 text-white rounded-lg hover:bg-emerald-700">Save</button>
             </div>
           </div>
         </div>

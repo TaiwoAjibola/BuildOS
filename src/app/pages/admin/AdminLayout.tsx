@@ -17,6 +17,7 @@ import {
   AlertTriangle,
   RefreshCw,
   BarChart3,
+  History,
 } from "lucide-react";
 import { useState } from "react";
 
@@ -142,6 +143,11 @@ export function AdminLayout() {
           label: "Integrations",
           href: "/apps/admin/integrations",
           icon: <Plug className="w-4 h-4" />,
+        },
+        {
+          label: "Changelog",
+          href: "/apps/admin/changelog",
+          icon: <History className="w-4 h-4" />,
         },
       ],
     },

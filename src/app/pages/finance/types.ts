@@ -24,12 +24,15 @@ export interface FiscalYear {
   openingBalances?: Record<string, number>;
 }
 
-export type AccrualType =
-  | "goods-received-not-invoiced"
-  | "accrued-expense"
-  | "prepaid-expense"
-  | "accrued-revenue"
-  | "deferred-revenue";
+export type AccrualType = string;
+
+export interface AccrualTypeConfig {
+  id: string;
+  type: AccrualType;
+  label: string;
+  color: string;
+  description: string;
+}
 
 export type AccrualStatus =
   | "active"
@@ -65,22 +68,6 @@ export type TxnType =
 export const ACCOUNT_TYPES: AccountType[] = [
   "Assets", "Liabilities", "Equity", "Income", "Expenses",
 ];
-
-export const ACCRUAL_LABELS: Record<AccrualType, string> = {
-  "goods-received-not-invoiced": "Goods Received Not Invoiced",
-  "accrued-expense": "Accrued Expense",
-  "prepaid-expense": "Prepaid Expense",
-  "accrued-revenue": "Accrued Revenue",
-  "deferred-revenue": "Deferred Revenue",
-};
-
-export const ACCRUAL_COLORS: Record<AccrualType, string> = {
-  "goods-received-not-invoiced": "bg-blue-100 text-blue-700",
-  "accrued-expense": "bg-amber-100 text-amber-700",
-  "prepaid-expense": "bg-purple-100 text-purple-700",
-  "accrued-revenue": "bg-emerald-100 text-emerald-700",
-  "deferred-revenue": "bg-orange-100 text-orange-700",
-};
 
 export const ACCRUAL_STATUS_LABELS: Record<AccrualStatus, string> = {
   active: "Active",

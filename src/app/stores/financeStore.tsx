@@ -1,7 +1,7 @@
 import { createContext, useContext, useState, useCallback, useMemo, type ReactNode } from "react";
 import type {
   Account, AccountType, FiscalYear, FiscalYearStatus,
-  Accrual, AccrualType, AccrualStatus, TxnType,
+  Accrual, AccrualType, AccrualStatus, TxnType, AccrualTypeConfig,
 } from "../pages/finance/types";
 
 // ── Transaction type (from TransactionsLedger) ─────────────────────────────
@@ -26,6 +26,8 @@ interface FinanceContextValue {
   setFiscalYears: React.Dispatch<React.SetStateAction<FiscalYear[]>>;
   accruals: Accrual[];
   setAccruals: React.Dispatch<React.SetStateAction<Accrual[]>>;
+  accrualTypeConfigs: AccrualTypeConfig[];
+  setAccrualTypeConfigs: React.Dispatch<React.SetStateAction<AccrualTypeConfig[]>>;
 
   getAccountBalance: (accountId: string) => number;
   getAccountsByType: (type: AccountType) => Account[];
@@ -126,6 +128,15 @@ const SEED_ACCRUALS: Accrual[] = [
   },
 ];
 
+// ── Seed Accrual Type Configs ─────────────────────────────────────────────
+const SEED_ACCRUAL_TYPE_CONFIGS: AccrualTypeConfig[] = [
+  { id: "atc-1", type: "goods-received-not-invoiced", label: "Goods Received Not Invoiced", color: "bg-blue-100 text-blue-700", description: "Goods received but invoice not yet processed" },
+  { id: "atc-2", type: "accrued-expense",              label: "Accrued Expense",              color: "bg-amber-100 text-amber-700", description: "Expenses incurred but not yet paid" },
+  { id: "atc-3", type: "prepaid-expense",              label: "Prepaid Expense",              color: "bg-purple-100 text-purple-700", description: "Expenses paid in advance" },
+  { id: "atc-4", type: "accrued-revenue",             label: "Accrued Revenue",              color: "bg-emerald-100 text-emerald-700", description: "Revenue earned but not yet billed" },
+  { id: "atc-5", type: "deferred-revenue",            label: "Deferred Revenue",            color: "bg-orange-100 text-orange-700", description: "Revenue received but not yet earned" },
+];
+
 // ── Context ────────────────────────────────────────────────────────────────
 const FinanceContext = createContext<FinanceContextValue | null>(null);
 
@@ -134,6 +145,7 @@ export function FinanceProvider({ children }: { children: ReactNode }) {
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [fiscalYears, setFiscalYears] = useState<FiscalYear[]>(SEED_FISCAL_YEARS);
   const [accruals, setAccruals] = useState<Accrual[]>(SEED_ACCRUALS);
+  const [accrualTypeConfigs, setAccrualTypeConfigs] = useState<AccrualTypeConfig[]>(SEED_ACCRUAL_TYPE_CONFIGS);
 
   const getDescendantIds = useCallback((parentId: string): string[] => {
     const children = accounts.filter(a => a.parentId === parentId);
@@ -287,9 +299,10 @@ export function FinanceProvider({ children }: { children: ReactNode }) {
     transactions, setTransactions,
     fiscalYears, setFiscalYears,
     accruals, setAccruals,
+    accrualTypeConfigs, setAccrualTypeConfigs,
     getAccountBalance, getAccountsByType, getDescendantIds,
     getTrialBalance, getBalanceSheet, getIncomeStatement,
-  }), [accounts, transactions, fiscalYears, accruals, getAccountBalance, getAccountsByType, getDescendantIds, getTrialBalance, getBalanceSheet, getIncomeStatement]);
+  }), [accounts, transactions, fiscalYears, accruals, accrualTypeConfigs, getAccountBalance, getAccountsByType, getDescendantIds, getTrialBalance, getBalanceSheet, getIncomeStatement]);
 
   return (
     <FinanceContext.Provider value={value}>

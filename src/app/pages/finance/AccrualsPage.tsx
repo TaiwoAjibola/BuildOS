@@ -8,13 +8,8 @@ import type {
   Accrual, AccrualType, AccrualStatus,
 } from "./types";
 import {
-  ACCRUAL_LABELS, ACCRUAL_COLORS, ACCRUAL_STATUS_LABELS, ACCRUAL_STATUS_COLORS,
+  ACCRUAL_STATUS_LABELS, ACCRUAL_STATUS_COLORS,
 } from "./types";
-
-const ACCRUAL_TYPES: AccrualType[] = [
-  "goods-received-not-invoiced", "accrued-expense", "prepaid-expense",
-  "accrued-revenue", "deferred-revenue",
-];
 
 const ACCRUAL_STATUSES: AccrualStatus[] = [
   "active", "partially-reversed", "fully-reversed", "cancelled",
@@ -25,14 +20,14 @@ const SOURCE_MODULES = ["Procurement", "HR", "Finance", "Projects", "ESS", "Stor
 const fmt = (n: number) => `₦${n.toLocaleString()}`;
 
 const emptyForm = {
-  type: "goods-received-not-invoiced" as AccrualType,
+  type: "",
   title: "", description: "", amount: "",
   debitAccount: "", creditAccount: "",
   reversalDate: "", reference: "", sourceModule: "Procurement" as string,
 };
 
 export function AccrualsPage() {
-  const { accruals, setAccruals, fiscalYears, accounts } = useFinance();
+  const { accruals, setAccruals, fiscalYears, accounts, accrualTypeConfigs } = useFinance();
   const [search, setSearch] = useState("");
   const [typeFilter, setTypeFilter] = useState<AccrualType | "All">("All");
   const [statusFilter, setStatusFilter] = useState<AccrualStatus | "All">("All");
@@ -50,7 +45,7 @@ export function AccrualsPage() {
   });
 
   function handleCreate() {
-    if (!form.title.trim() || !form.amount || !form.reversalDate || !form.debitAccount || !form.creditAccount) return;
+    if (!form.title.trim() || !form.amount || !form.reversalDate || !form.debitAccount || !form.creditAccount || !form.type) return;
     const accrual: Accrual = {
       id: `acc-${Date.now()}`,
       type: form.type,
@@ -90,7 +85,7 @@ export function AccrualsPage() {
   function handleExport() {
     exportCSV("accruals",
       ["ID", "Type", "Title", "Amount", "Status", "Created", "Reversal Date", "Source", "Reference"],
-      filtered.map(a => [a.id, ACCRUAL_LABELS[a.type], a.title, fmt(a.amount), ACCRUAL_STATUS_LABELS[a.status], a.createdAt, a.reversalDate, a.sourceModule, a.reference]),
+      filtered.map(a => [a.id, accrualTypeConfigs.find(tc => tc.type === a.type)?.label ?? a.type, a.title, fmt(a.amount), ACCRUAL_STATUS_LABELS[a.status], a.createdAt, a.reversalDate, a.sourceModule, a.reference]),
     );
   }
 
@@ -134,9 +129,10 @@ export function AccrualsPage() {
           <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search accruals..." className="w-full pl-9 pr-4 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500" />
         </div>
         <div className="flex items-center gap-1 bg-white border border-gray-200 rounded-lg p-1">
-          {["All", ...ACCRUAL_TYPES].map(t => (
-            <button key={t} onClick={() => setTypeFilter(t as any)} className={`px-3 py-1.5 text-xs font-medium rounded-md whitespace-nowrap transition-colors ${typeFilter === t ? "bg-emerald-600 text-white" : "text-gray-600 hover:bg-gray-100"}`}>
-              {t === "All" ? "All Types" : ACCRUAL_LABELS[t as AccrualType]}
+          <button key="All" onClick={() => setTypeFilter("All")} className={`px-3 py-1.5 text-xs font-medium rounded-md whitespace-nowrap transition-colors ${typeFilter === "All" ? "bg-emerald-600 text-white" : "text-gray-600 hover:bg-gray-100"}`}>All Types</button>
+          {accrualTypeConfigs.map(tc => (
+            <button key={tc.type} onClick={() => setTypeFilter(tc.type as AccrualType)} className={`px-3 py-1.5 text-xs font-medium rounded-md whitespace-nowrap transition-colors ${typeFilter === tc.type ? "bg-emerald-600 text-white" : "text-gray-600 hover:bg-gray-100"}`}>
+              {tc.label}
             </button>
           ))}
         </div>
@@ -172,7 +168,7 @@ export function AccrualsPage() {
             {filtered.map(a => (
               <tr key={a.id} className="hover:bg-gray-50 transition-colors">
                 <td className="px-5 py-3">
-                  <span className={`px-2 py-0.5 text-xs rounded-full font-medium ${ACCRUAL_COLORS[a.type]}`}>{ACCRUAL_LABELS[a.type]}</span>
+                  <span className={`px-2 py-0.5 text-xs rounded-full font-medium ${accrualTypeConfigs.find(tc => tc.type === a.type)?.color ?? "bg-gray-100 text-gray-600"}`}>{accrualTypeConfigs.find(tc => tc.type === a.type)?.label ?? a.type}</span>
                 </td>
                 <td className="px-5 py-3">
                   <p className="text-sm font-medium text-gray-900">{a.title}</p>
@@ -233,9 +229,10 @@ export function AccrualsPage() {
             <div className="px-6 py-5 space-y-4">
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-xs font-semibold text-gray-700 mb-1.5">Accrual Type * <span className="text-gray-400 font-normal">(dropdown)</span></label>
+                  <label className="block text-xs font-semibold text-gray-700 mb-1.5">Accrual Type *</label>
                   <select value={form.type} onChange={e => setForm({ ...form, type: e.target.value as AccrualType })} className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500">
-                    {ACCRUAL_TYPES.map(t => <option key={t} value={t}>{ACCRUAL_LABELS[t]}</option>)}
+                    <option value="">Select accrual type...</option>
+                    {accrualTypeConfigs.map(tc => <option key={tc.type} value={tc.type}>{tc.label}</option>)}
                   </select>
                 </div>
                 <div>
@@ -253,7 +250,7 @@ export function AccrualsPage() {
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-xs font-semibold text-gray-700 mb-1.5">Debit Account * <span className="text-gray-400 font-normal">(dropdown)</span></label>
+                  <label className="block text-xs font-semibold text-gray-700 mb-1.5">Debit Account *</label>
                   <select value={form.debitAccount} onChange={e => setForm({ ...form, debitAccount: e.target.value })} className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500">
                     <option value="">Select debit account...</option>
                     {accounts.filter(a => a.parentId !== null).map(a => (
@@ -262,7 +259,7 @@ export function AccrualsPage() {
                   </select>
                 </div>
                 <div>
-                  <label className="block text-xs font-semibold text-gray-700 mb-1.5">Credit Account * <span className="text-gray-400 font-normal">(dropdown)</span></label>
+                  <label className="block text-xs font-semibold text-gray-700 mb-1.5">Credit Account *</label>
                   <select value={form.creditAccount} onChange={e => setForm({ ...form, creditAccount: e.target.value })} className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500">
                     <option value="">Select credit account...</option>
                     {accounts.filter(a => a.parentId !== null).map(a => (
@@ -277,7 +274,7 @@ export function AccrualsPage() {
                   <input type="date" value={form.reversalDate} onChange={e => setForm({ ...form, reversalDate: e.target.value })} className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500" />
                 </div>
                 <div>
-                  <label className="block text-xs font-semibold text-gray-700 mb-1.5">Source Module <span className="text-gray-400 font-normal">(dropdown)</span></label>
+                  <label className="block text-xs font-semibold text-gray-700 mb-1.5">Source Module</label>
                   <select value={form.sourceModule} onChange={e => setForm({ ...form, sourceModule: e.target.value })} className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500">
                     {SOURCE_MODULES.map(m => <option key={m} value={m}>{m}</option>)}
                   </select>

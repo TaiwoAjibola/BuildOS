@@ -5,6 +5,7 @@ import {
   Briefcase, FileText, ChevronDown, AlertTriangle, Eye,
   BookOpen, Layers,
 } from "lucide-react";
+import { useFinance } from "../../stores/financeStore";
 
 // ── Types
 type TxnStatus = "pending" | "approved" | "rejected" | "posted";
@@ -80,15 +81,6 @@ const SEED_TRANSACTIONS: Transaction[] = [
   { id: "TXN-2026-020", categoryId: "cat-008", description: "March 2026 Role Allowances – Supervision",      amount:  185000, sourceApp: "HR",          reference: "ALW-2603",  date: "31 Mar 2026", submittedBy: "Ngozi Adeyemi",  status: "posted",  reviewedBy: "Sola Adeleke", reviewedDate: "1 Apr 2026",  ledgerRef: "LGR-0094" },
 ];
 
-// ── Chart of Accounts ─────────────────────────────────────────────────────────
-const COA_ACCOUNTS = [
-  "1100 Accounts Receivable", "1110 Cash & Bank", "1200 Staff Advances",
-  "1210 Plant & Equipment", "1300 Inventory", "2000 Accounts Payable",
-  "2100 Accrued Liabilities", "2300 Tax Payable – VAT", "2310 Tax Payable – WHT",
-  "2320 PAYE Liability", "4100 Contract Revenue", "4200 Service Income",
-  "5100 Labour Costs", "5200 Material Costs", "5300 Equipment Costs", "5400 Overhead",
-];
-
 // ── Config maps ───────────────────────────────────────────────────────────────
 const STATUS_CFG: Record<TxnStatus, { label: string; badge: string; icon: React.ReactNode }> = {
   pending:  { label: "Pending",          badge: "bg-gray-100 text-gray-600",       icon: <Clock       className="w-3.5 h-3.5" /> },
@@ -119,10 +111,12 @@ function todayStr() {
 }
 
 // ── New Category Modal ────────────────────────────────────────────────────────
-function NewCategoryModal({ onClose, onSave }: {
+function NewCategoryModal({ onClose, onSave, accounts }: {
   onClose: () => void;
   onSave: (c: ProcessCategory) => void;
+  accounts: { code: string; name: string }[];
 }) {
+  const accountOptions = accounts.map(a => `${a.code} ${a.name}`);
   const [form, setForm] = useState({
     name: "", description: "",
     sourceApp: "HR" as SourceApp,
@@ -183,9 +177,9 @@ function NewCategoryModal({ onClose, onSave }: {
                   <span className="bg-blue-100 text-blue-700 text-xs px-1.5 py-0.5 rounded font-bold mr-1.5">DR</span>Debit Account
                 </label>
                 <div className="relative">
-                  <select value={form.debitAccount} onChange={e => setForm(p => ({ ...p, debitAccount: e.target.value }))}
-                    className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-emerald-500 bg-white appearance-none pr-7">
-                    {COA_ACCOUNTS.map(a => <option key={a}>{a}</option>)}
+                    <select value={form.debitAccount} onChange={e => setForm(p => ({ ...p, debitAccount: e.target.value }))}
+                      className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-emerald-500 bg-white appearance-none pr-7">
+                      {accountOptions.map(a => <option key={a}>{a}</option>)}
                   </select>
                   <ChevronDown className="absolute right-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-400 pointer-events-none" />
                 </div>
@@ -195,9 +189,9 @@ function NewCategoryModal({ onClose, onSave }: {
                   <span className="bg-green-100 text-green-700 text-xs px-1.5 py-0.5 rounded font-bold mr-1.5">CR</span>Credit Account
                 </label>
                 <div className="relative">
-                  <select value={form.creditAccount} onChange={e => setForm(p => ({ ...p, creditAccount: e.target.value }))}
-                    className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-emerald-500 bg-white appearance-none pr-7">
-                    {COA_ACCOUNTS.map(a => <option key={a}>{a}</option>)}
+                    <select value={form.creditAccount} onChange={e => setForm(p => ({ ...p, creditAccount: e.target.value }))}
+                      className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-emerald-500 bg-white appearance-none pr-7">
+                      {accountOptions.map(a => <option key={a}>{a}</option>)}
                   </select>
                   <ChevronDown className="absolute right-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-400 pointer-events-none" />
                 </div>
@@ -575,6 +569,7 @@ function CategoryCard({ category, transactions, onClick }: {
 
 // ── Main Page ─────────────────────────────────────────────────────────────────
 export function PostingEnginePage() {
+  const { accounts, transactions: ledgerTransactions, setTransactions: setLedgerTransactions } = useFinance();
   const [categories, setCategories]           = useState<ProcessCategory[]>(SEED_CATEGORIES);
   const [transactions, setTransactions]       = useState<Transaction[]>(SEED_TRANSACTIONS);
   const [activeCategory, setActiveCategory]   = useState<ProcessCategory | null>(null);
@@ -591,8 +586,28 @@ export function PostingEnginePage() {
     setTransactions(prev => prev.map(t => t.id === id ? { ...t, status: "rejected", reviewedBy: "Sola Adeleke", reviewedDate: now, notes: notes || undefined } : t));
   }
   function postToLedger(id: string) {
+    const txn = transactions.find(t => t.id === id);
+    if (!txn) return;
+    const cat = categories.find(c => c.id === txn.categoryId);
+    if (!cat) return;
     const ledgerRef = `LGR-${String(Math.floor(1000 + Math.random() * 8999))}`;
     setTransactions(prev => prev.map(t => t.id === id ? { ...t, status: "posted", ledgerRef } : t));
+    // Create corresponding entry in the FinanceContext ledger
+    setLedgerTransactions(prev => [...prev, {
+      id: `txn-${Date.now()}`,
+      type: "Journal" as const,
+      description: `${cat.name}: ${txn.description}`,
+      debitAccount: cat.debitAccount,
+      creditAccount: cat.creditAccount,
+      reference: ledgerRef,
+      amount: txn.amount,
+      date: now,
+      createdBy: txn.reviewedBy ?? "Posting Engine",
+      sourceApp: txn.sourceApp,
+      sourceProcess: cat.linkedProcess,
+      approvalStatus: "auto-approved" as const,
+      linkedRecords: [{ label: "Posting Engine Ref", ref: txn.id }],
+    }]);
   }
 
   const filteredCategories = categories.filter(c => {
@@ -711,7 +726,8 @@ export function PostingEnginePage() {
 
       {showNewCatModal && (
         <NewCategoryModal onClose={() => setShowNewCatModal(false)}
-          onSave={c => setCategories(prev => [...prev, c])} />
+          onSave={c => setCategories(prev => [...prev, c])}
+          accounts={accounts.map(a => ({ code: a.code, name: a.name }))} />
       )}
     </div>
   );

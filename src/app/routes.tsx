@@ -139,6 +139,7 @@ import { ReportAutomationPage } from "./pages/admin/ReportAutomationPage";
 import { EmailConfigPage } from "./pages/admin/EmailConfigPage";
 import { IssueTypesPage } from "./pages/admin/IssueTypesPage";
 import { ChangeCategoriesPage } from "./pages/admin/ChangeCategoriesPage";
+import { ChangelogPage } from "./pages/admin/ChangelogPage";
 
 // Storefront App
 import { StorefrontLayout } from "./pages/storefront/StorefrontLayout";
@@ -369,6 +370,7 @@ export const router = createBrowserRouter([
               { path: "email-config", Component: EmailConfigPage },
               { path: "issue-types", Component: IssueTypesPage },
               { path: "change-categories", Component: ChangeCategoriesPage },
+              { path: "changelog", Component: ChangelogPage },
             ],
           },
           {
