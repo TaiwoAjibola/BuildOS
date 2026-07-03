@@ -1,7 +1,8 @@
 import { useState } from "react";
-import { Plus, Search, Eye, Edit, Trash2, X, BookOpen, ChevronDown, ChevronRight, ArrowUpDown } from "lucide-react";
+import { Plus, Search, Eye, Edit, Trash2, X, BookOpen } from "lucide-react";
 import { exportCSV } from "../../utils/exportCSV";
 import { useChangelog } from "../../stores/changelogStore";
+import { DataTable, type Column } from "../../components/DataTable";
 
 type EntryStatus = "Draft" | "Posted" | "Reversed";
 
@@ -153,14 +154,14 @@ export function JournalEntryPage() {
     if (!form.description || !isBalanced) return;
     if (editId) {
       setEntries((prev) => prev.map((e) => e.id === editId ? { ...e, ...form, status } : e));
-      logChange("update", `Journal Entry: ${form.description}`, "JournalEntry");
+      logChange({ module: "Finance", action: "Updated", entityType: "JournalEntry", entityId: editId, summary: `Journal Entry: ${form.description} updated [${status}]`, performedBy: "Current User" });
     } else {
       const newEntry: JournalEntry = {
         id: `JE-${String(entries.length + 1).padStart(3, "0")}`,
         ...form, status, createdBy: "Current User",
       };
       setEntries([newEntry, ...entries]);
-      logChange("create", `Journal Entry ${newEntry.id}: ${form.description} [${status}]`, "JournalEntry");
+      logChange({ module: "Finance", action: "Created", entityType: "JournalEntry", entityId: newEntry.id, summary: `Journal Entry ${newEntry.id}: ${form.description} [${status}]`, performedBy: "Current User" });
     }
     setModalOpen(false);
   }
@@ -168,7 +169,7 @@ export function JournalEntryPage() {
   function deleteEntry(id: string) {
     const entry = entries.find(e => e.id === id);
     setEntries((prev) => prev.filter((e) => e.id !== id));
-    if (entry) logChange("delete", `Journal Entry ${entry.id}: ${entry.description}`, "JournalEntry");
+    if (entry) logChange({ module: "Finance", action: "Deleted", entityType: "JournalEntry", entityId: entry.id, summary: `Journal Entry ${entry.id}: ${entry.description} deleted`, performedBy: "Current User" });
   }
 
   function handleExport() {
@@ -179,6 +180,23 @@ export function JournalEntryPage() {
   }
 
   const fmt = (n: number) => n ? `₦${n.toLocaleString()}` : "—";
+
+  const columns: Column<JournalEntry>[] = [
+    { key: "id", label: "JE ID", render: e => <span className="font-mono text-xs text-gray-700 font-medium">{e.id}</span>, sortable: true, filterable: true, minWidth: 90 },
+    { key: "date", label: "Date", render: e => <span className="text-sm text-gray-600">{e.date}</span>, sortable: true, filterable: false },
+    { key: "reference", label: "Reference", render: e => <span className="text-sm text-gray-600">{e.reference}</span>, sortable: true, filterable: true },
+    { key: "description", label: "Description", render: e => <span className="text-sm text-gray-900 font-medium">{e.description}</span>, sortable: true, filterable: true, minWidth: 200 },
+    { key: "total", label: "Total (₦)", render: e => <span className="text-sm font-medium text-gray-900">{fmt(e.lines.reduce((s, l) => s + l.debit, 0))}</span>, sortable: true, filterable: false, className: "text-right", headerClassName: "text-right" },
+    { key: "status", label: "Status", render: e => <span className={`px-2 py-0.5 text-xs rounded font-semibold ${STATUS_STYLES[e.status]}`}>{e.status}</span>, sortable: true, filterable: true },
+    { key: "createdBy", label: "Created By", render: e => <span className="text-sm text-gray-500">{e.createdBy}</span>, sortable: true, filterable: true },
+    { key: "actions", label: "Actions", render: e => (
+      <div className="flex items-center justify-end gap-1">
+        <button onClick={() => setViewEntry(e)} className="p-1.5 hover:bg-gray-100 rounded-lg text-gray-400 hover:text-gray-700"><Eye className="w-3.5 h-3.5" /></button>
+        {e.status === "Draft" && <button onClick={() => openEdit(e)} className="p-1.5 hover:bg-emerald-50 rounded-lg text-gray-400 hover:text-emerald-600"><Edit className="w-3.5 h-3.5" /></button>}
+        {e.status === "Draft" && <button onClick={() => deleteEntry(e.id)} className="p-1.5 hover:bg-red-50 rounded-lg text-gray-400 hover:text-red-600"><Trash2 className="w-3.5 h-3.5" /></button>}
+      </div>
+    ), sortable: false, filterable: false, className: "text-right", headerClassName: "text-right" },
+  ];
 
   return (
     <div className="space-y-5">
@@ -222,89 +240,11 @@ export function JournalEntryPage() {
         ))}
       </div>
 
-      {/* Table */}
-      <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
-        <table className="w-full">
-          <thead className="border-b border-gray-100 bg-gray-50">
-            <tr>
-              <th className="w-8 px-4 py-3" />
-              <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500">JE ID</th>
-              <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500">Date</th>
-              <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500">Reference</th>
-              <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500">Description</th>
-              <th className="text-right px-4 py-3 text-xs font-semibold text-gray-500">Total</th>
-              <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500">Status</th>
-              <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500">Created By</th>
-              <th className="text-right px-4 py-3 text-xs font-semibold text-gray-500">Actions</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-gray-50">
-            {filtered.map((entry) => {
-              const total = entry.lines.reduce((s, l) => s + l.debit, 0);
-              const expanded = expandedId === entry.id;
-              return (
-                <>
-                  <tr key={entry.id} className="hover:bg-gray-50 cursor-pointer" onClick={() => setExpandedId(expanded ? null : entry.id)}>
-                    <td className="px-4 py-3 text-gray-400">
-                      {expanded ? <ChevronDown className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
-                    </td>
-                    <td className="px-4 py-3 font-mono text-xs text-gray-700 font-medium">{entry.id}</td>
-                    <td className="px-4 py-3 text-sm text-gray-600">{entry.date}</td>
-                    <td className="px-4 py-3 text-sm text-gray-600">{entry.reference}</td>
-                    <td className="px-4 py-3 text-sm text-gray-900 font-medium">{entry.description}</td>
-                    <td className="px-4 py-3 text-sm font-medium text-gray-900 text-right">{fmt(total)}</td>
-                    <td className="px-4 py-3"><span className={`px-2 py-0.5 text-xs rounded font-semibold ${STATUS_STYLES[entry.status]}`}>{entry.status}</span></td>
-                    <td className="px-4 py-3 text-sm text-gray-500">{entry.createdBy}</td>
-                    <td className="px-4 py-3">
-                      <div className="flex items-center justify-end gap-1" onClick={(e) => e.stopPropagation()}>
-                        <button onClick={() => setViewEntry(entry)} className="p-1.5 hover:bg-gray-100 rounded-lg text-gray-400 hover:text-gray-700"><Eye className="w-3.5 h-3.5" /></button>
-                        {entry.status === "Draft" && <button onClick={() => openEdit(entry)} className="p-1.5 hover:bg-emerald-50 rounded-lg text-gray-400 hover:text-emerald-600"><Edit className="w-3.5 h-3.5" /></button>}
-                        {entry.status === "Draft" && <button onClick={() => deleteEntry(entry.id)} className="p-1.5 hover:bg-red-50 rounded-lg text-gray-400 hover:text-red-600"><Trash2 className="w-3.5 h-3.5" /></button>}
-                      </div>
-                    </td>
-                  </tr>
-                  {expanded && (
-                    <tr key={`${entry.id}-lines`}>
-                      <td colSpan={9} className="px-8 pb-3 bg-gray-50">
-                        <div className="rounded-lg border border-gray-200 overflow-hidden mt-1">
-                          <table className="w-full text-xs">
-                            <thead className="bg-gray-100">
-                              <tr>
-                                <th className="text-left px-3 py-2 font-semibold text-gray-500">Account</th>
-                                <th className="text-left px-3 py-2 font-semibold text-gray-500">GL Code</th>
-                                <th className="text-right px-3 py-2 font-semibold text-gray-500">Debit</th>
-                                <th className="text-right px-3 py-2 font-semibold text-gray-500">Credit</th>
-                                <th className="text-left px-3 py-2 font-semibold text-gray-500">Note</th>
-                              </tr>
-                            </thead>
-                            <tbody className="divide-y divide-gray-100">
-                              {entry.lines.map((l) => (
-                                <tr key={l.id} className="bg-white">
-                                  <td className="px-3 py-2 font-medium text-gray-800">{l.account}</td>
-                                  <td className="px-3 py-2 font-mono text-gray-500">{l.glCode}</td>
-                                  <td className="px-3 py-2 text-right text-emerald-700 font-medium">{l.debit ? fmt(l.debit) : ""}</td>
-                                  <td className="px-3 py-2 text-right text-red-600 font-medium">{l.credit ? fmt(l.credit) : ""}</td>
-                                  <td className="px-3 py-2 text-gray-500">{l.description}</td>
-                                </tr>
-                              ))}
-                            </tbody>
-                          </table>
-                        </div>
-                      </td>
-                    </tr>
-                  )}
-                </>
-              );
-            })}
-          </tbody>
-        </table>
-        {filtered.length === 0 && (
-          <div className="text-center py-12 text-gray-400">
-            <BookOpen className="w-8 h-8 mx-auto mb-2 opacity-40" />
-            <p className="text-sm">No journal entries found</p>
-          </div>
-        )}
-      </div>
+      {/* Data Table */}
+      <DataTable columns={columns} data={filtered} keyExtractor={e => e.id}
+        searchPlaceholder="Search journal entries..."
+        searchFields={[e => e.id, e => e.description, e => e.reference]}
+        emptyMessage="No journal entries found" />
 
       {/* Create/Edit Modal */}
       {modalOpen && (

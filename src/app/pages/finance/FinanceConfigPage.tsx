@@ -84,12 +84,14 @@ export function FinanceConfigPage() {
 
   function saveAll() {
     setSaved(true);
-    logChange("update", "Finance configuration saved (payment methods, bank accounts, tax entries)", "FinanceConfig");
+    logChange({ module: "Finance", action: "Updated", entityType: "FinanceConfig", entityId: "global", summary: "Finance configuration saved (payment methods, bank accounts, tax entries)", performedBy: "Sola Adeleke" });
     setTimeout(() => setSaved(false), 2500);
   }
 
   function toggleMethod(id: string) {
     setPaymentMethods((prev) => prev.map((m) => m.id === id ? { ...m, enabled: !m.enabled } : m));
+    const method = paymentMethods.find(m => m.id === id);
+    if (method) logChange({ module: "Finance", action: method.enabled ? "Disabled" : "Enabled", entityType: "PaymentMethod", entityId: id, summary: `Payment method "${method.name}" ${method.enabled ? "disabled" : "enabled"}`, performedBy: "Sola Adeleke" });
   }
 
   function addBankAccount() {
@@ -104,16 +106,21 @@ export function FinanceConfigPage() {
       isDefault: bankAccounts.length === 0,
     };
     setBankAccounts([...bankAccounts, acc]);
+    logChange({ module: "Finance", action: "Created", entityType: "BankAccount", entityId: acc.id, summary: `Bank account "${acc.name}" (${acc.bank}) added`, performedBy: "Sola Adeleke" });
     setShowBankModal(false);
     setBankForm({ name: "", bank: "", accountNumber: "", currency: "USD", balance: "" });
   }
 
   function setDefault(id: string) {
     setBankAccounts((prev) => prev.map((b) => ({ ...b, isDefault: b.id === id })));
+    const acc = bankAccounts.find(b => b.id === id);
+    if (acc) logChange({ module: "Finance", action: "Set as Default", entityType: "BankAccount", entityId: id, summary: `Bank account "${acc.name}" set as default`, performedBy: "Sola Adeleke" });
   }
 
   function toggleTax(id: string) {
     setTaxEntries((prev) => prev.map((t) => t.id === id ? { ...t, enabled: !t.enabled } : t));
+    const tax = taxEntries.find(t => t.id === id);
+    if (tax) logChange({ module: "Finance", action: tax.enabled ? "Disabled" : "Enabled", entityType: "TaxRule", entityId: id, summary: `Tax rule "${tax.name}" ${tax.enabled ? "disabled" : "enabled"}`, performedBy: "Sola Adeleke" });
   }
 
   function openTaxEdit(t: TaxEntry) {
@@ -133,8 +140,11 @@ export function FinanceConfigPage() {
     const entry = { ...taxForm, rate: parseFloat(taxForm.rate || "0"), enabled: true };
     if (taxEditId) {
       setTaxEntries((prev) => prev.map((t) => t.id === taxEditId ? { ...t, ...entry } : t));
+      logChange({ module: "Finance", action: "Updated", entityType: "TaxRule", entityId: taxEditId, summary: `Tax rule "${entry.name}" updated`, performedBy: "Sola Adeleke" });
     } else {
-      setTaxEntries((prev) => [...prev, { id: `t${Date.now()}`, ...entry }]);
+      const taxId = `t${Date.now()}`;
+      setTaxEntries((prev) => [...prev, { id: taxId, ...entry }]);
+      logChange({ module: "Finance", action: "Created", entityType: "TaxRule", entityId: taxId, summary: `Tax rule "${entry.name}" created`, performedBy: "Sola Adeleke" });
     }
     setShowTaxModal(false);
   }
@@ -167,10 +177,11 @@ export function FinanceConfigPage() {
       setAccrualTypeConfigs(prev => prev.map(tc =>
         tc.id === accrualTypeEditId ? { ...tc, ...accrualTypeForm } : tc
       ));
-      logChange("update", `Accrual Type: ${accrualTypeForm.label}`, "FinanceConfig");
+      logChange({ module: "Finance", action: "Updated", entityType: "AccrualTypeConfig", entityId: accrualTypeEditId, summary: `Accrual type "${accrualTypeForm.label}" updated`, performedBy: "Sola Adeleke" });
     } else {
-      setAccrualTypeConfigs(prev => [...prev, { id: `atc-${Date.now()}`, ...accrualTypeForm }]);
-      logChange("create", `Accrual Type: ${accrualTypeForm.label}`, "FinanceConfig");
+      const atcId = `atc-${Date.now()}`;
+      setAccrualTypeConfigs(prev => [...prev, { id: atcId, ...accrualTypeForm }]);
+      logChange({ module: "Finance", action: "Created", entityType: "AccrualTypeConfig", entityId: atcId, summary: `Accrual type "${accrualTypeForm.label}" created`, performedBy: "Sola Adeleke" });
     }
     setShowAccrualTypeModal(false);
   }
@@ -259,7 +270,7 @@ export function FinanceConfigPage() {
                 {!b.isDefault && (
                   <button onClick={() => setDefault(b.id)} className="text-xs text-emerald-600 hover:underline">Set default</button>
                 )}
-                <button onClick={() => setBankAccounts((prev) => prev.filter((x) => x.id !== b.id))} className="p-1.5 text-gray-300 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors">
+                <button onClick={() => { setBankAccounts((prev) => prev.filter((x) => x.id !== b.id)); logChange({ module: "Finance", action: "Deleted", entityType: "BankAccount", entityId: b.id, summary: `Bank account "${b.name}" deleted`, performedBy: "Sola Adeleke" }); }} className="p-1.5 text-gray-300 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors">
                   <Trash2 className="w-3.5 h-3.5" />
                 </button>
               </div>
@@ -359,7 +370,7 @@ export function FinanceConfigPage() {
                   <td className="px-5 py-3">
                     <div className="flex items-center justify-end gap-1">
                       <button onClick={() => openTaxEdit(t)} className="p-1.5 text-gray-400 hover:text-emerald-600 hover:bg-emerald-50 rounded-lg transition-colors"><Edit className="w-3.5 h-3.5" /></button>
-                      <button onClick={() => setTaxEntries((prev) => prev.filter((x) => x.id !== t.id))} className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"><Trash2 className="w-3.5 h-3.5" /></button>
+                      <button onClick={() => { setTaxEntries((prev) => prev.filter((x) => x.id !== t.id)); logChange({ module: "Finance", action: "Deleted", entityType: "TaxRule", entityId: t.id, summary: `Tax rule "${t.name}" deleted`, performedBy: "Sola Adeleke" }); }} className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"><Trash2 className="w-3.5 h-3.5" /></button>
                     </div>
                   </td>
                 </tr>
@@ -402,7 +413,7 @@ export function FinanceConfigPage() {
                 <td className="px-5 py-3">
                   <div className="flex items-center justify-end gap-1">
                     <button onClick={() => openAccrualTypeEdit(tc)} className="p-1.5 text-gray-400 hover:text-emerald-600 hover:bg-emerald-50 rounded-lg transition-colors"><Edit className="w-3.5 h-3.5" /></button>
-                    <button onClick={() => setAccrualTypeConfigs(prev => prev.filter(x => x.id !== tc.id))} className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"><Trash2 className="w-3.5 h-3.5" /></button>
+                    <button onClick={() => { setAccrualTypeConfigs(prev => prev.filter(x => x.id !== tc.id)); logChange({ module: "Finance", action: "Deleted", entityType: "AccrualTypeConfig", entityId: tc.id, summary: `Accrual type "${tc.label}" deleted`, performedBy: "Sola Adeleke" }); }} className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"><Trash2 className="w-3.5 h-3.5" /></button>
                   </div>
                 </td>
               </tr>

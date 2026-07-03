@@ -1,8 +1,16 @@
 import { useState } from "react";
-import { History, Search, X, RotateCcw, Filter } from "lucide-react";
+import { History, Search, RotateCcw, Filter } from "lucide-react";
 import { useChangelog } from "../../stores/changelogStore";
+import { DataTable, type Column } from "../../components/DataTable";
 
 const MODULES = ["Finance", "HR", "Procurement", "Projects", "Admin", "ESS", "Storefront"];
+
+const MODULE_COLORS: Record<string, string> = {
+  Finance: "bg-emerald-100 text-emerald-700", HR: "bg-blue-100 text-blue-700",
+  Procurement: "bg-purple-100 text-purple-700", Projects: "bg-amber-100 text-amber-700",
+  Admin: "bg-indigo-100 text-indigo-700", ESS: "bg-teal-100 text-teal-700",
+  Storefront: "bg-orange-100 text-orange-700",
+};
 
 export function ChangelogPage() {
   const { entries, clearAll } = useChangelog();
@@ -15,6 +23,19 @@ export function ChangelogPage() {
       .some(f => f.toLowerCase().includes(search.toLowerCase()))) return false;
     return true;
   });
+
+  const columns: Column<(typeof entries)[0]>[] = [
+    { key: "module", label: "Module", render: e => (
+      <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${MODULE_COLORS[e.module] ?? "bg-gray-100 text-gray-600"}`}>{e.module}</span>
+    ), sortable: true, filterable: true },
+    { key: "action", label: "Action", render: e => <span className="text-xs font-medium text-gray-900">{e.action}</span>, sortable: true, filterable: true },
+    { key: "entity", label: "Entity", render: e => <span className="text-xs text-gray-400">{e.entityType} · {e.entityId}</span>, sortable: true, filterable: true, minWidth: 140 },
+    { key: "summary", label: "Summary", render: e => <span className="text-sm text-gray-700">{e.summary}</span>, sortable: true, filterable: true, minWidth: 250 },
+    { key: "timestamp", label: "Timestamp", render: e => (
+      <span className="text-xs text-gray-400 whitespace-nowrap">{new Date(e.timestamp).toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" })}</span>
+    ), sortable: true, filterable: false, minWidth: 140 },
+    { key: "performedBy", label: "By", render: e => <span className="text-xs text-gray-500">{e.performedBy}</span>, sortable: true, filterable: true },
+  ];
 
   return (
     <div className="space-y-6">
@@ -45,51 +66,17 @@ export function ChangelogPage() {
             </button>
           ))}
         </div>
-        <span className="text-xs text-gray-400">{filtered.length} entries</span>
       </div>
 
-      <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
-        <div className="px-5 py-3 border-b border-gray-100 bg-gray-50 flex items-center justify-between">
-          <span className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Change History</span>
-        </div>
-        {filtered.length === 0 ? (
-          <div className="text-center py-16 text-gray-400">
-            <History className="w-10 h-10 mx-auto mb-3 text-gray-300" />
-            <p className="text-sm">No changelog entries found.</p>
-            <p className="text-xs text-gray-400 mt-1">Changes will appear here as you perform actions across the system.</p>
-          </div>
-        ) : (
-          <div className="divide-y divide-gray-50">
-            {filtered.map(entry => {
-              const moduleColors: Record<string, string> = {
-                Finance: "bg-emerald-100 text-emerald-700", HR: "bg-blue-100 text-blue-700",
-                Procurement: "bg-purple-100 text-purple-700", Projects: "bg-amber-100 text-amber-700",
-                Admin: "bg-indigo-100 text-indigo-700", ESS: "bg-teal-100 text-teal-700",
-                Storefront: "bg-orange-100 text-orange-700",
-              };
-              return (
-                <div key={entry.id} className="px-5 py-3.5 hover:bg-gray-50 transition-colors">
-                  <div className="flex items-start gap-3">
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2 flex-wrap">
-                        <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${moduleColors[entry.module] ?? "bg-gray-100 text-gray-600"}`}>{entry.module}</span>
-                        <span className="text-xs font-medium text-gray-900">{entry.action}</span>
-                        <span className="text-xs text-gray-400">{entry.entityType} · {entry.entityId}</span>
-                      </div>
-                      <p className="text-sm text-gray-700 mt-0.5">{entry.summary}</p>
-                      {entry.details && <p className="text-xs text-gray-400 mt-0.5">{entry.details}</p>}
-                    </div>
-                    <div className="text-right flex-shrink-0">
-                      <p className="text-xs text-gray-400">{new Date(entry.timestamp).toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" })}</p>
-                      <p className="text-xs text-gray-400 mt-0.5">by {entry.performedBy}</p>
-                    </div>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        )}
-      </div>
+      <DataTable
+        columns={columns}
+        data={filtered}
+        keyExtractor={e => e.id}
+        searchPlaceholder="Search within results..."
+        searchFields={[e => e.summary, e => e.action, e => e.entityType, e => e.entityId, e => e.performedBy]}
+        emptyMessage="No changelog entries found. Changes will appear here as you perform actions across the system."
+        pageSize={20}
+      />
     </div>
   );
 }
