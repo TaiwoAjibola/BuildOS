@@ -80,6 +80,7 @@ import { StockMovementPage } from "./pages/procurement/StockMovementPage";
 import { PurchaseOrdersPage } from "./pages/procurement/PurchaseOrdersPage";
 import { GoodsReceiptPage } from "./pages/procurement/GoodsReceiptPage";
 import { ProcurementReportsPage } from "./pages/procurement/ProcurementReportsPage";
+import { ProcurementConfigPage } from "./pages/procurement/ProcurementConfigPage";
 
 // HR App
 import { HRApprovalsPage } from "./pages/hr/HRApprovalsPage";
@@ -299,6 +300,7 @@ export const router = createBrowserRouter([
               { path: "sent-requests", Component: SentRequestsPage },
               { path: "received-quotes", Component: ReceivedQuotesPage },
               { path: "supplier-compliance", Component: SupplierCompliancePage },
+              { path: "config", Component: ProcurementConfigPage },
             ],
           },
           {

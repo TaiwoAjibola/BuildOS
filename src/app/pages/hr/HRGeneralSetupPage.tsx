@@ -1,5 +1,6 @@
 import { useState } from "react";
-import { Save, CheckCircle, Clock, Users, Banknote, Settings2, Mail, Building2, ArrowRight, MapPin, Plus, X } from "lucide-react";
+import { Save, CheckCircle, Clock, Users, Banknote, Settings2, Mail, Building2, ArrowRight, MapPin, Plus, X, Edit, Hash, Trash2 } from "lucide-react";
+import { useNumbering, type ModuleNumbering } from "../../stores/numberingStore";
 
 interface FieldProps {
   label: string;
@@ -48,8 +49,13 @@ export function HRGeneralSetupPage() {
     senderEmail: "",
   });
 
+  const { configs, updateConfig, resetConfig } = useNumbering();
+
   const [clusters, setClusters] = useState(["Lekki-VI", "Ikeja", "Apapa", "Victoria Island", "Ikoyi"]);
   const [newCluster, setNewCluster] = useState("");
+
+  const [editingNumbering, setEditingNumbering] = useState<string | null>(null);
+  const [numberingForm, setNumberingForm] = useState<ModuleNumbering | null>(null);
 
   function f(key: keyof typeof form) {
     return (v: string) => setForm(prev => ({ ...prev, [key]: v }));
@@ -64,6 +70,19 @@ export function HRGeneralSetupPage() {
     if (!newCluster.trim() || clusters.includes(newCluster.trim())) return;
     setClusters(prev => [...prev, newCluster.trim()]);
     setNewCluster("");
+  }
+
+  function openNumberingEdit(cfg: ModuleNumbering) {
+    setEditingNumbering(cfg.module);
+    setNumberingForm({ ...cfg });
+  }
+
+  function saveNumbering() {
+    if (numberingForm) {
+      updateConfig(numberingForm.module, numberingForm);
+      setEditingNumbering(null);
+      setNumberingForm(null);
+    }
   }
 
   return (
@@ -191,6 +210,66 @@ export function HRGeneralSetupPage() {
             <input value={newCluster} onChange={e => setNewCluster(e.target.value)} placeholder="New cluster name..." className="flex-1 max-w-xs border border-gray-300 rounded-md px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
               onKeyDown={e => e.key === "Enter" && addCluster()} />
             <button onClick={addCluster} disabled={!newCluster.trim()} className="flex items-center gap-1.5 px-3 py-1.5 bg-indigo-600 text-white rounded-md text-sm font-medium hover:bg-indigo-700 disabled:opacity-40"><Plus className="w-3.5 h-3.5" /> Add Cluster</button>
+          </div>
+        </div>
+
+        {/* Module Numbering System */}
+        <div className="col-span-2 bg-white rounded-xl border border-gray-200 overflow-hidden">
+          <div className="px-5 py-4 border-b border-gray-100 flex items-center gap-2">
+            <Hash className="w-4 h-4 text-gray-400" />
+            <h2 className="text-sm font-semibold text-gray-900">Module Numbering System</h2>
+          </div>
+          <div className="p-5">
+            <p className="text-xs text-gray-500 mb-4">Configure the auto-numbering format for records across each module. The system uses these patterns when generating new IDs.</p>
+            <div className="space-y-3">
+              {configs.filter(cfg => /^HR/.test(cfg.module)).map(cfg => (
+                <div key={cfg.module} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg border border-gray-100">
+                  {editingNumbering === cfg.module && numberingForm ? (
+                    <div className="flex-1 grid grid-cols-5 gap-3 items-end">
+                      <div>
+                        <label className="block text-xs text-gray-500 mb-1">Prefix</label>
+                        <input value={numberingForm.prefix} onChange={e => setNumberingForm({ ...numberingForm, prefix: e.target.value })}
+                          className="w-full px-2 py-1.5 text-xs border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-indigo-500" />
+                      </div>
+                      <div>
+                        <label className="block text-xs text-gray-500 mb-1">Separator</label>
+                        <input value={numberingForm.separator} onChange={e => setNumberingForm({ ...numberingForm, separator: e.target.value })}
+                          className="w-full px-2 py-1.5 text-xs border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-indigo-500" maxLength={2} />
+                      </div>
+                      <div>
+                        <label className="block text-xs text-gray-500 mb-1">Pad Length</label>
+                        <input type="number" value={numberingForm.padLength} onChange={e => setNumberingForm({ ...numberingForm, padLength: parseInt(e.target.value) || 1 })}
+                          className="w-full px-2 py-1.5 text-xs border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-indigo-500" min={1} max={10} />
+                      </div>
+                      <div>
+                        <label className="block text-xs text-gray-500 mb-1">Next Number</label>
+                        <input type="number" value={numberingForm.nextNumber} onChange={e => setNumberingForm({ ...numberingForm, nextNumber: parseInt(e.target.value) || 1 })}
+                          className="w-full px-2 py-1.5 text-xs border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-indigo-500" min={1} />
+                      </div>
+                      <div className="flex items-center gap-1">
+                        <button onClick={saveNumbering} className="px-3 py-1.5 text-xs bg-indigo-600 text-white rounded-lg hover:bg-indigo-700"><Save className="w-3 h-3 inline mr-1" />Save</button>
+                        <button onClick={() => { setEditingNumbering(null); setNumberingForm(null); }} className="px-3 py-1.5 text-xs border border-gray-300 rounded-lg hover:bg-gray-50">Cancel</button>
+                      </div>
+                    </div>
+                  ) : (
+                    <>
+                      <div className="flex items-center gap-3 flex-1">
+                        <span className="text-sm font-medium text-gray-900 min-w-[140px]">{cfg.module}</span>
+                        <span className="font-mono text-xs bg-white border border-gray-200 px-2 py-1 rounded text-gray-700">
+                          {cfg.prefix}{cfg.separator}{String(cfg.nextNumber).padStart(cfg.padLength, "0")}
+                        </span>
+                        <span className="text-xs text-gray-400">Next: <strong>{cfg.nextNumber}</strong> · Pad: <strong>{cfg.padLength}</strong></span>
+                        <span className="text-xs text-gray-400 ml-2">{cfg.description}</span>
+                      </div>
+                      <div className="flex items-center gap-1">
+                        <button onClick={() => openNumberingEdit(cfg)} className="p-1.5 text-indigo-500 hover:bg-indigo-50 rounded-lg"><Edit className="w-3.5 h-3.5" /></button>
+                        <button onClick={() => resetConfig(cfg.module)} className="p-1.5 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg" title="Reset to default"><Trash2 className="w-3.5 h-3.5" /></button>
+                      </div>
+                    </>
+                  )}
+                </div>
+              ))}
+            </div>
           </div>
         </div>
       </div>

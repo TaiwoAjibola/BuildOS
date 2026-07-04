@@ -4,7 +4,7 @@ import { CollapsibleSidebar } from "../../components/CollapsibleSidebar";
 import {
   FileText, ShoppingCart, Building, LayoutDashboard,
   ArrowUpDown, BarChart3, Truck, PackageCheck, CheckSquare, ListTodo, User,
-  Send, Inbox, ShieldCheck,
+  Send, Inbox, ShieldCheck, Settings,
 } from "lucide-react";
 
 const sidebarSections = [
@@ -65,6 +65,12 @@ const sidebarSections = [
     label: "Reports",
     items: [
       { label: "Reports", href: "/apps/procurement/reports", end: true, icon: <BarChart3 className="w-4 h-4" /> },
+    ],
+  },
+  {
+    label: "Settings",
+    items: [
+      { label: "Configuration", href: "/apps/procurement/config", end: true, icon: <Settings className="w-4 h-4" /> },
     ],
   },
 ];

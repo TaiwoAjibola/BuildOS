@@ -712,15 +712,28 @@ export function AppLauncherPage() {
     a.tagline.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
+  // Responsive columns: 1-2 apps → 1 col, 3-4 → 2 cols, 5-6 → 3 cols, 7 → 4 cols
+  const gridCols = filtered.length >= 7 ? 4 : filtered.length >= 5 ? 3 : filtered.length >= 3 ? 2 : 1;
+
   return (
     <div className="flex flex-col h-screen bg-gray-100 overflow-hidden">
       <TopNav searchQuery={searchQuery} onSearch={setSearchQuery} onOpen={setActiveApp} />
-      {/* Full-screen bento grid — 4 cols × 3 rows fills remaining viewport */}
+      {/* Full-screen bento grid — responsive columns based on app count */}
       <div className="flex-1 min-h-0 p-4">
-        <div className="h-full grid grid-cols-4 grid-rows-3 gap-3">
-          {filtered.map((app) => (
-            <BentoCard key={app.id} app={app} onOpen={setActiveApp} />
-          ))}
+        <div className={`h-full grid gap-3 auto-rows-fr ${gridCols >= 4 ? "grid-cols-4" : gridCols >= 3 ? "grid-cols-3" : gridCols >= 2 ? "grid-cols-2" : "grid-cols-1"}`}>
+          {filtered.length === 0 ? (
+            <div className="col-span-full flex items-center justify-center text-sm text-gray-400">
+              No applications match your search.
+            </div>
+          ) : (
+            filtered.map((app) => (
+              <BentoCard key={app.id} app={{
+                ...app,
+                cols: Math.min(app.cols, gridCols),
+                rows: Math.min(app.rows, gridCols >= 2 ? app.rows : 1),
+              }} onOpen={setActiveApp} />
+            ))
+          )}
         </div>
       </div>
       <AnimatePresence>
