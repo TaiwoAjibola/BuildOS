@@ -6,6 +6,7 @@ import {
 import { useFinance } from "../../stores/financeStore";
 import { exportCSV } from "../../utils/exportCSV";
 import { useChangelog } from "../../stores/changelogStore";
+import { useNumbering } from "../../stores/numberingStore";
 import { DataTable, type Column } from "../../components/DataTable";
 import type {
   Accrual, AccrualType, AccrualStatus, AccrualLine,
@@ -43,6 +44,7 @@ function emptyLine(): AccrualLine {
 export function AccrualsPage() {
   const { accruals, setAccruals, fiscalYears, accounts, accrualTypeConfigs } = useFinance();
   const { logChange } = useChangelog();
+  const { getNextId } = useNumbering();
 
   // Filters
   const [search, setSearch] = useState("");
@@ -92,7 +94,7 @@ export function AccrualsPage() {
     if (lines.length === 0) return;
 
     const accrual: Accrual = {
-      id: `acc-${Date.now()}`,
+      id: getNextId("Accrual"),
       type: form.type,
       title: form.title.trim(),
       description: form.description.trim(),
@@ -104,9 +106,9 @@ export function AccrualsPage() {
       createdAt: new Date().toISOString().split("T")[0],
       createdBy: "Sola Adeleke",
       reversalDate: form.reversalDate,
-      reference: form.reference.trim() || `ACCR-${Date.now()}`,
+      reference: form.reference.trim() || getNextId("Accrual"),
       sourceModule: form.sourceModule,
-      sourceRef: form.reference.trim() || `ACCR-${Date.now()}`,
+      sourceRef: form.reference.trim() || getNextId("Accrual"),
       fiscalYearId: currentFy?.id ?? "fy2",
     };
     setAccruals(prev => [accrual, ...prev]);

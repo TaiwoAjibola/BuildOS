@@ -1,6 +1,7 @@
 import { useState } from "react";
 import type { ReactNode } from "react";
 import { Plus, Search, CheckCircle2, Clock, Circle, Trash2, Edit, X, CalendarDays, User } from "lucide-react";
+import { useNumbering } from "../stores/numberingStore";
 
 type TaskStatus = "Pending" | "In Progress" | "Completed";
 type TaskPriority = "Low" | "Medium" | "High";
@@ -67,8 +68,6 @@ const SEED_TASKS: Record<string, { name: string; description: string; priority: 
   ],
 };
 
-function makeId() { return `TASK-${String(Math.floor(Math.random() * 9000) + 1000)}`; }
-
 const STATUS_ICON: Record<TaskStatus, ReactNode> = {
   "Pending":     <Circle className="w-4 h-4 text-gray-400" />,
   "In Progress": <Clock className="w-4 h-4 text-blue-500" />,
@@ -91,6 +90,7 @@ const STATUS_NEXT: Record<TaskStatus, TaskStatus> = {
 };
 
 export function TasksPage({ app, accentColor = "bg-indigo-600 hover:bg-indigo-700", ringColor = "focus:ring-indigo-500", badgeColor = "bg-indigo-50 text-indigo-700" }: TasksPageProps) {
+  const { getNextId } = useNumbering();
   const users = MOCK_USERS[app] ?? ["Team Member"];
   const today = new Date().toISOString().slice(0, 10);
 
@@ -102,7 +102,7 @@ export function TasksPage({ app, accentColor = "bg-indigo-600 hover:bg-indigo-70
   const seedAssign = [0, 1, 0, 2].map(idx => users[idx % users.length]);
   const [tasks, setTasks] = useState<Task[]>(
     seeds.map((s, i) => ({
-      id: makeId(),
+      id: getNextId("Task"),
       name: s.name,
       description: s.description,
       assignedTo: seedAssign[i] ?? users[0],
@@ -152,7 +152,7 @@ export function TasksPage({ app, accentColor = "bg-indigo-600 hover:bg-indigo-70
     if (editId) {
       setTasks(prev => prev.map(t => t.id === editId ? { ...t, ...form } : t));
     } else {
-      setTasks(prev => [...prev, { id: makeId(), ...form, status: "Pending", app, createdAt: today }]);
+      setTasks(prev => [...prev, { id: getNextId("Task"), ...form, status: "Pending", app, createdAt: today }]);
     }
     setShowModal(false);
   }

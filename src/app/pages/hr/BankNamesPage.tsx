@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { Plus, Search, Edit, Trash2, Building2, CheckCircle } from "lucide-react";
+import { useNumbering } from "../../stores/numberingStore";
 
 interface Bank {
   id: string;
@@ -28,6 +29,7 @@ const SEED_BANKS: Bank[] = [
 const EMPTY_FORM = { name: "", code: "", country: "Nigeria", swiftCode: "" };
 
 export function BankNamesPage() {
+  const { getNextId } = useNumbering();
   const [banks, setBanks] = useState<Bank[]>(SEED_BANKS);
   const [search, setSearch] = useState("");
   const [showAdd, setShowAdd] = useState(false);
@@ -47,7 +49,7 @@ export function BankNamesPage() {
       setBanks(prev => prev.map(b => b.id === editId ? { ...b, ...form } : b));
       setEditId(null);
     } else {
-      setBanks(prev => [...prev, { id: `b${Date.now()}`, ...form, active: true }]);
+      setBanks(prev => [...prev, { id: getNextId("BankName"), ...form, active: true }]);
     }
     setForm(EMPTY_FORM);
     setShowAdd(false);

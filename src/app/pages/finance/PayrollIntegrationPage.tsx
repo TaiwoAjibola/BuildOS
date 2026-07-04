@@ -3,6 +3,7 @@ import { Download, CheckCircle, Clock, Send, Users, AlertCircle, Plus, Trash2 } 
 import { exportCSV } from "../../utils/exportCSV";
 import { DataTable, type Column } from "../../components/DataTable";
 import { useChangelog } from "../../stores/changelogStore";
+import { useNumbering } from "../../stores/numberingStore";
 
 type PayrollStatus = "Draft" | "Sent for Approval" | "Approved" | "Paid";
 
@@ -60,6 +61,7 @@ const STATUS_FLOW: PayrollStatus[] = ["Draft", "Sent for Approval", "Approved", 
 
 export function PayrollIntegrationPage() {
   const { logChange } = useChangelog();
+  const { getNextId } = useNumbering();
   const [payrolls, setPayrolls] = useState<PayrollRun[]>(mockPayrollRuns);
   const [activeRun, setActiveRun] = useState<PayrollRun>(mockPayrollRuns[0]);
 
@@ -105,7 +107,7 @@ export function PayrollIntegrationPage() {
   function handleCreate() {
     const now = new Date();
     const newRun: PayrollRun = {
-      id: `PRLL-${now.toLocaleString("default", { month: "short" }).toUpperCase()}${now.getFullYear().toString().slice(-2)}`,
+      id: getNextId("PayrollRun"),
       period: `${now.toLocaleString("default", { month: "long" })} ${now.getFullYear()}`,
       department: "All Departments",
       headcount: 0,

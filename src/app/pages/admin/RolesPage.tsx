@@ -3,6 +3,7 @@ import {
   Shield, Plus, Edit, Copy, Trash2, X, ChevronDown, ChevronRight,
   CheckCircle2, XCircle, AlertCircle, Users,
 } from "lucide-react";
+import { useNumbering } from "../../stores/numberingStore";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 type AppKey = "construction" | "finance" | "hr" | "procurement" | "admin" | "ess";
@@ -352,6 +353,7 @@ function AddRoleModal({ onAdd, onClose }: { onAdd: (r: Role) => void; onClose: (
 
 // ── Main Page ─────────────────────────────────────────────────────────────────
 export function RolesPage() {
+  const { getNextId } = useNumbering();
   const [roles, setRoles] = useState<Role[]>(SEED_ROLES);
   const [processes, setProcesses] = useState<ProcessDef[]>(DEFAULT_PROCESSES.slice(0, 8));
   const [showAddProcess, setShowAddProcess] = useState(false);
@@ -395,7 +397,7 @@ export function RolesPage() {
   };
 
   const duplicateRole = (role: Role) => {
-    setRoles((prev) => [...prev, { ...role, id: `r_${Date.now()}`, name: `${role.name} (Copy)`, users: 0 }]);
+    setRoles((prev) => [...prev, { ...role, id: getNextId("Role"), name: `${role.name} (Copy)`, users: 0 }]);
     setOpenMenuId(null);
   };
 

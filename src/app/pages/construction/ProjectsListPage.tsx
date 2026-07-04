@@ -8,6 +8,7 @@ import {
 import { projects as mockProjects, fmtCurrency, fmtDate, ragColor, ragLabel, ragBg, ragText, staffList } from "./mockData";
 import type { Project, ContractType } from "./types";
 import { useResources } from "../../contexts/ResourceContext";
+import { useNumbering } from "../../stores/numberingStore";
 
 type ProjectStatus = Project["status"];
 
@@ -35,6 +36,7 @@ const DEFAULT_FORM = {
 };
 
 export function ProjectsListPage() {
+  const { getNextId } = useNumbering();
   const navigate = useNavigate();
   const { contractors } = useResources();
   const [search, setSearch] = useState("");
@@ -298,7 +300,7 @@ export function ProjectsListPage() {
               onSubmit={e => {
                 e.preventDefault();
                 const newProject: Project = {
-                  id: `PRJ-${String(projectList.length + 1).padStart(3, "0")}`,
+                  id: getNextId("Project"),
                   name: form.name,
                   siteAddress: form.siteAddress,
                   location: form.location,

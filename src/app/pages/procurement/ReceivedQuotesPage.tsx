@@ -4,6 +4,7 @@ import {
   CheckCircle2, ShoppingCart, Clock, XCircle, Eye, Plus,
   X, Trash2, CheckCircle, Scale, MessageSquare, RotateCcw, MapPin, Layers,
 } from "lucide-react";
+import { useNumbering } from "../../stores/numberingStore";
 
 type VendorDocType = "quote" | "invoice";
 type DocStatus = "pending_review" | "approved" | "po_created" | "rejected";
@@ -164,13 +165,13 @@ function RecordDocModal({ onClose, onSave }: {
   const removeItem = (i: number) => setItems(p => p.filter((_, j) => j !== i));
   const updateItem = (i: number, k: keyof DocItem, v: string) => setItems(p => p.map((it, j) => j === i ? { ...it, [k]: v } : it));
 
+  const { getNextId } = useNumbering();
   const totalAmount = items.reduce((s, it) => s + (parseFloat(it.qty) || 0) * (parseFloat(it.unitPrice) || 0), 0);
   const valid = vendor && items.every(it => it.material.trim() && it.qty.trim() && it.unitPrice.trim());
 
   function handleSave() {
     if (!valid) return;
-    const prefix = docType === "quote" ? "QT" : "INV";
-    const nextId = `${prefix}-${String(Math.floor(Math.random() * 9000) + 1000)}`;
+    const nextId = docType === "quote" ? getNextId("Quote") : getNextId("PurchaseInvoice");
     const selectedStore = RQ_STORES.find(s => s.name === destinationStore);
     onSave({
       id: nextId, rfqRef: rfqRef.trim() || "—", prRef: prRef.trim() || "—",
@@ -449,7 +450,7 @@ function NegotiateModal({ doc, itemIndex, onClose, onSave }: {
   );
 }
 
-function CreatePOFromQuoteModal({ doc, onClose, onDone }: { doc: VendorDoc; onClose: () => void; onDone: (id: string) => void }) {  const fmt = (n: number) => n >= 1_000_000 ? `₦${(n / 1_000_000).toFixed(2)}M` : n >= 1000 ? `₦${(n / 1000).toFixed(0)}K` : `₦${n}`;
+function CreatePOFromQuoteModal({ doc, onClose, onDone }: { doc: VendorDoc; onClose: () => void; onDone: (id: string) => void }) {  const { getNextId } = useNumbering();  const fmt = (n: number) => n >= 1_000_000 ? `₦${(n / 1_000_000).toFixed(2)}M` : n >= 1000 ? `₦${(n / 1000).toFixed(0)}K` : `₦${n}`;
   const today = new Date().toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" }).replace(/ /g, " ");
   // Import suppliers from SuppliersPage
   // (If not possible, copy the suppliers array here or import from a shared module)
@@ -468,7 +469,7 @@ function CreatePOFromQuoteModal({ doc, onClose, onDone }: { doc: VendorDoc; onCl
   const [supplierContact, setSupplierContact] = useState(defaultContact);
   const [notes, setNotes] = useState("");
 
-  const nextPO = `PO-${String(Math.floor(Math.random() * 9000) + 1000)}`;
+  const nextPO = getNextId("PurchaseOrder");
 
   function handleCreate() {
     onDone(nextPO);

@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { Plus, AlertTriangle, Lightbulb, Flag, ChevronDown, ChevronUp } from "lucide-react";
+import { useNumbering } from "../../stores/numberingStore";
 
 type IssueType = "Incident" | "Complaint" | "Suggestion" | "Safety";
 type IssuePriority = "Low" | "Medium" | "High";
@@ -77,6 +78,7 @@ export function LogIssuesPage() {
   const [showModal, setShowModal] = useState(false);
   const [form, setForm] = useState({ ...BLANK });
   const [expanded, setExpanded] = useState<string | null>(null);
+  const { getNextId } = useNumbering();
 
   function openModal() {
     setForm({ ...BLANK });
@@ -95,7 +97,7 @@ export function LogIssuesPage() {
   function submit() {
     const newIssue: Issue = {
       ...form,
-      id: `ISS-${String(issues.length + 1).padStart(3, "0")}`,
+      id: getNextId("Issue"),
       status: "Open",
       date: new Date().toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }),
     };

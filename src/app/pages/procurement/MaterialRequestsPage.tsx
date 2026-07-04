@@ -5,6 +5,7 @@ import {
   ShoppingCart, ArrowRight, Users,
 } from "lucide-react";
 import { AdvancedFilter, applyFiltersAndSort, type FilterFieldDef, type ActiveFilters, type SortConfig } from "../../components/AdvancedFilter";
+import { useNumbering } from "../../stores/numberingStore";
 
 type ReqStatus = "pending" | "approved" | "rejected" | "in_procurement" | "fulfilled";
 
@@ -131,11 +132,12 @@ function NewMRModal({ onClose, onSave }: {
   const addItem = () => setItems(p => [...p, { material: "", qty: "", unit: MR_UNITS[0], available: "", notes: "" }]);
   const removeItem = (i: number) => setItems(p => p.filter((_, j) => j !== i));
   const updateItem = (i: number, k: keyof MRItem, v: string) => setItems(p => p.map((it, j) => j === i ? { ...it, [k]: v } : it));
+  const { getNextId } = useNumbering();
   const valid = project && justification.trim() && items.every(it => it.material.trim() && it.qty.trim());
 
   function handleSave() {
     if (!valid) return;
-    const nextId = `MR-${String(Math.floor(Math.random() * 9000) + 1000)}`;
+    const nextId = getNextId("MaterialRequest");
     onSave({
       id: nextId,
       project,
@@ -289,6 +291,7 @@ function RaisePRModal({
 }) {
   const [procType, setProcType] = useState<"direct" | "rfq">("direct");
   const [selected, setSelected] = useState<string[]>([ALL_SUPPLIERS[0]]);
+  const { getNextId } = useNumbering();
 
   function toggleSupplier(s: string) {
     if (procType === "direct") {
@@ -302,7 +305,7 @@ function RaisePRModal({
 
   function submit() {
     if (!selected.length) return;
-    const prId = `PR-${String(Math.floor(Math.random() * 9000) + 1000)}`;
+    const prId = getNextId("PurchaseRequest");
     onDone(prId, procType, selected);
     onClose();
   }

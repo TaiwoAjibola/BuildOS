@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { Plus, Mail, Trash2, Edit2, Check, X } from "lucide-react";
+import { useNumbering } from "../../stores/numberingStore";
 
 type TriggerModule = "Finance" | "HR" | "Procurement" | "Projects" | "ESS" | "Admin" | "Storefront";
 
@@ -64,6 +65,7 @@ export function EmailConfigPage() {
   const [editId, setEditId] = useState<string | null>(null);
   const [form, setForm] = useState({ ...BLANK_FORM });
   const [saved, setSaved] = useState(false);
+  const { getNextId } = useNumbering();
 
   function openAdd() {
     setForm({ ...BLANK_FORM });
@@ -82,7 +84,7 @@ export function EmailConfigPage() {
     if (editId) {
       setConfigs((prev) => prev.map((c) => c.id === editId ? { ...form, id: editId } : c));
     } else {
-      setConfigs([...configs, { ...form, id: `EC-${String(configs.length + 1).padStart(3, "0")}` }]);
+      setConfigs([...configs, { ...form, id: getNextId("EmailConfig") }]);
     }
     setShowModal(false);
     setSaved(true);

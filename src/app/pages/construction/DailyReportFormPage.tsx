@@ -4,6 +4,7 @@ import { Save, Send, ArrowLeft, Plus, Trash2, Sun, Cloud, CloudDrizzle, CloudRai
 import { getProjectById, getTasksByProject, getVendorsByProject, getReportsByProject, fmtDate, staffList } from "./mockData";
 import type { DailyReport, DailyManpower, DailyEquipment, DailyMaterial, DailyScope, DailyExpense, CommunicationLogEntry, Weather, ProjectRole } from "./types";
 import { useRoles } from "../../contexts/RolesContext";
+import { useNumbering } from "../../stores/numberingStore";
 
 const equipmentCategories = [
   "Earthwork", "Lifting", "Concreting", "Transportation",
@@ -107,6 +108,7 @@ function newCommLogRow(projectId: string): CommunicationLogEntry {
 }
 
 export function DailyReportFormPage() {
+  const { getNextId } = useNumbering();
   const { id: projectId, reportId } = useParams<{ id: string; reportId?: string }>();
   const navigate = useNavigate();
   const project = getProjectById(projectId || "");
@@ -311,7 +313,7 @@ export function DailyReportFormPage() {
       ? "pending-review" as const
       : status;
     const report: DailyReport = {
-      id: existingDraft?.id || nextId("DR"),
+      id: existingDraft?.id || getNextId("DailyReport"),
       projectId: projectId || "",
       reportDate,
       weather,

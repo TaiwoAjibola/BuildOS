@@ -3,6 +3,7 @@ import { useState } from "react";
 import { AlertTriangle, Plus, Search, Filter, Eye, CheckCircle, Clock, XCircle, Loader2, User, Calendar } from "lucide-react";
 import { getIssuesByProject, getProjectById, getTasksByProject, staffList, fmtDate } from "./mockData";
 import type { Issue } from "./types";
+import { useNumbering } from "../../stores/numberingStore";
 
 function daysOpen(dateRaised: string): number {
   return Math.max(0, Math.floor((new Date().getTime() - new Date(dateRaised).getTime()) / 86400000));
@@ -51,6 +52,7 @@ const emptyForm = {
 };
 
 export function IssuesPage() {
+  const { getNextId } = useNumbering();
   const { id } = useParams();
   const navigate = useNavigate();
   const project = id ? getProjectById(id) : undefined;
@@ -82,7 +84,7 @@ export function IssuesPage() {
   function handleLogIssue() {
     if (!form.title.trim()) return;
     const newIssue: Issue = {
-      id: `ISS-${String(issues.length + 1).padStart(3, "0")}`,
+      id: getNextId("Issue"),
       projectId: id!,
       issueNumber: `ISS-${String(issues.length + 1043).padStart(4, "0")}`,
       dateRaised: new Date().toISOString().slice(0, 10),

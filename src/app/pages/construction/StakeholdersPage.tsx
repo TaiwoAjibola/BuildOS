@@ -3,6 +3,7 @@ import { useState, useMemo } from "react";
 import { Users, Briefcase, Plus, Search, Mail, Phone, Calendar, User, MessageSquare, FileText, X, Building, Shield, UserCircle, Download } from "lucide-react";
 import { getProjectById, stakeholders, fmtDate } from "./mockData";
 import { exportCSV } from "../../utils/exportCSV";
+import { useNumbering } from "../../stores/numberingStore";
 
 interface CommPlanEntry {
   id: string; stakeholderId: string; stakeholderName: string;
@@ -62,6 +63,7 @@ function HardHat({ className }: { className?: string }) {
 type SubTab = "register" | "comm-plan" | "engagement" | "visitor";
 
 export function StakeholdersPage() {
+  const { getNextId } = useNumbering();
   const { id } = useParams<{ id: string }>();
   const project = getProjectById(id ?? "");
   const [activeTab, setActiveTab] = useState<SubTab>("register");
@@ -109,7 +111,7 @@ export function StakeholdersPage() {
   function handleAddStakeholder() {
     if (!addForm.name || !addForm.organization) return;
     const newSh = {
-      id: `SH-${Date.now()}`,
+      id: getNextId("Stakeholder"),
       projectId: id ?? "",
       name: addForm.name,
       organization: addForm.organization,

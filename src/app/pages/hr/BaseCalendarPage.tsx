@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { Plus, Trash2, ChevronLeft, ChevronRight } from "lucide-react";
+import { useNumbering } from "../../stores/numberingStore";
 
 interface Holiday {
   id: string;
@@ -25,6 +26,7 @@ const DAY_NAMES = ["Sun","Mon","Tue","Wed","Thu","Fri","Sat"];
 const DAY_FULL = ["Sunday","Monday","Tuesday","Wednesday","Thursday","Friday","Saturday"];
 
 export function BaseCalendarPage() {
+  const { getNextId } = useNumbering();
   const [year, setYear] = useState(2026);
   const [selectedMonth, setSelectedMonth] = useState(3); // April
   const [holidays, setHolidays] = useState<Holiday[]>(SEED_HOLIDAYS);
@@ -54,7 +56,7 @@ export function BaseCalendarPage() {
   function addHoliday(e: React.FormEvent) {
     e.preventDefault();
     if (!newHol.name.trim() || !newHol.date) return;
-    setHolidays(prev => [...prev, { id: `h${Date.now()}`, ...newHol }]);
+    setHolidays(prev => [...prev, { id: getNextId("Holiday"), ...newHol }]);
     setNewHol({ name: "", date: "", recurring: false });
     setShowAdd(false);
   }

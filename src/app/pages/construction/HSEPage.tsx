@@ -2,6 +2,7 @@ import { useParams } from "react-router";
 import { useState, useCallback } from "react";
 import { ShieldCheck, AlertTriangle, FileText, ClipboardList, Users, BookOpen, Siren, Award, Plus, Eye, Calendar, Search, XCircle } from "lucide-react";
 import { getProjectById, hseMatrix, fmtDate, staffList } from "./mockData";
+import { useNumbering } from "../../stores/numberingStore";
 
 type HSETab = "toolbox" | "incidents" | "permits" | "audits" | "drills" | "competency";
 
@@ -88,6 +89,7 @@ function Badge({ label, className }: { label: string; className: string }) {
 }
 
 export function HSEPage() {
+  const { getNextId } = useNumbering();
   const { id } = useParams();
   const project = id ? getProjectById(id) : undefined;
   const [activeTab, setActiveTab] = useState<HSETab>("toolbox");
@@ -120,8 +122,7 @@ export function HSEPage() {
     setTbForm({ date: "", topic: "", facilitator: "", attendees: "", notes: "" });
   }
   function addIncident() {
-    const newId = `INC-${String(localIncidents.length + 1).padStart(3, "0")}`;
-    setLocalIncidents(prev => [...prev, { id: newId, date: incForm.date || new Date().toISOString().split("T")[0], type: incForm.type as any, description: incForm.description, person: incForm.person, wp: incForm.wp, rootCause: incForm.rootCause, correctiveAction: incForm.correctiveAction, status: incForm.status as any }]);
+    setLocalIncidents(prev => [...prev, { id: getNextId("Incident"), date: incForm.date || new Date().toISOString().split("T")[0], type: incForm.type as any, description: incForm.description, person: incForm.person, wp: incForm.wp, rootCause: incForm.rootCause, correctiveAction: incForm.correctiveAction, status: incForm.status as any }]);
     setShowIncidentModal(false);
     setIncForm({ date: "", type: "Near Miss", description: "", person: "", wp: "", rootCause: "", correctiveAction: "", status: "Open" });
   }
@@ -141,7 +142,7 @@ export function HSEPage() {
     setDrillForm({ type: "", date: "", participants: "", outcome: "", lessonsLearned: "" });
   }
   function addCompetency() {
-    setLocalMatrix(prev => [...prev, { id: `HSE-${String(prev.length + 1).padStart(3, "0")}`, projectId: id || "", staffMember: compForm.staffMember, competency: compForm.competency, dateObtained: compForm.dateObtained, expiryDate: compForm.expiryDate, status: compForm.status as any }]);
+    setLocalMatrix(prev => [...prev, { id: getNextId("HSERecord"), projectId: id || "", staffMember: compForm.staffMember, competency: compForm.competency, dateObtained: compForm.dateObtained, expiryDate: compForm.expiryDate, status: compForm.status as any }]);
     setShowCompetencyModal(false);
     setCompForm({ staffMember: "", competency: "", dateObtained: "", expiryDate: "", status: "Valid" });
   }

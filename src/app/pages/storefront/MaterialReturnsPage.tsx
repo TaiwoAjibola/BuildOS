@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { Plus, Search, Download, Eye, CheckCircle, XCircle, RotateCcw } from "lucide-react";
+import { useNumbering } from "../../stores/numberingStore";
 
 type ReturnStatus = "Draft" | "Pending Approval" | "Approved" | "Received" | "Rejected";
 
@@ -63,6 +64,7 @@ export function MaterialReturnsPage() {
   const [showModal, setShowModal] = useState(false);
   const [selected, setSelected] = useState<MaterialReturn | null>(null);
   const [form, setForm] = useState<typeof BLANK>({ ...BLANK });
+  const { getNextId } = useNumbering();
 
   const filtered = returns.filter((r) => {
     const q = search.toLowerCase();
@@ -75,7 +77,7 @@ export function MaterialReturnsPage() {
     const now = new Date().toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
     const newReturn: MaterialReturn = {
       ...form,
-      id: `RET-${String(returns.length + 10).padStart(3, "0")}`,
+      id: getNextId("MaterialReturn"),
       requestDate: now,
       status: "Pending Approval",
       approvedBy: "", approvalDate: "", receivedDate: "",

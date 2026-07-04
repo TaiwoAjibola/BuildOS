@@ -3,6 +3,7 @@ import { Plus, Download, TrendingUp, CheckCircle, Clock, X, Save } from "lucide-
 import { exportCSV } from "../../utils/exportCSV";
 import { DataTable, type Column } from "../../components/DataTable";
 import { useChangelog } from "../../stores/changelogStore";
+import { useNumbering } from "../../stores/numberingStore";
 
 type IncomeStatus = "Draft" | "Confirmed" | "Invoiced" | "Received";
 
@@ -47,6 +48,7 @@ export function IncomeManagementPage() {
   const [showAddModal, setShowAddModal] = useState(false);
   const [form, setForm] = useState(emptyForm);
   const { logChange } = useChangelog();
+  const { getNextId } = useNumbering();
 
   const fmt = (n: number) => `$${n.toLocaleString()}`;
 
@@ -58,7 +60,7 @@ export function IncomeManagementPage() {
   function addIncome() {
     if (!form.source || !form.amount || !form.description || !form.date) return;
     const newInc: Income = {
-      id: `INC-${String(incomes.length + 22).padStart(4, "0")}`,
+      id: getNextId("Income"),
       source: form.source,
       project: form.project || "General",
       amount: parseFloat(form.amount.replace(/,/g, "")),

@@ -3,6 +3,7 @@ import { Plus, Search, Eye, Edit, Trash2, X, BookOpen } from "lucide-react";
 import { exportCSV } from "../../utils/exportCSV";
 import { useChangelog } from "../../stores/changelogStore";
 import { DataTable, type Column } from "../../components/DataTable";
+import { useNumbering } from "../../stores/numberingStore";
 
 type EntryStatus = "Draft" | "Posted" | "Reversed";
 
@@ -93,6 +94,7 @@ const STATUS_STYLES: Record<EntryStatus, string> = {
 
 export function JournalEntryPage() {
   const { logChange } = useChangelog();
+  const { getNextId } = useNumbering();
   const [entries, setEntries] = useState<JournalEntry[]>(mockEntries);
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<EntryStatus | "All">("All");
@@ -157,7 +159,7 @@ export function JournalEntryPage() {
       logChange({ module: "Finance", action: "Updated", entityType: "JournalEntry", entityId: editId, summary: `Journal Entry: ${form.description} updated [${status}]`, performedBy: "Current User" });
     } else {
       const newEntry: JournalEntry = {
-        id: `JE-${String(entries.length + 1).padStart(3, "0")}`,
+        id: getNextId("JournalEntry"),
         ...form, status, createdBy: "Current User",
       };
       setEntries([newEntry, ...entries]);

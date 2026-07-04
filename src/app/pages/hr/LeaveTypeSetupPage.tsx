@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Plus, Edit, Trash2, CheckCircle, XCircle } from "lucide-react";
 import { useHRConfig, type LeaveType, type LeaveGender } from "../../stores/hrConfigStore";
+import { useNumbering } from "../../stores/numberingStore";
 
 const COLORS = [
   "bg-blue-100 text-blue-700", "bg-red-100 text-red-700", "bg-orange-100 text-orange-700",
@@ -28,6 +29,7 @@ const EMPTY = {
 };
 
 export function LeaveTypeSetupPage() {
+  const { getNextId } = useNumbering();
   const { leaveTypes, setLeaveTypes } = useHRConfig();
   const [showForm, setShowForm] = useState(false);
   const [editId, setEditId] = useState<string | null>(null);
@@ -40,7 +42,7 @@ export function LeaveTypeSetupPage() {
       setLeaveTypes(prev => prev.map(t => t.id === editId ? { ...t, ...form } : t));
       setEditId(null);
     } else {
-      setLeaveTypes(prev => [...prev, { id: `lt${Date.now()}`, ...form }]);
+      setLeaveTypes(prev => [...prev, { id: getNextId("LeaveType"), ...form }]);
     }
     setForm(EMPTY);
     setShowForm(false);

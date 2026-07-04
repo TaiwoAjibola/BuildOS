@@ -3,6 +3,7 @@ import { Plus, Download, AlertTriangle, X, Save, Eye, Pencil, Copy, Trash2, Targ
 import { exportCSV } from "../../utils/exportCSV";
 import { DataTable, type Column } from "../../components/DataTable";
 import { useChangelog } from "../../stores/changelogStore";
+import { useNumbering } from "../../stores/numberingStore";
 
 type BudgetScope = "Project" | "Department";
 type BudgetStatus = "Active" | "On Track" | "At Risk" | "Over Budget" | "Closed";
@@ -55,6 +56,7 @@ const emptyForm = { name: "", scope: "Project" as BudgetScope, totalBudget: "", 
 
 export function BudgetManagementPage() {
   const { logChange } = useChangelog();
+  const { getNextId } = useNumbering();
   const [budgets, setBudgets] = useState<BudgetLine[]>(mockBudgets);
   const [scopeFilter, setScopeFilter] = useState<BudgetScope | "All">("All");
   const [selectedBudget, setSelectedBudget] = useState<BudgetLine | null>(null);
@@ -73,7 +75,7 @@ export function BudgetManagementPage() {
   function addBudget() {
     if (!form.name || !form.totalBudget) return;
     const newB: BudgetLine = {
-      id: `BUD-${String(budgets.length + 1).padStart(3, "0")}`,
+      id: getNextId("Budget"),
       name: form.name,
       scope: form.scope,
       totalBudget: parseFloat(form.totalBudget.replace(/,/g, "")),
@@ -111,7 +113,7 @@ export function BudgetManagementPage() {
   }
 
   function cloneBudget(b: BudgetLine) {
-    const newId = `BUD-${String(budgets.length + 1).padStart(3, "0")}`;
+    const newId = getNextId("Budget");
     const clone: BudgetLine = { ...b, id: newId, name: `${b.name} (Copy)`, spent: 0, committed: 0, status: "Active" };
     setBudgets([...budgets, clone]);
     logChange({ module: "Finance", action: "Created", entityType: "Budget", entityId: newId, summary: `Budget ${clone.name} created (cloned from ${b.name})`, performedBy: "Current User" });

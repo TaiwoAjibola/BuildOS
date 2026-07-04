@@ -7,6 +7,7 @@ import {
 import { DataTable, type Column } from "../../components/DataTable";
 import { useChangelog } from "../../stores/changelogStore";
 import { exportCSV } from "../../utils/exportCSV";
+import { useNumbering } from "../../stores/numberingStore";
 
 type POStatus = "draft" | "sent" | "confirmed" | "partially_received" | "completed" | "cancelled";
 type PaymentStatus = "unpaid" | "confirmation_requested" | "paid";
@@ -131,11 +132,12 @@ function NewPOModal({ onClose, onSave }: {
   const removeItem = (i: number) => setItems(p => p.filter((_, j) => j !== i));
   const updateItem = (i: number, k: keyof POItem, v: string) => setItems(p => p.map((it, j) => j === i ? { ...it, [k]: v } : it));
   const totalValue = items.reduce((s, it) => s + (parseFloat(it.qty) || 0) * (parseFloat(it.unitCost) || 0), 0);
+  const { getNextId } = useNumbering();
   const valid = supplier && items.every(it => it.material.trim() && it.qty.trim() && it.unitCost.trim());
 
   function handleSave() {
     if (!valid) return;
-    const nextId = `PO-${String(Math.floor(Math.random() * 9000) + 1000)}`;
+    const nextId = getNextId("PurchaseOrder");
     onSave({
       id: nextId, prRef: prRef.trim() || "—", mrRef: "—", supplier,
       supplierContact: supplierContact.trim() || supplier,

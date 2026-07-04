@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { Plus, Lock, Unlock, Clock, CheckCircle } from "lucide-react";
+import { useNumbering } from "../../stores/numberingStore";
 
 type PeriodStatus = "open" | "processing" | "closed";
 
@@ -32,6 +33,7 @@ const statusConf: Record<PeriodStatus, { label: string; badge: string; icon: Rea
 const fmt = (n: number) => n === 0 ? "—" : `₦${(n / 1_000_000).toFixed(1)}M`;
 
 export function PayrollPeriodPage() {
+  const { getNextId } = useNumbering();
   const [periods, setPeriods] = useState<Period[]>(SEED);
   const [showAdd, setShowAdd] = useState(false);
   const [newName, setNewName] = useState("");
@@ -49,7 +51,7 @@ export function PayrollPeriodPage() {
   function addPeriod() {
     if (!newName.trim() || !newStart || !newEnd) return;
     setPeriods(prev => [{
-      id: `pp${Date.now()}`, name: newName.trim(), type: "Monthly",
+      id: getNextId("PayrollPeriod"), name: newName.trim(), type: "Monthly",
       startDate: newStart, endDate: newEnd, status: "open",
       employeesIncluded: 0, totalNetPay: 0, processedBy: null, processedAt: null,
     }, ...prev]);

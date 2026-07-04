@@ -1,10 +1,12 @@
 import { useState } from "react";
 import { Plus, Edit, Trash2, FolderKanban, FolderX } from "lucide-react";
 import { useHRConfig, type ClaimType } from "../../stores/hrConfigStore";
+import { useNumbering } from "../../stores/numberingStore";
 
 const EMPTY = { name: "", description: "", isProjectBased: false };
 
 export function ClaimTypeSetupPage() {
+  const { getNextId } = useNumbering();
   const { claimTypes, setClaimTypes } = useHRConfig();
   const [showForm, setShowForm] = useState(false);
   const [editId, setEditId] = useState<string | null>(null);
@@ -17,7 +19,7 @@ export function ClaimTypeSetupPage() {
       setClaimTypes(prev => prev.map(c => c.id === editId ? { ...c, ...form } : c));
       setEditId(null);
     } else {
-      setClaimTypes(prev => [...prev, { id: `ct${Date.now()}`, ...form }]);
+      setClaimTypes(prev => [...prev, { id: getNextId("ClaimType"), ...form }]);
     }
     setForm(EMPTY);
     setShowForm(false);

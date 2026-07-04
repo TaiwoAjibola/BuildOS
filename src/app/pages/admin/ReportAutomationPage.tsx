@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { Plus, Clock, Mail, BarChart3, Trash2 } from "lucide-react";
+import { useNumbering } from "../../stores/numberingStore";
 
 type Frequency = "Daily" | "Weekly" | "Monthly";
 type ReportModule = "Finance" | "HR" | "Procurement" | "Projects" | "ESS" | "Storefront";
@@ -53,6 +54,7 @@ export function ReportAutomationPage() {
   const [schedules, setSchedules] = useState<ReportSchedule[]>(MOCK_SCHEDULES);
   const [showModal, setShowModal] = useState(false);
   const [form, setForm] = useState({ ...BLANK_FORM });
+  const { getNextId } = useNumbering();
 
   function toggleEnabled(id: string) {
     setSchedules((prev) => prev.map((s) => s.id === id ? { ...s, enabled: !s.enabled } : s));
@@ -65,7 +67,7 @@ export function ReportAutomationPage() {
   function saveSchedule() {
     setSchedules([...schedules, {
       ...form,
-      id: `RS-${String(schedules.length + 1).padStart(3, "0")}`,
+      id: getNextId("ReportSchedule"),
       lastSent: "—",
     }]);
     setShowModal(false);

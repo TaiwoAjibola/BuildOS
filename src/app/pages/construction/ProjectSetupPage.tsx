@@ -10,6 +10,7 @@ import { useRoles } from "../../contexts/RolesContext";
 import { SECTOR_CATEGORIES, getBlockLabel, getStructureConfig, DEFAULT_WBS_LEVELS } from "./types";
 import { useResources } from "../../contexts/ResourceContext";
 import { SearchableMultiSelect } from "../../components/SearchableMultiSelect";
+import { useNumbering } from "../../stores/numberingStore";
 
 const STEPS = [
   { id: "basic", label: "Basic Information", icon: FileText },
@@ -51,6 +52,7 @@ export function ProjectSetupPage() {
   const { id: projectId } = useParams<{ id: string }>();
   const project = getProjectById(projectId!);
 
+  const { getNextId } = useNumbering();
   const { contractors: individualContractors } = useResources();
   const [currentStep, setCurrentStep] = useState(0);
   const [completedSteps, setCompletedSteps] = useState<Set<number>>(new Set());
@@ -90,7 +92,7 @@ export function ProjectSetupPage() {
     const config = structureConfig;
     if (!config) return;
     const newEntry = {
-      id: `SE-${structureEntries.length + 1}`,
+      id: getNextId("Structure"),
       name: "",
       innerUnitCount: 1,
       attributes: {} as Record<string, string | number>,
@@ -471,7 +473,7 @@ export function ProjectSetupPage() {
       .map((id, i) => {
         const v = allVendors.find(x => x.id === id);
         return {
-          id: `V-${String(projectVendors.length + i + 1).padStart(3, "0")}`,
+          id: getNextId("Vendor"),
           projectId: projectId!,
           assignedWorkPackages: [],
           name: v?.name || "",
@@ -529,7 +531,7 @@ export function ProjectSetupPage() {
       .map((id, i) => {
         const emp = hrEmployees.find(e => e.id === id);
         return {
-          id: `STF-${String(projectStaff.length + i + 1).padStart(3, "0")}`,
+          id: getNextId("Staff"),
           projectId: projectId!,
           source: "employee" as const,
           name: `${emp?.firstName || ""} ${emp?.lastName || ""}`,
@@ -580,7 +582,7 @@ export function ProjectSetupPage() {
       .map((id, i) => {
         const c = individualContractors.find(x => x.id === id);
         return {
-          id: `CON-${String(projectContractors.length + i + 1).padStart(3, "0")}`,
+          id: getNextId("Contractor"),
           projectId: projectId!,
           source: "individual-contractor" as const,
           name: c?.name || "",
@@ -615,7 +617,7 @@ export function ProjectSetupPage() {
     const newMats: MaterialResource[] = selectedMaterialIds.map((id, i) => {
       const inv = materialInventory.find(x => x.id === id);
       return {
-        id: `MAT-${String(projectMaterials.length + i + 1).padStart(3, "0")}`,
+        id: getNextId("Material"),
         projectId: projectId!,
         name: inv?.name || "Unknown",
         category: inv?.category || "",
@@ -638,7 +640,7 @@ export function ProjectSetupPage() {
       const newEquips: EquipmentResource[] = selectedFleetEquipmentIds.map((id, i) => {
         const inv = equipmentInventory.find(e => e.id === id);
         return {
-          id: `EQ-${String(projectEquipment.length + i + 1).padStart(3, "0")}`,
+          id: getNextId("Equipment"),
           projectId: projectId!,
           name: inv?.name || "Unknown",
           category: inv?.category || "",
@@ -1236,7 +1238,7 @@ export function ProjectSetupPage() {
                     const s = basicInfo.plannedStartDate || new Date().toISOString().split("T")[0];
                     const e = basicInfo.plannedEndDate || new Date(Date.now() + 90 * 86400000).toISOString().split("T")[0];
                     newTasks.push({
-                      id: `ST-${String(nextId).padStart(3, "0")}`,
+                      id: getNextId("SiteTask"),
                       projectId: projectId!,
                       parentTaskId: null,
                       level: 1,
@@ -1821,7 +1823,7 @@ export function ProjectSetupPage() {
                   <button onClick={() => {
                     if (!contractorForm.name || !contractorForm.trade) return;
                     const newCon: HumanResource = {
-                      id: `CON-${String(projectContractors.length + 1).padStart(3, "0")}`,
+                      id: getNextId("Contractor"),
                       projectId: projectId!,
                       source: "individual-contractor",
                       name: contractorForm.name,
@@ -2355,7 +2357,7 @@ export function ProjectSetupPage() {
                   if (!equipmentForm.name || !equipmentForm.category) return;
                   const isRented = externalEquipType === "rented";
                   const newEquip: EquipmentResource = {
-                    id: `EQ-${String(projectEquipment.length + 1).padStart(3, "0")}`,
+                    id: getNextId("Equipment"),
                     projectId: projectId!,
                     name: equipmentForm.name,
                     category: equipmentForm.category,

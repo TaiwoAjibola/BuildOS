@@ -3,6 +3,7 @@ import { Download, CheckCircle, Clock, XCircle, Eye, X, AlertCircle } from "luci
 import { exportCSV } from "../../utils/exportCSV";
 import { DataTable, type Column } from "../../components/DataTable";
 import { useChangelog } from "../../stores/changelogStore";
+import { useNumbering } from "../../stores/numberingStore";
 
 type ClaimStatus = "Submitted" | "Under Review" | "Approved" | "Rejected" | "Paid";
 
@@ -48,6 +49,7 @@ export function ClaimsManagementPage() {
   const [viewClaim, setViewClaim] = useState<Claim | null>(null);
   const [rejectState, setRejectState] = useState<{ id: string; reason: string } | null>(null);
   const { logChange } = useChangelog();
+  const { getNextId } = useNumbering();
 
   const fmt = (n: number) => `$${n.toLocaleString()}`;
 

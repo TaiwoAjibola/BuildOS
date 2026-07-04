@@ -3,6 +3,7 @@ import { useState } from "react";
 import { GitCompare, Plus, Search, Filter, Eye, CheckCircle, XCircle, Clock, DollarSign, Calendar, User, FileText } from "lucide-react";
 import { getProjectById, changeRequests, fmtDate, fmtCurrency } from "./mockData";
 import type { ChangeRequest } from "./types";
+import { useNumbering } from "../../stores/numberingStore";
 
 const changeTypeColors: Record<string, string> = {
   Cost: "bg-red-100 text-red-700",
@@ -46,6 +47,7 @@ const emptyForm = {
 };
 
 export function ChangeRequestsPage() {
+  const { getNextId } = useNumbering();
   const { id } = useParams();
   const project = id ? getProjectById(id) : undefined;
   const [search, setSearch] = useState("");
@@ -65,12 +67,6 @@ export function ChangeRequestsPage() {
     setCrStates(s => ({ ...s, [id]: { ...getCR(changeRequests.find(c => c.id === id)!), ...updates } }));
   }
 
-  function nextId(): string {
-    const nums = changeRequests.map(cr => parseInt(cr.id.replace("CR-", ""), 10)).filter(n => !isNaN(n));
-    const max = nums.length ? Math.max(...nums) : 0;
-    return `CR-${String(max + 1).padStart(3, "0")}`;
-  }
-
   function nextCrNumber(): string {
     const nums = changeRequests.map(cr => parseInt(cr.crNumber.replace("CR-", ""), 10)).filter(n => !isNaN(n));
     const max = nums.length ? Math.max(...nums) : 0;
@@ -80,7 +76,7 @@ export function ChangeRequestsPage() {
   function handleCreate() {
     if (!form.description.trim() || !id) return;
     const newCR: ChangeRequest = {
-      id: nextId(),
+      id: getNextId("ChangeRequest"),
       projectId: id,
       crNumber: nextCrNumber(),
       dateRaised: form.dateRaised,

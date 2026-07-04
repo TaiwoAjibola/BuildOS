@@ -3,6 +3,7 @@ import { useState, useMemo } from "react";
 import { DollarSign, Plus, Search, Filter, X, Landmark, Wallet, Building2 } from "lucide-react";
 import { disbursements as allDisbursements, getProjectById, projects, fmtCurrency, fmtDate } from "./mockData";
 import type { Disbursement } from "./types";
+import { useNumbering } from "../../stores/numberingStore";
 
 const sourceStyles: Record<string, { bg: string; text: string; icon: React.ReactNode }> = {
   finance: { bg: "bg-blue-100 text-blue-700", icon: <Landmark className="w-3.5 h-3.5" />, text: "blue" },
@@ -16,6 +17,7 @@ const emptyForm: Omit<Disbursement, "id"> = {
 };
 
 export function DisbursementsPage() {
+  const { getNextId } = useNumbering();
   const { id: projectId } = useParams<{ id: string }>();
   const project = projectId ? getProjectById(projectId) : null;
   const [search, setSearch] = useState("");
@@ -40,7 +42,7 @@ export function DisbursementsPage() {
   function handleAdd() {
     if (!form.projectId || !form.amount) return;
     const newEntry: Disbursement = {
-      id: `DB-${String(allDisbursements.length + 1).padStart(3, "0")}`,
+      id: getNextId("Disbursement"),
       ...form,
     };
     allDisbursements.push(newEntry);

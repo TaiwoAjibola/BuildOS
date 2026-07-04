@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { Search, Download, Filter, ArrowRight, Plus, LayoutList, Building2 } from "lucide-react";
+import { useNumbering } from "../../stores/numberingStore";
 
 type MovementType = "Transfer" | "Issue" | "Receipt" | "Return" | "Adjustment";
 
@@ -57,6 +58,7 @@ export function StockMovementPage() {
   const [storeFilter, setStoreFilter] = useState("All Stores");
   const [showModal, setShowModal] = useState(false);
   const [form, setForm] = useState<typeof BLANK_FORM>({ ...BLANK_FORM });
+  const { getNextId } = useNumbering();
 
   const filtered = movements.filter((m) => {
     const q = search.toLowerCase();
@@ -70,7 +72,7 @@ export function StockMovementPage() {
     const now = new Date().toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
     const newMov: Movement = {
       ...form,
-      id: `MOV-${String(movements.length + 1).padStart(3, "0")}`,
+      id: getNextId("StockMovement"),
       date: now,
     };
     setMovements([newMov, ...movements]);

@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { Plus, ArrowRight, Search } from "lucide-react";
+import { useNumbering } from "../../stores/numberingStore";
 
 type TransferStatus = "Pending" | "In Transit" | "Completed" | "Rejected";
 
@@ -77,6 +78,7 @@ export function StockTransferPage() {
   const [showModal, setShowModal] = useState(false);
   const [form, setForm] = useState({ ...BLANK_FORM });
   const [expanded, setExpanded] = useState<string | null>(null);
+  const { getNextId } = useNumbering();
 
   const filtered = transfers.filter((t) => {
     const matchSearch = t.from.toLowerCase().includes(search.toLowerCase()) || t.to.toLowerCase().includes(search.toLowerCase()) || t.id.toLowerCase().includes(search.toLowerCase());
@@ -102,7 +104,7 @@ export function StockTransferPage() {
   function submitTransfer() {
     const newT: StockTransfer = {
       ...form,
-      id: `TRF-${String(transfers.length + 1).padStart(3, "0")}`,
+      id: getNextId("StockTransfer"),
       date: new Date().toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }),
       status: "Pending",
     };

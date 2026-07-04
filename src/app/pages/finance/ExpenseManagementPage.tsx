@@ -3,6 +3,7 @@ import { Plus, Download, Receipt, X, Save, Eye, CheckCircle, XCircle, Clock, Sen
 import { exportCSV } from "../../utils/exportCSV";
 import { DataTable, type Column } from "../../components/DataTable";
 import { useChangelog } from "../../stores/changelogStore";
+import { useNumbering } from "../../stores/numberingStore";
 
 type ExpenseStatus = "Draft" | "Submitted" | "Approved" | "Rejected" | "Sent to Finance" | "Paid";
 
@@ -58,6 +59,7 @@ export function ExpenseManagementPage() {
   const [rejectState, setRejectState] = useState<{ id: string; reason: string } | null>(null);
 
   const { logChange } = useChangelog();
+  const { getNextId } = useNumbering();
 
   const fmt = (n: number) => `$${n.toLocaleString()}`;
 
@@ -146,7 +148,7 @@ export function ExpenseManagementPage() {
   function addExpense() {
     if (!form.project || !form.amount || !form.description) return;
     const newExp: Expense = {
-      id: `EXP-${String(expenses.length + 52).padStart(4, "0")}`,
+      id: getNextId("Expense"),
       project: form.project,
       category: form.category || "Other",
       amount: parseFloat(form.amount.replace(/,/g, "")),

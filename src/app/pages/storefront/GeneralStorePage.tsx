@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { Plus, Search, AlertTriangle, Package, ShoppingCart, CheckCircle, X } from "lucide-react";
+import { useNumbering } from "../../stores/numberingStore";
 
 type StockStatus = "In Stock" | "Low Stock" | "Out of Stock";
 
@@ -55,6 +56,7 @@ export function GeneralStorePage() {
   const [procurementTarget, setProcurementTarget] = useState<StockItem | null>(null);
   const [procurementQty, setProcurementQty] = useState("");
   const [sentToProcurement, setSentToProcurement] = useState<Set<string>>(new Set());
+  const { getNextId } = useNumbering();
 
   const filtered = items.filter((i) => {
     const matchSearch = i.name.toLowerCase().includes(search.toLowerCase()) || i.id.toLowerCase().includes(search.toLowerCase());
@@ -66,7 +68,7 @@ export function GeneralStorePage() {
   function saveItem() {
     const newItem: StockItem = {
       ...form,
-      id: `GS-${String(items.length + 1).padStart(3, "0")}`,
+      id: getNextId("GeneralStore"),
       lastReceived: new Date().toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }),
     };
     setItems([...items, newItem]);

@@ -3,6 +3,7 @@ import { useState, useMemo } from "react";
 import { MessageSquare, Plus, Search, Mail, Phone, Users, FileText, CalendarCheck, Clock, AlertCircle, CheckCircle, Send, Archive } from "lucide-react";
 import { communicationLog as allComms, getProjectById, projects, fmtDate } from "./mockData";
 import type { CommunicationLogEntry } from "./types";
+import { useNumbering } from "../../stores/numberingStore";
 
 const channelStyles: Record<string, { bg: string; icon: React.ReactNode }> = {
   email: { bg: "bg-blue-100 text-blue-600", icon: <Mail className="w-3.5 h-3.5" /> },
@@ -24,6 +25,7 @@ const emptyForm: Omit<CommunicationLogEntry, "id" | "createdAt" | "createdBy"> =
 };
 
 export function CommunicationLogPage() {
+  const { getNextId } = useNumbering();
   const { id: projectId } = useParams<{ id: string }>();
   const project = projectId ? getProjectById(projectId) : null;
   const [search, setSearch] = useState("");
@@ -49,7 +51,7 @@ export function CommunicationLogPage() {
   function handleAdd() {
     if (!form.projectId || !form.subject) return;
     const newEntry: CommunicationLogEntry = {
-      id: `CL-${String(allComms.length + 1).padStart(3, "0")}`,
+      id: getNextId("Communication"),
       createdAt: new Date().toISOString(),
       createdBy: "Current User",
       ...form,

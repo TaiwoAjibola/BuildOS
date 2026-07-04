@@ -220,7 +220,7 @@ export function HRGeneralSetupPage() {
             <h2 className="text-sm font-semibold text-gray-900">Module Numbering System</h2>
           </div>
           <div className="p-5">
-            <p className="text-xs text-gray-500 mb-4">Configure the auto-numbering format for records across each module. The system uses these patterns when generating new IDs.</p>
+            <p className="text-xs text-gray-500 mb-4">Configure the auto-numbering format for records across HR modules. The system uses these patterns when generating new IDs.</p>
             <div className="space-y-3">
               {configs.filter(cfg => /^HR/.test(cfg.module)).map(cfg => (
                 <div key={cfg.module} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg border border-gray-100">

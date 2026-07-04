@@ -7,6 +7,7 @@ import { DataTable, type Column } from "../../components/DataTable";
 import { useChangelog } from "../../stores/changelogStore";
 import { exportCSV } from "../../utils/exportCSV";
 import { AdvancedFilter, applyFiltersAndSort, type FilterFieldDef, type ActiveFilters, type SortConfig } from "../../components/AdvancedFilter";
+import { useNumbering } from "../../stores/numberingStore";
 
 type PRStatus = "draft" | "pending_approval" | "approved" | "sent_to_suppliers" | "quotes_received" | "po_created" | "cancelled";
 type SupplierStatus = "not_sent" | "request_sent" | "quote_received" | "po_created" | "approved" | "paid" | "delivered";
@@ -177,11 +178,12 @@ function NewPRModal({
     }
   }
 
+  const { getNextId } = useNumbering();
   const valid = project && mrRef.trim() && items.every((it) => it.material.trim() && it.qty.trim());
 
   function save() {
     if (!valid || !selectedSuppliers.length) return;
-    const id    = `PR-${String(Math.floor(Math.random() * 9000) + 1000)}`;
+    const id    = getNextId("PurchaseRequest");
     const total = items.reduce((s, it) => s + parseFloat(it.qty) * parseFloat(it.estimatedUnitCost || "0"), 0);
     onSave({
       id,

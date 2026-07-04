@@ -4,6 +4,7 @@ import {
   CalendarDays, User, PlayCircle, Send, ThumbsUp, ThumbsDown,
   ChevronDown, ChevronUp, Clock, CheckCircle2, XCircle, AlertCircle, Circle,
 } from "lucide-react";
+import { useNumbering } from "../stores/numberingStore";
 import { ApprovalPipeline } from "./ApprovalPipeline";
 import type { PipelineStep } from "./ApprovalPipeline";
 
@@ -106,14 +107,12 @@ const APP_SEEDS: Record<string, SeedDef[]> = {
   ],
 };
 
-function makeId() { return `TK-${String(Math.floor(Math.random() * 9000) + 1000)}`; }
-
-function buildSeeds(app: string): MyTask[] {
+function buildSeeds(app: string, getId: (module: string) => string): MyTask[] {
   const users  = MOCK_USERS[app]  ?? ["Team Member"];
   const manager = MANAGERS[app]  ?? "Manager";
   const seeds  = APP_SEEDS[app]  ?? APP_SEEDS.finance;
   return seeds.map((s) => ({
-    id:           makeId(),
+    id:           getId("MyTask"),
     name:         s.name,
     description:  s.description,
     assignedTo:   users[s.userIdx % users.length],
@@ -188,7 +187,8 @@ export function MyTasksView({
   accentTextClass = "text-indigo-700",
 }: MyTasksViewProps) {
   const users = MOCK_USERS[app] ?? ["Team Member"];
-  const [tasks, setTasks]         = useState<MyTask[]>(() => buildSeeds(app));
+  const { getNextId } = useNumbering();
+  const [tasks, setTasks]         = useState<MyTask[]>(() => buildSeeds(app, getNextId));
   const [currentUser, setCurrentUser] = useState(users[0]);
   const [expandedId, setExpandedId]   = useState<string | null>(null);
 

@@ -3,6 +3,7 @@ import { Plus, FileText, ChevronDown, ChevronUp } from "lucide-react";
 import { exportCSV } from "../../utils/exportCSV";
 import { DataTable, type Column } from "../../components/DataTable";
 import { useChangelog } from "../../stores/changelogStore";
+import { useNumbering } from "../../stores/numberingStore";
 
 type InvoiceStatus = "Draft" | "Pending Approval" | "Approved" | "Paid" | "Overdue";
 
@@ -95,6 +96,7 @@ export function PurchaseInvoicePage() {
   const [showModal, setShowModal] = useState(false);
   const [form, setForm] = useState({ ...BLANK_FORM, lines: [BLANK_LINE()] });
   const { logChange } = useChangelog();
+  const { getNextId } = useNumbering();
 
   const filtered = invoices.filter((inv) => {
     const matchSearch =
@@ -123,7 +125,7 @@ export function PurchaseInvoicePage() {
   function saveInvoice() {
     const newInvoice: PurchaseInvoice = {
       ...form,
-      id: `PI-${String(invoices.length + 1).padStart(3, "0")}`,
+      id: getNextId("PurchaseInvoice"),
     };
     setInvoices([newInvoice, ...invoices]);
     logChange({ module: "Procurement", action: "Created", entityType: "PurchaseInvoice", entityId: newInvoice.id, summary: `Invoice ${newInvoice.invoiceNo} created — ${newInvoice.supplier}`, performedBy: "Current User" });

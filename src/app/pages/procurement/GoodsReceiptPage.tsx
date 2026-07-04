@@ -3,6 +3,7 @@ import {
   PackageCheck, Search, Truck, CheckCircle, Clock, AlertTriangle,
   ChevronDown, ChevronRight, XCircle, BarChart2, X, Plus, Trash2, LinkIcon,
 } from "lucide-react";
+import { useNumbering } from "../../stores/numberingStore";
 
 type GRNStatus = "pending" | "partial" | "completed" | "over_supply";
 
@@ -110,11 +111,12 @@ function RecordDeliveryModal({ onClose, onSave, existingGrn }: {
   const addItem = () => setItems(p => [...p, { material: "", ordered: "", received: "", accepted: "", rejected: "0", unit: GRN_UNITS[0], reason: "" }]);
   const removeItem = (i: number) => setItems(p => p.filter((_, j) => j !== i));
   const updateItem = (i: number, k: keyof GRNItem, v: string) => setItems(p => p.map((it, j) => j === i ? { ...it, [k]: v } : it));
+  const { getNextId } = useNumbering();
   const valid = poRef && deliveryNote.trim() && items.every(it => it.material.trim() && it.received.trim());
 
   function handleSave() {
     if (!valid) return;
-    const nextId = `GRN-${String(Math.floor(Math.random() * 9000) + 1000)}`;
+    const nextId = getNextId("GoodsReceipt");
     const builtItems = items.map(it => ({
       material: it.material,
       ordered: parseFloat(it.ordered) || 0,

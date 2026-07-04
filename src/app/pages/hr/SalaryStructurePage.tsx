@@ -433,7 +433,7 @@ export function SalaryStructurePage() {
 
   const addBand = () => {
     if (!newBand.gradeName.trim()) return;
-    setBands((p) => [...p, { ...newBand, id: `b-${Date.now()}`, components: [] }]);
+    setBands((p) => [...p, { ...newBand, id: `band-${Date.now()}`, components: [] }]);
     setNewBand({ gradeName: "", gradeLevel: "", department: "", description: "", basicSalary: 0 });
     setAddBandOpen(false);
   };

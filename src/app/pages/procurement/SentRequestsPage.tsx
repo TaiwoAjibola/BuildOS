@@ -3,6 +3,7 @@ import {
   Send, Search, ChevronDown, ChevronRight, Clock, CheckCircle,
   XCircle, MailOpen, FileText, Package, Plus, Eye, X, Trash2,
 } from "lucide-react";
+import { useNumbering } from "../../stores/numberingStore";
 
 type SRStatus = "sent" | "viewed" | "quote_received" | "declined" | "expired";
 
@@ -115,11 +116,12 @@ function NewRFQModal({ onClose, onSave }: { onClose: () => void; onSave: (r: Sen
   const removeItem = (i: number) => setItems(p => p.filter((_, j) => j !== i));
   const updateItem = (i: number, k: keyof RFQItem, v: string) => setItems(p => p.map((it, j) => j === i ? { ...it, [k]: v } : it));
 
+  const { getNextId } = useNumbering();
   const valid = vendor && prRef.trim() && items.every(it => it.material.trim() && it.qty.trim());
 
   function handleSave() {
     if (!valid) return;
-    const nextId = `RFQ-${String(Math.floor(Math.random() * 9000) + 1000)}`;
+    const nextId = getNextId("RFQ");
     onSave({
       id: nextId, prRef: prRef.trim(), vendor, vendorEmail,
       project, sentDate: fmtDate(today),

@@ -3,6 +3,7 @@ import { useState } from "react";
 import { CheckSquare, AlertTriangle, FileText, ClipboardList, Beaker, XCircle, Plus, Eye, User, Calendar } from "lucide-react";
 import { getProjectById, qualityNCRs, fmtDate } from "./mockData";
 import type { QualityNCR } from "./types";
+import { useNumbering } from "../../stores/numberingStore";
 
 type QATab = "compliance" | "inspections" | "ncrs" | "capa" | "schedule";
 
@@ -72,11 +73,12 @@ const yesNoColor: Record<string, string> = {
 };
 
 function NCRModal({ onClose, projectId }: { onClose: (ncr: QualityNCR | null) => void; projectId: string }) {
+  const { getNextId } = useNumbering();
   const [form, setForm] = useState({ description: "", taskId: "", raisedBy: "", correctiveAction: "", responsiblePerson: "", targetCloseDate: "" });
   function handleSubmit() {
     if (!form.description.trim()) return;
     const newNcr: QualityNCR = {
-      id: `NCR-${String(qualityNCRs.length + 1).padStart(3, "0")}`,
+      id: getNextId("NonConformance"),
       projectId,
       ncrId: `NCR-${String(qualityNCRs.length + 23).padStart(4, "0")}`,
       date: new Date().toISOString().split("T")[0],

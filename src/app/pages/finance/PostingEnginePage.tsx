@@ -7,6 +7,7 @@ import {
 } from "lucide-react";
 import { useFinance } from "../../stores/financeStore";
 import { useChangelog } from "../../stores/changelogStore";
+import { useNumbering } from "../../stores/numberingStore";
 import { DataTable, type Column } from "../../components/DataTable";
 
 // ── Types
@@ -533,6 +534,7 @@ function CategoryCard({ category, transactions, onClick }: {
 export function PostingEnginePage() {
   const { accounts, transactions: ledgerTransactions, setTransactions: setLedgerTransactions } = useFinance();
   const { logChange } = useChangelog();
+  const { getNextId } = useNumbering();
   const [categories, setCategories]           = useState<ProcessCategory[]>(SEED_CATEGORIES);
   const [transactions, setTransactions]       = useState<Transaction[]>(SEED_TRANSACTIONS);
   const [activeCategory, setActiveCategory]   = useState<ProcessCategory | null>(null);
@@ -562,7 +564,7 @@ export function PostingEnginePage() {
     logChange({ module: "Finance", action: "Posted", entityType: "PostingEngineTxn", entityId: id, summary: `Posting Engine: "${txn.description}" → Ledger (${ledgerRef})`, performedBy: "Sola Adeleke" });
     // Create corresponding entry in the FinanceContext ledger
     setLedgerTransactions(prev => [...prev, {
-      id: `txn-${Date.now()}`,
+      id: getNextId("Transaction"),
       type: "Journal" as const,
       description: `${cat.name}: ${txn.description}`,
       debitAccount: cat.debitAccount,
