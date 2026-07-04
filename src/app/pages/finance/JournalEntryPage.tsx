@@ -323,8 +323,8 @@ export function JournalEntryPage() {
                     <tfoot className="bg-gray-50 border-t border-gray-200">
                       <tr>
                         <td colSpan={2} className="px-3 py-2 text-xs font-semibold text-gray-600 text-right">Totals:</td>
-                        <td className="px-3 py-2 text-xs font-bold text-emerald-700">₦{totalDebits.toLocaleString()}</td>
-                        <td className="px-3 py-2 text-xs font-bold text-red-600">₦{totalCredits.toLocaleString()}</td>
+                        <td className="px-3 py-2 text-xs font-bold text-emerald-700">{totalDebits.toLocaleString()}</td>
+                        <td className="px-3 py-2 text-xs font-bold text-red-600">{totalCredits.toLocaleString()}</td>
                         <td colSpan={2} className="px-3 py-2">
                           {totalDebits > 0 && (
                             <span className={`text-xs font-semibold ${isBalanced ? "text-emerald-600" : "text-red-600"}`}>

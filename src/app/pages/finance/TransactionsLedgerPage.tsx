@@ -218,12 +218,12 @@ function TransactionDetailModal({ txn, onClose }: { txn: Transaction; onClose: (
                   <tr>
                     <td className="px-4 py-2.5"><span className="px-2 py-0.5 bg-blue-100 text-blue-700 text-xs rounded font-medium">DR</span></td>
                     <td className="px-4 py-2.5 font-mono text-xs text-gray-700">{txn.debitAccount}</td>
-                    <td className="px-4 py-2.5 text-right font-semibold text-gray-900">₦{Math.abs(txn.amount).toLocaleString()}</td>
+                    <td className="px-4 py-2.5 text-right font-semibold text-gray-900">{Math.abs(txn.amount).toLocaleString()}</td>
                   </tr>
                   <tr>
                     <td className="px-4 py-2.5"><span className="px-2 py-0.5 bg-emerald-100 text-emerald-700 text-xs rounded font-medium">CR</span></td>
                     <td className="px-4 py-2.5 font-mono text-xs text-gray-700">{txn.creditAccount}</td>
-                    <td className="px-4 py-2.5 text-right font-semibold text-gray-900">₦{Math.abs(txn.amount).toLocaleString()}</td>
+                    <td className="px-4 py-2.5 text-right font-semibold text-gray-900">{Math.abs(txn.amount).toLocaleString()}</td>
                   </tr>
                 </tbody>
               </table>

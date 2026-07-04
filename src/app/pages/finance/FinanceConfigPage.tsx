@@ -70,9 +70,11 @@ export function FinanceConfigPage() {
   const [bankAccounts, setBankAccounts] = useState<BankAccount[]>(initialBankAccounts);
   const [paymentMethods, setPaymentMethods] = useState<PaymentMethod[]>(initialPaymentMethods);
   const [saved, setSaved] = useState(false);
-  const { configs, updateConfig, resetConfig } = useNumbering();
+  const { configs, updateConfig, resetConfig, addConfig, removeConfig } = useNumbering();
   const [editingNumbering, setEditingNumbering] = useState<string | null>(null);
   const [numberingForm, setNumberingForm] = useState<ModuleNumbering | null>(null);
+  const [showAddForm, setShowAddForm] = useState(false);
+  const [addForm, setAddForm] = useState<ModuleNumbering>({ module: "", prefix: "", separator: "-", padLength: 4, nextNumber: 1, description: "" });
 
   // General settings state
   const [currency, setCurrency] = useState("USD");
@@ -472,15 +474,60 @@ export function FinanceConfigPage() {
                     </div>
                     <div className="flex items-center gap-1">
                       <button onClick={() => openNumberingEdit(cfg)} className="p-1.5 text-indigo-500 hover:bg-indigo-50 rounded-lg"><Edit className="w-3.5 h-3.5" /></button>
-                      <button onClick={() => resetConfig(cfg.module)} className="p-1.5 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg" title="Reset to default"><Trash2 className="w-3.5 h-3.5" /></button>
+                      <button onClick={() => removeConfig(cfg.module)} className="p-1.5 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg" title="Remove entry"><Trash2 className="w-3.5 h-3.5" /></button>
                     </div>
                   </>
                 )}
               </div>
             ))}
+            </div>
+            {showAddForm ? (
+              <div className="mt-4 p-3 bg-gray-50 rounded-lg border border-gray-100">
+                <div className="grid grid-cols-6 gap-3 items-end">
+                  <div>
+                    <label className="block text-xs text-gray-500 mb-1">Module Name</label>
+                    <input value={addForm.module} onChange={e => setAddForm({ ...addForm, module: e.target.value })}
+                      placeholder="e.g. FinanceFiscalYear" className="w-full px-2 py-1.5 text-xs border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-indigo-500" />
+                    <p className="text-[10px] text-gray-400 mt-0.5">Must start with "Finance"</p>
+                  </div>
+                  <div>
+                    <label className="block text-xs text-gray-500 mb-1">Prefix</label>
+                    <input value={addForm.prefix} onChange={e => setAddForm({ ...addForm, prefix: e.target.value })}
+                      className="w-full px-2 py-1.5 text-xs border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-indigo-500" />
+                  </div>
+                  <div>
+                    <label className="block text-xs text-gray-500 mb-1">Separator</label>
+                    <input value={addForm.separator} onChange={e => setAddForm({ ...addForm, separator: e.target.value })}
+                      className="w-full px-2 py-1.5 text-xs border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-indigo-500" maxLength={2} />
+                  </div>
+                  <div>
+                    <label className="block text-xs text-gray-500 mb-1">Pad Length</label>
+                    <input type="number" value={addForm.padLength} onChange={e => setAddForm({ ...addForm, padLength: parseInt(e.target.value) || 1 })}
+                      className="w-full px-2 py-1.5 text-xs border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-indigo-500" min={1} max={10} />
+                  </div>
+                  <div>
+                    <label className="block text-xs text-gray-500 mb-1">Next Number</label>
+                    <input type="number" value={addForm.nextNumber} onChange={e => setAddForm({ ...addForm, nextNumber: parseInt(e.target.value) || 1 })}
+                      className="w-full px-2 py-1.5 text-xs border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-indigo-500" min={1} />
+                  </div>
+                  <div className="flex items-center gap-1">
+                    <button onClick={() => { addConfig(addForm); setAddForm({ module: "", prefix: "", separator: "-", padLength: 4, nextNumber: 1, description: "" }); setShowAddForm(false); }} className="px-3 py-1.5 text-xs bg-indigo-600 text-white rounded-lg hover:bg-indigo-700"><Save className="w-3 h-3 inline mr-1" />Save</button>
+                    <button onClick={() => setShowAddForm(false)} className="px-3 py-1.5 text-xs border border-gray-300 rounded-lg hover:bg-gray-50">Cancel</button>
+                  </div>
+                </div>
+                <div className="mt-2">
+                  <label className="block text-xs text-gray-500 mb-1">Description</label>
+                  <input value={addForm.description} onChange={e => setAddForm({ ...addForm, description: e.target.value })}
+                    className="w-full px-2 py-1.5 text-xs border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-indigo-500" />
+                </div>
+              </div>
+            ) : (
+              <button onClick={() => setShowAddForm(true)} className="mt-4 flex items-center gap-1.5 text-sm text-indigo-600 hover:text-indigo-700 font-medium">
+                <Plus className="w-3.5 h-3.5" /> Add Numbering Entry
+              </button>
+            )}
           </div>
         </div>
-      </div>
 
       {/* Bank Account Modal */}
       {showBankModal && (

@@ -3,7 +3,7 @@ import { useState } from "react";
 import { useNumbering, type ModuleNumbering } from "../../stores/numberingStore";
 
 export function FinancialConfigurationPage() {
-  const { configs, updateConfig, resetConfig } = useNumbering();
+  const { configs, updateConfig, resetConfig, addConfig, removeConfig } = useNumbering();
 
   const [chartOfAccounts, setChartOfAccounts] = useState([
     { id: "1", code: "1000", name: "Assets", type: "Asset", parent: null },
@@ -31,6 +31,9 @@ export function FinancialConfigurationPage() {
 
   const [editingNumbering, setEditingNumbering] = useState<string | null>(null);
   const [numberingForm, setNumberingForm] = useState<ModuleNumbering | null>(null);
+  const [showAddForm, setShowAddForm] = useState(false);
+  const emptyForm = { module: "", prefix: "", separator: "-", padLength: 4, nextNumber: 1, description: "" };
+  const [addForm, setAddForm] = useState<ModuleNumbering>(emptyForm);
 
   function openNumberingEdit(cfg: ModuleNumbering) {
     setEditingNumbering(cfg.module);
@@ -42,6 +45,14 @@ export function FinancialConfigurationPage() {
       updateConfig(numberingForm.module, numberingForm);
       setEditingNumbering(null);
       setNumberingForm(null);
+    }
+  }
+
+  function saveAddNumbering() {
+    if (addForm.module.trim()) {
+      addConfig(addForm);
+      setShowAddForm(false);
+      setAddForm(emptyForm);
     }
   }
 
@@ -244,6 +255,9 @@ export function FinancialConfigurationPage() {
                     </div>
                     <div className="flex items-center gap-1">
                       <button onClick={() => openNumberingEdit(cfg)} className="p-1.5 text-indigo-500 hover:bg-indigo-50 rounded-lg"><Edit className="w-3.5 h-3.5" /></button>
+                      {!cfg.module.startsWith("Task") && !cfg.module.startsWith("MyTask") && !cfg.module.startsWith("Role") && (
+                        <button onClick={() => removeConfig(cfg.module)} className="p-1.5 text-red-500 hover:bg-red-50 rounded-lg" title="Delete entry"><Trash2 className="w-3.5 h-3.5" /></button>
+                      )}
                       <button onClick={() => resetConfig(cfg.module)} className="p-1.5 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg" title="Reset to default"><Trash2 className="w-3.5 h-3.5" /></button>
                     </div>
                   </>
@@ -251,6 +265,54 @@ export function FinancialConfigurationPage() {
               </div>
             ))}
           </div>
+
+          <button onClick={() => setShowAddForm(!showAddForm)} className="mt-4 flex items-center gap-1.5 px-3 py-1.5 border border-dashed border-gray-300 rounded-lg text-sm text-gray-600 hover:border-indigo-400 hover:text-indigo-600 transition-colors">
+            <Plus className="w-3.5 h-3.5" />
+            Add Numbering Entry
+          </button>
+
+          {showAddForm && (
+            <div className="mt-3 p-3 bg-amber-50 rounded-lg border border-amber-200">
+              <div className="flex-1">
+                <div className="grid grid-cols-6 gap-3 items-end mb-3">
+                  <div>
+                    <label className="block text-xs text-gray-500 mb-1">Module</label>
+                    <input value={addForm.module} onChange={e => setAddForm({ ...addForm, module: e.target.value })}
+                      className="w-full px-2 py-1.5 text-xs border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-indigo-500" />
+                  </div>
+                  <div>
+                    <label className="block text-xs text-gray-500 mb-1">Prefix</label>
+                    <input value={addForm.prefix} onChange={e => setAddForm({ ...addForm, prefix: e.target.value })}
+                      className="w-full px-2 py-1.5 text-xs border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-indigo-500" />
+                  </div>
+                  <div>
+                    <label className="block text-xs text-gray-500 mb-1">Separator</label>
+                    <input value={addForm.separator} onChange={e => setAddForm({ ...addForm, separator: e.target.value })}
+                      className="w-full px-2 py-1.5 text-xs border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-indigo-500" maxLength={2} />
+                  </div>
+                  <div>
+                    <label className="block text-xs text-gray-500 mb-1">Pad Length</label>
+                    <input type="number" value={addForm.padLength} onChange={e => setAddForm({ ...addForm, padLength: parseInt(e.target.value) || 1 })}
+                      className="w-full px-2 py-1.5 text-xs border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-indigo-500" min={1} max={10} />
+                  </div>
+                  <div>
+                    <label className="block text-xs text-gray-500 mb-1">Next Number</label>
+                    <input type="number" value={addForm.nextNumber} onChange={e => setAddForm({ ...addForm, nextNumber: parseInt(e.target.value) || 1 })}
+                      className="w-full px-2 py-1.5 text-xs border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-indigo-500" min={1} />
+                  </div>
+                  <div className="flex items-center gap-1">
+                    <button onClick={saveAddNumbering} className="px-3 py-1.5 text-xs bg-indigo-600 text-white rounded-lg hover:bg-indigo-700"><Plus className="w-3 h-3 inline mr-1" />Add</button>
+                    <button onClick={() => { setShowAddForm(false); setAddForm(emptyForm); }} className="px-3 py-1.5 text-xs border border-gray-300 rounded-lg hover:bg-gray-50">Cancel</button>
+                  </div>
+                </div>
+                <div>
+                  <label className="block text-xs text-gray-500 mb-1">Description</label>
+                  <input value={addForm.description} onChange={e => setAddForm({ ...addForm, description: e.target.value })}
+                    className="w-full px-2 py-1.5 text-xs border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-indigo-500" />
+                </div>
+              </div>
+            </div>
+          )}
         </div>
       </div>
     </div>

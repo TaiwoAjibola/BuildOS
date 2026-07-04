@@ -411,7 +411,7 @@ export function PurchaseOrdersPage() {
       sortable: true,
       className: "text-right",
       headerClassName: "text-right",
-      render: (po) => <span className="font-semibold text-gray-900">{fmt(po.totalValue)}</span>,
+      render: (po) => <span className="font-semibold text-gray-900">{po.totalValue.toLocaleString()}</span>,
     },
     {
       key: "date",

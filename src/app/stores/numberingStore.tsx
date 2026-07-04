@@ -14,6 +14,8 @@ interface NumberingContextValue {
   getNextId: (module: string) => string;
   updateConfig: (module: string, updates: Partial<ModuleNumbering>) => void;
   resetConfig: (module: string) => void;
+  addConfig: (cfg: ModuleNumbering) => void;
+  removeConfig: (module: string) => void;
 }
 
 const NumberingContext = createContext<NumberingContextValue | null>(null);
@@ -111,8 +113,16 @@ export function NumberingProvider({ children }: { children: ReactNode }) {
     if (def) updateConfig(module, def);
   }, [updateConfig]);
 
+  const addConfig = useCallback((cfg: ModuleNumbering) => {
+    setConfigs(prev => prev.some(c => c.module === cfg.module) ? prev : [...prev, cfg]);
+  }, []);
+
+  const removeConfig = useCallback((module: string) => {
+    setConfigs(prev => prev.filter(c => c.module !== module));
+  }, []);
+
   return (
-    <NumberingContext.Provider value={{ configs, getNextId, updateConfig, resetConfig }}>
+    <NumberingContext.Provider value={{ configs, getNextId, updateConfig, resetConfig, addConfig, removeConfig }}>
       {children}
     </NumberingContext.Provider>
   );

@@ -546,7 +546,7 @@ export function SuppliersPage() {
                         <tr key={m.name} className="hover:bg-gray-50">
                           <td className="px-4 py-2.5 text-gray-800">{m.name}</td>
                           <td className="px-4 py-2.5 text-gray-500">{m.unit}</td>
-                          <td className="px-4 py-2.5 text-right font-mono text-gray-800">₦{m.lastPrice.toLocaleString()}</td>
+                          <td className="px-4 py-2.5 text-right font-mono text-gray-800">{m.lastPrice.toLocaleString()}</td>
                         </tr>
                       ))}
                     </tbody>
@@ -572,7 +572,7 @@ export function SuppliersPage() {
                         <tr className="hover:bg-gray-50">
                           <td className="px-4 py-2.5 font-mono text-blue-700">PO-2026-0134</td>
                           <td className="px-4 py-2.5 text-gray-500">{profileTarget.lastOrder}</td>
-                          <td className="px-4 py-2.5 text-right text-gray-800">₦{(profileTarget.totalSpend * 0.12).toLocaleString(undefined, { maximumFractionDigits: 0 })}</td>
+                          <td className="px-4 py-2.5 text-right text-gray-800">{(profileTarget.totalSpend * 0.12).toLocaleString(undefined, { maximumFractionDigits: 0 })}</td>
                           <td className="px-4 py-2.5"><span className="text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full">Open</span></td>
                         </tr>
                       </tbody>

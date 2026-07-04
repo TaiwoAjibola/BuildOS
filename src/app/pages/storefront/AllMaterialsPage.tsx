@@ -331,7 +331,7 @@ export function AllMaterialsPage() {
                   <td className="px-4 py-3 text-gray-600">{m.category}</td>
                   <td className="px-4 py-3 text-gray-600">{m.unit}</td>
                   <td className="px-4 py-3 font-medium text-gray-900">{m.availableQty.toLocaleString()}</td>
-                  <td className="px-4 py-3 text-gray-600">₦{m.unitCost.toLocaleString()}</td>
+                  <td className="px-4 py-3 text-gray-600">{m.unitCost.toLocaleString()}</td>
                   <td className="px-4 py-3">
                     <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${STATUS_STYLE[status]}`}>{status}</span>
                   </td>

@@ -383,8 +383,8 @@ export function AccrualsPage() {
                     <tfoot className="bg-gray-50 border-t border-gray-100">
                       <tr>
                         <td colSpan={2} className="px-4 py-2 text-xs font-semibold text-gray-600 text-right">Total</td>
-                        <td className="px-4 py-2 text-right text-sm font-semibold text-emerald-700">₦{totalDebits.toLocaleString()}</td>
-                        <td className="px-4 py-2 text-right text-sm font-semibold text-amber-700">₦{totalCredits.toLocaleString()}</td>
+                        <td className="px-4 py-2 text-right text-sm font-semibold text-emerald-700">{totalDebits.toLocaleString()}</td>
+                        <td className="px-4 py-2 text-right text-sm font-semibold text-amber-700">{totalCredits.toLocaleString()}</td>
                         <td />
                       </tr>
                     </tfoot>

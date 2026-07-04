@@ -160,9 +160,9 @@ export function GeneralStorePage() {
                     </div>
                   </td>
                   <td className="px-4 py-3 text-gray-500">{item.reorderLevel.toLocaleString()} {item.unit}</td>
-                  <td className="px-4 py-3 text-gray-600">₦{item.unitCost.toLocaleString()}</td>
+                  <td className="px-4 py-3 text-gray-600">{item.unitCost.toLocaleString()}</td>
                   <td className="px-4 py-3 font-medium text-gray-900">
-                    ₦{(item.qty * item.unitCost).toLocaleString()}
+                    {(item.qty * item.unitCost).toLocaleString()}
                   </td>
                   <td className="px-4 py-3 text-gray-400 text-xs">{item.lastReceived}</td>
                   <td className="px-4 py-3">

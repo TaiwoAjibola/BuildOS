@@ -145,7 +145,7 @@ export function StorefrontReportsPage() {
                     <td className="px-4 py-3 text-gray-600 text-xs">{s.store}</td>
                     <td className="px-4 py-3 text-gray-900 font-medium">{s.qty.toLocaleString()}</td>
                     <td className="px-4 py-3 text-gray-500">{s.reorder.toLocaleString()}</td>
-                    <td className="px-4 py-3 text-gray-600">₦{s.value.toLocaleString()}</td>
+                    <td className="px-4 py-3 text-gray-600">{s.value.toLocaleString()}</td>
                     <td className="px-4 py-3"><span className={`text-xs px-2 py-0.5 rounded-full font-medium ${STATUS_STYLE[s.status]}`}>{s.status}</span></td>
                   </tr>
                 ))}
@@ -240,7 +240,7 @@ export function StorefrontReportsPage() {
                     <td className="px-4 py-3 text-gray-600 text-xs">{t.to}</td>
                     <td className="px-4 py-3 text-gray-600">{t.items}</td>
                     <td className="px-4 py-3 text-gray-900 font-medium">{t.qty.toLocaleString()}</td>
-                    <td className="px-4 py-3 text-gray-600">₦{t.value.toLocaleString()}</td>
+                    <td className="px-4 py-3 text-gray-600">{t.value.toLocaleString()}</td>
                     <td className="px-4 py-3 text-gray-500 whitespace-nowrap">{t.date}</td>
                     <td className="px-4 py-3"><span className={`text-xs px-2 py-0.5 rounded-full font-medium ${STATUS_STYLE[t.status]}`}>{t.status}</span></td>
                   </tr>
