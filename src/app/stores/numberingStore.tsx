@@ -97,10 +97,21 @@ const DEFAULT_CONFIGS: ModuleNumbering[] = [
   cfg({ module: "EmailConfig", prefix: "EC", startingNumber: 1, lastUsedNumber: 0, description: "Email configurations" }),
   cfg({ module: "ReportSchedule", prefix: "RS", startingNumber: 1, lastUsedNumber: 0, description: "Report schedules" }),
   cfg({ module: "Role", prefix: "R", separator: "", startingNumber: 1, lastUsedNumber: 7, description: "Admin roles" }),
-  // ── Shared / Cross-cutting ──
+    // ── Shared / Cross-cutting ──
   cfg({ module: "Task", prefix: "TASK", startingNumber: 1, lastUsedNumber: 0, description: "Tasks" }),
   cfg({ module: "MyTask", prefix: "TK", startingNumber: 1, lastUsedNumber: 0, description: "My personal tasks" }),
 ];
+
+export const MODULE_DOMAINS: Record<string, string[]> = {
+  Finance: ["Expense", "Income", "Budget", "Claim", "Payment", "JournalEntry", "PayrollRun", "Accrual", "Transaction", "FinanceApproval", "ScheduledPosting"],
+  HR: ["Employee", "HRRole", "PayrollPeriod", "LeaveType", "ClaimType", "BankName", "Holiday"],
+  Construction: ["Project", "Structure", "SiteTask", "WorkPackage", "DailyReport", "Issue", "ChangeRequest", "NonConformance", "HSERecord", "Incident", "Communication", "Disbursement", "Vendor", "Staff", "Contractor", "Material", "Equipment", "Stakeholder", "Baseline", "Calendar"],
+  Procurement: ["MaterialRequest", "PurchaseOrder", "PurchaseRequest", "PurchaseInvoice", "RFQ", "Quote", "GoodsReceipt"],
+  Storefront: ["GeneralStore", "StockTransfer", "MaterialReturn", "StockMovement"],
+  ESS: ["Appraisal"],
+  Admin: ["EmailConfig", "ReportSchedule", "Role"],
+  Shared: ["Task", "MyTask"],
+};
 
 export function NumberingProvider({ children }: { children: ReactNode }) {
   const [configs, setConfigs] = useState<ModuleNumbering[]>(DEFAULT_CONFIGS);

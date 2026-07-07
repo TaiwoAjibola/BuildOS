@@ -33,6 +33,7 @@ const SEED_ENTRIES: ChangelogEntry[] = [
   { id: "seed-8", timestamp: "2026-07-07T10:07:00.000Z", module: "Admin", action: "CHANGELOG", entityType: "System", entityId: "UPD-008", summary: "8. Numbering: Updated all 6 config pages (Admin, Finance, HR, Construction, Storefront, Procurement) to use new table-format numbering UI", performedBy: "System" },
   { id: "seed-9", timestamp: "2026-07-07T10:08:00.000Z", module: "Admin", action: "CHANGELOG", entityType: "System", entityId: "UPD-009", summary: "9. Storefront: Removed ₦ currency symbol from all table data cells — column headers already indicate currency", performedBy: "System" },
   { id: "seed-10", timestamp: "2026-07-07T10:09:00.000Z", module: "Admin", action: "CHANGELOG", entityType: "System", entityId: "UPD-010", summary: "10. Landing page: Made app grid responsive (adapts columns to filtered app count)", performedBy: "System" },
+  { id: "seed-11", timestamp: "2026-07-07T11:00:00.000Z", module: "Admin", action: "CHANGELOG", entityType: "System", entityId: "UPD-011", summary: "11. Numbering: Replaced text input with dropdown selector in all config pages — pick from curated module list per domain (Finance, HR, Construction, Procurement, Storefront, Admin). Fixed broken filters that showed empty tables.", performedBy: "System" },
 ];
 
 export function ChangelogProvider({ children }: { children: ReactNode }) {

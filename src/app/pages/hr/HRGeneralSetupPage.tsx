@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Save, CheckCircle, Clock, Users, Banknote, Settings2, Mail, Building2, ArrowRight, MapPin, Plus, X, Edit, Hash, Trash2, ChevronDown, ChevronRight, XCircle, FolderKanban, FolderX, CalendarDays, CreditCard } from "lucide-react";
-import { useNumbering, type ModuleNumbering } from "../../stores/numberingStore";
+import { useNumbering, type ModuleNumbering, MODULE_DOMAINS } from "../../stores/numberingStore";
 import { useHRConfig, type LeaveType, type LeaveGender, type ClaimType } from "../../stores/hrConfigStore";
 
 interface FieldProps {
@@ -126,8 +126,8 @@ export function HRGeneralSetupPage() {
     if (!addFormData.module.trim()) return;
     addConfig({
       module: addFormData.module,
-      prefix: addFormData.prefix,
-      separator: addFormData.separator,
+      prefix: addFormData.module.slice(0, 3).toUpperCase(),
+      separator: "-",
       startingNumber: addFormData.startingNumber,
       endingNumber: addFormData.endingNumber,
       incrementBy: addFormData.incrementBy,
@@ -326,36 +326,26 @@ export function HRGeneralSetupPage() {
             <div className="border border-gray-200 rounded-xl overflow-hidden">
               <table className="w-full text-sm">
                 <thead className="bg-gray-50 text-xs text-gray-500 uppercase tracking-wide border-b border-gray-100">
-                  <tr>
-                    <th className="px-4 py-3 text-left font-medium">Module Name</th>
-                    <th className="px-4 py-3 text-left font-medium">Prefix</th>
-                    <th className="px-4 py-3 text-left font-medium">Separator</th>
-                    <th className="px-4 py-3 text-left font-medium">Starting #</th>
-                    <th className="px-4 py-3 text-left font-medium">Ending #</th>
-                    <th className="px-4 py-3 text-left font-medium">Increment</th>
-                    <th className="px-4 py-3 text-left font-medium">Last Used #</th>
-                    <th className="px-4 py-3 text-left font-medium">Last Used Date</th>
-                    <th className="px-4 py-3 text-left font-medium">Actions</th>
-                  </tr>
+                <tr>
+                  <th className="px-4 py-3 text-left font-medium">Numbering Template</th>
+                  <th className="px-4 py-3 text-left font-medium">Starting #</th>
+                  <th className="px-4 py-3 text-left font-medium">Ending #</th>
+                  <th className="px-4 py-3 text-left font-medium">Increment By</th>
+                  <th className="px-4 py-3 text-left font-medium">Last Used #</th>
+                  <th className="px-4 py-3 text-left font-medium">Last Used Date</th>
+                  <th className="px-4 py-3 text-left font-medium">Actions</th>
+                </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-50">
-                  {configs.filter(cfg => /^HR/.test(cfg.module)).map(cfg => (
+                  {configs.filter(cfg => MODULE_DOMAINS.HR.includes(cfg.module)).map(cfg => (
                     <tr key={cfg.module} className="hover:bg-gray-50 group">
                       {editingModule === cfg.module ? (
                         <>
                           <td className="px-4 py-3 font-medium text-gray-900">{cfg.module}</td>
-                          <td className="px-4 py-3">
-                            <input value={editForm.prefix} onChange={e => setEditForm({ ...editForm, prefix: e.target.value })}
-                              className="w-full px-2 py-1 text-xs border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-indigo-500" />
-                          </td>
-                          <td className="px-4 py-3">
-                            <input value={editForm.separator} onChange={e => setEditForm({ ...editForm, separator: e.target.value })}
-                              className="w-12 px-2 py-1 text-xs border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-indigo-500" maxLength={2} />
-                          </td>
-                          <td className="px-4 py-3">
-                            <input type="number" min={1} value={editForm.startingNumber} onChange={e => setEditForm({ ...editForm, startingNumber: parseInt(e.target.value) || 1 })}
-                              className="w-20 px-2 py-1 text-xs border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-indigo-500" />
-                          </td>
+                        <td className="px-4 py-3">
+                          <input type="number" min={1} value={editForm.startingNumber} onChange={e => setEditForm({ ...editForm, startingNumber: parseInt(e.target.value) || 1 })}
+                            className="w-20 px-2 py-1 text-xs border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-indigo-500" />
+                        </td>
                           <td className="px-4 py-3">
                             <div className="flex items-center gap-1">
                               <input type="number" min={1} value={editForm.endingNumber ?? ""} onChange={e => setEditForm({ ...editForm, endingNumber: e.target.value ? parseInt(e.target.value) : null })}
@@ -371,33 +361,29 @@ export function HRGeneralSetupPage() {
                               className="w-16 px-2 py-1 text-xs border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-indigo-500" />
                           </td>
                           <td className="px-4 py-3">
-                            <span className="font-mono text-xs text-gray-600" title={String(cfg.lastUsedNumber)}>
-                              {cfg.prefix}{cfg.separator}{String(cfg.lastUsedNumber).padStart(4, "0")}
-                            </span>
-                            <span className="text-[10px] text-gray-400 ml-1">({cfg.lastUsedNumber})</span>
-                          </td>
-                          <td className="px-4 py-3 text-xs text-gray-500">{cfg.lastUsedDate || "—"}</td>
-                          <td className="px-4 py-3">
-                            <div className="flex items-center gap-1">
-                              <button onClick={() => saveEdit(cfg.module)} className="p-1.5 text-green-500 hover:bg-green-50 rounded-lg"><Save className="w-3.5 h-3.5" /></button>
-                              <button onClick={cancelEdit} className="p-1.5 text-gray-400 hover:bg-gray-100 rounded-lg"><X className="w-3.5 h-3.5" /></button>
-                            </div>
-                          </td>
-                        </>
-                      ) : (
-                        <>
-                          <td className="px-4 py-3 font-medium text-gray-900">{cfg.module}</td>
-                          <td className="px-4 py-3 font-mono text-xs text-gray-700">{cfg.prefix}</td>
-                          <td className="px-4 py-3 text-xs text-gray-500">{cfg.separator}</td>
-                          <td className="px-4 py-3 text-xs text-gray-700">{cfg.startingNumber}</td>
-                          <td className="px-4 py-3 text-xs text-gray-700">{cfg.endingNumber ?? "∞"}</td>
-                          <td className="px-4 py-3 text-xs text-gray-700">{cfg.incrementBy}</td>
-                          <td className="px-4 py-3">
-                            <span className="font-mono text-xs text-gray-600" title={String(cfg.lastUsedNumber)}>
-                              {cfg.prefix}{cfg.separator}{String(cfg.lastUsedNumber).padStart(4, "0")}
-                            </span>
-                            <span className="text-[10px] text-gray-400 ml-1">({cfg.lastUsedNumber})</span>
-                          </td>
+                          <span className="font-mono text-xs text-gray-600" title={String(cfg.lastUsedNumber)}>
+                            {cfg.prefix}{cfg.separator}{String(cfg.lastUsedNumber).padStart(4, "0")}
+                          </span>
+                        </td>
+                        <td className="px-4 py-3 text-xs text-gray-500">{cfg.lastUsedDate || "—"}</td>
+                        <td className="px-4 py-3">
+                          <div className="flex items-center gap-1">
+                            <button onClick={() => saveEdit(cfg.module)} className="p-1.5 text-green-500 hover:bg-green-50 rounded-lg"><Save className="w-3.5 h-3.5" /></button>
+                            <button onClick={cancelEdit} className="p-1.5 text-gray-400 hover:bg-gray-100 rounded-lg"><X className="w-3.5 h-3.5" /></button>
+                          </div>
+                        </td>
+                      </>
+                    ) : (
+                      <>
+                        <td className="px-4 py-3 font-medium text-gray-900">{cfg.module}</td>
+                        <td className="px-4 py-3 text-xs text-gray-700">{cfg.startingNumber}</td>
+                        <td className="px-4 py-3 text-xs text-gray-700">{cfg.endingNumber ?? "∞"}</td>
+                        <td className="px-4 py-3 text-xs text-gray-700">{cfg.incrementBy}</td>
+                        <td className="px-4 py-3">
+                          <span className="font-mono text-xs text-gray-600" title={String(cfg.lastUsedNumber)}>
+                            {cfg.prefix}{cfg.separator}{String(cfg.lastUsedNumber).padStart(4, "0")}
+                          </span>
+                        </td>
                           <td className="px-4 py-3 text-xs text-gray-500">{cfg.lastUsedDate || "—"}</td>
                           <td className="px-4 py-3">
                             <div className="flex items-center gap-1">
@@ -412,22 +398,18 @@ export function HRGeneralSetupPage() {
                   {showAddForm && (
                     <tr className="bg-amber-50/50">
                       <td className="px-4 py-3">
-                        <input value={addFormData.module} onChange={e => setAddFormData({ ...addFormData, module: e.target.value })}
-                          placeholder="e.g. HRRecruitment" className="w-full px-2 py-1 text-xs border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-indigo-500" />
-                        <p className="text-[10px] text-gray-400 mt-0.5">Must start with "HR"</p>
+                        <select value={addFormData.module} onChange={e => setAddFormData({ ...addFormData, module: e.target.value })}
+                        className="w-full px-2 py-1 text-xs border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-indigo-500 bg-white">
+                        <option value="">Select a template…</option>
+                        {MODULE_DOMAINS.HR.filter(m => !configs.some(c => c.module === m)).map(m => (
+                          <option key={m} value={m}>{m}</option>
+                        ))}
+                      </select>
                       </td>
-                      <td className="px-4 py-3">
-                        <input value={addFormData.prefix} onChange={e => setAddFormData({ ...addFormData, prefix: e.target.value })}
-                          className="w-full px-2 py-1 text-xs border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-indigo-500" />
-                      </td>
-                      <td className="px-4 py-3">
-                        <input value={addFormData.separator} onChange={e => setAddFormData({ ...addFormData, separator: e.target.value })}
-                          className="w-12 px-2 py-1 text-xs border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-indigo-500" maxLength={2} />
-                      </td>
-                      <td className="px-4 py-3">
-                        <input type="number" min={1} value={addFormData.startingNumber} onChange={e => setAddFormData({ ...addFormData, startingNumber: parseInt(e.target.value) || 1 })}
-                          className="w-20 px-2 py-1 text-xs border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-indigo-500" />
-                      </td>
+                    <td className="px-4 py-3">
+                      <input type="number" min={1} value={addFormData.startingNumber} onChange={e => setAddFormData({ ...addFormData, startingNumber: parseInt(e.target.value) || 1 })}
+                        className="w-20 px-2 py-1 text-xs border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-indigo-500" />
+                    </td>
                       <td className="px-4 py-3">
                         <div className="flex items-center gap-1">
                           <input type="number" min={1} value={addFormData.endingNumber ?? ""} onChange={e => setAddFormData({ ...addFormData, endingNumber: e.target.value ? parseInt(e.target.value) : null })}

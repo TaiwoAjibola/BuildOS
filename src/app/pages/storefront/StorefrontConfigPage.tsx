@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Settings, Plus, Edit, Trash2, Ruler, Tag, Layers, Store, ChevronRight, Link2, FolderOpen, Hash, Save } from "lucide-react";
-import { useNumbering, type ModuleNumbering } from "../../stores/numberingStore";
+import { useNumbering, type ModuleNumbering, MODULE_DOMAINS } from "../../stores/numberingStore";
 
 // ─── Store Level Configuration ────────────────────────────────────────────────
 
@@ -887,7 +887,7 @@ function NumberingPanel() {
   const [showAddForm, setShowAddForm] = useState(false);
   const [addFormData, setAddFormData] = useState({ module: "", prefix: "", separator: "-", startingNumber: 1, endingNumber: null as number | null, incrementBy: 1, description: "" });
 
-  const storefrontConfigs = configs.filter(cfg => cfg.module.match(/^Storefront/));
+  const storefrontConfigs = configs.filter(cfg => MODULE_DOMAINS.Storefront.includes(cfg.module));
 
   function startEdit(cfg: ModuleNumbering) {
     setEditingModule(cfg.module);
@@ -907,8 +907,8 @@ function NumberingPanel() {
     if (!addFormData.module.trim()) return;
     addConfig({
       module: addFormData.module,
-      prefix: addFormData.prefix,
-      separator: addFormData.separator,
+      prefix: addFormData.module.slice(0, 3).toUpperCase(),
+      separator: "-",
       startingNumber: addFormData.startingNumber,
       endingNumber: addFormData.endingNumber,
       incrementBy: addFormData.incrementBy,
@@ -944,12 +944,10 @@ function NumberingPanel() {
           <table className="w-full text-sm">
             <thead className="bg-gray-50 text-xs text-gray-500 uppercase tracking-wide border-b border-gray-100">
               <tr>
-                <th className="px-4 py-3 text-left font-medium">Module Name</th>
-                <th className="px-4 py-3 text-left font-medium">Prefix</th>
-                <th className="px-4 py-3 text-left font-medium">Separator</th>
+                <th className="px-4 py-3 text-left font-medium">Numbering Template</th>
                 <th className="px-4 py-3 text-left font-medium">Starting #</th>
                 <th className="px-4 py-3 text-left font-medium">Ending #</th>
-                <th className="px-4 py-3 text-left font-medium">Increment</th>
+                <th className="px-4 py-3 text-left font-medium">Increment By</th>
                 <th className="px-4 py-3 text-left font-medium">Last Used #</th>
                 <th className="px-4 py-3 text-left font-medium">Last Used Date</th>
                 <th className="px-4 py-3 text-left font-medium">Actions</th>
@@ -961,14 +959,6 @@ function NumberingPanel() {
                   {editingModule === cfg.module ? (
                     <>
                       <td className="px-4 py-3 font-medium text-gray-900">{cfg.module}</td>
-                      <td className="px-4 py-3">
-                        <input value={editForm.prefix} onChange={e => setEditForm({ ...editForm, prefix: e.target.value })}
-                          className="w-full px-2 py-1 text-xs border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-teal-500" />
-                      </td>
-                      <td className="px-4 py-3">
-                        <input value={editForm.separator} onChange={e => setEditForm({ ...editForm, separator: e.target.value })}
-                          className="w-12 px-2 py-1 text-xs border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-teal-500" maxLength={2} />
-                      </td>
                       <td className="px-4 py-3">
                         <input type="number" min={1} value={editForm.startingNumber} onChange={e => setEditForm({ ...editForm, startingNumber: parseInt(e.target.value) || 1 })}
                           className="w-20 px-2 py-1 text-xs border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-teal-500" />
@@ -991,7 +981,6 @@ function NumberingPanel() {
                         <span className="font-mono text-xs text-gray-600" title={String(cfg.lastUsedNumber)}>
                           {cfg.prefix}{cfg.separator}{String(cfg.lastUsedNumber).padStart(4, "0")}
                         </span>
-                        <span className="text-[10px] text-gray-400 ml-1">({cfg.lastUsedNumber})</span>
                       </td>
                       <td className="px-4 py-3 text-xs text-gray-500">{cfg.lastUsedDate || "—"}</td>
                       <td className="px-4 py-3">
@@ -1004,8 +993,6 @@ function NumberingPanel() {
                   ) : (
                     <>
                       <td className="px-4 py-3 font-medium text-gray-900">{cfg.module}</td>
-                      <td className="px-4 py-3 font-mono text-xs text-gray-700">{cfg.prefix}</td>
-                      <td className="px-4 py-3 text-xs text-gray-500">{cfg.separator}</td>
                       <td className="px-4 py-3 text-xs text-gray-700">{cfg.startingNumber}</td>
                       <td className="px-4 py-3 text-xs text-gray-700">{cfg.endingNumber ?? "∞"}</td>
                       <td className="px-4 py-3 text-xs text-gray-700">{cfg.incrementBy}</td>
@@ -1013,7 +1000,6 @@ function NumberingPanel() {
                         <span className="font-mono text-xs text-gray-600" title={String(cfg.lastUsedNumber)}>
                           {cfg.prefix}{cfg.separator}{String(cfg.lastUsedNumber).padStart(4, "0")}
                         </span>
-                        <span className="text-[10px] text-gray-400 ml-1">({cfg.lastUsedNumber})</span>
                       </td>
                       <td className="px-4 py-3 text-xs text-gray-500">{cfg.lastUsedDate || "—"}</td>
                       <td className="px-4 py-3">
@@ -1029,22 +1015,18 @@ function NumberingPanel() {
               {showAddForm && (
                 <tr className="bg-amber-50/50">
                   <td className="px-4 py-3">
-                    <input value={addFormData.module} onChange={e => setAddFormData({ ...addFormData, module: e.target.value })}
-                      placeholder="e.g. StorefrontInventory" className="w-full px-2 py-1 text-xs border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-teal-500" />
-                    <p className="text-[10px] text-gray-400 mt-0.5">Must start with "Storefront"</p>
+                    <select value={addFormData.module} onChange={e => setAddFormData({ ...addFormData, module: e.target.value })}
+                      className="w-full px-2 py-1 text-xs border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-teal-500 bg-white">
+                      <option value="">Select a template…</option>
+                      {MODULE_DOMAINS.Storefront.filter(m => !configs.some(c => c.module === m)).map(m => (
+                        <option key={m} value={m}>{m}</option>
+                      ))}
+                    </select>
                   </td>
-                  <td className="px-4 py-3">
-                    <input value={addFormData.prefix} onChange={e => setAddFormData({ ...addFormData, prefix: e.target.value })}
-                      className="w-full px-2 py-1 text-xs border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-teal-500" />
-                  </td>
-                  <td className="px-4 py-3">
-                    <input value={addFormData.separator} onChange={e => setAddFormData({ ...addFormData, separator: e.target.value })}
-                      className="w-12 px-2 py-1 text-xs border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-teal-500" maxLength={2} />
-                  </td>
-                  <td className="px-4 py-3">
-                    <input type="number" min={1} value={addFormData.startingNumber} onChange={e => setAddFormData({ ...addFormData, startingNumber: parseInt(e.target.value) || 1 })}
-                      className="w-20 px-2 py-1 text-xs border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-teal-500" />
-                  </td>
+                    <td className="px-4 py-3">
+                      <input type="number" min={1} value={addFormData.startingNumber} onChange={e => setAddFormData({ ...addFormData, startingNumber: parseInt(e.target.value) || 1 })}
+                        className="w-20 px-2 py-1 text-xs border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-teal-500" />
+                    </td>
                   <td className="px-4 py-3">
                     <div className="flex items-center gap-1">
                       <input type="number" min={1} value={addFormData.endingNumber ?? ""} onChange={e => setAddFormData({ ...addFormData, endingNumber: e.target.value ? parseInt(e.target.value) : null })}
