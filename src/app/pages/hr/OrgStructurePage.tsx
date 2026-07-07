@@ -3,10 +3,10 @@ import { useHRConfig, type OrgLevelConfig } from "../../stores/hrConfigStore";
 import { Plus, X, Edit3, Save, CheckCircle, Building2, Users, Layers, Archive, Shield, BookOpen, UserPlus, ArrowUp, ArrowDown, FileText, Check } from "lucide-react";
 
 interface OrgLevel {
-  id: string; name: string; description: string; members: number; archived: boolean;
+  id: string; name: string; description: string; archived: boolean;
 }
 interface SupportingStructure {
-  id: string; name: string; type: "craft" | "circle"; description: string; members: number;
+  id: string; name: string; type: "craft" | "circle"; description: string;
 }
 
 interface StructureTemplate {
@@ -61,30 +61,30 @@ export function OrgStructurePage() {
   const allLevels = currentTemplate.levels;
 
   const [collegiums, setCollegiums] = useState<OrgLevel[]>([
-    { id: "col-1", name: "Executive Collegium", description: "Strategic leadership and governance", members: 7, archived: false },
-    { id: "col-2", name: "Technical Collegium", description: "Technical oversight and standards", members: 5, archived: false },
+    { id: "col-1", name: "Executive Collegium", description: "Strategic leadership and governance", archived: false },
+    { id: "col-2", name: "Technical Collegium", description: "Technical oversight and standards", archived: false },
   ]);
   const [clusters, setClusters] = useState<OrgLevel[]>([
-    { id: "cl-1", name: "Lagos Operations", description: "Lagos metro area projects", members: 45, archived: false },
-    { id: "cl-2", name: "Abuja Operations", description: "Federal capital territory projects", members: 28, archived: false },
-    { id: "cl-3", name: "Rivers Operations", description: "South-south region projects", members: 22, archived: false },
+    { id: "cl-1", name: "Lagos Operations", description: "Lagos metro area projects", archived: false },
+    { id: "cl-2", name: "Abuja Operations", description: "Federal capital territory projects", archived: false },
+    { id: "cl-3", name: "Rivers Operations", description: "South-south region projects", archived: false },
   ]);
   const [crews, setCrews] = useState<OrgLevel[]>([
-    { id: "cr-1", name: "Tower A Site Crew", description: "Lekki Tower A execution team", members: 12, archived: false },
-    { id: "cr-2", name: "Finishing Crew", description: "Interior finishing specialists", members: 8, archived: false },
-    { id: "cr-3", name: "MEP Crew", description: "Mechanical, electrical, plumbing", members: 6, archived: false },
+    { id: "cr-1", name: "Tower A Site Crew", description: "Lekki Tower A execution team", archived: false },
+    { id: "cr-2", name: "Finishing Crew", description: "Interior finishing specialists", archived: false },
+    { id: "cr-3", name: "MEP Crew", description: "Mechanical, electrical, plumbing", archived: false },
   ]);
 
   const allOrgItems = [collegiums, clusters, crews];
 
   const [crafts, setCrafts] = useState<SupportingStructure[]>([
-    { id: "sk-1", name: "Engineering", type: "craft", description: "Civil, structural, MEP engineers", members: 34 },
-    { id: "sk-2", name: "Quantity Surveying", type: "craft", description: "Cost management and estimation", members: 18 },
-    { id: "sk-3", name: "Safety Officers", type: "craft", description: "HSE professionals", members: 12 },
+    { id: "sk-1", name: "Engineering", type: "craft", description: "Civil, structural, MEP engineers" },
+    { id: "sk-2", name: "Quantity Surveying", type: "craft", description: "Cost management and estimation" },
+    { id: "sk-3", name: "Safety Officers", type: "craft", description: "HSE professionals" },
   ]);
   const [circles, setCircles] = useState<SupportingStructure[]>([
-    { id: "ci-1", name: "Leadership Development", type: "circle", description: "Future leaders mentorship program", members: 15 },
-    { id: "ci-2", name: "Technical Excellence", type: "circle", description: "Technical skills development", members: 22 },
+    { id: "ci-1", name: "Leadership Development", type: "circle", description: "Future leaders mentorship program" },
+    { id: "ci-2", name: "Technical Excellence", type: "circle", description: "Technical skills development" },
   ]);
 
   const [newOrgName, setNewOrgName] = useState("");
@@ -153,7 +153,7 @@ export function OrgStructurePage() {
   function addOrgLevel(levelIdx: number) {
     if (!newOrgName.trim()) return;
     const setters = [setCollegiums, setClusters, setCrews];
-    const item: OrgLevel = { id: `lvl-${levelIdx}-${Date.now()}`, name: newOrgName.trim(), description: newOrgDesc.trim(), members: 0, archived: false };
+    const item: OrgLevel = { id: `lvl-${levelIdx}-${Date.now()}`, name: newOrgName.trim(), description: newOrgDesc.trim(), archived: false };
     setters[levelIdx](prev => [...prev, item]);
     setNewOrgName("");
     setNewOrgDesc("");
@@ -170,7 +170,7 @@ export function OrgStructurePage() {
     const name = type === "craft" ? newCraftName : newCircleName;
     const desc = type === "craft" ? newCraftDesc : newCircleDesc;
     if (!name.trim()) return;
-    const item: SupportingStructure = { id: `${type}-${Date.now()}`, name: name.trim(), type, description: desc.trim(), members: 0 };
+    const item: SupportingStructure = { id: `${type}-${Date.now()}`, name: name.trim(), type, description: desc.trim() };
     if (type === "craft") setCrafts(p => [...p, item]);
     else setCircles(p => [...p, item]);
     if (type === "craft") { setNewCraftName(""); setNewCraftDesc(""); }
@@ -183,7 +183,7 @@ export function OrgStructurePage() {
     <div className={`flex items-center justify-between px-4 py-3 rounded-lg border text-sm ${item.archived ? "bg-gray-50 opacity-60" : "bg-white"}`} style={{ borderColor: "#E2E8F0" }}>
       <div className="flex-1 min-w-0">
         <p className={`font-medium ${item.archived ? "text-gray-400 line-through" : "text-gray-900"}`}>{item.name}</p>
-        <p className="text-xs text-gray-500 truncate">{item.description} · {item.members} members</p>
+          <p className="text-xs text-gray-500 truncate">{item.description}</p>
       </div>
       <div className="flex items-center gap-2 shrink-0 ml-3">
         <button onClick={() => archiveOrg(levelIdx, item.id)} className={`p-1 rounded ${item.archived ? "text-green-500 hover:bg-green-50" : "text-gray-400 hover:bg-gray-100"}`} title={item.archived ? "Restore" : "Archive"}>
@@ -379,7 +379,7 @@ export function OrgStructurePage() {
               <div key={c.id} className="flex items-center justify-between px-3 py-2 rounded-lg border text-sm" style={{ borderColor: "#E2E8F0" }}>
                 <div>
                   <p className="font-medium text-gray-900">{c.name}</p>
-                  <p className="text-xs text-gray-500">{c.description} · {c.members} members</p>
+                  <p className="text-xs text-gray-500">{c.description}</p>
                 </div>
               </div>
             ))}
@@ -402,7 +402,7 @@ export function OrgStructurePage() {
               <div key={c.id} className="flex items-center justify-between px-3 py-2 rounded-lg border text-sm" style={{ borderColor: "#E2E8F0" }}>
                 <div>
                   <p className="font-medium text-gray-900">{c.name}</p>
-                  <p className="text-xs text-gray-500">{c.description} · {c.members} members</p>
+                  <p className="text-xs text-gray-500">{c.description}</p>
                 </div>
               </div>
             ))}

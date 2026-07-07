@@ -304,10 +304,10 @@ export function JournalEntryPage() {
                             <input value={line.glCode} readOnly className="w-full px-2 py-1.5 text-sm border border-gray-200 rounded bg-gray-50 font-mono text-gray-500" />
                           </td>
                           <td className="px-2 py-1.5">
-                            <input type="number" min={0} value={line.debit || ""} onChange={(e) => updateLine(line.id, "debit", parseFloat(e.target.value) || 0)} placeholder="0" className="w-full px-2 py-1.5 text-sm border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-emerald-500" />
+                            <input type="number" min={0} value={line.debit || ""} onChange={(e) => updateLine(line.id, "debit", parseFloat(e.target.value) || 0)} placeholder="0" disabled={!!line.credit} className="w-full px-2 py-1.5 text-sm border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-emerald-500" />
                           </td>
                           <td className="px-2 py-1.5">
-                            <input type="number" min={0} value={line.credit || ""} onChange={(e) => updateLine(line.id, "credit", parseFloat(e.target.value) || 0)} placeholder="0" className="w-full px-2 py-1.5 text-sm border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-emerald-500" />
+                            <input type="number" min={0} value={line.credit || ""} onChange={(e) => updateLine(line.id, "credit", parseFloat(e.target.value) || 0)} placeholder="0" disabled={!!line.debit} className="w-full px-2 py-1.5 text-sm border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-emerald-500" />
                           </td>
                           <td className="px-2 py-1.5">
                             <input value={line.description} onChange={(e) => updateLine(line.id, "description", e.target.value)} placeholder="Note" className="w-full px-2 py-1.5 text-sm border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-emerald-500" />

@@ -57,13 +57,6 @@ const sidebarSections = [
     ],
   },
   {
-    label: "General Setup",
-    items: [
-      { label: "General Setup", href: "/apps/hr/hr-general-setup", icon: <Settings2    className="w-4 h-4" />, end: true },
-      { label: "Base Calendar", href: "/apps/hr/base-calendar",    icon: <CalendarCheck className="w-4 h-4" />, end: true },
-    ],
-  },
-  {
     label: "Payroll Setup",
     items: [
       { label: "Payroll Period",   href: "/apps/hr/payroll-periods",  icon: <Calendar className="w-4 h-4" />, end: true },
@@ -81,6 +74,13 @@ const sidebarSections = [
     label: "Claims Setup",
     items: [
       { label: "Claim Type Setup", href: "/apps/hr/claim-type-setup", icon: <CreditCard className="w-4 h-4" />, end: true },
+    ],
+  },
+  {
+    label: "General Setup",
+    items: [
+      { label: "General Setup", href: "/apps/hr/hr-general-setup", icon: <Settings2    className="w-4 h-4" />, end: true },
+      { label: "Base Calendar", href: "/apps/hr/base-calendar",    icon: <CalendarCheck className="w-4 h-4" />, end: true },
     ],
   },
   {
