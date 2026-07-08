@@ -34,6 +34,7 @@ const SEED_ENTRIES: ChangelogEntry[] = [
   { id: "seed-9", timestamp: "2026-07-07T10:08:00.000Z", module: "Admin", action: "CHANGELOG", entityType: "System", entityId: "UPD-009", summary: "9. Storefront: Removed ₦ currency symbol from all table data cells — column headers already indicate currency", performedBy: "System" },
   { id: "seed-10", timestamp: "2026-07-07T10:09:00.000Z", module: "Admin", action: "CHANGELOG", entityType: "System", entityId: "UPD-010", summary: "10. Landing page: Made app grid responsive (adapts columns to filtered app count)", performedBy: "System" },
   { id: "seed-11", timestamp: "2026-07-07T11:00:00.000Z", module: "Admin", action: "CHANGELOG", entityType: "System", entityId: "UPD-011", summary: "11. Numbering: Replaced text input with dropdown selector in all config pages — pick from curated module list per domain (Finance, HR, Construction, Procurement, Storefront, Admin). Fixed broken filters that showed empty tables.", performedBy: "System" },
+  { id: "seed-12", timestamp: "2026-07-08T08:00:00.000Z", module: "Admin", action: "CHANGELOG", entityType: "System", entityId: "UPD-012", summary: "12. Numbering: Split 'Numbering Template' column into 'Process' (dropdown) + 'Template' (text input). Template defines the ID format with {N:W} placeholder (e.g. 'EXP-{N:4}'). Last Used # renders using the template.", performedBy: "System" },
 ];
 
 export function ChangelogProvider({ children }: { children: ReactNode }) {

@@ -4,12 +4,20 @@ export interface ModuleNumbering {
   module: string;
   prefix: string;
   separator: string;
+  template: string;
   startingNumber: number;
   endingNumber: number | null;
   incrementBy: number;
   lastUsedDate: string;
   lastUsedNumber: number;
   description: string;
+}
+
+export function formatId(template: string, num: number): string {
+  return template.replace(/\{N(:\d+)?\}/g, (m) => {
+    const width = m.match(/:(\d+)/);
+    return width ? String(num).padStart(parseInt(width[1]), "0") : String(num);
+  });
 }
 
 interface NumberingContextValue {
@@ -33,6 +41,7 @@ function cfg(p: Partial<ModuleNumbering> & { module: string; prefix: string }): 
     lastUsedNumber: 0,
     description: "",
     ...p,
+    template: p.template ?? `${p.prefix}${p.separator ?? "-"}{N:4}`,
   };
 }
 
@@ -127,8 +136,7 @@ export function NumberingProvider({ children }: { children: ReactNode }) {
         result = "";
         return prev;
       }
-      const padded = String(nextNum).padStart(String(cfg.endingNumber ?? nextNum).length, "0");
-      result = `${cfg.prefix}${cfg.separator}${padded}`;
+      result = formatId(cfg.template, nextNum);
       const next = [...prev];
       next[idx] = { ...cfg, lastUsedNumber: nextNum, lastUsedDate: new Date().toISOString().split("T")[0] };
       return next;

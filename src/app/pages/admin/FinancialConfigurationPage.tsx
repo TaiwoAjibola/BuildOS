@@ -1,6 +1,6 @@
 import { Save, Plus, Edit, Trash2, DollarSign, Info, ChevronRight, Hash, X } from "lucide-react";
 import { useState } from "react";
-import { useNumbering, type ModuleNumbering, MODULE_DOMAINS } from "../../stores/numberingStore";
+import { useNumbering, type ModuleNumbering, MODULE_DOMAINS, formatId } from "../../stores/numberingStore";
 
 export function FinancialConfigurationPage() {
   const { configs, updateConfig, resetConfig, addConfig, removeConfig } = useNumbering();
@@ -30,13 +30,13 @@ export function FinancialConfigurationPage() {
   ]);
 
   const [editingModule, setEditingModule] = useState<string | null>(null);
-  const [editForm, setEditForm] = useState({ prefix: "", separator: "-", startingNumber: 1, endingNumber: null as number | null, incrementBy: 1 });
+  const [editForm, setEditForm] = useState({ template: "", startingNumber: 1, endingNumber: null as number | null, incrementBy: 1 });
   const [showAddForm, setShowAddForm] = useState(false);
-  const [addFormData, setAddFormData] = useState({ module: "", prefix: "", separator: "-", startingNumber: 1, endingNumber: null as number | null, incrementBy: 1, description: "" });
+  const [addFormData, setAddFormData] = useState({ module: "", template: "", startingNumber: 1, endingNumber: null as number | null, incrementBy: 1, description: "" });
 
   function startEdit(cfg: ModuleNumbering) {
     setEditingModule(cfg.module);
-    setEditForm({ prefix: cfg.prefix, separator: cfg.separator, startingNumber: cfg.startingNumber, endingNumber: cfg.endingNumber, incrementBy: cfg.incrementBy });
+    setEditForm({ template: cfg.template, startingNumber: cfg.startingNumber, endingNumber: cfg.endingNumber, incrementBy: cfg.incrementBy });
   }
 
   function cancelEdit() {
@@ -54,6 +54,7 @@ export function FinancialConfigurationPage() {
       module: addFormData.module,
       prefix: addFormData.module.slice(0, 3).toUpperCase(),
       separator: "-",
+      template: addFormData.template || `${addFormData.module.slice(0, 3).toUpperCase()}-{N:4}`,
       startingNumber: addFormData.startingNumber,
       endingNumber: addFormData.endingNumber,
       incrementBy: addFormData.incrementBy,
@@ -62,7 +63,7 @@ export function FinancialConfigurationPage() {
       description: addFormData.description,
     });
     setShowAddForm(false);
-    setAddFormData({ module: "", prefix: "", separator: "-", startingNumber: 1, endingNumber: null, incrementBy: 1, description: "" });
+    setAddFormData({ module: "", template: "", startingNumber: 1, endingNumber: null, incrementBy: 1, description: "" });
   }
 
   const accountTypeColors: Record<string, string> = {
@@ -226,7 +227,8 @@ export function FinancialConfigurationPage() {
             <table className="w-full text-sm">
               <thead className="bg-gray-50 text-xs text-gray-500 uppercase tracking-wide border-b border-gray-100">
                 <tr>
-                  <th className="px-4 py-3 text-left font-medium">Numbering Template</th>
+                  <th className="px-4 py-3 text-left font-medium">Process</th>
+                  <th className="px-4 py-3 text-left font-medium">Template</th>
                   <th className="px-4 py-3 text-left font-medium">Starting #</th>
                   <th className="px-4 py-3 text-left font-medium">Ending #</th>
                   <th className="px-4 py-3 text-left font-medium">Increment By</th>
@@ -241,6 +243,10 @@ export function FinancialConfigurationPage() {
                     {editingModule === cfg.module ? (
                       <>
                         <td className="px-4 py-3 font-medium text-gray-900">{cfg.module}</td>
+                        <td className="px-4 py-3">
+                          <input type="text" value={editForm.template} onChange={e => setEditForm({ ...editForm, template: e.target.value })}
+                            className="w-28 px-2 py-1 text-xs font-mono border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-indigo-500" />
+                        </td>
                         <td className="px-4 py-3">
                           <input type="number" min={1} value={editForm.startingNumber} onChange={e => setEditForm({ ...editForm, startingNumber: parseInt(e.target.value) || 1 })}
                             className="w-20 px-2 py-1 text-xs border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-indigo-500" />
@@ -261,7 +267,7 @@ export function FinancialConfigurationPage() {
                         </td>
                         <td className="px-4 py-3">
                           <span className="font-mono text-xs text-gray-600" title={String(cfg.lastUsedNumber)}>
-                            {cfg.prefix}{cfg.separator}{String(cfg.lastUsedNumber).padStart(4, "0")}
+                            {formatId(cfg.template, cfg.lastUsedNumber)}
                           </span>
                         </td>
                         <td className="px-4 py-3 text-xs text-gray-500">{cfg.lastUsedDate || "—"}</td>
@@ -275,12 +281,15 @@ export function FinancialConfigurationPage() {
                     ) : (
                       <>
                         <td className="px-4 py-3 font-medium text-gray-900">{cfg.module}</td>
+                        <td className="px-4 py-3">
+                          <span className="font-mono text-xs text-gray-500">{cfg.template}</span>
+                        </td>
                         <td className="px-4 py-3 text-xs text-gray-700">{cfg.startingNumber}</td>
                         <td className="px-4 py-3 text-xs text-gray-700">{cfg.endingNumber ?? "∞"}</td>
                         <td className="px-4 py-3 text-xs text-gray-700">{cfg.incrementBy}</td>
                         <td className="px-4 py-3">
                           <span className="font-mono text-xs text-gray-600" title={String(cfg.lastUsedNumber)}>
-                            {cfg.prefix}{cfg.separator}{String(cfg.lastUsedNumber).padStart(4, "0")}
+                            {formatId(cfg.template, cfg.lastUsedNumber)}
                           </span>
                         </td>
                         <td className="px-4 py-3 text-xs text-gray-500">{cfg.lastUsedDate || "—"}</td>
@@ -299,13 +308,21 @@ export function FinancialConfigurationPage() {
                   {showAddForm && (
                   <tr className="bg-amber-50/50">
                     <td className="px-4 py-3">
-                      <select value={addFormData.module} onChange={e => setAddFormData({ ...addFormData, module: e.target.value })}
+                      <select value={addFormData.module} onChange={e => {
+                        const m = e.target.value;
+                        const prefix = m.slice(0, 3).toUpperCase();
+                        setAddFormData({ ...addFormData, module: m, template: m ? `${prefix}-{N:4}` : "" });
+                      }}
                         className="w-full px-2 py-1 text-xs border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-indigo-500 bg-white">
-                        <option value="">Select a template…</option>
+                        <option value="">Select a process…</option>
                         {Object.values(MODULE_DOMAINS).flat().filter(m => !configs.some(c => c.module === m)).map(m => (
                           <option key={m} value={m}>{m}</option>
                         ))}
                       </select>
+                    </td>
+                    <td className="px-4 py-3">
+                      <input type="text" value={addFormData.template} onChange={e => setAddFormData({ ...addFormData, template: e.target.value })}
+                        className="w-28 px-2 py-1 text-xs font-mono border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-indigo-500" />
                     </td>
                     <td className="px-4 py-3">
                       <input type="number" min={1} value={addFormData.startingNumber} onChange={e => setAddFormData({ ...addFormData, startingNumber: parseInt(e.target.value) || 1 })}
@@ -330,7 +347,7 @@ export function FinancialConfigurationPage() {
                     <td className="px-4 py-3">
                       <div className="flex items-center gap-1">
                         <button onClick={saveAddNumbering} className="p-1.5 text-green-500 hover:bg-green-50 rounded-lg"><Save className="w-3.5 h-3.5" /></button>
-                        <button onClick={() => { setShowAddForm(false); setAddFormData({ module: "", prefix: "", separator: "-", startingNumber: 1, endingNumber: null, incrementBy: 1, description: "" }); }} className="p-1.5 text-gray-400 hover:bg-gray-100 rounded-lg"><X className="w-3.5 h-3.5" /></button>
+                        <button onClick={() => { setShowAddForm(false); setAddFormData({ module: "", template: "", startingNumber: 1, endingNumber: null, incrementBy: 1, description: "" }); }} className="p-1.5 text-gray-400 hover:bg-gray-100 rounded-lg"><X className="w-3.5 h-3.5" /></button>
                       </div>
                     </td>
                   </tr>
