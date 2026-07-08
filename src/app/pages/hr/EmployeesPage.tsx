@@ -7,29 +7,30 @@ import {
 } from "lucide-react";
 import { exportCSV } from "../../utils/exportCSV";
 import { AdvancedFilter, type FilterFieldDef, type ActiveFilters, type SortConfig } from "../../components/AdvancedFilter";
+import { useHRConfig } from "../../stores/hrConfigStore";
 
 type EmpStatus = "active" | "inactive" | "on_leave";
 
 const employees: {
   id: string; firstName: string; lastName: string; role: string; department: string;
   status: EmpStatus; email: string; phone: string; dateHired: string;
-  employmentType: string; projectCount: number; projects: string[];
+  employmentType: string; projectCount: number; projects: string[]; orgLevel: string;
 }[] = [
-  { id: "EMP-001", firstName: "Chukwudi", lastName: "Eze", role: "Site Engineer", department: "Engineering", status: "active", email: "c.eze@buildos.ng", phone: "+234 80 1234 5678", dateHired: "Jan 15, 2023", employmentType: "Full-time", projectCount: 3, projects: ["Downtown Office Complex", "Highway Interchange", "Industrial Warehouse"] },
-  { id: "EMP-002", firstName: "Aisha", lastName: "Bello", role: "Project Manager", department: "Operations", status: "active", email: "a.bello@buildos.ng", phone: "+234 81 2345 6789", dateHired: "Mar 1, 2021", employmentType: "Full-time", projectCount: 3, projects: ["Downtown Office Complex", "Riverside Residential", "University Science Block"] },
-  { id: "EMP-003", firstName: "Robert", lastName: "Lee", role: "Structural Engineer", department: "Engineering", status: "active", email: "r.lee@buildos.ng", phone: "+234 70 3456 7890", dateHired: "Jun 10, 2022", employmentType: "Full-time", projectCount: 4, projects: ["Highway Interchange", "Downtown Office Complex", "Industrial Warehouse", "Riverside Residential"] },
-  { id: "EMP-004", firstName: "Sarah", lastName: "Johnson", role: "Accountant", department: "Finance", status: "active", email: "s.johnson@buildos.ng", phone: "+234 81 4567 8901", dateHired: "Feb 14, 2022", employmentType: "Full-time", projectCount: 0, projects: [] },
-  { id: "EMP-005", firstName: "Mike", lastName: "Davis", role: "Site Foreman", department: "Engineering", status: "on_leave", email: "m.davis@buildos.ng", phone: "+234 80 5678 9012", dateHired: "Sep 3, 2020", employmentType: "Full-time", projectCount: 1, projects: ["Industrial Warehouse"] },
-  { id: "EMP-006", firstName: "Alice", lastName: "Ware", role: "HR Officer", department: "Human Resources", status: "active", email: "a.ware@buildos.ng", phone: "+234 70 6789 0123", dateHired: "Apr 2, 2023", employmentType: "Full-time", projectCount: 0, projects: [] },
-  { id: "EMP-007", firstName: "Tom", lastName: "Fox", role: "Quantity Surveyor", department: "Procurement", status: "active", email: "t.fox@buildos.ng", phone: "+234 81 7890 1234", dateHired: "Jul 20, 2021", employmentType: "Full-time", projectCount: 3, projects: ["Riverside Residential", "University Science Block", "Highway Interchange"] },
-  { id: "EMP-008", firstName: "Ngozi", lastName: "Eze", role: "Site Supervisor", department: "Engineering", status: "active", email: "n.eze@buildos.ng", phone: "+234 80 8901 2345", dateHired: "Nov 5, 2022", employmentType: "Full-time", projectCount: 2, projects: ["Downtown Office Complex", "Riverside Residential"] },
-  { id: "EMP-009", firstName: "Kwame", lastName: "Asante", role: "Civil Engineer", department: "Engineering", status: "active", email: "k.asante@buildos.ng", phone: "+234 70 9012 3456", dateHired: "Jan 8, 2024", employmentType: "Full-time", projectCount: 2, projects: ["Highway Interchange", "University Science Block"] },
-  { id: "EMP-010", firstName: "Emeka", lastName: "Nwosu", role: "HSE Officer", department: "Health & Safety", status: "active", email: "e.nwosu@buildos.ng", phone: "+234 81 0123 4567", dateHired: "Mar 12, 2023", employmentType: "Contract", projectCount: 4, projects: ["Downtown Office Complex", "Highway Interchange", "Industrial Warehouse", "Riverside Residential"] },
-  { id: "EMP-011", firstName: "Bisi", lastName: "Akinola", role: "Admin Officer", department: "Administration", status: "active", email: "b.akinola@buildos.ng", phone: "+234 80 1234 6789", dateHired: "May 1, 2022", employmentType: "Full-time", projectCount: 0, projects: [] },
-  { id: "EMP-012", firstName: "Lawal", lastName: "Musa", role: "MEP Engineer", department: "Engineering", status: "inactive", email: "l.musa@buildos.ng", phone: "+234 70 2345 7890", dateHired: "Aug 15, 2021", employmentType: "Contract", projectCount: 0, projects: [] },
-  { id: "EMP-013", firstName: "Funke", lastName: "Adeyemi", role: "Finance Analyst", department: "Finance", status: "active", email: "f.adeyemi@buildos.ng", phone: "+234 81 3456 8901", dateHired: "Feb 20, 2024", employmentType: "Full-time", projectCount: 0, projects: [] },
-  { id: "EMP-014", firstName: "David", lastName: "Obi", role: "IT Officer", department: "IT & Systems", status: "active", email: "d.obi@buildos.ng", phone: "+234 80 4567 9012", dateHired: "Oct 10, 2023", employmentType: "Full-time", projectCount: 0, projects: [] },
-  { id: "EMP-015", firstName: "Yemi", lastName: "Olusegun", role: "Project Manager", department: "Operations", status: "active", email: "y.olusegun@buildos.ng", phone: "+234 70 5678 0123", dateHired: "Apr 7, 2026", employmentType: "Full-time", projectCount: 1, projects: ["University Science Block"] },
+  { id: "EMP-001", firstName: "Chukwudi", lastName: "Eze", role: "Site Engineer", department: "Engineering", status: "active", email: "c.eze@buildos.ng", phone: "+234 80 1234 5678", dateHired: "Jan 15, 2023", employmentType: "Full-time", projectCount: 3, projects: ["Downtown Office Complex", "Highway Interchange", "Industrial Warehouse"], orgLevel: "Crew" },
+  { id: "EMP-002", firstName: "Aisha", lastName: "Bello", role: "Project Manager", department: "Operations", status: "active", email: "a.bello@buildos.ng", phone: "+234 81 2345 6789", dateHired: "Mar 1, 2021", employmentType: "Full-time", projectCount: 3, projects: ["Downtown Office Complex", "Riverside Residential", "University Science Block"], orgLevel: "Collegium" },
+  { id: "EMP-003", firstName: "Robert", lastName: "Lee", role: "Structural Engineer", department: "Engineering", status: "active", email: "r.lee@buildos.ng", phone: "+234 70 3456 7890", dateHired: "Jun 10, 2022", employmentType: "Full-time", projectCount: 4, projects: ["Highway Interchange", "Downtown Office Complex", "Industrial Warehouse", "Riverside Residential"], orgLevel: "Crew" },
+  { id: "EMP-004", firstName: "Sarah", lastName: "Johnson", role: "Accountant", department: "Finance", status: "active", email: "s.johnson@buildos.ng", phone: "+234 81 4567 8901", dateHired: "Feb 14, 2022", employmentType: "Full-time", projectCount: 0, projects: [], orgLevel: "Cluster" },
+  { id: "EMP-005", firstName: "Mike", lastName: "Davis", role: "Site Foreman", department: "Engineering", status: "on_leave", email: "m.davis@buildos.ng", phone: "+234 80 5678 9012", dateHired: "Sep 3, 2020", employmentType: "Full-time", projectCount: 1, projects: ["Industrial Warehouse"], orgLevel: "Crew" },
+  { id: "EMP-006", firstName: "Alice", lastName: "Ware", role: "HR Officer", department: "Human Resources", status: "active", email: "a.ware@buildos.ng", phone: "+234 70 6789 0123", dateHired: "Apr 2, 2023", employmentType: "Full-time", projectCount: 0, projects: [], orgLevel: "Cluster" },
+  { id: "EMP-007", firstName: "Tom", lastName: "Fox", role: "Quantity Surveyor", department: "Procurement", status: "active", email: "t.fox@buildos.ng", phone: "+234 81 7890 1234", dateHired: "Jul 20, 2021", employmentType: "Full-time", projectCount: 3, projects: ["Riverside Residential", "University Science Block", "Highway Interchange"], orgLevel: "Cluster" },
+  { id: "EMP-008", firstName: "Ngozi", lastName: "Eze", role: "Site Supervisor", department: "Engineering", status: "active", email: "n.eze@buildos.ng", phone: "+234 80 8901 2345", dateHired: "Nov 5, 2022", employmentType: "Full-time", projectCount: 2, projects: ["Downtown Office Complex", "Riverside Residential"], orgLevel: "Crew" },
+  { id: "EMP-009", firstName: "Kwame", lastName: "Asante", role: "Civil Engineer", department: "Engineering", status: "active", email: "k.asante@buildos.ng", phone: "+234 70 9012 3456", dateHired: "Jan 8, 2024", employmentType: "Full-time", projectCount: 2, projects: ["Highway Interchange", "University Science Block"], orgLevel: "Crew" },
+  { id: "EMP-010", firstName: "Emeka", lastName: "Nwosu", role: "HSE Officer", department: "Health & Safety", status: "active", email: "e.nwosu@buildos.ng", phone: "+234 81 0123 4567", dateHired: "Mar 12, 2023", employmentType: "Contract", projectCount: 4, projects: ["Downtown Office Complex", "Highway Interchange", "Industrial Warehouse", "Riverside Residential"], orgLevel: "Crew" },
+  { id: "EMP-011", firstName: "Bisi", lastName: "Akinola", role: "Admin Officer", department: "Administration", status: "active", email: "b.akinola@buildos.ng", phone: "+234 80 1234 6789", dateHired: "May 1, 2022", employmentType: "Full-time", projectCount: 0, projects: [], orgLevel: "Cluster" },
+  { id: "EMP-012", firstName: "Lawal", lastName: "Musa", role: "MEP Engineer", department: "Engineering", status: "inactive", email: "l.musa@buildos.ng", phone: "+234 70 2345 7890", dateHired: "Aug 15, 2021", employmentType: "Contract", projectCount: 0, projects: [], orgLevel: "Crew" },
+  { id: "EMP-013", firstName: "Funke", lastName: "Adeyemi", role: "Finance Analyst", department: "Finance", status: "active", email: "f.adeyemi@buildos.ng", phone: "+234 81 3456 8901", dateHired: "Feb 20, 2024", employmentType: "Full-time", projectCount: 0, projects: [], orgLevel: "Cluster" },
+  { id: "EMP-014", firstName: "David", lastName: "Obi", role: "IT Officer", department: "IT & Systems", status: "active", email: "d.obi@buildos.ng", phone: "+234 80 4567 9012", dateHired: "Oct 10, 2023", employmentType: "Full-time", projectCount: 0, projects: [], orgLevel: "Cluster" },
+  { id: "EMP-015", firstName: "Yemi", lastName: "Olusegun", role: "Project Manager", department: "Operations", status: "active", email: "y.olusegun@buildos.ng", phone: "+234 70 5678 0123", dateHired: "Apr 7, 2026", employmentType: "Full-time", projectCount: 1, projects: ["University Science Block"], orgLevel: "Collegium" },
 ];
 
 const statusConfig: Record<EmpStatus, { label: string; badge: string; icon: React.ReactNode }> = {
@@ -54,15 +55,15 @@ const EMPLOYEE_FILTER_FIELDS: FilterFieldDef[] = [
 
 interface AddEmpForm {
   firstName: string; lastName: string; role: string; department: string;
-  email: string; phone: string; employmentType: string;
+  email: string; phone: string; employmentType: string; orgLevel: string;
 }
 
 const emptyEmpForm: AddEmpForm = {
   firstName: "", lastName: "", role: "", department: departments[0],
-  email: "", phone: "", employmentType: "Full-time",
+  email: "", phone: "", employmentType: "Full-time", orgLevel: "",
 };
 
-function AddEmployeeModal({ onSave, onClose }: { onSave: (f: AddEmpForm) => void; onClose: () => void }) {
+function AddEmployeeModal({ onSave, onClose, orgLevels }: { onSave: (f: AddEmpForm) => void; onClose: () => void; orgLevels: { name: string }[] }) {
   const [form, setForm] = useState<AddEmpForm>({ ...emptyEmpForm });
   const set = (k: keyof AddEmpForm, v: string) => setForm(f => ({ ...f, [k]: v }));
   const valid = form.firstName.trim() && form.lastName.trim() && form.role.trim() && form.department;
@@ -118,6 +119,14 @@ function AddEmployeeModal({ onSave, onClose }: { onSave: (f: AddEmpForm) => void
               ))}
             </div>
           </div>
+          <div>
+            <label className="block text-xs font-medium text-gray-600 mb-1">Org Unit</label>
+            <select value={form.orgLevel} onChange={e => set("orgLevel", e.target.value)}
+              className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white">
+              <option value="">Select org unit…</option>
+              {orgLevels.map(l => <option key={l.name} value={l.name}>{l.name}</option>)}
+            </select>
+          </div>
         </div>
         <div className="flex justify-end gap-3 px-6 py-4 border-t border-gray-200">
           <button onClick={onClose} className="px-4 py-2 border border-gray-300 rounded-md text-sm text-gray-700 hover:bg-gray-50">Cancel</button>
@@ -133,6 +142,7 @@ function AddEmployeeModal({ onSave, onClose }: { onSave: (f: AddEmpForm) => void
 
 export function EmployeesPage() {
   const navigate = useNavigate();
+  const { orgLevels } = useHRConfig();
   const [empList, setEmpList] = useState(employees);
   const [search, setSearch] = useState("");
   const [advFilters, setAdvFilters] = useState<ActiveFilters>({});
@@ -182,13 +192,14 @@ export function EmployeesPage() {
       email: form.email || `${form.firstName.toLowerCase()}.${form.lastName.toLowerCase()}@buildos.ng`,
       phone: form.phone || "—", dateHired: today,
       employmentType: form.employmentType, projectCount: 0, projects: [],
+      orgLevel: form.orgLevel,
     }]);
     setShowAddModal(false);
   }
 
   function handleExportCSV() {
-    const headers = ["Employee ID", "First Name", "Last Name", "Role", "Department", "Status", "Email", "Phone", "Date Hired", "Employment Type", "Projects"];
-    const rows = filtered.map(e => [e.id, e.firstName, e.lastName, e.role, e.department, statusConfig[e.status].label, e.email, e.phone, e.dateHired, e.employmentType, e.projects.join("; ")]);
+    const headers = ["Employee ID", "First Name", "Last Name", "Role", "Department", "Org Unit", "Status", "Email", "Phone", "Date Hired", "Employment Type", "Projects"];
+    const rows = filtered.map(e => [e.id, e.firstName, e.lastName, e.role, e.department, e.orgLevel, statusConfig[e.status].label, e.email, e.phone, e.dateHired, e.employmentType, e.projects.join("; ")]);
     exportCSV("employees", headers, rows);
   }
 
@@ -241,6 +252,7 @@ export function EmployeesPage() {
                 { key: "name", label: "Full Name" },
                 { key: "role", label: "Role / Position" },
                 { key: "department", label: "Department" },
+                { key: "orgLevel", label: "Org Unit" },
                 { key: "dateHired", label: "Date Hired" },
                 { key: "status", label: "Status" },
               ] as { key: string; label: string }[]).map(col => (
@@ -274,6 +286,9 @@ export function EmployeesPage() {
                   </td>
                   <td className="px-4 py-3 text-gray-700">{emp.role}</td>
                   <td className="px-4 py-3 text-gray-500 text-xs">{emp.department}</td>
+                  <td className="px-4 py-3">
+                    <span className="text-xs font-medium text-indigo-700 bg-indigo-50 px-2 py-0.5 rounded-full">{emp.orgLevel || "—"}</span>
+                  </td>
                   <td className="px-4 py-3 text-gray-500 text-xs">{emp.dateHired}</td>
                   <td className="px-4 py-3">
                     <span className={`flex items-center gap-1 text-xs px-2 py-1 rounded-full font-medium w-fit ${cfg.badge}`}>
@@ -314,7 +329,7 @@ export function EmployeesPage() {
         )}
       </div>
 
-      {showAddModal && <AddEmployeeModal onSave={handleAddEmployee} onClose={() => setShowAddModal(false)} />}
+      {showAddModal && <AddEmployeeModal onSave={handleAddEmployee} onClose={() => setShowAddModal(false)} orgLevels={orgLevels} />}
     </div>
   );
 }

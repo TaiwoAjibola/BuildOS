@@ -65,25 +65,6 @@ const sidebarSections = [
     ],
   },
   {
-    label: "Leave Setup",
-    items: [
-      { label: "Leave Type Setup", href: "/apps/hr/leave-type-setup", icon: <CalendarDays className="w-4 h-4" />, end: true },
-    ],
-  },
-  {
-    label: "Claims Setup",
-    items: [
-      { label: "Claim Type Setup", href: "/apps/hr/claim-type-setup", icon: <CreditCard className="w-4 h-4" />, end: true },
-    ],
-  },
-  {
-    label: "General Setup",
-    items: [
-      { label: "General Setup", href: "/apps/hr/hr-general-setup", icon: <Settings2    className="w-4 h-4" />, end: true },
-      { label: "Base Calendar", href: "/apps/hr/base-calendar",    icon: <CalendarCheck className="w-4 h-4" />, end: true },
-    ],
-  },
-  {
     label: "Approvals",
     items: [
       { label: "Approvals", href: "/apps/hr/approvals", icon: <CheckSquare className="w-4 h-4" />, end: true },
@@ -93,6 +74,15 @@ const sidebarSections = [
     label: "Reports",
     items: [
       { label: "HR Reports", href: "/apps/hr/reports", icon: <BarChart3 className="w-4 h-4" />, end: true },
+    ],
+  },
+  {
+    label: "General Setup",
+    items: [
+      { label: "General Setup",   href: "/apps/hr/hr-general-setup", icon: <Settings2    className="w-4 h-4" />, end: true },
+      { label: "Leave Type Setup", href: "/apps/hr/leave-type-setup", icon: <CalendarDays className="w-4 h-4" />, end: true },
+      { label: "Claim Type Setup", href: "/apps/hr/claim-type-setup", icon: <CreditCard   className="w-4 h-4" />, end: true },
+      { label: "Base Calendar",   href: "/apps/hr/base-calendar",    icon: <CalendarCheck className="w-4 h-4" />, end: true },
     ],
   },
 ];

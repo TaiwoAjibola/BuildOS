@@ -12,11 +12,12 @@ interface Department {
   headcount: number;
   budget: string;
   location: string;
+  orgLevel: string;
   employees: { name: string; role: string; id: string }[];
 }
 
 const initialDepts: Department[] = [
-  { id: "DEPT-001", name: "Engineering", head: "Chukwudi Eze", headId: "EMP-001", description: "Site engineers, structural engineers, MEP specialists, and construction supervision staff.", headcount: 28, budget: "₦45M / yr", location: "Abuja, Lagos", employees: [
+  { id: "DEPT-001", name: "Engineering", head: "Chukwudi Eze", headId: "EMP-001", description: "Site engineers, structural engineers, MEP specialists, and construction supervision staff.", headcount: 28, budget: "₦45M / yr", location: "Abuja, Lagos", orgLevel: "Crew", employees: [
     { name: "Chukwudi Eze", role: "Site Engineer", id: "EMP-001" },
     { name: "Robert Lee", role: "Structural Engineer", id: "EMP-003" },
     { name: "Mike Davis", role: "Site Foreman", id: "EMP-005" },
@@ -24,27 +25,27 @@ const initialDepts: Department[] = [
     { name: "Kwame Asante", role: "Civil Engineer", id: "EMP-009" },
     { name: "Lawal Musa", role: "MEP Engineer", id: "EMP-012" },
   ] },
-  { id: "DEPT-002", name: "Operations", head: "Aisha Bello", headId: "EMP-002", description: "Project management and overall coordination of construction delivery across all active projects.", headcount: 12, budget: "₦18M / yr", location: "Abuja", employees: [
+  { id: "DEPT-002", name: "Operations", head: "Aisha Bello", headId: "EMP-002", description: "Project management and overall coordination of construction delivery across all active projects.", headcount: 12, budget: "₦18M / yr", location: "Abuja", orgLevel: "Collegium", employees: [
     { name: "Aisha Bello", role: "Project Manager", id: "EMP-002" },
     { name: "Yemi Olusegun", role: "Project Manager", id: "EMP-015" },
   ] },
-  { id: "DEPT-003", name: "Finance", head: "Sarah Johnson", headId: "EMP-004", description: "Financial planning, budgeting, accounts payable/receivable, and reporting for all company operations.", headcount: 8, budget: "₦12M / yr", location: "Lagos", employees: [
+  { id: "DEPT-003", name: "Finance", head: "Sarah Johnson", headId: "EMP-004", description: "Financial planning, budgeting, accounts payable/receivable, and reporting for all company operations.", headcount: 8, budget: "₦12M / yr", location: "Lagos", orgLevel: "Cluster", employees: [
     { name: "Sarah Johnson", role: "Accountant", id: "EMP-004" },
     { name: "Funke Adeyemi", role: "Finance Analyst", id: "EMP-013" },
   ] },
-  { id: "DEPT-004", name: "Procurement", head: "Tom Fox", headId: "EMP-007", description: "Materials sourcing, vendor management, purchase order processing and inventory control.", headcount: 6, budget: "₦9M / yr", location: "Lagos, Abuja", employees: [
+  { id: "DEPT-004", name: "Procurement", head: "Tom Fox", headId: "EMP-007", description: "Materials sourcing, vendor management, purchase order processing and inventory control.", headcount: 6, budget: "₦9M / yr", location: "Lagos, Abuja", orgLevel: "Cluster", employees: [
     { name: "Tom Fox", role: "Quantity Surveyor", id: "EMP-007" },
   ] },
-  { id: "DEPT-005", name: "Human Resources", head: "Alice Ware", headId: "EMP-006", description: "Recruitment, onboarding, employee relations, payroll coordination, and HR policy management.", headcount: 5, budget: "₦7.5M / yr", location: "Lagos", employees: [
+  { id: "DEPT-005", name: "Human Resources", head: "Alice Ware", headId: "EMP-006", description: "Recruitment, onboarding, employee relations, payroll coordination, and HR policy management.", headcount: 5, budget: "₦7.5M / yr", location: "Lagos", orgLevel: "Cluster", employees: [
     { name: "Alice Ware", role: "HR Officer", id: "EMP-006" },
   ] },
-  { id: "DEPT-006", name: "Health & Safety", head: "Emeka Nwosu", headId: "EMP-010", description: "HSE compliance, safety audits, incident reporting, and ensuring OSHA standards across all sites.", headcount: 4, budget: "₦6M / yr", location: "All Sites", employees: [
+  { id: "DEPT-006", name: "Health & Safety", head: "Emeka Nwosu", headId: "EMP-010", description: "HSE compliance, safety audits, incident reporting, and ensuring OSHA standards across all sites.", headcount: 4, budget: "₦6M / yr", location: "All Sites", orgLevel: "Crew", employees: [
     { name: "Emeka Nwosu", role: "HSE Officer", id: "EMP-010" },
   ] },
-  { id: "DEPT-007", name: "Administration", head: "Bisi Akinola", headId: "EMP-011", description: "General administration, facilities management, office operations, and executive support.", headcount: 4, budget: "₦5M / yr", location: "Lagos", employees: [
+  { id: "DEPT-007", name: "Administration", head: "Bisi Akinola", headId: "EMP-011", description: "General administration, facilities management, office operations, and executive support.", headcount: 4, budget: "₦5M / yr", location: "Lagos", orgLevel: "Cluster", employees: [
     { name: "Bisi Akinola", role: "Admin Officer", id: "EMP-011" },
   ] },
-  { id: "DEPT-008", name: "IT & Systems", head: "David Obi", headId: "EMP-014", description: "Internal IT infrastructure, ERP system management, software support, and cybersecurity.", headcount: 3, budget: "₦8M / yr", location: "Lagos", employees: [
+  { id: "DEPT-008", name: "IT & Systems", head: "David Obi", headId: "EMP-014", description: "Internal IT infrastructure, ERP system management, software support, and cybersecurity.", headcount: 3, budget: "₦8M / yr", location: "Lagos", orgLevel: "Cluster", employees: [
     { name: "David Obi", role: "IT Officer", id: "EMP-014" },
   ] },
 ];
@@ -121,6 +122,9 @@ export function DepartmentsPage() {
                   <div>
                     <p className="font-semibold text-gray-900">{dept.name}</p>
                     <p className="text-xs text-gray-500">Head: {dept.head} · {dept.location}</p>
+                  </div>
+                  <div>
+                    <span className="text-xs font-medium text-indigo-700 bg-indigo-50 px-2 py-0.5 rounded-full">{dept.orgLevel || "—"}</span>
                   </div>
                 </div>
                 <div className="flex items-center gap-6">
