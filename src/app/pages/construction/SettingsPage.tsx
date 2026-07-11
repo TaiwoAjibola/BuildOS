@@ -326,22 +326,58 @@ export function SettingsPage() {
       </div>
 
       <div className="grid grid-cols-1 gap-5">
-        <Section id="project-types" icon={<Tags className="w-4 h-4 text-gray-400" />} title="Project Types" description="Configure sectors, categories, physical structure breakdowns (Level 3), and specific descriptors (Level 4)">
+        <Section id="project-types" icon={<Tags className="w-4 h-4 text-gray-400" />} title="Project Types" description="Configure the 4-level project type hierarchy: Sector → Category → Specific Descriptor → Physical Structure Breakdown">
           <div className="space-y-3">
             {projectTypes.map(pt => (
               <div key={pt.sector} className="border border-gray-100 rounded-lg p-3">
                 <div className="flex items-center justify-between mb-3">
-                  <span className="text-sm font-semibold text-gray-900">{pt.sector}</span>
+                  <div className="flex items-center gap-2">
+                    <span className="text-[10px] bg-gray-200 text-gray-500 font-semibold px-1.5 py-0.5 rounded">L1</span>
+                    <span className="text-sm font-semibold text-gray-900">{pt.sector}</span>
+                  </div>
                   <button onClick={() => removeSector(pt.sector)} className="text-red-400 hover:text-red-600 p-1"><X className="w-3.5 h-3.5" /></button>
                 </div>
                 {pt.categories.map(cat => (
                   <div key={cat.name} className="border border-gray-100 rounded-lg p-3 mb-2 bg-gray-50">
                     <div className="flex items-center justify-between mb-2">
-                      <span className="text-xs font-semibold text-amber-700">{cat.name}</span>
+                      <div className="flex items-center gap-2">
+                        <span className="text-[10px] bg-amber-100 text-amber-600 font-semibold px-1.5 py-0.5 rounded">L2</span>
+                        <span className="text-xs font-semibold text-amber-700">{cat.name}</span>
+                      </div>
                       <button onClick={() => removeCategory(pt.sector, cat.name)} className="text-red-300 hover:text-red-600 p-0.5"><X className="w-3 h-3" /></button>
                     </div>
-                    {/* Level 3 — Physical Structure Breakdown */}
-                    <p className="text-[10px] text-gray-400 font-semibold uppercase tracking-wider mb-2">Level 3 — Physical Structure Breakdown</p>
+                    {/* Level 3 — Specific Descriptors */}
+                    <p className="text-[10px] text-gray-400 font-semibold uppercase tracking-wider mb-2">Level 3 — Specific Descriptors</p>
+                    <div className="flex items-center gap-2 mb-2">
+                      <span className="text-[10px] text-gray-500">Mode:</span>
+                      <button onClick={() => updateDescriptorMode(pt.sector, cat.name, "dropdown")}
+                        className={`text-xs px-2 py-0.5 rounded-full ${cat.descriptorMode === "dropdown" ? "bg-orange-100 text-orange-700 font-medium" : "bg-gray-100 text-gray-500"}`}>Dropdown</button>
+                      <button onClick={() => updateDescriptorMode(pt.sector, cat.name, "free-text")}
+                        className={`text-xs px-2 py-0.5 rounded-full ${cat.descriptorMode === "free-text" ? "bg-orange-100 text-orange-700 font-medium" : "bg-gray-100 text-gray-500"}`}>Free Text</button>
+                    </div>
+                    {cat.descriptorMode === "dropdown" && (
+                      <>
+                        <div className="flex flex-wrap gap-1.5 mb-2">
+                          {cat.descriptorOptions.map(d => (
+                            <span key={d} className="inline-flex items-center gap-1 bg-blue-50 text-blue-700 text-xs px-2 py-0.5 rounded-full">
+                              {d}
+                              <button onClick={() => removeDescriptorOption(pt.sector, cat.name, d)} className="hover:text-red-600"><X className="w-3 h-3" /></button>
+                            </span>
+                          ))}
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <input value={descTarget?.sector === pt.sector && descTarget?.category === cat.name ? descInput : ""}
+                            onChange={e => { setDescInput(e.target.value); setDescTarget({ sector: pt.sector, category: cat.name }); }}
+                            onFocus={() => setDescTarget({ sector: pt.sector, category: cat.name })}
+                            placeholder="Add option..." className="flex-1 max-w-xs border border-gray-300 rounded-md px-2 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-orange-500"
+                            onKeyDown={e => e.key === "Enter" && addDescriptor(pt.sector, cat.name)} />
+                          <button onClick={() => addDescriptor(pt.sector, cat.name)} disabled={descTarget?.sector !== pt.sector || descTarget?.category !== cat.name || !descInput.trim()}
+                            className="text-xs px-2 py-1 bg-orange-600 text-white rounded hover:bg-orange-700 disabled:opacity-40"><Plus className="w-3 h-3" /></button>
+                        </div>
+                      </>
+                    )}
+                    {/* Level 4 — Physical Structure Breakdown */}
+                    <p className="text-[10px] text-gray-400 font-semibold uppercase tracking-wider mb-2 mt-3">Level 4 — Physical Structure Breakdown</p>
                     <div className="grid grid-cols-2 gap-2 mb-2">
                       <div>
                         <label className="block text-[10px] text-gray-500 mb-0.5">Sub-Unit Label</label>
@@ -390,36 +426,6 @@ export function SettingsPage() {
                       className="flex items-center gap-1 text-xs text-orange-600 hover:text-orange-700 font-medium mt-1">
                       <Plus className="w-3 h-3" /> Add Inner Field
                     </button>
-                    {/* Level 4 — Specific Descriptors */}
-                    <p className="text-[10px] text-gray-400 font-semibold uppercase tracking-wider mb-1.5 mt-3">Level 4 — Specific Descriptors</p>
-                    <div className="flex items-center gap-2 mb-2">
-                      <span className="text-[10px] text-gray-500">Mode:</span>
-                      <button onClick={() => updateDescriptorMode(pt.sector, cat.name, "dropdown")}
-                        className={`text-xs px-2 py-0.5 rounded-full ${cat.descriptorMode === "dropdown" ? "bg-orange-100 text-orange-700 font-medium" : "bg-gray-100 text-gray-500"}`}>Dropdown</button>
-                      <button onClick={() => updateDescriptorMode(pt.sector, cat.name, "free-text")}
-                        className={`text-xs px-2 py-0.5 rounded-full ${cat.descriptorMode === "free-text" ? "bg-orange-100 text-orange-700 font-medium" : "bg-gray-100 text-gray-500"}`}>Free Text</button>
-                    </div>
-                    {cat.descriptorMode === "dropdown" && (
-                      <>
-                        <div className="flex flex-wrap gap-1.5 mb-2">
-                          {cat.descriptorOptions.map(d => (
-                            <span key={d} className="inline-flex items-center gap-1 bg-blue-50 text-blue-700 text-xs px-2 py-0.5 rounded-full">
-                              {d}
-                              <button onClick={() => removeDescriptorOption(pt.sector, cat.name, d)} className="hover:text-red-600"><X className="w-3 h-3" /></button>
-                            </span>
-                          ))}
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <input value={descTarget?.sector === pt.sector && descTarget?.category === cat.name ? descInput : ""}
-                            onChange={e => { setDescInput(e.target.value); setDescTarget({ sector: pt.sector, category: cat.name }); }}
-                            onFocus={() => setDescTarget({ sector: pt.sector, category: cat.name })}
-                            placeholder="Add option..." className="flex-1 max-w-xs border border-gray-300 rounded-md px-2 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-orange-500"
-                            onKeyDown={e => e.key === "Enter" && addDescriptor(pt.sector, cat.name)} />
-                          <button onClick={() => addDescriptor(pt.sector, cat.name)} disabled={descTarget?.sector !== pt.sector || descTarget?.category !== cat.name || !descInput.trim()}
-                            className="text-xs px-2 py-1 bg-orange-600 text-white rounded hover:bg-orange-700 disabled:opacity-40"><Plus className="w-3 h-3" /></button>
-                        </div>
-                      </>
-                    )}
                     {/* Description */}
                     <p className="text-[10px] text-gray-400 font-medium mt-3 mb-1">Description</p>
                     <textarea value={cat.description} onChange={e => updateDescription(pt.sector, cat.name, e.target.value)}
