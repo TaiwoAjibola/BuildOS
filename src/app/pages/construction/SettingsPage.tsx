@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Settings, Save, Plus, ToggleLeft, ToggleRight, X, Check, Tags, Layers, Sun, Truck, Building2, Users, Package, UserCog, ArrowRight, ChevronDown, ChevronRight, Shield, Edit3, Trash2, Hash } from "lucide-react";
-import type { Sector, ScheduleLevelConfig, WeatherConfig, ProjectRole } from "./types";
+import type { Sector, ScheduleLevelConfig, WeatherConfig, ProjectRole, PhysicalBreakdownConfig, BreakdownField, CategoryConfig, ProjectTypeSetting } from "./types";
 import { ALL_PERMISSIONS } from "./types";
 import { defaultScheduleLevels, defaultWeatherConfig, defaultProjectTypes } from "./mockData";
 import { useRoles } from "../../contexts/RolesContext";
@@ -52,8 +52,12 @@ export function SettingsPage() {
   const [newWeather, setNewWeather] = useState("");
   const [projectTypes, setProjectTypes] = useState(defaultProjectTypes);
   const [newSector, setNewSector] = useState("");
-  const [newCategory, setNewCategory] = useState("");
-  const [newBreakdown, setNewBreakdown] = useState("");
+  const [catInput, setCatInput] = useState("");
+  const [catTargetSector, setCatTargetSector] = useState<string | null>(null);
+  const [descInput, setDescInput] = useState("");
+  const [descTarget, setDescTarget] = useState<{sector: string; category: string} | null>(null);
+  const [fieldFormTarget, setFieldFormTarget] = useState<{sector: string; category: string; editIdx?: number} | null>(null);
+  const [fieldForm, setFieldForm] = useState({ label: "", type: "select" as "text" | "select", options: "", required: true });
 
   function toggleCollapse(id: SectionId) {
     setCollapsed(prev => { const next = new Set(prev); if (next.has(id)) next.delete(id); else next.add(id); return next; });
@@ -129,22 +133,8 @@ export function SettingsPage() {
 
   function addSector() {
     if (!newSector.trim() || projectTypes.some(pt => pt.sector === newSector.trim())) return;
-    setProjectTypes(prev => [...prev, { sector: newSector.trim() as Sector, categories: [newCategory.trim() || "General"], breakdowns: [], description: "" }]);
-    setNewSector(""); setNewCategory("");
-  }
-
-  function addBreakdown(sector: string) {
-    if (!newBreakdown.trim()) return;
-    setProjectTypes(prev => prev.map(pt => pt.sector === sector ? { ...pt, breakdowns: [...pt.breakdowns, newBreakdown.trim()] } : pt));
-    setNewBreakdown("");
-  }
-
-  function removeBreakdown(sector: string, b: string) {
-    setProjectTypes(prev => prev.map(pt => pt.sector === sector ? { ...pt, breakdowns: pt.breakdowns.filter(x => x !== b) } : pt));
-  }
-
-  function updateDescription(sector: string, desc: string) {
-    setProjectTypes(prev => prev.map(pt => pt.sector === sector ? { ...pt, description: desc } : pt));
+    setProjectTypes(prev => [...prev, { sector: newSector.trim() as Sector, categories: [] }]);
+    setNewSector("");
   }
 
   function removeSector(sector: string) {
@@ -152,13 +142,110 @@ export function SettingsPage() {
   }
 
   function addCategory(sector: string) {
-    if (!newCategory.trim()) return;
-    setProjectTypes(prev => prev.map(pt => pt.sector === sector ? { ...pt, categories: [...pt.categories, newCategory.trim()] } : pt));
-    setNewCategory("");
+    if (!catInput.trim()) return;
+    setProjectTypes(prev => prev.map(pt =>
+      pt.sector === sector
+        ? { ...pt, categories: [...pt.categories, { name: catInput.trim(), physicalBreakdown: { itemLabel: "", addButtonLabel: "", fields: [] }, descriptors: [], description: "" }] }
+        : pt
+    ));
+    setCatInput("");
+    setCatTargetSector(null);
   }
 
-  function removeCategory(sector: string, cat: string) {
-    setProjectTypes(prev => prev.map(pt => pt.sector === sector ? { ...pt, categories: pt.categories.filter(c => c !== cat) } : pt));
+  function removeCategory(sector: string, catName: string) {
+    setProjectTypes(prev => prev.map(pt =>
+      pt.sector === sector ? { ...pt, categories: pt.categories.filter(c => c.name !== catName) } : pt
+    ));
+  }
+
+  function updateBreakdownMeta(sector: string, catName: string, field: "itemLabel" | "addButtonLabel", value: string) {
+    setProjectTypes(prev => prev.map(pt =>
+      pt.sector === sector
+        ? {
+            ...pt,
+            categories: pt.categories.map(c =>
+              c.name === catName
+                ? { ...c, physicalBreakdown: { ...c.physicalBreakdown, [field]: value } }
+                : c
+            ),
+          }
+        : pt
+    ));
+  }
+
+  function addBreakdownField(sector: string, catName: string) {
+    if (!fieldForm.label.trim()) return;
+    setProjectTypes(prev => prev.map(pt =>
+      pt.sector === sector
+        ? {
+            ...pt,
+            categories: pt.categories.map(c =>
+              c.name === catName
+                ? { ...c, physicalBreakdown: { ...c.physicalBreakdown, fields: [...c.physicalBreakdown.fields, { ...fieldForm, options: fieldForm.options.split(",").map(s => s.trim()).filter(Boolean) }] } }
+                : c
+            ),
+          }
+        : pt
+    ));
+    setFieldForm({ label: "", type: "select", options: "", required: true });
+    setFieldFormTarget(null);
+  }
+
+  function removeBreakdownField(sector: string, catName: string, idx: number) {
+    setProjectTypes(prev => prev.map(pt =>
+      pt.sector === sector
+        ? {
+            ...pt,
+            categories: pt.categories.map(c =>
+              c.name === catName
+                ? { ...c, physicalBreakdown: { ...c.physicalBreakdown, fields: c.physicalBreakdown.fields.filter((_, i) => i !== idx) } }
+                : c
+            ),
+          }
+        : pt
+    ));
+  }
+
+  function addDescriptor(sector: string, catName: string) {
+    if (!descInput.trim()) return;
+    setProjectTypes(prev => prev.map(pt =>
+      pt.sector === sector
+        ? {
+            ...pt,
+            categories: pt.categories.map(c =>
+              c.name === catName ? { ...c, descriptors: [...c.descriptors, descInput.trim()] } : c
+            ),
+          }
+        : pt
+    ));
+    setDescInput("");
+    setDescTarget(null);
+  }
+
+  function removeDescriptor(sector: string, catName: string, desc: string) {
+    setProjectTypes(prev => prev.map(pt =>
+      pt.sector === sector
+        ? {
+            ...pt,
+            categories: pt.categories.map(c =>
+              c.name === catName ? { ...c, descriptors: c.descriptors.filter(d => d !== desc) } : c
+            ),
+          }
+        : pt
+    ));
+  }
+
+  function updateDescription(sector: string, catName: string, value: string) {
+    setProjectTypes(prev => prev.map(pt =>
+      pt.sector === sector
+        ? {
+            ...pt,
+            categories: pt.categories.map(c =>
+              c.name === catName ? { ...c, description: value } : c
+            ),
+          }
+        : pt
+    ));
   }
 
   function startEditRole(role: ProjectRole) {
@@ -248,46 +335,97 @@ export function SettingsPage() {
       </div>
 
       <div className="grid grid-cols-1 gap-5">
-        <Section id="project-types" icon={<Tags className="w-4 h-4 text-gray-400" />} title="Project Types" description="Configure sectors, categories, breakdowns, and descriptions available during project setup">
+        <Section id="project-types" icon={<Tags className="w-4 h-4 text-gray-400" />} title="Project Types" description="Configure sectors, categories, physical structure breakdowns (Level 3), and specific descriptors (Level 4)">
           <div className="space-y-3">
             {projectTypes.map(pt => (
               <div key={pt.sector} className="border border-gray-100 rounded-lg p-3">
-                <div className="flex items-center justify-between mb-2">
+                <div className="flex items-center justify-between mb-3">
                   <span className="text-sm font-semibold text-gray-900">{pt.sector}</span>
                   <button onClick={() => removeSector(pt.sector)} className="text-red-400 hover:text-red-600 p-1"><X className="w-3.5 h-3.5" /></button>
                 </div>
-                <p className="text-xs text-gray-400 font-medium mb-1.5">Categories</p>
-                <div className="flex flex-wrap gap-1.5 mb-2">
-                  {pt.categories.map(c => (
-                    <span key={c} className="inline-flex items-center gap-1 bg-amber-50 text-amber-700 text-xs px-2 py-0.5 rounded-full">
-                      {c}
-                      <button onClick={() => removeCategory(pt.sector, c)} className="hover:text-red-600"><X className="w-3 h-3" /></button>
-                    </span>
-                  ))}
-                </div>
-                <div className="flex items-center gap-2 mb-2">
-                  <input value={newCategory} onChange={e => setNewCategory(e.target.value)} placeholder="Add category..." className="flex-1 max-w-xs border border-gray-300 rounded-md px-2 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-orange-500"
-                    onKeyDown={e => e.key === "Enter" && addCategory(pt.sector)} />
-                  <button onClick={() => addCategory(pt.sector)} disabled={!newCategory.trim()} className="text-xs px-2 py-1 bg-orange-600 text-white rounded hover:bg-orange-700 disabled:opacity-40"><Plus className="w-3 h-3" /></button>
-                </div>
-                <p className="text-xs text-gray-400 font-medium mb-1.5">Breakdown</p>
-                <div className="flex flex-wrap gap-1.5 mb-1">
-                  {pt.breakdowns.map(b => (
-                    <span key={b} className="inline-flex items-center gap-1 bg-blue-50 text-blue-700 text-xs px-2 py-0.5 rounded-full">
-                      {b}
-                      <button onClick={() => removeBreakdown(pt.sector, b)} className="hover:text-red-600"><X className="w-3 h-3" /></button>
-                    </span>
-                  ))}
-                </div>
-                <div className="flex items-center gap-2 mb-3">
-                  <input value={newBreakdown} onChange={e => setNewBreakdown(e.target.value)} placeholder="Add breakdown..." className="flex-1 max-w-xs border border-gray-300 rounded-md px-2 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-orange-500"
-                    onKeyDown={e => e.key === "Enter" && addBreakdown(pt.sector)} />
-                  <button onClick={() => addBreakdown(pt.sector)} disabled={!newBreakdown.trim()} className="text-xs px-2 py-1 bg-orange-600 text-white rounded hover:bg-orange-700 disabled:opacity-40"><Plus className="w-3 h-3" /></button>
-                </div>
-                <p className="text-xs text-gray-400 font-medium mb-1.5">Description</p>
-                <textarea value={pt.description} onChange={e => updateDescription(pt.sector, e.target.value)}
-                  rows={2} placeholder="Optional free-text description for this project type..."
-                  className="w-full border border-gray-200 rounded-md px-3 py-2 text-xs focus:outline-none focus:ring-1 focus:ring-orange-500 resize-none" />
+                {/* Categories */}
+                {pt.categories.map(cat => (
+                  <div key={cat.name} className="border border-gray-100 rounded-lg p-3 mb-2 bg-gray-50">
+                    <div className="flex items-center justify-between mb-2">
+                      <span className="text-xs font-semibold text-amber-700">{cat.name}</span>
+                      <button onClick={() => removeCategory(pt.sector, cat.name)} className="text-red-300 hover:text-red-600 p-0.5"><X className="w-3 h-3" /></button>
+                    </div>
+                    {/* Level 3 — Physical Structure Breakdown */}
+                    <p className="text-[10px] text-gray-400 font-semibold uppercase tracking-wider mb-2">Level 3 — Physical Structure Breakdown</p>
+                    <div className="grid grid-cols-2 gap-3 mb-2">
+                      <div>
+                        <label className="block text-[10px] text-gray-500 mb-0.5">Item Label</label>
+                        <input value={cat.physicalBreakdown.itemLabel} onChange={e => updateBreakdownMeta(pt.sector, cat.name, "itemLabel", e.target.value)}
+                          placeholder="e.g. Building, Floor, Ward"
+                          className="w-full border border-gray-200 rounded-md px-2 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-orange-500 bg-white" />
+                      </div>
+                      <div>
+                        <label className="block text-[10px] text-gray-500 mb-0.5">Add Button Label</label>
+                        <input value={cat.physicalBreakdown.addButtonLabel} onChange={e => updateBreakdownMeta(pt.sector, cat.name, "addButtonLabel", e.target.value)}
+                          placeholder="e.g. Add Building, Add Floor"
+                          className="w-full border border-gray-200 rounded-md px-2 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-orange-500 bg-white" />
+                      </div>
+                    </div>
+                    {/* Breakdown Fields */}
+                    <p className="text-[10px] text-gray-400 font-medium mb-1.5">Fields</p>
+                    {cat.physicalBreakdown.fields.map((f, fi) => (
+                      <div key={fi} className="flex items-center gap-2 mb-1 text-xs bg-white border border-gray-100 rounded px-2 py-1.5">
+                        <span className="font-medium text-gray-700 min-w-0 flex-1 truncate">{f.label}</span>
+                        <span className="text-gray-400 shrink-0">{f.type}</span>
+                        {f.type === "select" && f.options.length > 0 && (
+                          <span className="text-gray-400 shrink-0">({f.options.length} options)</span>
+                        )}
+                        <span className={f.required ? "text-orange-600 shrink-0" : "text-gray-300 shrink-0"}>
+                          {f.required ? "Required" : "Optional"}
+                        </span>
+                        <button onClick={() => setFieldFormTarget({ sector: pt.sector, category: cat.name, editIdx: fi })} className="text-gray-400 hover:text-orange-600 p-0.5 shrink-0"><Edit3 className="w-3 h-3" /></button>
+                        <button onClick={() => removeBreakdownField(pt.sector, cat.name, fi)} className="text-gray-400 hover:text-red-600 p-0.5 shrink-0"><X className="w-3 h-3" /></button>
+                      </div>
+                    ))}
+                    <button onClick={() => { setFieldFormTarget({ sector: pt.sector, category: cat.name }); setFieldForm({ label: "", type: "select", options: "", required: true }); }}
+                      className="flex items-center gap-1 text-xs text-orange-600 hover:text-orange-700 font-medium mt-1">
+                      <Plus className="w-3 h-3" /> Add Field
+                    </button>
+                    {/* Level 4 — Specific Descriptors */}
+                    <p className="text-[10px] text-gray-400 font-semibold uppercase tracking-wider mb-1.5 mt-3">Level 4 — Specific Descriptors</p>
+                    <div className="flex flex-wrap gap-1.5 mb-2">
+                      {cat.descriptors.map(d => (
+                        <span key={d} className="inline-flex items-center gap-1 bg-blue-50 text-blue-700 text-xs px-2 py-0.5 rounded-full">
+                          {d}
+                          <button onClick={() => removeDescriptor(pt.sector, cat.name, d)} className="hover:text-red-600"><X className="w-3 h-3" /></button>
+                        </span>
+                      ))}
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <input value={descTarget?.sector === pt.sector && descTarget?.category === cat.name ? descInput : ""}
+                        onChange={e => { setDescInput(e.target.value); setDescTarget({ sector: pt.sector, category: cat.name }); }}
+                        onFocus={() => setDescTarget({ sector: pt.sector, category: cat.name })}
+                        placeholder="Add descriptor..." className="flex-1 max-w-xs border border-gray-300 rounded-md px-2 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-orange-500"
+                        onKeyDown={e => e.key === "Enter" && addDescriptor(pt.sector, cat.name)} />
+                      <button onClick={() => addDescriptor(pt.sector, cat.name)} disabled={descTarget?.sector !== pt.sector || descTarget?.category !== cat.name || !descInput.trim()}
+                        className="text-xs px-2 py-1 bg-orange-600 text-white rounded hover:bg-orange-700 disabled:opacity-40"><Plus className="w-3 h-3" /></button>
+                    </div>
+                    {/* Description */}
+                    <p className="text-[10px] text-gray-400 font-medium mt-3 mb-1">Description</p>
+                    <textarea value={cat.description} onChange={e => updateDescription(pt.sector, cat.name, e.target.value)}
+                      rows={1} placeholder="Optional free-text description..."
+                      className="w-full border border-gray-200 rounded-md px-2 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-orange-500 resize-none" />
+                  </div>
+                ))}
+                {/* Add Category */}
+                {catTargetSector === pt.sector ? (
+                  <div className="flex items-center gap-2 mt-2">
+                    <input value={catInput} onChange={e => setCatInput(e.target.value)} placeholder="Category name..." autoFocus
+                      className="flex-1 max-w-xs border border-gray-300 rounded-md px-2 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-orange-500"
+                      onKeyDown={e => { if (e.key === "Enter") addCategory(pt.sector); if (e.key === "Escape") { setCatTargetSector(null); setCatInput(""); } }} />
+                    <button onClick={() => addCategory(pt.sector)} disabled={!catInput.trim()} className="text-xs px-2 py-1 bg-orange-600 text-white rounded hover:bg-orange-700 disabled:opacity-40"><Plus className="w-3 h-3" /></button>
+                    <button onClick={() => { setCatTargetSector(null); setCatInput(""); }} className="text-xs px-2 py-1 text-gray-500 hover:text-gray-700">Cancel</button>
+                  </div>
+                ) : (
+                  <button onClick={() => setCatTargetSector(pt.sector)} className="flex items-center gap-1 text-xs text-orange-600 hover:text-orange-700 font-medium mt-2">
+                    <Plus className="w-3 h-3" /> Add Category
+                  </button>
+                )}
               </div>
             ))}
           </div>
@@ -296,6 +434,52 @@ export function SettingsPage() {
             <button onClick={addSector} disabled={!newSector.trim()} className="flex items-center gap-1 px-3 py-1.5 bg-orange-600 text-white rounded-md text-sm font-medium hover:bg-orange-700 disabled:opacity-40"><Plus className="w-3.5 h-3.5" /> Add Sector</button>
           </div>
         </Section>
+
+        {fieldFormTarget && (
+          <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
+            <div className="bg-white rounded-2xl shadow-xl w-full max-w-md mx-4" onClick={e => e.stopPropagation()}>
+              <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
+                <h2 className="text-sm font-semibold text-gray-900">Add Breakdown Field</h2>
+                <button onClick={() => { setFieldFormTarget(null); setFieldForm({ label: "", type: "select", options: "", required: true }); }} className="p-1.5 hover:bg-gray-100 rounded-lg"><X className="w-4 h-4 text-gray-400" /></button>
+              </div>
+              <div className="px-6 py-5 space-y-4">
+                <div>
+                  <label className="block text-xs font-semibold text-gray-700 mb-1">Field Label <span className="text-red-500">*</span></label>
+                  <input value={fieldForm.label} onChange={e => setFieldForm(f => ({ ...f, label: e.target.value }))} placeholder="e.g. Room Type, Unit Type, Bay Type"
+                    className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500" />
+                </div>
+                <div>
+                  <label className="block text-xs font-semibold text-gray-700 mb-1">Field Type</label>
+                  <select value={fieldForm.type} onChange={e => setFieldForm(f => ({ ...f, type: e.target.value as "text" | "select" }))}
+                    className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 bg-white">
+                    <option value="select">Select (dropdown with options)</option>
+                    <option value="text">Text (free input)</option>
+                  </select>
+                </div>
+                {fieldForm.type === "select" && (
+                  <div>
+                    <label className="block text-xs font-semibold text-gray-700 mb-1">Options <span className="text-gray-400 font-normal">(comma-separated)</span></label>
+                    <textarea value={fieldForm.options} onChange={e => setFieldForm(f => ({ ...f, options: e.target.value }))}
+                      rows={3} placeholder="e.g. 1-Bedroom, 2-Bedroom, 3-Bedroom, Studio, Penthouse"
+                      className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 resize-none" />
+                  </div>
+                )}
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <input type="checkbox" checked={fieldForm.required} onChange={e => setFieldForm(f => ({ ...f, required: e.target.checked }))}
+                    className="w-4 h-4 accent-orange-600 rounded" />
+                  <span className="text-sm text-gray-700">Required field</span>
+                </label>
+              </div>
+              <div className="px-6 py-4 border-t border-gray-100 flex justify-end gap-2">
+                <button onClick={() => { setFieldFormTarget(null); setFieldForm({ label: "", type: "select", options: "", required: true }); }}
+                  className="px-4 py-2 text-sm text-gray-600 border border-gray-300 rounded-lg hover:bg-gray-50">Cancel</button>
+                <button onClick={() => addBreakdownField(fieldFormTarget.sector, fieldFormTarget.category)}
+                  disabled={!fieldForm.label.trim()}
+                  className="px-4 py-2 text-sm bg-orange-600 text-white rounded-lg hover:bg-orange-700 disabled:opacity-40">Add Field</button>
+              </div>
+            </div>
+          </div>
+        )}
 
         <Section id="schedule-levels" icon={<Layers className="w-4 h-4 text-gray-400" />} title="Schedule Levels" description="Configure the task hierarchy levels used in the schedule builder. Each level can have resources assigned.">
           <div className="space-y-2 mb-3">

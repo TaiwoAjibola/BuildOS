@@ -1009,11 +1009,29 @@ export interface Disbursement {
 }
 
 // ── Project Type Setting ────────────────────────────────────
+export interface BreakdownField {
+  label: string;
+  type: "text" | "select";
+  options: string[];
+  required: boolean;
+}
+
+export interface PhysicalBreakdownConfig {
+  itemLabel: string;
+  addButtonLabel: string;
+  fields: BreakdownField[];
+}
+
+export interface CategoryConfig {
+  name: string;
+  physicalBreakdown: PhysicalBreakdownConfig;
+  descriptors: string[];
+  description: string;
+}
+
 export interface ProjectTypeSetting {
   sector: Sector;
-  categories: string[];
-  breakdowns: string[];
-  description: string;
+  categories: CategoryConfig[];
 }
 
 // ── Funding ─────────────────────────────────────────────────

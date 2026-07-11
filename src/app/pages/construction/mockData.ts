@@ -7,7 +7,7 @@ import type {
   HumanResource, MaterialResource, EquipmentResource, ResourceAssignment,
   DailyExpense, CommunicationLogEntry, Disbursement,
   FundingAllocation, FundingRelease,
-  ScheduleLevelConfig, WeatherConfig, VendorRepresentative,
+  ScheduleLevelConfig, WeatherConfig, VendorRepresentative, ProjectTypeSetting,
 } from "./types";
 
 export const projects: Project[] = [
@@ -375,13 +375,102 @@ export const disbursements: Disbursement[] = [
 ];
 
 // ── Default Project Types (for settings) ────────
-export const defaultProjectTypes = [
-  { sector: "Building & Construction" as Sector, categories: ["Residential (single dwelling)", "Residential (multi-unit / estate)", "Commercial (office building)", "Commercial (retail / shopping)", "Mixed-use development", "Institutional (school, hospital, church, government)", "Industrial (warehouse, factory)", "Hospitality (hotel, shortlet, event centre)"], breakdowns: ["New build", "Extension", "Renovation"], description: "" },
-  { sector: "Civil & Infrastructure" as Sector, categories: ["Road construction", "Bridge", "Drainage & stormwater", "Borehole & water supply", "Fencing & external works"], breakdowns: ["New construction", "Rehabilitation", "Upgrade"], description: "" },
-  { sector: "Industrial & Facilities" as Sector, categories: ["Factory fit-out", "Warehouse construction", "Plant installation"], breakdowns: ["Greenfield", "Brownfield"], description: "" },
-  { sector: "Interior & Fit-out" as Sector, categories: ["Office fit-out", "Residential interior", "Retail fit-out", "Shortlet apartment fit-out"], breakdowns: ["Full fit-out", "Partial fit-out", "Refresh"], description: "" },
-  { sector: "Renovation & Maintenance" as Sector, categories: ["Full renovation (structural)", "Cosmetic renovation (finishing only)", "Planned maintenance", "Emergency repair"], breakdowns: ["Structural", "Cosmetic", "Preventive"], description: "" },
-  { sector: "Other" as Sector, categories: ["Other"], breakdowns: [], description: "" },
+export const defaultProjectTypes: ProjectTypeSetting[] = [
+  {
+    sector: "Building & Construction" as Sector,
+    categories: [
+      {
+        name: "Residential (single dwelling)",
+        physicalBreakdown: { itemLabel: "Building", addButtonLabel: "Add Building", fields: [{ label: "Room Type", type: "select", options: ["1-Bedroom", "2-Bedroom", "3-Bedroom", "Studio", "Penthouse"], required: true }] },
+        descriptors: ["Detached", "Semi-detached", "Terraced"],
+        description: "",
+      },
+      {
+        name: "Residential (multi-unit / estate)",
+        physicalBreakdown: { itemLabel: "Block", addButtonLabel: "Add Block", fields: [{ label: "Unit Mix", type: "select", options: ["1-Bedroom", "2-Bedroom", "Studio", "Duplex"], required: true }] },
+        descriptors: ["Gated estate", "Apartment complex"],
+        description: "",
+      },
+      {
+        name: "Commercial (office building)",
+        physicalBreakdown: { itemLabel: "Floor", addButtonLabel: "Add Floor", fields: [{ label: "Unit Type", type: "select", options: ["Open Plan", "Executive Office", "Conference Room", "Retail Space"], required: true }] },
+        descriptors: ["Low-rise", "High-rise", "Mixed-use"],
+        description: "",
+      },
+      {
+        name: "Commercial (retail / shopping)",
+        physicalBreakdown: { itemLabel: "Floor", addButtonLabel: "Add Floor", fields: [{ label: "Space Type", type: "select", options: ["Retail Unit", "Food Court", "Anchor Store", "Kiosk"], required: true }] },
+        descriptors: ["Mall", "Strip mall", "Plaza"],
+        description: "",
+      },
+      {
+        name: "Mixed-use development",
+        physicalBreakdown: { itemLabel: "Tower", addButtonLabel: "Add Tower", fields: [{ label: "Tower Type", type: "select", options: ["Residential", "Commercial", "Hotel", "Retail Podium"], required: true }] },
+        descriptors: ["Vertical mixed-use", "Horizontal mixed-use"],
+        description: "",
+      },
+      {
+        name: "Institutional (school, hospital, church, government)",
+        physicalBreakdown: { itemLabel: "Ward/Block", addButtonLabel: "Add Block", fields: [{ label: "Facility Type", type: "select", options: ["Classroom", "Ward", "Admin Office", "Chapel", "Laboratory"], required: true }] },
+        descriptors: ["Public", "Private", "Religious"],
+        description: "",
+      },
+      {
+        name: "Industrial (warehouse, factory)",
+        physicalBreakdown: { itemLabel: "Bay", addButtonLabel: "Add Bay", fields: [{ label: "Bay Type", type: "select", options: ["Storage", "Production", "Loading Dock", "Cold Storage"], required: true }] },
+        descriptors: ["Warehouse", "Factory", "Distribution centre"],
+        description: "",
+      },
+      {
+        name: "Hospitality (hotel, shortlet, event centre)",
+        physicalBreakdown: { itemLabel: "Floor", addButtonLabel: "Add Floor", fields: [{ label: "Room Type", type: "select", options: ["Standard", "Deluxe", "Suite", "Penthouse", "Event Hall"], required: true }] },
+        descriptors: ["Hotel", "Shortlet apartment", "Event centre", "Resort"],
+        description: "",
+      },
+    ],
+  },
+  {
+    sector: "Civil & Infrastructure" as Sector,
+    categories: [
+      { name: "Road construction", physicalBreakdown: { itemLabel: "Section", addButtonLabel: "Add Section", fields: [{ label: "Road Class", type: "select", options: ["Highway", "Arterial", "Collector", "Local"], required: true }] }, descriptors: ["New construction", "Rehabilitation", "Upgrade"], description: "" },
+      { name: "Bridge", physicalBreakdown: { itemLabel: "Span", addButtonLabel: "Add Span", fields: [{ label: "Span Type", type: "select", options: ["Main Span", "Approach Span", "Pedestrian"], required: true }] }, descriptors: ["New construction", "Rehabilitation"], description: "" },
+      { name: "Drainage & stormwater", physicalBreakdown: { itemLabel: "Segment", addButtonLabel: "Add Segment", fields: [{ label: "Segment Type", type: "select", options: ["Channel", "Culvert", "Catch Basin", "Outfall"], required: true }] }, descriptors: ["New", "Desilting", "Expansion"], description: "" },
+      { name: "Borehole & water supply", physicalBreakdown: { itemLabel: "Well", addButtonLabel: "Add Well", fields: [{ label: "Well Type", type: "select", options: ["Production", "Monitoring", "Recharge"], required: true }] }, descriptors: ["New borehole", "Rehabilitation"], description: "" },
+      { name: "Fencing & external works", physicalBreakdown: { itemLabel: "Section", addButtonLabel: "Add Section", fields: [{ label: "Fence Type", type: "select", options: ["Concrete Wall", "Chain Link", "Steel Railing", "Gate"], required: true }] }, descriptors: ["Perimeter", "Boundary"], description: "" },
+    ],
+  },
+  {
+    sector: "Industrial & Facilities" as Sector,
+    categories: [
+      { name: "Factory fit-out", physicalBreakdown: { itemLabel: "Zone", addButtonLabel: "Add Zone", fields: [{ label: "Zone Type", type: "select", options: ["Production", "Assembly", "Storage", "Quality Control"], required: true }] }, descriptors: ["Greenfield", "Brownfield"], description: "" },
+      { name: "Warehouse construction", physicalBreakdown: { itemLabel: "Bay", addButtonLabel: "Add Bay", fields: [{ label: "Bay Type", type: "select", options: ["Storage", "Loading", "Cold Storage", "Hazardous"], required: true }] }, descriptors: ["Greenfield", "Brownfield"], description: "" },
+      { name: "Plant installation", physicalBreakdown: { itemLabel: "Unit", addButtonLabel: "Add Unit", fields: [{ label: "Plant Type", type: "select", options: ["Boiler", "Generator", "HVAC", "Conveyor"], required: true }] }, descriptors: ["New installation", "Retrofit"], description: "" },
+    ],
+  },
+  {
+    sector: "Interior & Fit-out" as Sector,
+    categories: [
+      { name: "Office fit-out", physicalBreakdown: { itemLabel: "Zone", addButtonLabel: "Add Zone", fields: [{ label: "Zone Type", type: "select", options: ["Workstation Area", "Meeting Room", "Executive Office", "Break Room", "Reception"], required: true }] }, descriptors: ["Full fit-out", "Partial fit-out", "Refresh"], description: "" },
+      { name: "Residential interior", physicalBreakdown: { itemLabel: "Room", addButtonLabel: "Add Room", fields: [{ label: "Room Type", type: "select", options: ["Living Room", "Bedroom", "Kitchen", "Bathroom", "Dining"], required: true }] }, descriptors: ["Full fit-out", "Partial fit-out"], description: "" },
+      { name: "Retail fit-out", physicalBreakdown: { itemLabel: "Section", addButtonLabel: "Add Section", fields: [{ label: "Section Type", type: "select", options: ["Sales Floor", "Display Area", "Storage", "Checkout"], required: true }] }, descriptors: ["Full fit-out", "Refresh"], description: "" },
+      { name: "Shortlet apartment fit-out", physicalBreakdown: { itemLabel: "Room", addButtonLabel: "Add Room", fields: [{ label: "Room Type", type: "select", options: ["Studio", "Bedroom", "Living Area", "Kitchenette", "Bathroom"], required: true }] }, descriptors: ["Luxury", "Standard", "Budget"], description: "" },
+    ],
+  },
+  {
+    sector: "Renovation & Maintenance" as Sector,
+    categories: [
+      { name: "Full renovation (structural)", physicalBreakdown: { itemLabel: "Area", addButtonLabel: "Add Area", fields: [{ label: "Scope", type: "select", options: ["Structural Reinforcement", "Roof Replacement", "Foundation Repair", "Full Strip-out"], required: true }] }, descriptors: ["Structural", "Cosmetic"], description: "" },
+      { name: "Cosmetic renovation (finishing only)", physicalBreakdown: { itemLabel: "Room", addButtonLabel: "Add Room", fields: [{ label: "Finish Type", type: "select", options: ["Flooring", "Painting", "Ceiling", "Wall Finishes"], required: true }] }, descriptors: ["Cosmetic"], description: "" },
+      { name: "Planned maintenance", physicalBreakdown: { itemLabel: "Asset", addButtonLabel: "Add Asset", fields: [{ label: "Maintenance Type", type: "select", options: ["HVAC", "Plumbing", "Electrical", "Structural"], required: true }] }, descriptors: ["Preventive"], description: "" },
+      { name: "Emergency repair", physicalBreakdown: { itemLabel: "Repair Point", addButtonLabel: "Add Repair Point", fields: [{ label: "Repair Type", type: "select", options: ["Structural", "Plumbing", "Electrical", "Roofing"], required: true }] }, descriptors: ["Emergency"], description: "" },
+    ],
+  },
+  {
+    sector: "Other" as Sector,
+    categories: [
+      { name: "Other", physicalBreakdown: { itemLabel: "Component", addButtonLabel: "Add Component", fields: [{ label: "Component Type", type: "text", options: [], required: false }] }, descriptors: [], description: "" },
+    ],
+  },
 ];
 
 // ── Inventory Catalogues (for project resource dropdowns) ────────
