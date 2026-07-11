@@ -1012,7 +1012,8 @@ export interface Disbursement {
 export interface ProjectTypeSetting {
   sector: Sector;
   categories: string[];
-  descriptors?: string[];
+  breakdowns: string[];
+  description: string;
 }
 
 // ── Funding ─────────────────────────────────────────────────

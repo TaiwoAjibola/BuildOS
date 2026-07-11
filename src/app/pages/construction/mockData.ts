@@ -376,12 +376,12 @@ export const disbursements: Disbursement[] = [
 
 // ── Default Project Types (for settings) ────────
 export const defaultProjectTypes = [
-  { sector: "Building & Construction" as Sector, categories: ["Residential (single dwelling)", "Residential (multi-unit / estate)", "Commercial (office building)", "Commercial (retail / shopping)", "Mixed-use development", "Institutional (school, hospital, church, government)", "Industrial (warehouse, factory)", "Hospitality (hotel, shortlet, event centre)"] },
-  { sector: "Civil & Infrastructure" as Sector, categories: ["Road construction", "Bridge", "Drainage & stormwater", "Borehole & water supply", "Fencing & external works"] },
-  { sector: "Industrial & Facilities" as Sector, categories: ["Factory fit-out", "Warehouse construction", "Plant installation"] },
-  { sector: "Interior & Fit-out" as Sector, categories: ["Office fit-out", "Residential interior", "Retail fit-out", "Shortlet apartment fit-out"] },
-  { sector: "Renovation & Maintenance" as Sector, categories: ["Full renovation (structural)", "Cosmetic renovation (finishing only)", "Planned maintenance", "Emergency repair"] },
-  { sector: "Other" as Sector, categories: ["Other"] },
+  { sector: "Building & Construction" as Sector, categories: ["Residential (single dwelling)", "Residential (multi-unit / estate)", "Commercial (office building)", "Commercial (retail / shopping)", "Mixed-use development", "Institutional (school, hospital, church, government)", "Industrial (warehouse, factory)", "Hospitality (hotel, shortlet, event centre)"], breakdowns: ["New build", "Extension", "Renovation"], description: "" },
+  { sector: "Civil & Infrastructure" as Sector, categories: ["Road construction", "Bridge", "Drainage & stormwater", "Borehole & water supply", "Fencing & external works"], breakdowns: ["New construction", "Rehabilitation", "Upgrade"], description: "" },
+  { sector: "Industrial & Facilities" as Sector, categories: ["Factory fit-out", "Warehouse construction", "Plant installation"], breakdowns: ["Greenfield", "Brownfield"], description: "" },
+  { sector: "Interior & Fit-out" as Sector, categories: ["Office fit-out", "Residential interior", "Retail fit-out", "Shortlet apartment fit-out"], breakdowns: ["Full fit-out", "Partial fit-out", "Refresh"], description: "" },
+  { sector: "Renovation & Maintenance" as Sector, categories: ["Full renovation (structural)", "Cosmetic renovation (finishing only)", "Planned maintenance", "Emergency repair"], breakdowns: ["Structural", "Cosmetic", "Preventive"], description: "" },
+  { sector: "Other" as Sector, categories: ["Other"], breakdowns: [], description: "" },
 ];
 
 // ── Inventory Catalogues (for project resource dropdowns) ────────

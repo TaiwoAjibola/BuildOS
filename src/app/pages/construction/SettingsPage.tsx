@@ -53,7 +53,7 @@ export function SettingsPage() {
   const [projectTypes, setProjectTypes] = useState(defaultProjectTypes);
   const [newSector, setNewSector] = useState("");
   const [newCategory, setNewCategory] = useState("");
-  const [newDescriptor, setNewDescriptor] = useState("");
+  const [newBreakdown, setNewBreakdown] = useState("");
 
   function toggleCollapse(id: SectionId) {
     setCollapsed(prev => { const next = new Set(prev); if (next.has(id)) next.delete(id); else next.add(id); return next; });
@@ -129,18 +129,22 @@ export function SettingsPage() {
 
   function addSector() {
     if (!newSector.trim() || projectTypes.some(pt => pt.sector === newSector.trim())) return;
-    setProjectTypes(prev => [...prev, { sector: newSector.trim() as Sector, categories: [newCategory.trim() || "General"], descriptors: [] }]);
+    setProjectTypes(prev => [...prev, { sector: newSector.trim() as Sector, categories: [newCategory.trim() || "General"], breakdowns: [], description: "" }]);
     setNewSector(""); setNewCategory("");
   }
 
-  function addDescriptor(sector: string) {
-    if (!newDescriptor.trim()) return;
-    setProjectTypes(prev => prev.map(pt => pt.sector === sector ? { ...pt, descriptors: [...(pt.descriptors || []), newDescriptor.trim()] } : pt));
-    setNewDescriptor("");
+  function addBreakdown(sector: string) {
+    if (!newBreakdown.trim()) return;
+    setProjectTypes(prev => prev.map(pt => pt.sector === sector ? { ...pt, breakdowns: [...pt.breakdowns, newBreakdown.trim()] } : pt));
+    setNewBreakdown("");
   }
 
-  function removeDescriptor(sector: string, desc: string) {
-    setProjectTypes(prev => prev.map(pt => pt.sector === sector ? { ...pt, descriptors: (pt.descriptors || []).filter(d => d !== desc) } : pt));
+  function removeBreakdown(sector: string, b: string) {
+    setProjectTypes(prev => prev.map(pt => pt.sector === sector ? { ...pt, breakdowns: pt.breakdowns.filter(x => x !== b) } : pt));
+  }
+
+  function updateDescription(sector: string, desc: string) {
+    setProjectTypes(prev => prev.map(pt => pt.sector === sector ? { ...pt, description: desc } : pt));
   }
 
   function removeSector(sector: string) {
@@ -244,7 +248,7 @@ export function SettingsPage() {
       </div>
 
       <div className="grid grid-cols-1 gap-5">
-        <Section id="project-types" icon={<Tags className="w-4 h-4 text-gray-400" />} title="Project Types" description="Configure sectors, categories, and descriptors available during project setup">
+        <Section id="project-types" icon={<Tags className="w-4 h-4 text-gray-400" />} title="Project Types" description="Configure sectors, categories, breakdowns, and descriptions available during project setup">
           <div className="space-y-3">
             {projectTypes.map(pt => (
               <div key={pt.sector} className="border border-gray-100 rounded-lg p-3">
@@ -266,20 +270,24 @@ export function SettingsPage() {
                     onKeyDown={e => e.key === "Enter" && addCategory(pt.sector)} />
                   <button onClick={() => addCategory(pt.sector)} disabled={!newCategory.trim()} className="text-xs px-2 py-1 bg-orange-600 text-white rounded hover:bg-orange-700 disabled:opacity-40"><Plus className="w-3 h-3" /></button>
                 </div>
-                <p className="text-xs text-gray-400 font-medium mb-1.5">Descriptors</p>
+                <p className="text-xs text-gray-400 font-medium mb-1.5">Breakdown</p>
                 <div className="flex flex-wrap gap-1.5 mb-1">
-                  {(pt.descriptors || []).map(d => (
-                    <span key={d} className="inline-flex items-center gap-1 bg-blue-50 text-blue-700 text-xs px-2 py-0.5 rounded-full">
-                      {d}
-                      <button onClick={() => removeDescriptor(pt.sector, d)} className="hover:text-red-600"><X className="w-3 h-3" /></button>
+                  {pt.breakdowns.map(b => (
+                    <span key={b} className="inline-flex items-center gap-1 bg-blue-50 text-blue-700 text-xs px-2 py-0.5 rounded-full">
+                      {b}
+                      <button onClick={() => removeBreakdown(pt.sector, b)} className="hover:text-red-600"><X className="w-3 h-3" /></button>
                     </span>
                   ))}
                 </div>
-                <div className="flex items-center gap-2">
-                  <input value={newDescriptor} onChange={e => setNewDescriptor(e.target.value)} placeholder="Add descriptor..." className="flex-1 max-w-xs border border-gray-300 rounded-md px-2 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-orange-500"
-                    onKeyDown={e => e.key === "Enter" && addDescriptor(pt.sector)} />
-                  <button onClick={() => addDescriptor(pt.sector)} disabled={!newDescriptor.trim()} className="text-xs px-2 py-1 bg-orange-600 text-white rounded hover:bg-orange-700 disabled:opacity-40"><Plus className="w-3 h-3" /></button>
+                <div className="flex items-center gap-2 mb-3">
+                  <input value={newBreakdown} onChange={e => setNewBreakdown(e.target.value)} placeholder="Add breakdown..." className="flex-1 max-w-xs border border-gray-300 rounded-md px-2 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-orange-500"
+                    onKeyDown={e => e.key === "Enter" && addBreakdown(pt.sector)} />
+                  <button onClick={() => addBreakdown(pt.sector)} disabled={!newBreakdown.trim()} className="text-xs px-2 py-1 bg-orange-600 text-white rounded hover:bg-orange-700 disabled:opacity-40"><Plus className="w-3 h-3" /></button>
                 </div>
+                <p className="text-xs text-gray-400 font-medium mb-1.5">Description</p>
+                <textarea value={pt.description} onChange={e => updateDescription(pt.sector, e.target.value)}
+                  rows={2} placeholder="Optional free-text description for this project type..."
+                  className="w-full border border-gray-200 rounded-md px-3 py-2 text-xs focus:outline-none focus:ring-1 focus:ring-orange-500 resize-none" />
               </div>
             ))}
           </div>
