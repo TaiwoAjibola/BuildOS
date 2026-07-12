@@ -1082,7 +1082,7 @@ function NumberingPanel() {
 }
 
 // ─── Main Config Page ─────────────────────────────────────────────────────────
-export function StorefrontConfigPage() {
+export function StorefrontSettingsPage() {
   const [tab, setTab] = useState<"levels" | "stores" | "thresholds" | "units" | "categories" | "numbering">("levels");
 
   return (

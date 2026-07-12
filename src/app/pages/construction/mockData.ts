@@ -381,42 +381,42 @@ export const defaultProjectTypes: ProjectTypeSetting[] = [
     categories: [
       {
         name: "Residential (single dwelling)",
-        structure: { subUnitLabel: "Building", subUnitItemLabel: "Building Name", subUnitFields: [], innerUnitLabel: "Room", innerFields: [{ key: "roomCount", label: "Number of Rooms", type: "number" }, { key: "roomType", label: "Room Type", type: "select", options: ["1-Bedroom", "2-Bedroom", "3-Bedroom", "4-Bedroom", "Studio", "Living Room", "Dining", "Kitchen"] }] },
+        structure: { unitLabel: "House", fields: [{ key: "houseName", label: "House Name", type: "text" }, { key: "bedrooms", label: "Number of Bedrooms", type: "number" }] },
         descriptorMode: "dropdown", descriptorOptions: ["Detached", "Semi-detached", "Terraced", "Bungalow", "Duplex"], description: "",
       },
       {
         name: "Residential (multi-unit / estate)",
-        structure: { subUnitLabel: "Building", subUnitItemLabel: "Building Name", subUnitFields: [], innerUnitLabel: "Floor", innerFields: [{ key: "unitsPerFloor", label: "Units per Floor", type: "number" }, { key: "unitType", label: "Unit Type", type: "select", options: ["Studio", "1-Bedroom", "2-Bedroom", "3-Bedroom", "4-Bedroom", "Duplex", "Penthouse"] }] },
+        structure: { unitLabel: "Building", fields: [{ key: "buildingName", label: "Building Name", type: "text" }, { key: "totalFloors", label: "Total Floors", type: "number" }, { key: "unitsPerFloor", label: "Units per Floor", type: "number" }, { key: "unitType", label: "Unit Type", type: "select", options: ["Studio", "1-Bedroom", "2-Bedroom", "3-Bedroom", "4-Bedroom", "Duplex", "Penthouse"] }] },
         descriptorMode: "dropdown", descriptorOptions: ["Gated estate", "Apartment complex", "Townhouse"], description: "",
       },
       {
         name: "Commercial (office building)",
-        structure: { subUnitLabel: "Floor", subUnitItemLabel: "Floor Level", subUnitFields: [{ key: "label", label: "Floor Label", type: "text" }], innerUnitLabel: "Office Unit", innerFields: [{ key: "unitCount", label: "Number of Units", type: "number" }, { key: "unitType", label: "Unit Type", type: "select", options: ["Open Plan", "Cubicle", "Private Office", "Meeting Room"] }] },
+        structure: { unitLabel: "Block", fields: [{ key: "blockName", label: "Block Name", type: "text" }, { key: "totalFloors", label: "Total Floors", type: "number" }, { key: "floorArea", label: "Floor Area (sqm)", type: "number" }] },
         descriptorMode: "dropdown", descriptorOptions: ["Low-rise", "High-rise", "Mixed-use"], description: "",
       },
       {
         name: "Commercial (retail / shopping)",
-        structure: { subUnitLabel: "Floor", subUnitItemLabel: "Floor Level", subUnitFields: [{ key: "label", label: "Floor Label", type: "text" }], innerUnitLabel: "Shop Unit", innerFields: [{ key: "unitCount", label: "Number of Shops", type: "number" }] },
+        structure: { unitLabel: "Section", fields: [{ key: "sectionName", label: "Section Name", type: "text" }, { key: "retailArea", label: "Retail Area (sqm)", type: "number" }] },
         descriptorMode: "dropdown", descriptorOptions: ["Mall", "Strip mall", "Plaza", "Hypermarket"], description: "",
       },
       {
         name: "Mixed-use development",
-        structure: { subUnitLabel: "Block", subUnitItemLabel: "Block Name", subUnitFields: [], innerUnitLabel: "Floor", innerFields: [{ key: "unitsPerFloor", label: "Units per Floor", type: "number" }, { key: "unitType", label: "Unit Type", type: "select", options: ["Residential", "Commercial", "Retail", "Office", "Parking"] }] },
+        structure: { unitLabel: "Complex", fields: [{ key: "complexName", label: "Complex Name", type: "text" }, { key: "totalBuildings", label: "Total Buildings", type: "number" }, { key: "totalUnits", label: "Total Units", type: "number" }] },
         descriptorMode: "dropdown", descriptorOptions: ["Vertical mixed-use", "Horizontal mixed-use"], description: "",
       },
       {
         name: "Institutional (school, hospital, church, government)",
-        structure: { subUnitLabel: "Building", subUnitItemLabel: "Building Name", subUnitFields: [], innerUnitLabel: "Floor", innerFields: [{ key: "roomsPerFloor", label: "Rooms per Floor", type: "number" }, { key: "function", label: "Function", type: "select", options: ["Classroom", "Laboratory", "Office", "Ward", "Lecture Hall", "Library", "Administration", "Worship Hall", "Auditorium"] }] },
+        structure: { unitLabel: "Building", fields: [{ key: "buildingName", label: "Building Name", type: "text" }, { key: "totalClassrooms", label: "Total Classrooms", type: "number" }, { key: "buildingType", label: "Building Type", type: "select", options: ["Classroom Block", "Administration", "Laboratory", "Library", "Dormitory", "Cafeteria"] }] },
         descriptorMode: "dropdown", descriptorOptions: ["Public", "Private", "Religious", "Government"], description: "",
       },
       {
         name: "Industrial (warehouse, factory)",
-        structure: { subUnitLabel: "Section", subUnitItemLabel: "Section Name", subUnitFields: [{ key: "area", label: "Area (sqm)", type: "number" }], innerUnitLabel: "Bay", innerFields: [{ key: "bayCount", label: "Number of Bays", type: "number" }] },
+        structure: { unitLabel: "Hall", fields: [{ key: "hallName", label: "Hall Name", type: "text" }, { key: "floorArea", label: "Floor Area (sqm)", type: "number" }, { key: "productionLines", label: "Production Lines", type: "number" }] },
         descriptorMode: "dropdown", descriptorOptions: ["Warehouse", "Factory", "Distribution centre"], description: "",
       },
       {
         name: "Hospitality (hotel, shortlet, event centre)",
-        structure: { subUnitLabel: "Building", subUnitItemLabel: "Building Name", subUnitFields: [], innerUnitLabel: "Room", innerFields: [{ key: "roomsPerFloor", label: "Rooms per Floor", type: "number" }, { key: "roomType", label: "Room Type", type: "select", options: ["Standard", "Deluxe", "Suite", "Presidential", "Conference Room", "Event Hall"] }] },
+        structure: { unitLabel: "Wing", fields: [{ key: "wingName", label: "Wing Name", type: "text" }, { key: "roomCount", label: "Room Count", type: "number" }, { key: "roomType", label: "Room Type", type: "select", options: ["Standard", "Deluxe", "Suite", "Executive Suite", "Penthouse"] }] },
         descriptorMode: "dropdown", descriptorOptions: ["Hotel", "Shortlet apartment", "Event centre", "Resort", "Guest house"], description: "",
       },
     ],
@@ -424,43 +424,43 @@ export const defaultProjectTypes: ProjectTypeSetting[] = [
   {
     sector: "Civil & Infrastructure" as Sector,
     categories: [
-      { name: "Road construction", structure: { subUnitLabel: "Section", subUnitItemLabel: "Section Name", subUnitFields: [{ key: "lengthKm", label: "Length (km)", type: "number" }], innerUnitLabel: "Segment", innerFields: [{ key: "segmentCount", label: "Number of Segments", type: "number" }] }, descriptorMode: "dropdown", descriptorOptions: ["New construction", "Rehabilitation", "Upgrade", "Widening"], description: "" },
-      { name: "Bridge", structure: { subUnitLabel: "Span", subUnitItemLabel: "Span Name", subUnitFields: [{ key: "length", label: "Length (m)", type: "number" }], innerUnitLabel: "Deck Section", innerFields: [{ key: "deckCount", label: "Number of Deck Sections", type: "number" }] }, descriptorMode: "dropdown", descriptorOptions: ["New construction", "Rehabilitation"], description: "" },
-      { name: "Drainage & stormwater", structure: { subUnitLabel: "Zone", subUnitItemLabel: "Zone Name", subUnitFields: [{ key: "length", label: "Length (m)", type: "number" }], innerUnitLabel: "Segment", innerFields: [{ key: "segmentCount", label: "Segments", type: "number" }] }, descriptorMode: "free-text", descriptorOptions: [], description: "" },
-      { name: "Borehole & water supply", structure: { subUnitLabel: "Station", subUnitItemLabel: "Station Name", subUnitFields: [{ key: "capacity", label: "Capacity (L/hr)", type: "number" }], innerUnitLabel: "Line", innerFields: [{ key: "lineCount", label: "Distribution Lines", type: "number" }] }, descriptorMode: "free-text", descriptorOptions: [], description: "" },
-      { name: "Fencing & external works", structure: { subUnitLabel: "Section", subUnitItemLabel: "Section Name", subUnitFields: [{ key: "length", label: "Length (m)", type: "number" }], innerUnitLabel: "Segment", innerFields: [{ key: "segmentCount", label: "Segments", type: "number" }] }, descriptorMode: "free-text", descriptorOptions: [], description: "" },
+      { name: "Road construction", structure: { unitLabel: "Section", fields: [{ key: "sectionName", label: "Section Name", type: "text" }, { key: "length", label: "Length (km)", type: "number" }, { key: "carriagewayType", label: "Carriageway Type", type: "select", options: ["Single", "Dual", "Multi-lane"] }] }, descriptorMode: "dropdown", descriptorOptions: ["New construction", "Rehabilitation", "Upgrade", "Widening"], description: "" },
+      { name: "Bridge", structure: { unitLabel: "Span", fields: [{ key: "spanName", label: "Span Name", type: "text" }, { key: "spanLength", label: "Span Length (m)", type: "number" }, { key: "bridgeType", label: "Bridge Type", type: "select", options: ["Beam", "Arch", "Suspension", "Cable-stayed", "Truss"] }] }, descriptorMode: "dropdown", descriptorOptions: ["New construction", "Rehabilitation"], description: "" },
+      { name: "Drainage & stormwater", structure: { unitLabel: "Segment", fields: [{ key: "segmentName", label: "Segment Name", type: "text" }, { key: "length", label: "Length (m)", type: "number" }] }, descriptorMode: "free-text", descriptorOptions: [], description: "" },
+      { name: "Borehole & water supply", structure: { unitLabel: "Station", fields: [{ key: "stationName", label: "Station Name", type: "text" }, { key: "capacity", label: "Capacity (L/hr)", type: "number" }] }, descriptorMode: "free-text", descriptorOptions: [], description: "" },
+      { name: "Fencing & external works", structure: { unitLabel: "Segment", fields: [{ key: "segmentName", label: "Segment Name", type: "text" }, { key: "length", label: "Length (m)", type: "number" }] }, descriptorMode: "free-text", descriptorOptions: [], description: "" },
     ],
   },
   {
     sector: "Industrial & Facilities" as Sector,
     categories: [
-      { name: "Factory fit-out", structure: { subUnitLabel: "Zone", subUnitItemLabel: "Zone Name", subUnitFields: [{ key: "area", label: "Area (sqm)", type: "number" }], innerUnitLabel: "Line", innerFields: [{ key: "productionLines", label: "Production Lines", type: "number" }] }, descriptorMode: "dropdown", descriptorOptions: ["Greenfield", "Brownfield", "Retrofit"], description: "" },
-      { name: "Warehouse construction", structure: { subUnitLabel: "Bay", subUnitItemLabel: "Bay Name", subUnitFields: [{ key: "capacity", label: "Capacity (tons)", type: "number" }], innerUnitLabel: "Rack", innerFields: [{ key: "rackCount", label: "Rack Count", type: "number" }] }, descriptorMode: "dropdown", descriptorOptions: ["Greenfield", "Brownfield"], description: "" },
-      { name: "Plant installation", structure: { subUnitLabel: "Unit", subUnitItemLabel: "Unit Name", subUnitFields: [{ key: "power", label: "Power Rating (kW)", type: "number" }], innerUnitLabel: "Component", innerFields: [{ key: "componentCount", label: "Components", type: "number" }] }, descriptorMode: "dropdown", descriptorOptions: ["New installation", "Retrofit"], description: "" },
+      { name: "Factory fit-out", structure: { unitLabel: "Zone", fields: [{ key: "zoneName", label: "Zone Name", type: "text" }, { key: "area", label: "Area (sqm)", type: "number" }, { key: "zoneType", label: "Zone Type", type: "select", options: ["Sales Floor", "Stock Room", "Fitting Room", "Checkout"] }] }, descriptorMode: "dropdown", descriptorOptions: ["Greenfield", "Brownfield", "Retrofit"], description: "" },
+      { name: "Warehouse construction", structure: { unitLabel: "Warehouse", fields: [{ key: "warehouseName", label: "Warehouse Name", type: "text" }, { key: "storageCapacity", label: "Storage Capacity (sqm)", type: "number" }, { key: "bayCount", label: "Bay Count", type: "number" }] }, descriptorMode: "dropdown", descriptorOptions: ["Greenfield", "Brownfield"], description: "" },
+      { name: "Plant installation", structure: { unitLabel: "Unit", fields: [{ key: "unitName", label: "Unit Name", type: "text" }, { key: "capacity", label: "Capacity (MW)", type: "number" }, { key: "fuelType", label: "Fuel Type", type: "select", options: ["Natural Gas", "Diesel", "Solar", "Wind", "Hydro", "Coal", "Nuclear"] }] }, descriptorMode: "dropdown", descriptorOptions: ["New installation", "Retrofit"], description: "" },
     ],
   },
   {
     sector: "Interior & Fit-out" as Sector,
     categories: [
-      { name: "Office fit-out", structure: { subUnitLabel: "Floor", subUnitItemLabel: "Floor", subUnitFields: [], innerUnitLabel: "Workspace", innerFields: [{ key: "workspaces", label: "Workstations", type: "number" }] }, descriptorMode: "dropdown", descriptorOptions: ["Full fit-out", "Partial fit-out", "Refresh"], description: "" },
-      { name: "Residential interior", structure: { subUnitLabel: "Room", subUnitItemLabel: "Room Name", subUnitFields: [], innerUnitLabel: "Finish Area", innerFields: [{ key: "area", label: "Area (sqm)", type: "number" }] }, descriptorMode: "dropdown", descriptorOptions: ["Full fit-out", "Partial fit-out"], description: "" },
-      { name: "Retail fit-out", structure: { subUnitLabel: "Floor", subUnitItemLabel: "Floor", subUnitFields: [], innerUnitLabel: "Section", innerFields: [{ key: "sectionCount", label: "Sections", type: "number" }] }, descriptorMode: "dropdown", descriptorOptions: ["Full fit-out", "Refresh"], description: "" },
-      { name: "Shortlet apartment fit-out", structure: { subUnitLabel: "Unit", subUnitItemLabel: "Unit Name", subUnitFields: [], innerUnitLabel: "Room", innerFields: [{ key: "roomCount", label: "Rooms", type: "number" }, { key: "unitType", label: "Type", type: "select", options: ["Studio", "1-Bedroom", "2-Bedroom", "Penthouse"] }] }, descriptorMode: "dropdown", descriptorOptions: ["Luxury", "Standard", "Budget"], description: "" },
+      { name: "Office fit-out", structure: { unitLabel: "Floor", fields: [{ key: "floorName", label: "Floor Name", type: "text" }, { key: "totalArea", label: "Total Area (sqm)", type: "number" }, { key: "workstations", label: "Workstations", type: "number" }] }, descriptorMode: "dropdown", descriptorOptions: ["Full fit-out", "Partial fit-out", "Refresh"], description: "" },
+      { name: "Residential interior", structure: { unitLabel: "Room", fields: [{ key: "roomName", label: "Room Name", type: "text" }, { key: "roomArea", label: "Room Area (sqm)", type: "number" }] }, descriptorMode: "dropdown", descriptorOptions: ["Full fit-out", "Partial fit-out"], description: "" },
+      { name: "Retail fit-out", structure: { unitLabel: "Zone", fields: [{ key: "zoneName", label: "Zone Name", type: "text" }, { key: "area", label: "Area (sqm)", type: "number" }] }, descriptorMode: "dropdown", descriptorOptions: ["Full fit-out", "Refresh"], description: "" },
+      { name: "Shortlet apartment fit-out", structure: { unitLabel: "Unit", fields: [{ key: "unitName", label: "Unit Name", type: "text" }, { key: "roomCount", label: "Rooms", type: "number" }, { key: "unitType", label: "Type", type: "select", options: ["Studio", "1-Bedroom", "2-Bedroom", "Penthouse"] }] }, descriptorMode: "dropdown", descriptorOptions: ["Luxury", "Standard", "Budget"], description: "" },
     ],
   },
   {
     sector: "Renovation & Maintenance" as Sector,
     categories: [
-      { name: "Full renovation (structural)", structure: { subUnitLabel: "Area", subUnitItemLabel: "Area Name", subUnitFields: [{ key: "area", label: "Area (sqm)", type: "number" }], innerUnitLabel: "Scope Item", innerFields: [{ key: "itemCount", label: "Items", type: "number" }] }, descriptorMode: "dropdown", descriptorOptions: ["Structural", "Cosmetic", "Full overhaul"], description: "" },
-      { name: "Cosmetic renovation (finishing only)", structure: { subUnitLabel: "Room", subUnitItemLabel: "Room Name", subUnitFields: [{ key: "area", label: "Area (sqm)", type: "number" }], innerUnitLabel: "Finish", innerFields: [{ key: "finishCount", label: "Finish Types", type: "number" }] }, descriptorMode: "dropdown", descriptorOptions: ["Cosmetic"], description: "" },
-      { name: "Planned maintenance", structure: { subUnitLabel: "Zone", subUnitItemLabel: "Zone", subUnitFields: [], innerUnitLabel: "Task", innerFields: [{ key: "taskCount", label: "Scheduled Tasks", type: "number" }] }, descriptorMode: "dropdown", descriptorOptions: ["Preventive", "Routine", "Seasonal"], description: "" },
-      { name: "Emergency repair", structure: { subUnitLabel: "Location", subUnitItemLabel: "Location", subUnitFields: [], innerUnitLabel: "Repair Item", innerFields: [{ key: "itemCount", label: "Repair Items", type: "number" }] }, descriptorMode: "free-text", descriptorOptions: [], description: "" },
+      { name: "Full renovation (structural)", structure: { unitLabel: "Area", fields: [{ key: "areaName", label: "Area Name", type: "text" }, { key: "area", label: "Area (sqm)", type: "number" }, { key: "scope", label: "Scope", type: "select", options: ["Structural", "Cosmetic", "Full overhaul"] }] }, descriptorMode: "dropdown", descriptorOptions: ["Structural", "Cosmetic", "Full overhaul"], description: "" },
+      { name: "Cosmetic renovation (finishing only)", structure: { unitLabel: "Room", fields: [{ key: "roomName", label: "Room Name", type: "text" }, { key: "roomArea", label: "Room Area (sqm)", type: "number" }, { key: "scope", label: "Scope", type: "select", options: ["Full Renovation", "Partial Renovation", "Cosmetic"] }] }, descriptorMode: "dropdown", descriptorOptions: ["Cosmetic"], description: "" },
+      { name: "Planned maintenance", structure: { unitLabel: "Block", fields: [{ key: "blockName", label: "Block Name", type: "text" }, { key: "area", label: "Area (sqm)", type: "number" }] }, descriptorMode: "dropdown", descriptorOptions: ["Preventive", "Routine", "Seasonal"], description: "" },
+      { name: "Emergency repair", structure: { unitLabel: "Location", fields: [{ key: "locationName", label: "Location", type: "text" }, { key: "issue", label: "Issue", type: "text" }] }, descriptorMode: "free-text", descriptorOptions: [], description: "" },
     ],
   },
   {
     sector: "Other" as Sector,
     categories: [
-      { name: "Other", structure: { subUnitLabel: "Section", subUnitItemLabel: "Section Name", subUnitFields: [], innerUnitLabel: "Sub-section", innerFields: [{ key: "count", label: "Count", type: "number" }] }, descriptorMode: "free-text", descriptorOptions: [], description: "" },
+      { name: "Other", structure: { unitLabel: "Unit", fields: [{ key: "unitName", label: "Unit Name", type: "text" }, { key: "description", label: "Description", type: "text" }] }, descriptorMode: "free-text", descriptorOptions: [], description: "" },
     ],
   },
 ];

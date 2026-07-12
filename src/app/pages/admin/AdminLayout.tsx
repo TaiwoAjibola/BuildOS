@@ -92,11 +92,11 @@ export function AdminLayout() {
       ],
     },
     {
-      label: "System Configuration",
+      label: "Settings",
       items: [
         {
-          label: "General Settings",
-          href: "/apps/admin/general-settings",
+          label: "General",
+          href: "/apps/admin/settings",
           icon: <Settings className="w-4 h-4" />,
         },
         {
@@ -105,8 +105,8 @@ export function AdminLayout() {
           icon: <FolderCog className="w-4 h-4" />,
         },
         {
-          label: "Email Configuration",
-          href: "/apps/admin/email-config",
+          label: "Email",
+          href: "/apps/admin/email-settings",
           icon: <Bell className="w-4 h-4" />,
         },
       ],

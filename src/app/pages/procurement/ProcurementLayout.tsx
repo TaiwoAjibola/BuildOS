@@ -67,12 +67,12 @@ const sidebarSections = [
       { label: "Reports", href: "/apps/procurement/reports", end: true, icon: <BarChart3 className="w-4 h-4" /> },
     ],
   },
-  {
-    label: "Settings",
-    items: [
-      { label: "Configuration", href: "/apps/procurement/config", end: true, icon: <Settings className="w-4 h-4" /> },
-    ],
-  },
+    {
+      label: "Settings",
+      items: [
+        { label: "Settings", href: "/apps/procurement/settings", end: true, icon: <Settings className="w-4 h-4" /> },
+      ],
+    },
 ];
 
 export function ProcurementLayout() {

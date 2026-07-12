@@ -47,12 +47,12 @@ const sidebarSections = [
       { label: "Reports", href: "/apps/storefront/reports", icon: <BarChart3 className="w-4 h-4" />, end: true },
     ],
   },
-  {
-    label: "Configuration",
-    items: [
-      { label: "Configuration", href: "/apps/storefront/config", icon: <Settings className="w-4 h-4" />, end: true },
-    ],
-  },
+    {
+      label: "Settings",
+      items: [
+        { label: "Settings", href: "/apps/storefront/settings", icon: <Settings className="w-4 h-4" />, end: true },
+      ],
+    },
 ];
 
 export function StorefrontLayout() {

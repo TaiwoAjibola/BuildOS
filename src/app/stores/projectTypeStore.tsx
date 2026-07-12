@@ -9,9 +9,9 @@ interface ProjectTypeContextValue {
   removeSector: (sector: string) => void;
   addCategory: (sector: string, name: string) => void;
   removeCategory: (sector: string, catName: string) => void;
-  updateStructureMeta: (sector: string, catName: string, field: "subUnitLabel" | "subUnitItemLabel" | "innerUnitLabel", value: string) => void;
-  addStructureField: (sector: string, catName: string, section: "subUnitFields" | "innerFields", field: StructureField) => void;
-  removeStructureField: (sector: string, catName: string, section: "subUnitFields" | "innerFields", idx: number) => void;
+  updateStructureMeta: (sector: string, catName: string, field: "unitLabel", value: string) => void;
+  addStructureField: (sector: string, catName: string, field: StructureField) => void;
+  removeStructureField: (sector: string, catName: string, idx: number) => void;
   addDescriptorOption: (sector: string, catName: string, option: string) => void;
   removeDescriptorOption: (sector: string, catName: string, option: string) => void;
   updateDescriptorMode: (sector: string, catName: string, mode: "dropdown" | "free-text") => void;
@@ -52,7 +52,7 @@ export function ProjectTypeProvider({ children }: { children: ReactNode }) {
     ));
   }, []);
 
-  const updateStructureMeta = useCallback((sector: string, catName: string, field: "subUnitLabel" | "subUnitItemLabel" | "innerUnitLabel", value: string) => {
+  const updateStructureMeta = useCallback((sector: string, catName: string, field: "unitLabel", value: string) => {
     setProjectTypesState(prev => prev.map(pt =>
       pt.sector === sector
         ? { ...pt, categories: pt.categories.map(c => c.name === catName ? { ...c, structure: { ...c.structure, [field]: value } } : c) }
@@ -60,18 +60,18 @@ export function ProjectTypeProvider({ children }: { children: ReactNode }) {
     ));
   }, []);
 
-  const addStructureField = useCallback((sector: string, catName: string, section: "subUnitFields" | "innerFields", field: StructureField) => {
+  const addStructureField = useCallback((sector: string, catName: string, field: StructureField) => {
     setProjectTypesState(prev => prev.map(pt =>
       pt.sector === sector
-        ? { ...pt, categories: pt.categories.map(c => c.name === catName ? { ...c, structure: { ...c.structure, [section]: [...c.structure[section], field] } } : c) }
+        ? { ...pt, categories: pt.categories.map(c => c.name === catName ? { ...c, structure: { ...c.structure, fields: [...c.structure.fields, field] } } : c) }
         : pt
     ));
   }, []);
 
-  const removeStructureField = useCallback((sector: string, catName: string, section: "subUnitFields" | "innerFields", idx: number) => {
+  const removeStructureField = useCallback((sector: string, catName: string, idx: number) => {
     setProjectTypesState(prev => prev.map(pt =>
       pt.sector === sector
-        ? { ...pt, categories: pt.categories.map(c => c.name === catName ? { ...c, structure: { ...c.structure, [section]: c.structure[section].filter((_, i) => i !== idx) } } : c) }
+        ? { ...pt, categories: pt.categories.map(c => c.name === catName ? { ...c, structure: { ...c.structure, fields: c.structure.fields.filter((_, i) => i !== idx) } } : c) }
         : pt
     ));
   }, []);

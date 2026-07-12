@@ -59,7 +59,7 @@ const BLANK_FORM: Omit<EmailConfig, "id"> = {
   trigger: "", module: "HR", subject: "", body: "", recipients: "", cc: "", enabled: true,
 };
 
-export function EmailConfigPage() {
+export function AdminEmailSettingsPage() {
   const [configs, setConfigs] = useState<EmailConfig[]>(MOCK_CONFIGS);
   const [showModal, setShowModal] = useState(false);
   const [editId, setEditId] = useState<string | null>(null);

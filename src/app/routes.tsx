@@ -46,7 +46,7 @@ import { ResourceHubPage } from "./pages/construction/ResourceHubPage";
 import { ReportsPage } from "./pages/construction/ReportsPage";
 import { ProgressEarnedValuePage } from "./pages/construction/ProgressEarnedValuePage";
 import { ProjectSetupPage } from "./pages/construction/ProjectSetupPage";
-import { SettingsPage } from "./pages/construction/SettingsPage";
+import { ConstructionSettingsPage } from "./pages/construction/ConstructionSettingsPage";
 import { DisbursementsPage } from "./pages/construction/DisbursementsPage";
 import { CommunicationLogPage } from "./pages/construction/CommunicationLogPage";
 import { FundingPage } from "./pages/construction/FundingPage";
@@ -65,7 +65,7 @@ import { PayrollIntegrationPage } from "./pages/finance/PayrollIntegrationPage";
 import { ClaimsManagementPage } from "./pages/finance/ClaimsManagementPage";
 import { TransactionsLedgerPage } from "./pages/finance/TransactionsLedgerPage";
 import { FinanceReportsPage } from "./pages/finance/FinanceReportsPage";
-import { FinanceConfigPage } from "./pages/finance/FinanceConfigPage";
+import { FinanceSettingsPage } from "./pages/finance/FinanceSettingsPage";
 
 // Procurement App
 import { ProcurementApprovalsPage } from "./pages/procurement/ProcurementApprovalsPage";
@@ -80,7 +80,7 @@ import { StockMovementPage } from "./pages/procurement/StockMovementPage";
 import { PurchaseOrdersPage } from "./pages/procurement/PurchaseOrdersPage";
 import { GoodsReceiptPage } from "./pages/procurement/GoodsReceiptPage";
 import { ProcurementReportsPage } from "./pages/procurement/ProcurementReportsPage";
-import { ProcurementConfigPage } from "./pages/procurement/ProcurementConfigPage";
+import { ProcurementSettingsPage } from "./pages/procurement/ProcurementSettingsPage";
 
 // HR App
 import { HRApprovalsPage } from "./pages/hr/HRApprovalsPage";
@@ -99,7 +99,7 @@ import { WorkforceAllocationPage } from "./pages/hr/WorkforceAllocationPage";
 import { HRReportsPage } from "./pages/hr/HRReportsPage";
 import { LeaveRequestsPage } from "./pages/hr/LeaveRequestsPage";
 import { LeaveBalancesPage } from "./pages/hr/LeaveBalancesPage";
-import { HRGeneralSetupPage } from "./pages/hr/HRGeneralSetupPage";
+import { HRSettingsPage } from "./pages/hr/HRSettingsPage";
 import { PayrollPeriodPage } from "./pages/hr/PayrollPeriodPage";
 import { BankNamesPage } from "./pages/hr/BankNamesPage";
 import { LeaveTypeSetupPage } from "./pages/hr/LeaveTypeSetupPage";
@@ -128,7 +128,7 @@ import { RolesPage } from "./pages/admin/RolesPage";
 import { UserPermissionsPage } from "./pages/admin/UserPermissionsPage";
 import { CompanyProfilePage } from "./pages/admin/CompanyProfilePage";
 import { BoardOfDirectorsPage } from "./pages/admin/BoardOfDirectorsPage";
-import { GeneralSettingsPage } from "./pages/admin/GeneralSettingsPage";
+import { AdminSettingsPage } from "./pages/admin/AdminSettingsPage";
 import { UnitsOfMeasurementPage } from "./pages/admin/UnitsOfMeasurementPage";
 import { ProjectConfigurationPage } from "./pages/admin/ProjectConfigurationPage";
 import { FinancialConfigurationPage } from "./pages/admin/FinancialConfigurationPage";
@@ -137,7 +137,7 @@ import { NotificationsPage } from "./pages/admin/NotificationsPage";
 import { AuditLogsPage } from "./pages/admin/AuditLogsPage";
 import { IntegrationsPage } from "./pages/admin/IntegrationsPage";
 import { ReportAutomationPage } from "./pages/admin/ReportAutomationPage";
-import { EmailConfigPage } from "./pages/admin/EmailConfigPage";
+import { AdminEmailSettingsPage } from "./pages/admin/AdminEmailSettingsPage";
 import { IssueTypesPage } from "./pages/admin/IssueTypesPage";
 import { ChangeCategoriesPage } from "./pages/admin/ChangeCategoriesPage";
 import { ChangelogPage } from "./pages/admin/ChangelogPage";
@@ -156,7 +156,7 @@ import { StorefrontApprovalsPage } from "./pages/storefront/StorefrontApprovalsP
 import { StorefrontReportsPage } from "./pages/storefront/StorefrontReportsPage";
 import { StorefrontTasksPage } from "./pages/storefront/StorefrontTasksPage";
 import { StorefrontMyTasksPage } from "./pages/storefront/StorefrontMyTasksPage";
-import { StorefrontConfigPage } from "./pages/storefront/StorefrontConfigPage";
+import { StorefrontSettingsPage } from "./pages/storefront/StorefrontSettingsPage";
 
 // Finance new pages
 import { JournalEntryPage } from "./pages/finance/JournalEntryPage";
@@ -270,7 +270,7 @@ export const router = createBrowserRouter([
               { path: "approvals", Component: FinanceApprovalsPage },
               { path: "ledger", Component: TransactionsLedgerPage },
               { path: "reports", Component: FinanceReportsPage },
-              { path: "config", Component: FinanceConfigPage },
+              { path: "settings", Component: FinanceSettingsPage },
               { path: "tasks", Component: FinanceTasksPage },
               { path: "my-tasks", Component: FinanceMyTasksPage },
               { path: "process-mapping", Component: ProcessMappingPage },
@@ -300,7 +300,7 @@ export const router = createBrowserRouter([
               { path: "sent-requests", Component: SentRequestsPage },
               { path: "received-quotes", Component: ReceivedQuotesPage },
               { path: "supplier-compliance", Component: SupplierCompliancePage },
-              { path: "config", Component: ProcurementConfigPage },
+              { path: "settings", Component: ProcurementSettingsPage },
             ],
           },
           {
@@ -321,7 +321,7 @@ export const router = createBrowserRouter([
               { path: "reports", Component: HRReportsPage },
               { path: "leave-requests", Component: LeaveRequestsPage },
               { path: "leave-balances", Component: LeaveBalancesPage },
-              { path: "hr-general-setup", Component: HRGeneralSetupPage },
+              { path: "settings", Component: HRSettingsPage },
               { path: "org-structure", lazy: () => import("./pages/hr/OrgStructurePage").then(m => ({ Component: m.OrgStructurePage })) },
               { path: "payroll-periods", Component: PayrollPeriodPage },
               { path: "bank-names", Component: BankNamesPage },
@@ -360,7 +360,7 @@ export const router = createBrowserRouter([
               { path: "user-permissions", Component: UserPermissionsPage },
               { path: "company-profile", Component: CompanyProfilePage },
               { path: "board-of-directors", Component: BoardOfDirectorsPage },
-              { path: "general-settings", Component: GeneralSettingsPage },
+              { path: "settings", Component: AdminSettingsPage },
               { path: "units", Component: UnitsOfMeasurementPage },
               { path: "project-config", Component: ProjectConfigurationPage },
               { path: "report-builder", Component: ReportBuilderPage },
@@ -369,7 +369,7 @@ export const router = createBrowserRouter([
               { path: "audit-logs", Component: AuditLogsPage },
               { path: "integrations", Component: IntegrationsPage },
               { path: "approvals", Component: AdminApprovalsPage },
-              { path: "email-config", Component: EmailConfigPage },
+              { path: "email-settings", Component: AdminEmailSettingsPage },
               { path: "issue-types", Component: IssueTypesPage },
               { path: "change-categories", Component: ChangeCategoriesPage },
               { path: "changelog", Component: ChangelogPage },
@@ -392,7 +392,7 @@ export const router = createBrowserRouter([
               { path: "reports",           Component: StorefrontReportsPage },
               { path: "tasks",             Component: StorefrontTasksPage },
               { path: "my-tasks",          Component: StorefrontMyTasksPage  },
-              { path: "config",            Component: StorefrontConfigPage  },
+              { path: "settings",            Component: StorefrontSettingsPage  },
             ],
           },
         ],
