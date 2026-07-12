@@ -223,7 +223,7 @@ export const router = createBrowserRouter([
               { path: "stakeholders", Component: StakeholdersOverviewPage },
               { path: "reports", Component: ReportsPage },
               { path: "resource-hub", Component: ResourceHubPage },
-              { path: "settings", Component: SettingsPage },
+              { path: "settings", Component: ConstructionSettingsPage },
               { path: "disbursements", Component: DisbursementsPage },
               { path: "communications", Component: CommunicationLogPage },
               {
