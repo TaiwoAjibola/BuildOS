@@ -2,9 +2,10 @@ import { useState } from "react";
 import { Settings, Save, Plus, ToggleLeft, ToggleRight, X, Check, Tags, Layers, Sun, Truck, Building2, Users, Package, UserCog, ArrowRight, ChevronDown, ChevronRight, Shield, Edit3, Trash2, Hash } from "lucide-react";
 import type { Sector, ScheduleLevelConfig, WeatherConfig, ProjectRole, StructureField, CategoryStructureConfig, CategoryConfig, ProjectTypeSetting } from "./types";
 import { ALL_PERMISSIONS } from "./types";
-import { defaultScheduleLevels, defaultWeatherConfig, defaultProjectTypes } from "./mockData";
+import { defaultScheduleLevels, defaultWeatherConfig } from "./mockData";
 import { useRoles } from "../../contexts/RolesContext";
 import { useNumbering, type ModuleNumbering, MODULE_DOMAINS, formatId } from "../../stores/numberingStore";
+import { useProjectTypeStore } from "../../stores/projectTypeStore";
 
 const defaultTradeTypes = [
   "Masonry", "Concreting labor", "Carpentry (formwork)", "Carpentry (roofing)",
@@ -50,7 +51,7 @@ export function SettingsPage() {
   const [scheduleLevels, setScheduleLevels] = useState<ScheduleLevelConfig[]>(defaultScheduleLevels);
   const [weatherConfig, setWeatherConfig] = useState<WeatherConfig[]>(defaultWeatherConfig);
   const [newWeather, setNewWeather] = useState("");
-  const [projectTypes, setProjectTypes] = useState(defaultProjectTypes);
+  const { projectTypes, addSector: storeAddSector, removeSector: storeRemoveSector, addCategory: storeAddCategory, removeCategory: storeRemoveCategory, updateStructureMeta, addStructureField, removeStructureField, addDescriptorOption: storeAddDescriptorOption, removeDescriptorOption: storeRemoveDescriptorOption, updateDescriptorMode, updateDescription } = useProjectTypeStore();
   const [newSector, setNewSector] = useState("");
   const [catInput, setCatInput] = useState("");
   const [catTargetSector, setCatTargetSector] = useState<string | null>(null);
@@ -131,112 +132,46 @@ export function SettingsPage() {
     setWeatherConfig(prev => prev.filter((_, i) => i !== idx));
   }
 
-  function addSector() {
+  function handleAddSector() {
     if (!newSector.trim() || projectTypes.some(pt => pt.sector === newSector.trim())) return;
-    setProjectTypes(prev => [...prev, { sector: newSector.trim() as Sector, categories: [] }]);
+    storeAddSector(newSector.trim());
     setNewSector("");
   }
 
-  function removeSector(sector: string) {
-    setProjectTypes(prev => prev.filter(pt => pt.sector !== sector));
+  function handleRemoveSector(sector: string) {
+    storeRemoveSector(sector);
   }
 
-  function addCategory(sector: string) {
+  function handleAddCategory(sector: string) {
     if (!catInput.trim()) return;
-    setProjectTypes(prev => prev.map(pt =>
-      pt.sector === sector
-        ? {
-            ...pt,
-            categories: [...pt.categories, {
-              name: catInput.trim(),
-              structure: { subUnitLabel: "", subUnitFields: [], subUnitItemLabel: "", innerUnitLabel: "", innerFields: [] },
-              descriptorMode: "free-text",
-              descriptorOptions: [],
-              description: "",
-            }],
-          }
-        : pt
-    ));
+    storeAddCategory(sector, catInput.trim());
     setCatInput("");
     setCatTargetSector(null);
   }
 
-  function removeCategory(sector: string, catName: string) {
-    setProjectTypes(prev => prev.map(pt =>
-      pt.sector === sector ? { ...pt, categories: pt.categories.filter(c => c.name !== catName) } : pt
-    ));
+  function handleRemoveCategory(sector: string, catName: string) {
+    storeRemoveCategory(sector, catName);
   }
 
-  function updateStructureMeta(sector: string, catName: string, field: "subUnitLabel" | "subUnitItemLabel" | "innerUnitLabel", value: string) {
-    setProjectTypes(prev => prev.map(pt =>
-      pt.sector === sector
-        ? { ...pt, categories: pt.categories.map(c => c.name === catName ? { ...c, structure: { ...c.structure, [field]: value } } : c) }
-        : pt
-    ));
-  }
-
-  function addStructureField(sector: string, catName: string, section: "subUnitFields" | "innerFields") {
+  function handleAddStructureField(sector: string, catName: string, section: "subUnitFields" | "innerFields") {
     if (!fieldForm.label.trim()) return;
     const key = fieldForm.key.trim() || fieldForm.label.trim().toLowerCase().replace(/\s+/g, "");
     const optionsArray = fieldForm.type === "select" ? fieldForm.options.split(",").map(s => s.trim()).filter(Boolean) : undefined;
     const newField: StructureField = { key, label: fieldForm.label.trim(), type: fieldForm.type, ...(optionsArray?.length ? { options: optionsArray } : {}) };
-    setProjectTypes(prev => prev.map(pt =>
-      pt.sector === sector
-        ? {
-            ...pt,
-            categories: pt.categories.map(c =>
-              c.name === catName
-                ? { ...c, structure: { ...c.structure, [section]: [...c.structure[section], newField] } }
-                : c
-            ),
-          }
-        : pt
-    ));
+    addStructureField(sector, catName, section, newField);
     setFieldForm({ key: "", label: "", type: "select", options: "", required: false });
     setFieldFormTarget(null);
   }
 
-  function removeStructureField(sector: string, catName: string, section: "subUnitFields" | "innerFields", idx: number) {
-    setProjectTypes(prev => prev.map(pt =>
-      pt.sector === sector
-        ? { ...pt, categories: pt.categories.map(c => c.name === catName ? { ...c, structure: { ...c.structure, [section]: c.structure[section].filter((_, i) => i !== idx) } } : c) }
-        : pt
-    ));
-  }
-
-  function addDescriptor(sector: string, catName: string) {
+  function handleAddDescriptorOption(sector: string, catName: string) {
     if (!descInput.trim()) return;
-    setProjectTypes(prev => prev.map(pt =>
-      pt.sector === sector
-        ? { ...pt, categories: pt.categories.map(c => c.name === catName ? { ...c, descriptorOptions: [...c.descriptorOptions, descInput.trim()] } : c) }
-        : pt
-    ));
+    storeAddDescriptorOption(sector, catName, descInput.trim());
     setDescInput("");
     setDescTarget(null);
   }
 
-  function removeDescriptorOption(sector: string, catName: string, opt: string) {
-    setProjectTypes(prev => prev.map(pt =>
-      pt.sector === sector
-        ? { ...pt, categories: pt.categories.map(c => c.name === catName ? { ...c, descriptorOptions: c.descriptorOptions.filter(d => d !== opt) } : c) }
-        : pt
-    ));
-  }
-
-  function updateDescriptorMode(sector: string, catName: string, mode: "dropdown" | "free-text") {
-    setProjectTypes(prev => prev.map(pt =>
-      pt.sector === sector
-        ? { ...pt, categories: pt.categories.map(c => c.name === catName ? { ...c, descriptorMode: mode } : c) }
-        : pt
-    ));
-  }
-
-  function updateDescription(sector: string, catName: string, value: string) {
-    setProjectTypes(prev => prev.map(pt =>
-      pt.sector === sector
-        ? { ...pt, categories: pt.categories.map(c => c.name === catName ? { ...c, description: value } : c) }
-        : pt
-    ));
+  function handleRemoveDescriptorOption(sector: string, catName: string, opt: string) {
+    storeRemoveDescriptorOption(sector, catName, opt);
   }
 
   function startEditRole(role: ProjectRole) {
@@ -335,7 +270,7 @@ export function SettingsPage() {
                     <span className="text-[10px] bg-gray-200 text-gray-500 font-semibold px-1.5 py-0.5 rounded">L1</span>
                     <span className="text-sm font-semibold text-gray-900">{pt.sector}</span>
                   </div>
-                  <button onClick={() => removeSector(pt.sector)} className="text-red-400 hover:text-red-600 p-1"><X className="w-3.5 h-3.5" /></button>
+                  <button onClick={() => handleRemoveSector(pt.sector)} className="text-red-400 hover:text-red-600 p-1"><X className="w-3.5 h-3.5" /></button>
                 </div>
                 {pt.categories.map(cat => (
                   <div key={cat.name} className="border border-gray-100 rounded-lg p-3 mb-2 bg-gray-50">
@@ -344,7 +279,7 @@ export function SettingsPage() {
                         <span className="text-[10px] bg-amber-100 text-amber-600 font-semibold px-1.5 py-0.5 rounded">L2</span>
                         <span className="text-xs font-semibold text-amber-700">{cat.name}</span>
                       </div>
-                      <button onClick={() => removeCategory(pt.sector, cat.name)} className="text-red-300 hover:text-red-600 p-0.5"><X className="w-3 h-3" /></button>
+                      <button onClick={() => handleRemoveCategory(pt.sector, cat.name)} className="text-red-300 hover:text-red-600 p-0.5"><X className="w-3 h-3" /></button>
                     </div>
                     {/* Level 3 — Specific Descriptors */}
                     <p className="text-[10px] text-gray-400 font-semibold uppercase tracking-wider mb-2">Level 3 — Specific Descriptors</p>
@@ -361,7 +296,7 @@ export function SettingsPage() {
                           {cat.descriptorOptions.map(d => (
                             <span key={d} className="inline-flex items-center gap-1 bg-blue-50 text-blue-700 text-xs px-2 py-0.5 rounded-full">
                               {d}
-                              <button onClick={() => removeDescriptorOption(pt.sector, cat.name, d)} className="hover:text-red-600"><X className="w-3 h-3" /></button>
+                              <button onClick={() => handleRemoveDescriptorOption(pt.sector, cat.name, d)} className="hover:text-red-600"><X className="w-3 h-3" /></button>
                             </span>
                           ))}
                         </div>
@@ -370,8 +305,8 @@ export function SettingsPage() {
                             onChange={e => { setDescInput(e.target.value); setDescTarget({ sector: pt.sector, category: cat.name }); }}
                             onFocus={() => setDescTarget({ sector: pt.sector, category: cat.name })}
                             placeholder="Add option..." className="flex-1 max-w-xs border border-gray-300 rounded-md px-2 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-orange-500"
-                            onKeyDown={e => e.key === "Enter" && addDescriptor(pt.sector, cat.name)} />
-                          <button onClick={() => addDescriptor(pt.sector, cat.name)} disabled={descTarget?.sector !== pt.sector || descTarget?.category !== cat.name || !descInput.trim()}
+                            onKeyDown={e => e.key === "Enter" && handleAddDescriptorOption(pt.sector, cat.name)} />
+                          <button onClick={() => handleAddDescriptorOption(pt.sector, cat.name)} disabled={descTarget?.sector !== pt.sector || descTarget?.category !== cat.name || !descInput.trim()}
                             className="text-xs px-2 py-1 bg-orange-600 text-white rounded hover:bg-orange-700 disabled:opacity-40"><Plus className="w-3 h-3" /></button>
                         </div>
                       </>
@@ -437,8 +372,8 @@ export function SettingsPage() {
                   <div className="flex items-center gap-2 mt-2">
                     <input value={catInput} onChange={e => setCatInput(e.target.value)} placeholder="Category name..." autoFocus
                       className="flex-1 max-w-xs border border-gray-300 rounded-md px-2 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-orange-500"
-                      onKeyDown={e => { if (e.key === "Enter") addCategory(pt.sector); if (e.key === "Escape") { setCatTargetSector(null); setCatInput(""); } }} />
-                    <button onClick={() => addCategory(pt.sector)} disabled={!catInput.trim()} className="text-xs px-2 py-1 bg-orange-600 text-white rounded hover:bg-orange-700 disabled:opacity-40"><Plus className="w-3 h-3" /></button>
+                      onKeyDown={e => { if (e.key === "Enter") handleAddCategory(pt.sector); if (e.key === "Escape") { setCatTargetSector(null); setCatInput(""); } }} />
+                    <button onClick={() => handleAddCategory(pt.sector)} disabled={!catInput.trim()} className="text-xs px-2 py-1 bg-orange-600 text-white rounded hover:bg-orange-700 disabled:opacity-40"><Plus className="w-3 h-3" /></button>
                     <button onClick={() => { setCatTargetSector(null); setCatInput(""); }} className="text-xs px-2 py-1 text-gray-500 hover:text-gray-700">Cancel</button>
                   </div>
                 ) : (
@@ -451,7 +386,7 @@ export function SettingsPage() {
           </div>
           <div className="flex items-center gap-2 mt-3 pt-3 border-t border-gray-100">
             <input value={newSector} onChange={e => setNewSector(e.target.value)} placeholder="New sector name..." className="flex-1 max-w-xs border border-gray-300 rounded-md px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-orange-500" />
-            <button onClick={addSector} disabled={!newSector.trim()} className="flex items-center gap-1 px-3 py-1.5 bg-orange-600 text-white rounded-md text-sm font-medium hover:bg-orange-700 disabled:opacity-40"><Plus className="w-3.5 h-3.5" /> Add Sector</button>
+            <button onClick={handleAddSector} disabled={!newSector.trim()} className="flex items-center gap-1 px-3 py-1.5 bg-orange-600 text-white rounded-md text-sm font-medium hover:bg-orange-700 disabled:opacity-40"><Plus className="w-3.5 h-3.5" /> Add Sector</button>
           </div>
         </Section>
 
@@ -494,7 +429,7 @@ export function SettingsPage() {
               <div className="px-6 py-4 border-t border-gray-100 flex justify-end gap-2">
                 <button onClick={() => { setFieldFormTarget(null); setFieldForm({ key: "", label: "", type: "select", options: "", required: false }); }}
                   className="px-4 py-2 text-sm text-gray-600 border border-gray-300 rounded-lg hover:bg-gray-50">Cancel</button>
-                <button onClick={() => addStructureField(fieldFormTarget.sector, fieldFormTarget.category, fieldFormTarget.section)}
+                <button onClick={() => handleAddStructureField(fieldFormTarget.sector, fieldFormTarget.category, fieldFormTarget.section)}
                   disabled={!fieldForm.label.trim()}
                   className="px-4 py-2 text-sm bg-orange-600 text-white rounded-lg hover:bg-orange-700 disabled:opacity-40">Add Field</button>
               </div>

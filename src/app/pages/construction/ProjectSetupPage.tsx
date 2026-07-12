@@ -7,10 +7,10 @@ import {
 import { getProjectById, staffList, tradeTypes, clusters, tasks as allTasks, fmtDate, vendors as allVendors, defaultScheduleLevels, hrEmployees, materialInventory, equipmentInventory } from "./mockData";
 import type { Task, Vendor, VendorRepresentative, ProjectCalendar, Sector, ProjectStructureItem, ScheduleLevelConfig, HumanResource, HumanResourceSource, MaterialResource, EquipmentResource, ResourceAssignment, ProjectRole, HumanResourceRole } from "./types";
 import { useRoles } from "../../contexts/RolesContext";
-import { SECTOR_CATEGORIES, getBlockLabel, getStructureConfig, DEFAULT_WBS_LEVELS } from "./types";
 import { useResources } from "../../contexts/ResourceContext";
 import { SearchableMultiSelect } from "../../components/SearchableMultiSelect";
 import { useNumbering } from "../../stores/numberingStore";
+import { useProjectTypeStore } from "../../stores/projectTypeStore";
 
 const STEPS = [
   { id: "basic", label: "Basic Information", icon: FileText },
@@ -26,15 +26,6 @@ const STEPS = [
 
 const DAY_LABELS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 const DAY_INDICES = [1, 2, 3, 4, 5, 6, 0];
-
-const SECTORS: Sector[] = [
-  "Building & Construction",
-  "Civil & Infrastructure",
-  "Industrial & Facilities",
-  "Interior & Fit-out",
-  "Renovation & Maintenance",
-  "Other",
-];
 
 const LEVEL_NAMES: Record<number, string> = {};
 const LEVEL_PREFIX: Record<number, string> = {};
@@ -54,6 +45,7 @@ export function ProjectSetupPage() {
 
   const { getNextId } = useNumbering();
   const { contractors: individualContractors } = useResources();
+  const { projectTypes, getCategoriesForSector, getDescriptorConfig, getStructureConfigForCategory } = useProjectTypeStore();
   const [currentStep, setCurrentStep] = useState(0);
   const [completedSteps, setCompletedSteps] = useState<Set<number>>(new Set());
 
@@ -77,8 +69,8 @@ export function ProjectSetupPage() {
   const [projectCategory, setProjectCategory] = useState(project?.category || "");
   const [projectDescriptor, setProjectDescriptor] = useState(project?.descriptor || "");
 
-  const blockLabel = useMemo(() => getBlockLabel(projectSector as Sector, projectCategory), [projectSector, projectCategory]);
-  const structureConfig = useMemo(() => projectCategory ? getStructureConfig(projectCategory) : null, [projectCategory]);
+  const structureConfig = useMemo(() => projectSector && projectCategory ? getStructureConfigForCategory(projectSector, projectCategory) : null, [projectSector, projectCategory, projectTypes]);
+  const blockLabel = useMemo(() => structureConfig?.subUnitLabel || "Structure", [structureConfig]);
 
   const [structureEntries, setStructureEntries] = useState<Array<{
     id: string;
@@ -748,7 +740,8 @@ export function ProjectSetupPage() {
 
   // Step 1 — Project Type Classification
   const renderProjectType = () => {
-    const categories = projectSector ? SECTOR_CATEGORIES[projectSector as Sector] : [];
+    const categories = projectSector ? getCategoriesForSector(projectSector) : [];
+    const descriptorConfig = projectSector && projectCategory ? getDescriptorConfig(projectSector, projectCategory) : null;
     return (
       <div className="rounded-xl border p-6 space-y-6" style={{ borderColor: "#E2E8F0", backgroundColor: "white" }}>
         <div>
@@ -762,7 +755,7 @@ export function ProjectSetupPage() {
         <div>
           <label className="block text-sm font-semibold mb-3" style={{ color: "#1A202C" }}>Level 1 — Sector</label>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-            {SECTORS.map(s => {
+            {projectTypes.map(pt => pt.sector).map(s => {
               const selected = projectSector === s;
               return (
                 <button
@@ -789,12 +782,12 @@ export function ProjectSetupPage() {
           <div>
             <label className="block text-sm font-semibold mb-3" style={{ color: "#1A202C" }}>Level 2 — Project Category</label>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-              {categories.map(c => {
-                const selected = projectCategory === c;
+              {categories.map(cat => {
+                const selected = projectCategory === cat.name;
                 return (
                   <button
-                    key={c}
-                    onClick={() => setProjectCategory(c)}
+                    key={cat.name}
+                    onClick={() => setProjectCategory(cat.name)}
                     className={`text-left px-4 py-2.5 rounded-lg border text-sm transition-all ${
                       selected ? "text-white border-transparent" : "hover:bg-gray-50"
                     }`}
@@ -804,7 +797,7 @@ export function ProjectSetupPage() {
                       color: selected ? "white" : "#1A202C",
                     }}
                   >
-                    {c}
+                    {cat.name}
                   </button>
                 );
               })}
@@ -813,18 +806,32 @@ export function ProjectSetupPage() {
         )}
 
         {/* Level 3 — Descriptor */}
-        {projectCategory && (
+        {projectCategory && descriptorConfig && (
           <div>
             <label className="block text-sm font-semibold mb-1" style={{ color: "#1A202C" }}>
               Level 3 — Specific Descriptor <span className="text-gray-400 font-normal">(optional)</span>
             </label>
-            <input
-              type="text" value={projectDescriptor}
-              onChange={e => setProjectDescriptor(e.target.value)}
-              className="w-full px-3 py-2 rounded-lg border text-sm"
-              style={{ borderColor: "#E2E8F0", backgroundColor: "#F7F8FA" }}
-              placeholder="e.g. 22-storey commercial tower, 120-unit estate"
-            />
+            {descriptorConfig.mode === "dropdown" ? (
+              <select
+                value={projectDescriptor}
+                onChange={e => setProjectDescriptor(e.target.value)}
+                className="w-full px-3 py-2 rounded-lg border text-sm"
+                style={{ borderColor: "#E2E8F0", backgroundColor: "#F7F8FA" }}
+              >
+                <option value="">Select descriptor...</option>
+                {descriptorConfig.options.map(o => (
+                  <option key={o} value={o}>{o}</option>
+                ))}
+              </select>
+            ) : (
+              <input
+                type="text" value={projectDescriptor}
+                onChange={e => setProjectDescriptor(e.target.value)}
+                className="w-full px-3 py-2 rounded-lg border text-sm"
+                style={{ borderColor: "#E2E8F0", backgroundColor: "#F7F8FA" }}
+                placeholder="e.g. 22-storey commercial tower, 120-unit estate"
+              />
+            )}
           </div>
         )}
 

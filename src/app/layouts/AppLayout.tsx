@@ -5,6 +5,7 @@ import { TaskProvider } from "../contexts/TaskContext";
 import { RolesProvider } from "../contexts/RolesContext";
 import { ChangelogProvider } from "../stores/changelogStore";
 import { NumberingProvider } from "../stores/numberingStore";
+import { ProjectTypeProvider } from "../stores/projectTypeStore";
 
 export function AppLayout() {
   return (
@@ -14,9 +15,11 @@ export function AppLayout() {
           <TaskProvider>
             <RolesProvider>
               <NumberingProvider>
-                <div className="min-h-screen bg-gray-50">
-                  <Outlet />
-                </div>
+                <ProjectTypeProvider>
+                  <div className="min-h-screen bg-gray-50">
+                    <Outlet />
+                  </div>
+                </ProjectTypeProvider>
               </NumberingProvider>
             </RolesProvider>
           </TaskProvider>
