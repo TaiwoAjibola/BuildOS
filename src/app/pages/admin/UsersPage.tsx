@@ -4,6 +4,7 @@ import {
   Mail, Phone, MapPin, Briefcase, Calendar, Activity,
   CheckCircle2, XCircle, Clock, Edit, Copy, Trash2,
   AlertCircle, Lock, Eye, PenLine, BadgeCheck, UserCheck, Upload, RefreshCw,
+  ChevronDown, ChevronUp, Save,
 } from "lucide-react";
 import { useEmployees } from "../../stores/employeeStore";
 
@@ -199,9 +200,18 @@ function AppBadge({ appKey, size = "sm" }: { appKey: AppKey; size?: "sm" | "xs" 
   );
 }
 
+// ── Common Roles ──────────────────────────────────────────────────────────────
+const COMMON_ROLES = [
+  "Admin", "Accountant", "Admin Officer", "Civil Engineer", "Construction Manager",
+  "Finance Analyst", "Finance Manager", "HR Manager", "HR Officer", "HSE Officer",
+  "IT Officer", "MEP Engineer", "Project Manager", "Quantity Surveyor",
+  "Site Engineer", "Site Foreman", "Site Supervisor", "Store Manager",
+  "Structural Engineer",
+];
+
 // ── Sync Employee Slide-over ─────────────────────────────────────────────────
 function SyncEmployeePanel({ employee, onSync, onClose }: {
-  employee: { id: string; firstName: string; middleName: string; lastName: string; jobTitle: string; department: string; personalEmail: string; personalPhone: string };
+  employee: { id: string; firstName: string; middleName: string; lastName: string; jobTitle: string; department: string; personalEmail: string; personalPhone: string; orgLevel: string; employmentType: string; grade: string; nationality: string; pfa: string; rsaNumber: string; bankName: string; bankAccount: string; taxId: string; primarySupervisor: string; employmentDate: string; dateOfBirth: string; maritalStatus: string; address: string; nextOfKin: string; status: string };
   onSync: (employeeId: string, email: string, role: string, apps: AppKey[]) => void;
   onClose: () => void;
 }) {
@@ -209,15 +219,43 @@ function SyncEmployeePanel({ employee, onSync, onClose }: {
   const [email, setEmail] = useState(employee.personalEmail || `${employee.firstName.toLowerCase()}.${employee.lastName.toLowerCase()}@buildos.com`);
   const [role, setRole] = useState(employee.jobTitle);
   const [selectedApps, setSelectedApps] = useState<AppKey[]>(["ess"]);
+  const [showDetails, setShowDetails] = useState(false);
+  const [editing, setEditing] = useState(false);
+  const [editForm, setEditForm] = useState({ ...employee });
 
   const toggleApp = (app: AppKey) => {
     setSelectedApps(prev => prev.includes(app) ? prev.filter(a => a !== app) : [...prev, app]);
   };
 
+  const fieldDefs: Array<{ label: string; key: keyof typeof editForm; col?: string }> = [
+    { label: "First Name", key: "firstName" },
+    { label: "Middle Name", key: "middleName" },
+    { label: "Last Name", key: "lastName" },
+    { label: "Job Title", key: "jobTitle" },
+    { label: "Primary Supervisor", key: "primarySupervisor" },
+    { label: "Employment Date", key: "employmentDate" },
+    { label: "Date of Birth", key: "dateOfBirth" },
+    { label: "Marital Status", key: "maritalStatus" },
+    { label: "Department", key: "department" },
+    { label: "Org Unit", key: "orgLevel" },
+    { label: "Employment Type", key: "employmentType" },
+    { label: "Phone", key: "personalPhone" },
+    { label: "Email", key: "personalEmail" },
+    { label: "Address", key: "address", col: "col-span-2" },
+    { label: "Next of Kin", key: "nextOfKin", col: "col-span-2" },
+    { label: "Nationality", key: "nationality" },
+    { label: "PFA", key: "pfa" },
+    { label: "RSA Number", key: "rsaNumber" },
+    { label: "Bank Name", key: "bankName" },
+    { label: "Bank Account", key: "bankAccount" },
+    { label: "Tax ID", key: "taxId" },
+    { label: "Salary Grade", key: "grade" },
+  ];
+
   return (
     <div className="fixed inset-0 z-50 flex">
       <div className="flex-1 bg-black/30" onClick={onClose} />
-      <div className="w-[480px] bg-white border-l border-gray-200 flex flex-col overflow-hidden shadow-2xl">
+      <div className="w-[520px] bg-white border-l border-gray-200 flex flex-col overflow-hidden shadow-2xl">
         <div className="px-6 py-4 border-b border-gray-200 flex items-center justify-between shrink-0">
           <div>
             <h2 className="text-base font-semibold text-gray-900">Sync Employee to User</h2>
@@ -231,7 +269,7 @@ function SyncEmployeePanel({ employee, onSync, onClose }: {
             <RefreshCw className="w-5 h-5 text-indigo-600 shrink-0 mt-0.5" />
             <div>
               <p className="text-sm font-medium text-indigo-900">Employee record from HR</p>
-              <p className="text-xs text-indigo-700 mt-0.5">This employee was created in the HR module. Sync them to create a user account with login credentials and role-based permissions.</p>
+              <p className="text-xs text-indigo-700 mt-0.5">Sync to create a user account with login credentials and role-based permissions.</p>
             </div>
           </div>
 
@@ -242,9 +280,12 @@ function SyncEmployeePanel({ employee, onSync, onClose }: {
           </div>
 
           <div>
-            <label className="block text-xs font-medium text-gray-600 mb-1">Role / Title</label>
-            <input value={role} onChange={e => setRole(e.target.value)}
-              className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+            <label className="block text-xs font-medium text-gray-600 mb-1">Role / Title <span className="text-red-500">*</span></label>
+            <select value={role} onChange={e => setRole(e.target.value)}
+              className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white">
+              <option value="">Select role…</option>
+              {COMMON_ROLES.map(r => <option key={r} value={r}>{r}</option>)}
+            </select>
           </div>
 
           <div>
@@ -267,11 +308,62 @@ function SyncEmployeePanel({ employee, onSync, onClose }: {
               })}
             </div>
           </div>
+
+          {/* ── Employee Record Details ── */}
+          <div className="border border-gray-200 rounded-xl overflow-hidden">
+            <button onClick={() => setShowDetails(!showDetails)}
+              className="w-full flex items-center justify-between px-4 py-3 bg-gray-50 hover:bg-gray-100 transition-colors text-sm font-medium text-gray-700">
+              <span>Employee Record Details</span>
+              {showDetails ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+            </button>
+            {showDetails && (
+              <div className="p-4 border-t border-gray-200">
+                {editing ? (
+                  <div className="space-y-4">
+                    <div className="grid grid-cols-2 gap-3">
+                      {fieldDefs.map(f => (
+                        <div key={f.key} className={f.col || ""}>
+                          <label className="block text-xs font-medium text-gray-600 mb-0.5">{f.label}</label>
+                          <input value={editForm[f.key] as string} onChange={e => setEditForm(p => ({ ...p, [f.key]: e.target.value }))}
+                            className="w-full border border-gray-300 rounded-md px-2.5 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+                        </div>
+                      ))}
+                    </div>
+                    <div className="flex justify-end gap-2 pt-2">
+                      <button onClick={() => { setEditing(false); setEditForm({ ...employee }); }}
+                        className="px-3 py-1.5 border border-gray-300 rounded-md text-xs text-gray-700 hover:bg-gray-50">Cancel</button>
+                      <button onClick={() => setEditing(false)}
+                        className="px-3 py-1.5 bg-indigo-600 text-white rounded-md text-xs font-medium hover:bg-indigo-700 flex items-center gap-1">
+                        <Save className="w-3 h-3" /> Save
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    <div className="grid grid-cols-2 gap-x-4 gap-y-2">
+                      {fieldDefs.map(f => (
+                        <div key={f.key} className={f.col || ""}>
+                          <p className="text-[10px] text-gray-400 uppercase tracking-wide">{f.label}</p>
+                          <p className="text-xs font-medium text-gray-800 mt-0.5">{(employee[f.key as keyof typeof employee] as string) || "—"}</p>
+                        </div>
+                      ))}
+                    </div>
+                    <div className="flex justify-end pt-1">
+                      <button onClick={() => setEditing(true)}
+                        className="flex items-center gap-1 px-3 py-1.5 border border-gray-300 rounded-md text-xs text-gray-700 hover:bg-gray-50">
+                        <Edit className="w-3 h-3" /> Edit Details
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
         </div>
 
         <div className="px-6 py-4 border-t border-gray-100 flex justify-end gap-3 shrink-0">
           <button onClick={onClose} className="px-4 py-2 border border-gray-300 rounded-lg text-sm text-gray-700 hover:bg-gray-50">Cancel</button>
-          <button onClick={() => onSync(employee.id, email, role, selectedApps)} disabled={!email.trim()}
+          <button onClick={() => onSync(employee.id, email, role, selectedApps)} disabled={!email.trim() || !role}
             className="px-4 py-2 bg-indigo-600 text-white rounded-lg text-sm font-medium hover:bg-indigo-700 disabled:opacity-40 disabled:cursor-not-allowed flex items-center gap-2">
             <RefreshCw className="w-4 h-4" /> Sync & Create User
           </button>

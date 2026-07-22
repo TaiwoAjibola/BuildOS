@@ -159,7 +159,6 @@ export function EmployeeProfilePage() {
               <InfoCard icon={Calendar} label="Employment Date" value={emp.employmentDate} />
               <InfoCard icon={Calendar} label="Date of Birth" value={emp.dateOfBirth} />
               <InfoCard icon={Heart} label="Marital Status" value={emp.maritalStatus} />
-              <InfoCard icon={MapPin} label="Nationality" value={emp.nationality} />
             </div>
           </div>
 
@@ -170,6 +169,7 @@ export function EmployeeProfilePage() {
               <InfoCard icon={Mail} label="Personal Email" value={emp.personalEmail} />
               <InfoCard icon={MapPin} label="Address" value={emp.address} />
               <InfoCard icon={UserCheck} label="Next of Kin" value={emp.nextOfKin} />
+              <InfoCard icon={MapPin} label="Nationality" value={emp.nationality} />
             </div>
           </div>
 
@@ -181,8 +181,7 @@ export function EmployeeProfilePage() {
               <InfoCard icon={Building2} label="Bank Name" value={emp.bankName} />
               <InfoCard icon={FileText} label="Bank Account" value={emp.bankAccount} />
               <InfoCard icon={FileText} label="Tax ID" value={emp.taxId} />
-              <InfoCard icon={Briefcase} label="Grade" value={emp.grade} />
-              <InfoCard icon={MapPin} label="Nationality" value={emp.nationality} />
+              <InfoCard icon={Briefcase} label="Salary Grade" value={emp.grade} />
             </div>
           </div>
 
@@ -206,7 +205,7 @@ export function EmployeeProfilePage() {
             <div><p className="text-xs text-gray-500">Primary Supervisor</p><p className="text-sm font-medium text-gray-900 mt-1">{emp.primarySupervisor || "—"}</p></div>
             <div><p className="text-xs text-gray-500">Employment Type</p><p className="text-sm font-medium text-gray-900 mt-1">{emp.employmentType}</p></div>
             <div><p className="text-xs text-gray-500">Employment Date</p><p className="text-sm font-medium text-gray-900 mt-1">{emp.employmentDate || "—"}</p></div>
-            <div><p className="text-xs text-gray-500">Grade</p><p className="text-sm font-medium text-gray-900 mt-1">{emp.grade || "—"}</p></div>
+            <div><p className="text-xs text-gray-500">Salary Grade</p><p className="text-sm font-medium text-gray-900 mt-1">{emp.grade || "—"}</p></div>
             <div><p className="text-xs text-gray-500">Org Unit</p><p className="text-sm font-medium text-gray-900 mt-1">{emp.orgLevel || "—"}</p></div>
             <div><p className="text-xs text-gray-500">Status</p><p className="text-sm font-medium text-gray-900 mt-1 capitalize">{emp.status}</p></div>
           </div>
@@ -389,6 +388,9 @@ function EditEmployeeModal({ emp, onClose }: { emp: ReturnType<typeof useEmploye
               <div><label className="block text-xs font-medium text-gray-600 mb-1">Marital Status</label><select value={form.maritalStatus} onChange={e => set("maritalStatus", e.target.value)} className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm bg-white"><option value="">Select…</option><option value="Single">Single</option><option value="Married">Married</option><option value="Divorced">Divorced</option><option value="Widowed">Widowed</option></select></div>
               <div><label className="block text-xs font-medium text-gray-600 mb-1">Date of Birth</label><input type="date" value={form.dateOfBirth} onChange={e => set("dateOfBirth", e.target.value)} className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm" /></div>
               <div><label className="block text-xs font-medium text-gray-600 mb-1">Employment Date</label><input type="date" value={form.employmentDate} onChange={e => set("employmentDate", e.target.value)} className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm" /></div>
+              <div><label className="block text-xs font-medium text-gray-600 mb-1">Department</label><input value={form.department} onChange={e => set("department", e.target.value)} className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm" /></div>
+              <div><label className="block text-xs font-medium text-gray-600 mb-1">Org Unit</label><input value={form.orgLevel} onChange={e => set("orgLevel", e.target.value)} className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm" /></div>
+              <div><label className="block text-xs font-medium text-gray-600 mb-1">Employment Type</label><div className="flex gap-3 pt-1.5">{(["Full-time", "Contract"] as const).map(t => (<label key={t} className="flex items-center gap-2 cursor-pointer"><input type="radio" name="editEmpType" value={t} checked={form.employmentType === t} onChange={() => set("employmentType", t)} className="accent-indigo-600" /><span className="text-sm text-gray-700">{t}</span></label>))}</div></div>
             </div>
           </div>
 
@@ -399,6 +401,7 @@ function EditEmployeeModal({ emp, onClose }: { emp: ReturnType<typeof useEmploye
               <div><label className="block text-xs font-medium text-gray-600 mb-1">Personal Email</label><input type="email" value={form.personalEmail} onChange={e => set("personalEmail", e.target.value)} className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm" /></div>
               <div className="col-span-2"><label className="block text-xs font-medium text-gray-600 mb-1">Address</label><textarea value={form.address} onChange={e => set("address", e.target.value)} rows={2} className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm" /></div>
               <div className="col-span-2"><label className="block text-xs font-medium text-gray-600 mb-1">Next of Kin</label><input value={form.nextOfKin} onChange={e => set("nextOfKin", e.target.value)} className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm" /></div>
+              <div><label className="block text-xs font-medium text-gray-600 mb-1">Nationality</label><input value={form.nationality} onChange={e => set("nationality", e.target.value)} className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm" /></div>
             </div>
           </div>
 
@@ -410,8 +413,7 @@ function EditEmployeeModal({ emp, onClose }: { emp: ReturnType<typeof useEmploye
               <div><label className="block text-xs font-medium text-gray-600 mb-1">Bank Name</label><input value={form.bankName} onChange={e => set("bankName", e.target.value)} className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm" /></div>
               <div><label className="block text-xs font-medium text-gray-600 mb-1">Bank Account</label><input value={form.bankAccount} onChange={e => set("bankAccount", e.target.value)} className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm" /></div>
               <div><label className="block text-xs font-medium text-gray-600 mb-1">Tax ID</label><input value={form.taxId} onChange={e => set("taxId", e.target.value)} className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm" /></div>
-              <div><label className="block text-xs font-medium text-gray-600 mb-1">Grade</label><input value={form.grade} onChange={e => set("grade", e.target.value)} className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm" /></div>
-              <div><label className="block text-xs font-medium text-gray-600 mb-1">Nationality</label><input value={form.nationality} onChange={e => set("nationality", e.target.value)} className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm" /></div>
+              <div><label className="block text-xs font-medium text-gray-600 mb-1">Salary Grade</label><input value={form.grade} onChange={e => set("grade", e.target.value)} className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm" /></div>
             </div>
           </div>
         </div>

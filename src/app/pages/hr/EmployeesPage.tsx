@@ -107,6 +107,33 @@ function AddEmployeeModal({ onSave, onClose, orgLevels }: {
                   <option value="Widowed">Widowed</option>
                 </select>
               </div>
+              <div>
+                <label className="block text-xs font-medium text-gray-600 mb-1">Department</label>
+                <select value={form.department} onChange={e => set("department", e.target.value)}
+                  className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white">
+                  {departments.map(d => <option key={d} value={d}>{d}</option>)}
+                </select>
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-gray-600 mb-1">Org Unit</label>
+                <select value={form.orgLevel} onChange={e => set("orgLevel", e.target.value)}
+                  className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white">
+                  <option value="">Select org unit…</option>
+                  {orgLevels.map(l => <option key={l.name} value={l.name}>{l.name}</option>)}
+                </select>
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-gray-600 mb-1">Employment Type</label>
+                <div className="flex gap-3 pt-1.5">
+                  {(["Full-time", "Contract"] as const).map(t => (
+                    <label key={t} className="flex items-center gap-2 cursor-pointer">
+                      <input type="radio" name="empType" value={t} checked={form.employmentType === t}
+                        onChange={() => set("employmentType", t)} className="accent-indigo-600" />
+                      <span className="text-sm text-gray-700">{t}</span>
+                    </label>
+                  ))}
+                </div>
+              </div>
             </div>
           </div>
 
@@ -133,6 +160,11 @@ function AddEmployeeModal({ onSave, onClose, orgLevels }: {
                 <label className="block text-xs font-medium text-gray-600 mb-1">Next of Kin</label>
                 <input value={form.nextOfKin} onChange={e => set("nextOfKin", e.target.value)}
                   placeholder="Name, relationship, and phone number"
+                  className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-gray-600 mb-1">Nationality</label>
+                <input value={form.nationality} onChange={e => set("nationality", e.target.value)}
                   className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500" />
               </div>
             </div>
@@ -168,41 +200,10 @@ function AddEmployeeModal({ onSave, onClose, orgLevels }: {
                   className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500" />
               </div>
               <div>
-                <label className="block text-xs font-medium text-gray-600 mb-1">Grade</label>
+                <label className="block text-xs font-medium text-gray-600 mb-1">Salary Grade <span className="text-gray-400 font-normal">(pay grade / salary band)</span></label>
                 <input value={form.grade} onChange={e => set("grade", e.target.value)}
+                  placeholder="e.g. Level 7, L2, M2"
                   className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500" />
-              </div>
-              <div>
-                <label className="block text-xs font-medium text-gray-600 mb-1">Nationality</label>
-                <input value={form.nationality} onChange={e => set("nationality", e.target.value)}
-                  className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500" />
-              </div>
-              <div>
-                <label className="block text-xs font-medium text-gray-600 mb-1">Org Unit</label>
-                <select value={form.orgLevel} onChange={e => set("orgLevel", e.target.value)}
-                  className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white">
-                  <option value="">Select org unit…</option>
-                  {orgLevels.map(l => <option key={l.name} value={l.name}>{l.name}</option>)}
-                </select>
-              </div>
-              <div>
-                <label className="block text-xs font-medium text-gray-600 mb-1">Department</label>
-                <select value={form.department} onChange={e => set("department", e.target.value)}
-                  className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white">
-                  {departments.map(d => <option key={d} value={d}>{d}</option>)}
-                </select>
-              </div>
-              <div>
-                <label className="block text-xs font-medium text-gray-600 mb-1">Employment Type</label>
-                <div className="flex gap-3 pt-1.5">
-                  {(["Full-time", "Contract"] as const).map(t => (
-                    <label key={t} className="flex items-center gap-2 cursor-pointer">
-                      <input type="radio" name="empType" value={t} checked={form.employmentType === t}
-                        onChange={() => set("employmentType", t)} className="accent-indigo-600" />
-                      <span className="text-sm text-gray-700">{t}</span>
-                    </label>
-                  ))}
-                </div>
               </div>
             </div>
           </div>
