@@ -3,8 +3,9 @@ import {
   Search, Plus, Shield, MoreVertical, X, ChevronRight,
   Mail, Phone, MapPin, Briefcase, Calendar, Activity,
   CheckCircle2, XCircle, Clock, Edit, Copy, Trash2,
-  AlertCircle, Lock, Eye, PenLine, BadgeCheck, UserCheck, Upload,
+  AlertCircle, Lock, Eye, PenLine, BadgeCheck, UserCheck, Upload, RefreshCw,
 } from "lucide-react";
+import { useEmployees } from "../../stores/employeeStore";
 
 // ── Types ────────────────────────────────────────────────────────────────────
 type AppKey = "construction" | "finance" | "hr" | "procurement" | "admin" | "ess";
@@ -75,7 +76,7 @@ const mockUsers: UserRecord[] = [
     lastActive: "2 minutes ago",
     processes: buildProcesses(["p1_v","p1_c","p1_e","p1_a","p1_d","p2_a","p3_c","p4_c","p4_e","p5_a","p6_v","p6_c","p7_a","p8_c","p8_e","p9_c","p9_e","p10_a","p11_c","p12_v","p12_c","p12_e","p12_d"]),
     activity: [
-      { date: "Apr 10, 2026 09:14", action: "Created user Chukwudi Eze", module: "Users", app: "admin" },
+      { date: "Apr 10, 2026 09:14", action: "Synced employee Funke Adeyemi to user account", module: "Users", app: "admin" },
       { date: "Apr 10, 2026 08:55", action: "Updated project Lekki Tower A", module: "Projects", app: "construction" },
       { date: "Apr 9, 2026  17:30", action: "Approved expense EXP-0041", module: "Expenses", app: "finance" },
     ],
@@ -100,7 +101,7 @@ const mockUsers: UserRecord[] = [
     ],
   },
   {
-    id: "USR-003", name: "Sola Adeleke", email: "s.adeleke@buildos.com", phone: "+234 803 456 7890",
+    id: "USR-003", name: "Femi Adeleke", email: "f.adeleke@buildos.com", phone: "+234 803 456 7890",
     location: "Ibadan", role: "Accountant", department: "Finance", joinDate: "Jun 20, 2023",
     status: "Active", apps: ["finance", "ess"],
     lastActive: "30 minutes ago",
@@ -198,6 +199,88 @@ function AppBadge({ appKey, size = "sm" }: { appKey: AppKey; size?: "sm" | "xs" 
   );
 }
 
+// ── Sync Employee Slide-over ─────────────────────────────────────────────────
+function SyncEmployeePanel({ employee, onSync, onClose }: {
+  employee: { id: string; firstName: string; middleName: string; lastName: string; jobTitle: string; department: string; personalEmail: string; personalPhone: string };
+  onSync: (employeeId: string, email: string, role: string, apps: AppKey[]) => void;
+  onClose: () => void;
+}) {
+  const fullName = `${employee.firstName} ${employee.middleName} ${employee.lastName}`.replace(/\s+/g, " ").trim();
+  const [email, setEmail] = useState(employee.personalEmail || `${employee.firstName.toLowerCase()}.${employee.lastName.toLowerCase()}@buildos.com`);
+  const [role, setRole] = useState(employee.jobTitle);
+  const [selectedApps, setSelectedApps] = useState<AppKey[]>(["ess"]);
+
+  const toggleApp = (app: AppKey) => {
+    setSelectedApps(prev => prev.includes(app) ? prev.filter(a => a !== app) : [...prev, app]);
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex">
+      <div className="flex-1 bg-black/30" onClick={onClose} />
+      <div className="w-[480px] bg-white border-l border-gray-200 flex flex-col overflow-hidden shadow-2xl">
+        <div className="px-6 py-4 border-b border-gray-200 flex items-center justify-between shrink-0">
+          <div>
+            <h2 className="text-base font-semibold text-gray-900">Sync Employee to User</h2>
+            <p className="text-xs text-gray-500 mt-0.5">{employee.id} · {fullName}</p>
+          </div>
+          <button onClick={onClose} className="p-1.5 text-gray-400 hover:text-gray-700 hover:bg-gray-100 rounded-lg"><X className="w-5 h-5" /></button>
+        </div>
+
+        <div className="flex-1 overflow-y-auto p-6 space-y-5">
+          <div className="bg-indigo-50 border border-indigo-100 rounded-xl p-4 flex items-start gap-3">
+            <RefreshCw className="w-5 h-5 text-indigo-600 shrink-0 mt-0.5" />
+            <div>
+              <p className="text-sm font-medium text-indigo-900">Employee record from HR</p>
+              <p className="text-xs text-indigo-700 mt-0.5">This employee was created in the HR module. Sync them to create a user account with login credentials and role-based permissions.</p>
+            </div>
+          </div>
+
+          <div>
+            <label className="block text-xs font-medium text-gray-600 mb-1">Company Email <span className="text-red-500">*</span></label>
+            <input type="email" value={email} onChange={e => setEmail(e.target.value)}
+              className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+          </div>
+
+          <div>
+            <label className="block text-xs font-medium text-gray-600 mb-1">Role / Title</label>
+            <input value={role} onChange={e => setRole(e.target.value)}
+              className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+          </div>
+
+          <div>
+            <label className="block text-xs font-medium text-gray-600 mb-2">Application Access</label>
+            <p className="text-xs text-gray-400 mb-3">Select which modules this user can access.</p>
+            <div className="space-y-2">
+              {ALL_APPS.map(app => {
+                const has = selectedApps.includes(app.key);
+                return (
+                  <label key={app.key} className={`flex items-center justify-between p-3 rounded-lg border cursor-pointer transition-colors ${has ? "border-emerald-200 bg-emerald-50" : "border-gray-200 hover:bg-gray-50"}`}>
+                    <div className="flex items-center gap-3">
+                      <input type="checkbox" checked={has} onChange={() => toggleApp(app.key)}
+                        className="rounded border-gray-300 text-indigo-600 focus:ring-indigo-500" />
+                      <span className={`px-2 py-0.5 rounded text-xs font-semibold ${app.color}`}>{app.abbr}</span>
+                      <span className="text-sm text-gray-800">{app.label}</span>
+                    </div>
+                    {has && <CheckCircle2 className="w-4 h-4 text-emerald-600" />}
+                  </label>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+
+        <div className="px-6 py-4 border-t border-gray-100 flex justify-end gap-3 shrink-0">
+          <button onClick={onClose} className="px-4 py-2 border border-gray-300 rounded-lg text-sm text-gray-700 hover:bg-gray-50">Cancel</button>
+          <button onClick={() => onSync(employee.id, email, role, selectedApps)} disabled={!email.trim()}
+            className="px-4 py-2 bg-indigo-600 text-white rounded-lg text-sm font-medium hover:bg-indigo-700 disabled:opacity-40 disabled:cursor-not-allowed flex items-center gap-2">
+            <RefreshCw className="w-4 h-4" /> Sync & Create User
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ── User Detail Slide-over ───────────────────────────────────────────────────
 function UserDetailPanel({ user, onClose, onUpdateSignature }: { user: UserRecord; onClose: () => void; onUpdateSignature: (id: string, has: boolean, initials?: string) => void }) {
   const [tab, setTab] = useState<"info" | "apps" | "permissions" | "activity" | "requests" | "signature">("info");
@@ -213,7 +296,6 @@ function UserDetailPanel({ user, onClose, onUpdateSignature }: { user: UserRecor
     { key: "requests",    label: "Requests" },
   ] as const;
 
-  // Group processes by app
   const processesByApp = ALL_APPS.map((app) => ({
     app,
     processes: user.processes.filter((p) => p.app === app.key),
@@ -221,11 +303,8 @@ function UserDetailPanel({ user, onClose, onUpdateSignature }: { user: UserRecor
 
   return (
     <div className="fixed inset-0 z-50 flex">
-      {/* Overlay */}
       <div className="flex-1 bg-black/30" onClick={onClose} />
-      {/* Panel */}
       <div className="w-[640px] bg-white border-l border-gray-200 flex flex-col overflow-hidden shadow-2xl">
-        {/* Header */}
         <div className="px-6 py-4 border-b border-gray-200 flex items-center gap-4 shrink-0">
           <div className="w-12 h-12 rounded-full bg-indigo-600 text-white flex items-center justify-center text-lg font-bold shrink-0">
             {user.name.split(" ").map((n) => n[0]).join("").slice(0, 2)}
@@ -242,25 +321,16 @@ function UserDetailPanel({ user, onClose, onUpdateSignature }: { user: UserRecor
           </button>
         </div>
 
-        {/* Tabs */}
         <div className="flex border-b border-gray-100 shrink-0 px-6">
           {tabs.map((t) => (
-            <button
-              key={t.key}
-              onClick={() => setTab(t.key)}
-              className={`py-2.5 px-3 text-xs font-medium transition-colors border-b-2 -mb-px ${
-                tab === t.key ? "border-indigo-500 text-indigo-700" : "border-transparent text-gray-500 hover:text-gray-700"
-              }`}
-            >
+            <button key={t.key} onClick={() => setTab(t.key)}
+              className={`py-2.5 px-3 text-xs font-medium transition-colors border-b-2 -mb-px ${tab === t.key ? "border-indigo-500 text-indigo-700" : "border-transparent text-gray-500 hover:text-gray-700"}`}>
               {t.label}
             </button>
           ))}
         </div>
 
-        {/* Body */}
         <div className="flex-1 overflow-y-auto p-6">
-
-          {/* ── Basic Info ── */}
           {tab === "info" && (
             <div className="space-y-4">
               <div className="grid grid-cols-2 gap-4">
@@ -288,13 +358,10 @@ function UserDetailPanel({ user, onClose, onUpdateSignature }: { user: UserRecor
             </div>
           )}
 
-          {/* ── App Access ── */}
           {tab === "apps" && (
             <div className="space-y-3">
               <p className="text-xs text-gray-500 mb-4">
-                {user.apps.length === 0
-                  ? "This user has no application access assigned."
-                  : `${user.apps.length} of ${ALL_APPS.length} applications assigned.`}
+                {user.apps.length === 0 ? "No application access assigned." : `${user.apps.length} of ${ALL_APPS.length} applications assigned.`}
               </p>
               {ALL_APPS.map((app) => {
                 const has = user.apps.includes(app.key);
@@ -304,19 +371,16 @@ function UserDetailPanel({ user, onClose, onUpdateSignature }: { user: UserRecor
                       <span className={`px-2 py-1 rounded text-xs font-semibold ${app.color}`}>{app.abbr}</span>
                       <span className="text-sm font-medium text-gray-800">{app.label}</span>
                     </div>
-                    <div className="flex items-center gap-2">
-                      {has
-                        ? <><CheckCircle2 className="w-4 h-4 text-emerald-600" /><span className="text-xs text-emerald-700 font-medium">Assigned</span></>
-                        : <><XCircle className="w-4 h-4 text-gray-300" /><span className="text-xs text-gray-400">No access</span></>
-                      }
-                    </div>
+                    {has
+                      ? <><CheckCircle2 className="w-4 h-4 text-emerald-600" /><span className="text-xs text-emerald-700 font-medium ml-1">Assigned</span></>
+                      : <><XCircle className="w-4 h-4 text-gray-300" /><span className="text-xs text-gray-400 ml-1">No access</span></>
+                    }
                   </div>
                 );
               })}
             </div>
           )}
 
-          {/* ── Permissions ── */}
           {tab === "permissions" && (
             <div className="space-y-6">
               <p className="text-xs text-gray-500">Process-level permissions across all applications.</p>
@@ -360,12 +424,9 @@ function UserDetailPanel({ user, onClose, onUpdateSignature }: { user: UserRecor
             </div>
           )}
 
-          {/* ── Activity ── */}
           {tab === "activity" && (
             <div className="space-y-2">
-              {user.activity.length === 0 && (
-                <p className="text-sm text-gray-400 text-center py-8">No activity recorded.</p>
-              )}
+              {user.activity.length === 0 && <p className="text-sm text-gray-400 text-center py-8">No activity recorded.</p>}
               {user.activity.map((a, i) => (
                 <div key={i} className="flex items-start gap-3 p-3 rounded-lg bg-gray-50 border border-gray-100">
                   <div className={`mt-[5px] w-1.5 h-1.5 rounded-full shrink-0 ${ALL_APPS.find(ap => ap.key === a.app)?.color.replace("text-", "bg-").split(" ")[0]}`} />
@@ -383,12 +444,9 @@ function UserDetailPanel({ user, onClose, onUpdateSignature }: { user: UserRecor
             </div>
           )}
 
-          {/* ── Requests ── */}
           {tab === "requests" && (
             <div className="space-y-2">
-              {user.requests.length === 0 && (
-                <p className="text-sm text-gray-400 text-center py-8">No request history.</p>
-              )}
+              {user.requests.length === 0 && <p className="text-sm text-gray-400 text-center py-8">No request history.</p>}
               {user.requests.map((r, i) => {
                 const cfg = {
                   submitted: { icon: <Clock className="w-4 h-4 text-amber-500" />,    badge: "bg-amber-100 text-amber-700",   label: "Submitted" },
@@ -409,20 +467,16 @@ function UserDetailPanel({ user, onClose, onUpdateSignature }: { user: UserRecor
             </div>
           )}
 
-          {/* ── Signature ── */}
           {tab === "signature" && (
             <div className="space-y-5">
               <div>
                 <p className="text-sm font-medium text-gray-800 mb-1">Digital Signature</p>
-                <p className="text-xs text-gray-500">Used on official documents: RFQs, Purchase Orders, Payment Confirmations, and other outgoing documents. Signatures appear in "Sent By" and "Approved By" sections.</p>
+                <p className="text-xs text-gray-500">Used on official documents: RFQs, Purchase Orders, Payment Confirmations.</p>
               </div>
-
-              {/* Current signature display */}
               <div className="bg-gray-50 border border-gray-200 rounded-xl p-5">
                 <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">Current Signature</p>
                 {(hasSignature || uploadSimulated) ? (
                   <div className="space-y-3">
-                    {/* Signature preview — stylised initials as a simulated signature */}
                     <div className="bg-white border-2 border-dashed border-gray-200 rounded-xl p-6 flex items-center justify-center min-h-[100px]">
                       <p style={{ fontFamily: "cursive" }} className="text-3xl text-gray-700 select-none">{signatureInitials}</p>
                     </div>
@@ -440,58 +494,33 @@ function UserDetailPanel({ user, onClose, onUpdateSignature }: { user: UserRecor
                   <div className="bg-white border-2 border-dashed border-gray-200 rounded-xl p-8 flex flex-col items-center justify-center text-center gap-2">
                     <PenLine className="w-8 h-8 text-gray-300" />
                     <p className="text-sm text-gray-400">No signature uploaded yet</p>
-                    <p className="text-xs text-gray-400">Upload a signature image or use the signature pad below</p>
                   </div>
                 )}
               </div>
-
-              {/* Signature customisation */}
               <div className="space-y-3">
                 <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Signature Text / Initials</p>
                 <div className="flex items-center gap-3">
                   <input value={signatureInitials} onChange={e => setSignatureInitials(e.target.value)}
-                    maxLength={8} placeholder="e.g. A.O or signature text"
+                    maxLength={8} placeholder="e.g. A.O"
                     className="flex-1 border border-gray-200 rounded-xl px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-indigo-500" />
                   <div className="bg-white border border-gray-200 rounded-xl px-4 py-2 min-w-[80px] text-center">
                     <p style={{ fontFamily: "cursive" }} className="text-lg text-gray-700">{signatureInitials || "…"}</p>
                   </div>
                 </div>
               </div>
-
-              {/* Upload simulation */}
               <div className="border border-gray-200 rounded-xl p-4 space-y-3">
                 <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Upload Signature Image</p>
                 <div className="border-2 border-dashed border-gray-200 rounded-xl p-4 flex flex-col items-center gap-2 cursor-pointer hover:border-indigo-300 hover:bg-indigo-50/30 transition-colors"
                   onClick={() => { setUploadSimulated(true); }}>
                   <PenLine className="w-5 h-5 text-gray-400" />
-                  <p className="text-xs text-gray-500">Click to upload signature file <span className="text-gray-400">(PNG, JPG — white background preferred)</span></p>
+                  <p className="text-xs text-gray-500">Click to upload signature file</p>
                   {uploadSimulated && <p className="text-xs text-green-600 font-medium">✓ signature_file.png uploaded</p>}
                 </div>
               </div>
-
-              {/* Document section preview */}
-              <div className="bg-blue-50 border border-blue-100 rounded-xl p-4 space-y-2">
-                <p className="text-xs font-semibold text-blue-700 uppercase tracking-wide">How this appears on documents</p>
-                <div className="grid grid-cols-2 gap-4">
-                  {["Sent By", "Approved By"].map(label => (
-                    <div key={label} className="bg-white border border-blue-100 rounded-lg p-3 space-y-1">
-                      <p className="text-xs text-gray-400 uppercase tracking-wide">{label}</p>
-                      <div className="border-b border-gray-200 pb-2 mb-2">
-                        <p style={{ fontFamily: "cursive" }} className="text-lg text-gray-600">{signatureInitials || "…"}</p>
-                      </div>
-                      <p className="text-xs font-semibold text-gray-700">{user.name}</p>
-                      <p className="text-xs text-gray-500">{user.role}</p>
-                    </div>
-                  ))}
-                </div>
-              </div>
-
               <div className="flex justify-end gap-3">
                 {(hasSignature || uploadSimulated) && (
                   <button onClick={() => { setHasSignature(false); setUploadSimulated(false); onUpdateSignature(user.id, false); }}
-                    className="px-4 py-2 text-sm border border-red-200 rounded-xl text-red-600 hover:bg-red-50">
-                    Remove Signature
-                  </button>
+                    className="px-4 py-2 text-sm border border-red-200 rounded-xl text-red-600 hover:bg-red-50">Remove Signature</button>
                 )}
                 <button onClick={() => { onUpdateSignature(user.id, true, signatureInitials); setHasSignature(true); }}
                   className="px-4 py-2 text-sm bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl flex items-center gap-2">
@@ -502,7 +531,6 @@ function UserDetailPanel({ user, onClose, onUpdateSignature }: { user: UserRecor
           )}
         </div>
 
-        {/* Footer actions */}
         <div className="px-6 py-3 border-t border-gray-100 flex items-center gap-2 shrink-0 bg-gray-50">
           <button className="flex items-center gap-1.5 px-3 py-1.5 text-sm border border-gray-300 rounded-lg text-gray-700 hover:bg-white transition-colors">
             <Edit className="w-4 h-4" />Edit User
@@ -525,14 +553,17 @@ function UserDetailPanel({ user, onClose, onUpdateSignature }: { user: UserRecor
 
 // ── Main Page ────────────────────────────────────────────────────────────────
 export function UsersPage() {
+  const { employees, syncEmployee } = useEmployees();
   const [search, setSearch] = useState("");
-  const [statusFilter, setStatusFilter] = useState<UserStatus | "all">("all");
+  const [statusFilter, setStatusFilter] = useState<UserStatus | "all" | "unsynced">("all");
   const [appFilter, setAppFilter] = useState<AppKey | "all">("all");
-  const [showAddModal, setShowAddModal] = useState(false);
+  const [syncTarget, setSyncTarget] = useState<typeof employees[0] | null>(null);
   const [selectedUser, setSelectedUser] = useState<UserRecord | null>(null);
   const [openMenuId, setOpenMenuId] = useState<string | null>(null);
 
-  const filtered = mockUsers.filter((u) => {
+  const unsyncedEmployees = employees.filter(e => e.syncStatus === "unsynced");
+
+  const filteredUsers = mockUsers.filter((u) => {
     const q = search.toLowerCase();
     const matchSearch = u.name.toLowerCase().includes(q) || u.email.toLowerCase().includes(q) || u.role.toLowerCase().includes(q);
     const matchStatus = statusFilter === "all" || u.status === statusFilter;
@@ -540,16 +571,37 @@ export function UsersPage() {
     return matchSearch && matchStatus && matchApp;
   });
 
+  const filteredUnsynced = unsyncedEmployees.filter(e => {
+    const q = search.toLowerCase();
+    const fullName = `${e.firstName} ${e.middleName} ${e.lastName}`;
+    return fullName.toLowerCase().includes(q) || e.jobTitle.toLowerCase().includes(q) || e.department.toLowerCase().includes(q);
+  });
+
+  const showUnsyncedOnly = statusFilter === "unsynced";
+
   const stats = {
-    total: mockUsers.length,
+    total: mockUsers.length + unsyncedEmployees.length,
     active: mockUsers.filter((u) => u.status === "Active").length,
     pending: mockUsers.filter((u) => u.status === "Pending").length,
-    inactive: mockUsers.filter((u) => u.status === "Inactive").length,
+    unsynced: unsyncedEmployees.length,
   };
+
+  function handleSync(employeeId: string, email: string, role: string, apps: AppKey[]) {
+    const newUserId = `USR-${String(mockUsers.length + 1).padStart(3, "0")}`;
+    syncEmployee(employeeId, newUserId);
+    setSyncTarget(null);
+  }
 
   return (
     <div>
-      {/* User Detail Modal */}
+      {syncTarget && (
+        <SyncEmployeePanel
+          employee={syncTarget}
+          onSync={handleSync}
+          onClose={() => setSyncTarget(null)}
+        />
+      )}
+
       {selectedUser && (
         <UserDetailPanel
           user={selectedUser}
@@ -558,27 +610,19 @@ export function UsersPage() {
         />
       )}
 
-      {/* Header */}
       <div className="flex items-center justify-between mb-6">
         <div>
           <h1 className="text-2xl font-semibold text-gray-900">Users</h1>
-          <p className="text-sm text-gray-500 mt-0.5">Manage users, app access, and process-level permissions</p>
+          <p className="text-sm text-gray-500 mt-0.5">Manage users, sync employees from HR, and configure app access & permissions</p>
         </div>
-        <button
-          onClick={() => setShowAddModal(true)}
-          className="flex items-center gap-2 bg-indigo-600 text-white px-4 py-2 rounded-lg hover:bg-indigo-700 transition-colors text-sm font-medium"
-        >
-          <Plus className="w-4 h-4" />Add User
-        </button>
       </div>
 
-      {/* Stats */}
       <div className="grid grid-cols-4 gap-4 mb-6">
         {[
-          { label: "Total Users",    value: stats.total,   color: "text-gray-900" },
-          { label: "Active",         value: stats.active,  color: "text-emerald-600" },
-          { label: "Pending Invite", value: stats.pending, color: "text-amber-500" },
-          { label: "Inactive",       value: stats.inactive, color: "text-gray-400" },
+          { label: "Total Records",   value: stats.total,   color: "text-gray-900" },
+          { label: "Active Users",    value: stats.active,  color: "text-emerald-600" },
+          { label: "Pending Invite",  value: stats.pending, color: "text-amber-500" },
+          { label: "Unsynced (HR)",   value: stats.unsynced, color: "text-indigo-600" },
         ].map((s) => (
           <div key={s.label} className="bg-white rounded-xl border border-gray-200 p-4">
             <p className="text-xs text-gray-500 uppercase tracking-wide font-medium">{s.label}</p>
@@ -587,116 +631,187 @@ export function UsersPage() {
         ))}
       </div>
 
-      {/* Filters */}
       <div className="flex items-center gap-3 mb-5">
         <div className="relative flex-1 max-w-sm">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-          <input
-            type="text" placeholder="Search name, email, role…"
+          <input type="text" placeholder="Search name, email, role…"
             value={search} onChange={(e) => setSearch(e.target.value)}
-            className="w-full pl-9 pr-4 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
-          />
+            className="w-full pl-9 pr-4 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500" />
         </div>
-        <select
-          value={statusFilter}
-          onChange={(e) => setStatusFilter(e.target.value as UserStatus | "all")}
-          className="px-3 py-2 border border-gray-300 rounded-lg text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-indigo-500"
-        >
+        <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value as UserStatus | "all" | "unsynced")}
+          className="px-3 py-2 border border-gray-300 rounded-lg text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-indigo-500">
           <option value="all">All Statuses</option>
           <option value="Active">Active</option>
           <option value="Pending">Pending</option>
           <option value="Inactive">Inactive</option>
+          <option value="unsynced">Unsynced (from HR)</option>
         </select>
-        <select
-          value={appFilter}
-          onChange={(e) => setAppFilter(e.target.value as AppKey | "all")}
-          className="px-3 py-2 border border-gray-300 rounded-lg text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-indigo-500"
-        >
+        <select value={appFilter} onChange={(e) => setAppFilter(e.target.value as AppKey | "all")}
+          className="px-3 py-2 border border-gray-300 rounded-lg text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-indigo-500">
           <option value="all">All Applications</option>
           {ALL_APPS.map((a) => <option key={a.key} value={a.key}>{a.label}</option>)}
         </select>
       </div>
 
-      {/* Table */}
-      <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
-        <table className="w-full">
-          <thead className="bg-gray-50 border-b border-gray-200">
-            <tr>
-              <th className="text-left px-5 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">User</th>
-              <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Role</th>
-              <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Status</th>
-              <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Assigned Applications</th>
-              <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Last Active</th>
-              <th className="px-4 py-3 w-20" />
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-gray-100">
-            {filtered.map((user) => (
-              <tr
-                key={user.id}
-                className="hover:bg-gray-50 cursor-pointer transition-colors"
-                onClick={() => setSelectedUser(user)}
-              >
-                <td className="px-5 py-3.5">
-                  <div className="flex items-center gap-3">
-                    <div className="w-8 h-8 rounded-full bg-indigo-600 text-white flex items-center justify-center text-xs font-bold shrink-0">
-                      {user.name.split(" ").map((n) => n[0]).join("").slice(0, 2)}
-                    </div>
-                    <div>
-                      <p className="text-sm font-medium text-gray-900">{user.name}</p>
-                      <p className="text-xs text-gray-400">{user.email}</p>
-                    </div>
-                  </div>
-                </td>
-                <td className="px-4 py-3.5">
-                  <div className="flex items-center gap-2">
-                    <Shield className="w-3.5 h-3.5 text-gray-400 shrink-0" />
-                    <span className="text-sm text-gray-700">{user.role}</span>
-                    {user.hasSignature && (
-                      <BadgeCheck className="w-3.5 h-3.5 text-indigo-500 shrink-0" title="Signature on file" />
-                    )}
-                  </div>
-                </td>
-                <td className="px-4 py-3.5">
-                  <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${STATUS_COLOR[user.status]}`}>
-                    {user.status}
-                  </span>
-                </td>
-                <td className="px-4 py-3.5">
-                  {user.apps.length === 0 ? (
-                    <span className="text-xs text-gray-400 italic">No access</span>
-                  ) : (
-                    <div className="flex items-center gap-1 flex-wrap">
-                      {user.apps.slice(0, 4).map((a) => <AppBadge key={a} appKey={a} size="xs" />)}
-                      {user.apps.length > 4 && (
-                        <span className="text-xs text-gray-400">+{user.apps.length - 4}</span>
-                      )}
-                    </div>
-                  )}
-                </td>
-                <td className="px-4 py-3.5">
-                  <span className="text-sm text-gray-500">{user.lastActive}</span>
-                </td>
-                <td className="px-4 py-3.5" onClick={(e) => e.stopPropagation()}>
-                  <div className="relative flex justify-end">
-                    {/* ...existing code... */}
-                    {/* FIX: Remove invalid </label> and stray JSX, ensure correct closing tags */}
-                    <button
-                      onClick={() => setOpenMenuId(openMenuId === user.id ? null : user.id)}
-                      className="p-1.5 rounded-lg hover:bg-gray-100 text-gray-400 hover:text-gray-700 transition-colors"
-                    >
-                      <input type="checkbox" className="rounded border-gray-300 text-indigo-600 focus:ring-indigo-500" />
-                      {/* Add any additional button content here if needed */}
-                    </button>
-                  </div>
-                </td>
-                {/* ...existing code... */}
+      {/* Unsynced Employees Section */}
+      {!showUnsyncedOnly && unsyncedEmployees.length > 0 && (
+        <div className="mb-6">
+          <div className="flex items-center gap-2 mb-3">
+            <UserCheck className="w-4 h-4 text-indigo-600" />
+            <h3 className="text-sm font-semibold text-gray-800">Pending Sync from HR ({unsyncedEmployees.length})</h3>
+          </div>
+          <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
+            <table className="w-full">
+              <thead className="bg-indigo-50 border-b border-indigo-100">
+                <tr>
+                  <th className="text-left px-4 py-2.5 text-xs font-semibold text-indigo-700 uppercase tracking-wide">Employee</th>
+                  <th className="text-left px-4 py-2.5 text-xs font-semibold text-indigo-700 uppercase tracking-wide">Job Title</th>
+                  <th className="text-left px-4 py-2.5 text-xs font-semibold text-indigo-700 uppercase tracking-wide">Department</th>
+                  <th className="text-right px-4 py-2.5 text-xs font-semibold text-indigo-700 uppercase tracking-wide">Action</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-100">
+                {filteredUnsynced.map(emp => (
+                  <tr key={emp.id} className="hover:bg-indigo-50/30 transition-colors">
+                    <td className="px-4 py-3">
+                      <div className="flex items-center gap-3">
+                        <div className="w-8 h-8 rounded-full bg-amber-100 text-amber-700 flex items-center justify-center text-xs font-bold shrink-0">
+                          {emp.firstName[0]}{emp.lastName[0]}
+                        </div>
+                        <div>
+                          <p className="text-sm font-medium text-gray-900">{emp.firstName} {emp.lastName}</p>
+                          <p className="text-xs text-gray-400">{emp.id}</p>
+                        </div>
+                      </div>
+                    </td>
+                    <td className="px-4 py-3 text-sm text-gray-700">{emp.jobTitle}</td>
+                    <td className="px-4 py-3 text-sm text-gray-500">{emp.department}</td>
+                    <td className="px-4 py-3 text-right">
+                      <button onClick={() => setSyncTarget(emp)}
+                        className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-indigo-600 text-white rounded-lg text-xs font-medium hover:bg-indigo-700 transition-colors">
+                        <RefreshCw className="w-3.5 h-3.5" /> Sync
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+
+      {/* Unsynced-only view */}
+      {showUnsyncedOnly && (
+        <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
+          <table className="w-full">
+            <thead className="bg-gray-50 border-b border-gray-200">
+              <tr>
+                <th className="text-left px-5 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Employee</th>
+                <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Job Title</th>
+                <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Department</th>
+                <th className="text-right px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Action</th>
               </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-      {/* ...existing code... */}
+            </thead>
+            <tbody className="divide-y divide-gray-100">
+              {filteredUnsynced.map(emp => (
+                <tr key={emp.id} className="hover:bg-gray-50 transition-colors">
+                  <td className="px-5 py-3.5">
+                    <div className="flex items-center gap-3">
+                      <div className="w-8 h-8 rounded-full bg-amber-100 text-amber-700 flex items-center justify-center text-xs font-bold shrink-0">
+                        {emp.firstName[0]}{emp.lastName[0]}
+                      </div>
+                      <div>
+                        <p className="text-sm font-medium text-gray-900">{emp.firstName} {emp.lastName}</p>
+                        <p className="text-xs text-gray-400">{emp.id}</p>
+                      </div>
+                    </div>
+                  </td>
+                  <td className="px-4 py-3.5 text-sm text-gray-700">{emp.jobTitle}</td>
+                  <td className="px-4 py-3.5 text-sm text-gray-500">{emp.department}</td>
+                  <td className="px-4 py-3.5 text-right">
+                    <button onClick={() => setSyncTarget(emp)}
+                      className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-indigo-600 text-white rounded-lg text-xs font-medium hover:bg-indigo-700 transition-colors">
+                      <RefreshCw className="w-3.5 h-3.5" /> Sync to User
+                    </button>
+                  </td>
+                </tr>
+              ))}
+              {filteredUnsynced.length === 0 && (
+                <tr><td colSpan={4} className="text-center py-12 text-gray-400 text-sm">No unsynced employees found.</td></tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+      )}
+
+      {/* Existing Users Section */}
+      {!showUnsyncedOnly && (
+        <div>
+          <div className="flex items-center gap-2 mb-3">
+            <Shield className="w-4 h-4 text-gray-600" />
+            <h3 className="text-sm font-semibold text-gray-800">Active System Users ({filteredUsers.length})</h3>
+          </div>
+          <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
+            <table className="w-full">
+              <thead className="bg-gray-50 border-b border-gray-200">
+                <tr>
+                  <th className="text-left px-5 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">User</th>
+                  <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Role</th>
+                  <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Status</th>
+                  <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Assigned Applications</th>
+                  <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Last Active</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-100">
+                {filteredUsers.map((user) => (
+                  <tr key={user.id} className="hover:bg-gray-50 cursor-pointer transition-colors" onClick={() => setSelectedUser(user)}>
+                    <td className="px-5 py-3.5">
+                      <div className="flex items-center gap-3">
+                        <div className="w-8 h-8 rounded-full bg-indigo-600 text-white flex items-center justify-center text-xs font-bold shrink-0">
+                          {user.name.split(" ").map((n) => n[0]).join("").slice(0, 2)}
+                        </div>
+                        <div>
+                          <p className="text-sm font-medium text-gray-900">{user.name}</p>
+                          <p className="text-xs text-gray-400">{user.email}</p>
+                        </div>
+                      </div>
+                    </td>
+                    <td className="px-4 py-3.5">
+                      <div className="flex items-center gap-2">
+                        <Shield className="w-3.5 h-3.5 text-gray-400 shrink-0" />
+                        <span className="text-sm text-gray-700">{user.role}</span>
+                        {user.hasSignature && <BadgeCheck className="w-3.5 h-3.5 text-indigo-500 shrink-0" title="Signature on file" />}
+                      </div>
+                    </td>
+                    <td className="px-4 py-3.5">
+                      <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${STATUS_COLOR[user.status]}`}>{user.status}</span>
+                    </td>
+                    <td className="px-4 py-3.5">
+                      {user.apps.length === 0 ? (
+                        <span className="text-xs text-gray-400 italic">No access</span>
+                      ) : (
+                        <div className="flex items-center gap-1 flex-wrap">
+                          {user.apps.slice(0, 4).map((a) => <AppBadge key={a} appKey={a} size="xs" />)}
+                          {user.apps.length > 4 && <span className="text-xs text-gray-400">+{user.apps.length - 4}</span>}
+                        </div>
+                      )}
+                    </td>
+                    <td className="px-4 py-3.5">
+                      <span className="text-sm text-gray-500">{user.lastActive}</span>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+            {filteredUsers.length === 0 && (
+              <div className="text-center py-12 text-gray-400">
+                <Shield className="w-8 h-8 mx-auto mb-2 opacity-40" />
+                <p className="text-sm">No users match your filters</p>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
