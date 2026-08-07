@@ -1,6 +1,6 @@
 import { useState } from "react";
 import {
-  Download, CheckCircle, Clock, Send, Users, Plus, Trash2,
+  Download, CheckCircle, Clock, Send, Plus, Trash2,
   BookOpen, Zap, X, GitBranch, AlertTriangle,
 } from "lucide-react";
 import { exportCSV } from "../../utils/exportCSV";
@@ -164,19 +164,111 @@ function PostingModal({ run, lines, onConfirm, onClose }: {
   );
 }
 
+// ── Run detail drawer (slide-over) ────────────────────────────────────────
+const employeeColumns: Column<PayrollEmployee>[] = [
+  {
+    key: "employee",
+    label: "Employee",
+    render: (e) => (
+      <div>
+        <p className="text-sm font-medium text-gray-900">{e.name}</p>
+        <p className="text-xs text-gray-400">{e.role}</p>
+      </div>
+    ),
+  },
+  { key: "basic", label: "Basic", className: "text-right", headerClassName: "text-right", render: (e) => <span className="text-sm text-gray-700">{fmt(e.basicSalary)}</span> },
+  { key: "allowances", label: "Allowances", className: "text-right", headerClassName: "text-right", render: (e) => <span className="text-sm text-emerald-600">+{fmt(e.allowances)}</span> },
+  { key: "deductions", label: "Deductions", className: "text-right", headerClassName: "text-right", render: (e) => <span className="text-sm text-red-600">−{fmt(e.deductions)}</span> },
+  { key: "net", label: "Net", className: "text-right font-semibold text-gray-900", headerClassName: "text-right", render: (e) => <span>{fmt(e.net)}</span> },
+  { key: "bank", label: "Bank", render: (e) => <span className="text-xs text-gray-500">{e.bank} {e.accountNo}</span> },
+];
+
+function RunDrawer({ run, actions, onClose }: {
+  run: PayrollRun;
+  actions?: React.ReactNode;
+  onClose: () => void;
+}) {
+  return (
+    <div className="fixed inset-0 z-50 flex justify-end">
+      <div className="absolute inset-0 bg-black/40" onClick={onClose} />
+      <div className="relative bg-white h-full w-full max-w-xl shadow-2xl flex flex-col">
+        {/* Drawer header */}
+        <div className="px-6 py-5 border-b border-gray-100 flex items-start justify-between">
+          <div>
+            <p className="text-xs text-gray-400 font-medium">{run.payrollCode} · {run.id} · {run.department}</p>
+            <h2 className="text-lg font-semibold text-gray-900 mt-0.5">{run.period} Payroll</h2>
+          </div>
+          <div className="flex items-center gap-2">
+            <span className={`inline-flex items-center gap-1 px-2.5 py-1 text-xs rounded-full font-medium ${statusConfig[run.status].badge}`}>
+              {statusConfig[run.status].icon}{run.status}
+            </span>
+            <button onClick={onClose} className="text-gray-400 hover:text-gray-600 transition-colors"><X className="w-5 h-5" /></button>
+          </div>
+        </div>
+
+        <div className="px-6 py-5 space-y-6 overflow-y-auto flex-1">
+          {/* Breakdown */}
+          <div className="grid grid-cols-3 gap-3">
+            <div className="bg-gray-50 rounded-xl p-4 text-center"><p className="text-xs text-gray-500">Total Earnings</p><p className="text-lg font-bold text-gray-900 mt-1">{fmt(run.grossPay)}</p></div>
+            <div className="bg-red-50 rounded-xl p-4 text-center"><p className="text-xs text-gray-500">Total Deductions</p><p className="text-lg font-bold text-red-600 mt-1">−{fmt(run.deductions)}</p></div>
+            <div className="bg-emerald-50 rounded-xl p-4 text-center"><p className="text-xs text-gray-500">Net Pay</p><p className="text-lg font-bold text-emerald-700 mt-1">{fmt(run.netPay)}</p></div>
+          </div>
+
+          {/* Audit trail */}
+          <div>
+            <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">Audit Trail</h3>
+            <div className="space-y-2.5">
+              {run.submittedBy && <p className="text-xs text-gray-500">Submitted by <span className="font-medium text-gray-700">{run.submittedBy}</span></p>}
+              {run.approvedBy && <p className="text-xs text-gray-500">HR approved by <span className="font-medium text-gray-700">{run.approvedBy}</span> on {run.approvedAt}</p>}
+              {run.sentForPostingBy && <p className="text-xs text-gray-500">Sent for posting approval by <span className="font-medium text-gray-700">{run.sentForPostingBy}</span> on {run.sentForPostingAt}</p>}
+              {run.postingApprovedBy && <p className="text-xs text-gray-500">Posting approved by <span className="font-medium text-gray-700">{run.postingApprovedBy}</span> on {run.postingApprovedAt}</p>}
+              {run.postedBy
+                ? <p className="text-xs text-emerald-600 font-medium">✓ Posted to ledger <span className="font-mono">{run.ledgerRef}</span> by {run.postedBy} on {run.postedAt}</p>
+                : <p className="text-xs text-gray-400">Not yet posted to the general ledger</p>}
+            </div>
+          </div>
+
+          {/* Employee breakdown */}
+          <div>
+            <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">Employee Pay Breakdown</h3>
+            <DataTable
+              columns={employeeColumns}
+              data={mockEmployees}
+              keyExtractor={(e) => e.name}
+              pageSize={10}
+            />
+          </div>
+        </div>
+
+        <div className="px-6 py-4 border-t border-gray-100 bg-gray-50/60 flex items-center justify-between gap-3">
+          {actions ?? <span className="text-xs text-gray-400">Process mapping: Payroll Disbursement</span>}
+          <div className="flex items-center gap-2 shrink-0">
+            {actions && <span className="text-xs text-gray-400 hidden md:block">Process mapping: Payroll Disbursement</span>}
+            <button
+              onClick={onClose}
+              className="px-4 py-2 text-sm bg-gray-900 text-white rounded-xl hover:bg-gray-800 transition-colors">
+              Close
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export function PayrollIntegrationPage() {
   const { logChange } = useChangelog();
   const { getNextId } = useNumbering();
   const { postTransaction, buildProcessPosting } = useFinance();
 
   const [payrolls, setPayrolls] = useState<PayrollRun[]>(mockPayrollRuns);
-  const [activeRun, setActiveRun] = useState<PayrollRun>(mockPayrollRuns[0]);
+  const [selectedRun, setSelectedRun] = useState<PayrollRun | null>(null);
   const [postingTarget, setPostingTarget] = useState<PayrollRun | null>(null);
 
   // ── Posting actions ──────────────────────────────────────────────────────
   function markStatus(id: string, patch: Partial<PayrollRun>, changelog: string) {
     setPayrolls((prev) => prev.map((p) => (p.id === id ? { ...p, ...patch } : p)));
-    setActiveRun((prev) => (prev.id === id ? { ...prev, ...patch } : prev));
+    setSelectedRun((prev) => (prev && prev.id === id ? { ...prev, ...patch } : prev));
     logChange({ module: "Finance", action: "StatusChanged", entityType: "PayrollRun", entityId: id, summary: changelog, performedBy: "Current User" });
   }
 
@@ -217,7 +309,7 @@ export function PayrollIntegrationPage() {
 
   function handleDelete(id: string) {
     setPayrolls((prev) => prev.filter((p) => p.id !== id));
-    setActiveRun((prev) => (prev.id === id ? payrolls[0] : prev));
+    setSelectedRun((prev) => (prev && prev.id === id ? null : prev));
     logChange({ module: "Finance", action: "Deleted", entityType: "PayrollRun", entityId: id, summary: "Payroll run deleted", performedBy: "Current User" });
   }
 
@@ -240,7 +332,7 @@ export function PayrollIntegrationPage() {
       submittedBy: "HR System",
     };
     setPayrolls((prev) => [newRun, ...prev]);
-    setActiveRun(newRun);
+    setSelectedRun(newRun);
     logChange({ module: "Finance", action: "Created", entityType: "PayrollRun", entityId: newRun.id, summary: `Payroll run ${newRun.period} created`, performedBy: "Current User" });
   }
 
@@ -348,24 +440,6 @@ export function PayrollIntegrationPage() {
     },
   ];
 
-  const employeeColumns: Column<PayrollEmployee>[] = [
-    {
-      key: "employee",
-      label: "Employee",
-      render: (e) => (
-        <div>
-          <p className="text-sm font-medium text-gray-900">{e.name}</p>
-          <p className="text-xs text-gray-400">{e.role}</p>
-        </div>
-      ),
-    },
-    { key: "basic", label: "Basic", className: "text-right", headerClassName: "text-right", render: (e) => <span className="text-sm text-gray-700">{fmt(e.basicSalary)}</span> },
-    { key: "allowances", label: "Allowances", className: "text-right", headerClassName: "text-right", render: (e) => <span className="text-sm text-emerald-600">+{fmt(e.allowances)}</span> },
-    { key: "deductions", label: "Deductions", className: "text-right", headerClassName: "text-right", render: (e) => <span className="text-sm text-red-600">−{fmt(e.deductions)}</span> },
-    { key: "net", label: "Net", className: "text-right font-semibold text-gray-900", headerClassName: "text-right", render: (e) => <span>{fmt(e.net)}</span> },
-    { key: "bank", label: "Bank", render: (e) => <span className="text-xs text-gray-500">{e.bank} {e.accountNo}</span> },
-  ];
-
   const totalNet = payrolls.filter((p) => p.status === "Posted").reduce((s, p) => s + p.netPay, 0);
   const pendingPosting = payrolls.filter((p) => ["Approved", "Pending Posting Approval", "Posting Approved"].includes(p.status)).length;
 
@@ -416,101 +490,53 @@ export function PayrollIntegrationPage() {
         </div>
       </div>
 
-      <div className="grid grid-cols-3 gap-6">
-        {/* Payroll runs */}
-        <div className="col-span-1">
-          <DataTable
-            columns={payrollColumns}
-            data={payrolls}
-            keyExtractor={(r) => r.id}
-            searchPlaceholder="Search payroll…"
-            searchFields={[(r) => r.payrollCode, (r) => r.period, (r) => r.id]}
-            onRowClick={(r) => setActiveRun(r)}
-            headerExtra={
-              <button onClick={handleExport} className="flex items-center gap-1.5 px-2.5 py-1.5 text-xs border border-gray-300 rounded-lg hover:bg-gray-50">
-                <Download className="w-3.5 h-3.5" />
-              </button>
-            }
-            pageSize={10}
-          />
-        </div>
-
-        {/* Run detail */}
-        <div className="col-span-2 space-y-4">
-          <div className="bg-white rounded-xl border border-gray-200 p-5">
-            <div className="flex items-start justify-between mb-4">
-              <div>
-                <h3 className="text-sm font-semibold text-gray-900">{activeRun.period} Payroll</h3>
-                <p className="text-xs text-gray-500">{activeRun.payrollCode} · {activeRun.id} · {activeRun.department}</p>
-              </div>
-              <span className={`inline-flex items-center gap-1 px-2.5 py-1 text-xs rounded-full font-medium ${statusConfig[activeRun.status].badge}`}>
-                {statusConfig[activeRun.status].icon}{activeRun.status}
-              </span>
-            </div>
-
-            {/* Breakdown */}
-            <div className="grid grid-cols-3 gap-3 mb-4">
-              <div className="bg-gray-50 rounded-lg p-3 text-center"><p className="text-xs text-gray-500">Total Earnings</p><p className="text-lg font-bold text-gray-900">{fmt(activeRun.grossPay)}</p></div>
-              <div className="bg-red-50 rounded-lg p-3 text-center"><p className="text-xs text-gray-500">Total Deductions</p><p className="text-lg font-bold text-red-600">−{fmt(activeRun.deductions)}</p></div>
-              <div className="bg-emerald-50 rounded-lg p-3 text-center"><p className="text-xs text-gray-500">Net Pay</p><p className="text-lg font-bold text-emerald-700">{fmt(activeRun.netPay)}</p></div>
-            </div>
-
-            {/* Status/audit trail */}
-            <div className="space-y-2 border-t border-gray-100 pt-4 mb-4">
-              {activeRun.submittedBy && <p className="text-xs text-gray-500">Submitted by <span className="font-medium text-gray-700">{activeRun.submittedBy}</span></p>}
-              {activeRun.approvedBy && <p className="text-xs text-gray-500">HR approved by <span className="font-medium text-gray-700">{activeRun.approvedBy}</span> on {activeRun.approvedAt}</p>}
-              {activeRun.sentForPostingBy && <p className="text-xs text-gray-500">Sent for posting approval by <span className="font-medium text-gray-700">{activeRun.sentForPostingBy}</span> on {activeRun.sentForPostingAt}</p>}
-              {activeRun.postingApprovedBy && <p className="text-xs text-gray-500">Posting approved by <span className="font-medium text-gray-700">{activeRun.postingApprovedBy}</span> on {activeRun.postingApprovedAt}</p>}
-              {activeRun.postedBy && (
-                <p className="text-xs text-emerald-600 font-medium">✓ Posted to ledger <span className="font-mono">{activeRun.ledgerRef}</span> by {activeRun.postedBy} on {activeRun.postedAt}</p>
-              )}
-            </div>
-
-            {/* Action */}
-            <div className="flex gap-2">
-              {activeRun.status === "Draft" && (
-                <button onClick={() => markStatus(activeRun.id, { status: "Approved", approvedBy: "Current User", approvedAt: "Today" }, `Payroll ${activeRun.payrollCode} submitted and HR approved`)} className="px-4 py-2 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700">
-                  <span className="flex items-center gap-1.5"><Send className="w-3.5 h-3.5" /> Submit for Approval</span>
-                </button>
-              )}
-              {activeRun.status === "Approved" && (
-                <button onClick={() => sendForPostingApproval(activeRun.id)} className="px-4 py-2 text-sm bg-amber-600 text-white rounded-lg hover:bg-amber-700">
-                  <span className="flex items-center gap-1.5"><Send className="w-3.5 h-3.5" /> Send for Posting Approval</span>
-                </button>
-              )}
-              {activeRun.status === "Pending Posting Approval" && (
-                <button onClick={() => approvePosting(activeRun.id)} className="px-4 py-2 text-sm bg-violet-600 text-white rounded-lg hover:bg-violet-700">
-                  <span className="flex items-center gap-1.5"><CheckCircle className="w-3.5 h-3.5" /> Approve Posting</span>
-                </button>
-              )}
-              {activeRun.status === "Posting Approved" && (
-                <button onClick={() => setPostingTarget(activeRun)} className="px-4 py-2 text-sm bg-purple-600 text-white rounded-lg hover:bg-purple-700">
-                  <span className="flex items-center gap-1.5"><Zap className="w-3.5 h-3.5" /> Post to General Ledger</span>
-                </button>
-              )}
-              {activeRun.status === "Posted" && (
-                <div className="flex items-center gap-2 text-sm text-purple-700 font-medium">
-                  <BookOpen className="w-4 h-4" /> Posted as {activeRun.ledgerRef}
-                </div>
-              )}
-            </div>
-          </div>
-
-          {/* Employee breakdown */}
-          <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
-            <div className="px-5 py-3 border-b border-gray-100 flex items-center gap-2">
-              <Users className="w-4 h-4 text-gray-400" />
-              <h3 className="text-sm font-semibold text-gray-900">Employee Pay Breakdown (Sample)</h3>
-            </div>
-            <DataTable
-              columns={employeeColumns}
-              data={mockEmployees}
-              keyExtractor={(e) => e.name}
-              pageSize={50}
-            />
-          </div>
-        </div>
+      {/* Payroll runs */}
+      <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
+        <DataTable
+          columns={payrollColumns}
+          data={payrolls}
+          keyExtractor={(r) => r.id}
+          searchPlaceholder="Search payroll…"
+          searchFields={[(r) => r.payrollCode, (r) => r.period, (r) => r.id]}
+          onRowClick={(r) => setSelectedRun(r)}
+          headerExtra={
+            <button onClick={handleExport} className="flex items-center gap-1.5 px-2.5 py-1.5 text-xs border border-gray-300 rounded-lg hover:bg-gray-50">
+              <Download className="w-3.5 h-3.5" />
+            </button>
+          }
+          pageSize={10}
+        />
       </div>
+
+      {selectedRun && (
+        <RunDrawer
+          run={selectedRun}
+          onClose={() => setSelectedRun(null)}
+          actions={
+            selectedRun.status === "Draft" ? (
+              <button onClick={() => markStatus(selectedRun.id, { status: "Approved", approvedBy: "Current User", approvedAt: "Today" }, `Payroll ${selectedRun.payrollCode} submitted and HR approved`)} className="px-4 py-2 text-sm bg-blue-600 text-white rounded-xl hover:bg-blue-700 transition-colors flex items-center gap-1.5">
+                <Send className="w-3.5 h-3.5" /> Submit for Approval
+              </button>
+            ) : selectedRun.status === "Approved" ? (
+              <button onClick={() => sendForPostingApproval(selectedRun.id)} className="px-4 py-2 text-sm bg-amber-600 text-white rounded-xl hover:bg-amber-700 transition-colors flex items-center gap-1.5">
+                <Send className="w-3.5 h-3.5" /> Send for Posting Approval
+              </button>
+            ) : selectedRun.status === "Pending Posting Approval" ? (
+              <button onClick={() => approvePosting(selectedRun.id)} className="px-4 py-2 text-sm bg-violet-600 text-white rounded-xl hover:bg-violet-700 transition-colors flex items-center gap-1.5">
+                <CheckCircle className="w-3.5 h-3.5" /> Approve Posting
+              </button>
+            ) : selectedRun.status === "Posting Approved" ? (
+              <button onClick={() => setPostingTarget(selectedRun)} className="px-4 py-2 text-sm bg-purple-600 text-white rounded-xl hover:bg-purple-700 transition-colors flex items-center gap-1.5">
+                <Zap className="w-3.5 h-3.5" /> Post to General Ledger
+              </button>
+            ) : selectedRun.status === "Posted" ? (
+              <span className="flex items-center gap-2 text-sm text-purple-700 font-medium">
+                <BookOpen className="w-4 h-4" /> Posted as {selectedRun.ledgerRef}
+              </span>
+            ) : undefined
+          }
+        />
+      )}
 
       {postingTarget && (
         <PostingModal
