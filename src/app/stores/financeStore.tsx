@@ -45,6 +45,19 @@ export interface PostingInput {
   fiscalYearId?: string;
 }
 
+// ── Process → Account mapping ──────────────────────────────────────────────
+// Configures how a business process posts to the Chart of Accounts: each row
+// maps the process to ONE account with a debit/credit action and the source
+// field whose value is posted. Used by the Posting Engine and the Payroll
+// posting workflow so accounting lines come from configuration, not hard-coded.
+export interface ProcessAccountMapping {
+  id: string;
+  process: string;            // e.g. "Payroll Disbursement"
+  account: string;            // "<code> <name>" matching a postable account
+  action: "debit" | "credit";
+  amountField: string;        // e.g. "Gross Salary", "PAYE Tax", "Net Pay"
+}
+
 // ── Context shape ──────────────────────────────────────────────────────────
 interface FinanceContextValue {
   accounts: Account[];
@@ -63,6 +76,9 @@ interface FinanceContextValue {
   getDescendantIds: (parentId: string) => string[];
   getPostableAccounts: () => Account[];
   postTransaction: (input: PostingInput) => Transaction | null;
+  processAccountMappings: ProcessAccountMapping[];
+  setProcessAccountMappings: React.Dispatch<React.SetStateAction<ProcessAccountMapping[]>>;
+  buildProcessPosting: (process: string, fields: Record<string, number>) => LedgerLine[];
   getTrialBalance: (fiscalYearId?: string) => TrialBalanceRow[];
   getBalanceSheet: (fiscalYearId?: string) => BalanceSheetSection[];
   getIncomeStatement: (fiscalYearId?: string) => IncomeStatementRow[];
@@ -256,6 +272,29 @@ const SEED_ACCRUAL_TYPE_CONFIGS: AccrualTypeConfig[] = [
   { id: "atc-5", type: "deferred-revenue",            label: "Deferred Revenue",            color: "bg-orange-100 text-orange-700", description: "Revenue received but not yet earned" },
 ];
 
+// ── Seed Process → Account Mappings ───────────────────────────────────────
+// These rows are surfaced in Posting Engine → Process Account Mapping. The
+// Payroll Disbursement rows drive the payroll posting workflow (DR Labour for
+// gross, CR WHT for deductions, CR Cash for net = balanced).
+const SEED_PROCESS_ACCOUNT_MAPPINGS: ProcessAccountMapping[] = [
+  // Payroll Disbursement
+  { id: "pam-001", process: "Payroll Disbursement", account: "5100 Labour Costs", action: "debit", amountField: "Gross Salary" },
+  { id: "pam-002", process: "Payroll Disbursement", account: "2140 WHT Payable",   action: "credit", amountField: "PAYE Tax" },
+  { id: "pam-003", process: "Payroll Disbursement", account: "1110 Cash & Bank",   action: "credit", amountField: "Net Pay" },
+  // Supplier Payments
+  { id: "pam-004", process: "Supplier Payments", account: "2110 Accounts Payable", action: "debit",  amountField: "Payment Amount" },
+  { id: "pam-005", process: "Supplier Payments", account: "1110 Cash & Bank",      action: "credit", amountField: "Payment Amount" },
+  // Expense Claims
+  { id: "pam-006", process: "Expense Claims", account: "5400 Overhead",        action: "debit",  amountField: "Claim Amount" },
+  { id: "pam-007", process: "Expense Claims", account: "2110 Accounts Payable", action: "credit", amountField: "Claim Amount" },
+  // Contract Revenue
+  { id: "pam-008", process: "Contract Revenue", account: "1120 Accounts Receivable", action: "debit",  amountField: "Invoice Amount" },
+  { id: "pam-009", process: "Contract Revenue", account: "4100 Contract Revenue",    action: "credit", amountField: "Invoice Amount" },
+  // Material Purchases
+  { id: "pam-010", process: "Material Purchases", account: "5200 Material Costs",   action: "debit",  amountField: "Purchase Value" },
+  { id: "pam-011", process: "Material Purchases", account: "2110 Accounts Payable", action: "credit", amountField: "Purchase Value" },
+];
+
 // ── Context ────────────────────────────────────────────────────────────────
 const FinanceContext = createContext<FinanceContextValue | null>(null);
 
@@ -278,6 +317,7 @@ export function FinanceProvider({ children }: { children: ReactNode }) {
   const [fiscalYears, setFiscalYears] = useState<FiscalYear[]>(SEED_FISCAL_YEARS);
   const [accruals, setAccruals] = useState<Accrual[]>(SEED_ACCRUALS);
   const [accrualTypeConfigs, setAccrualTypeConfigs] = useState<AccrualTypeConfig[]>(SEED_ACCRUAL_TYPE_CONFIGS);
+  const [processAccountMappings, setProcessAccountMappings] = useState<ProcessAccountMapping[]>(SEED_PROCESS_ACCOUNT_MAPPINGS);
 
   const getDescendantIds = useCallback((parentId: string): string[] => {
     const children = accounts.filter(a => a.parentId === parentId);
@@ -322,6 +362,23 @@ export function FinanceProvider({ children }: { children: ReactNode }) {
     setTransactions(prev => [...prev, txn]);
     return txn;
   }, []);
+
+  // Turns the configured process mapping into journal lines for a given set of
+  // amounts keyed by source field (e.g. { "Gross Salary": 5,960,000 }). The
+  // caller must still honour the balanced postings rule before posting.
+  const buildProcessPosting = useCallback((process: string, fields: Record<string, number>): LedgerLine[] => {
+    const rows = processAccountMappings.filter(m => m.process === process);
+    return rows.map((m, i) => {
+      const amount = fields[m.amountField] ?? 0;
+      return {
+        id: `pp-${m.id ?? i}`,
+        account: m.account,
+        debit: m.action === "debit" ? amount : 0,
+        credit: m.action === "credit" ? amount : 0,
+        description: m.amountField,
+      };
+    });
+  }, [processAccountMappings]);
 
   const getAccountBalance = useCallback((accountId: string): number => {
     const account = accounts.find(a => a.id === accountId);
@@ -464,8 +521,9 @@ export function FinanceProvider({ children }: { children: ReactNode }) {
     accrualTypeConfigs, setAccrualTypeConfigs,
     getAccountBalance, getAccountsByType, getDescendantIds,
     getPostableAccounts, postTransaction,
+    processAccountMappings, setProcessAccountMappings, buildProcessPosting,
     getTrialBalance, getBalanceSheet, getIncomeStatement,
-  }), [accounts, transactions, fiscalYears, accruals, accrualTypeConfigs, getAccountBalance, getAccountsByType, getDescendantIds, getPostableAccounts, postTransaction, getTrialBalance, getBalanceSheet, getIncomeStatement]);
+  }), [accounts, transactions, fiscalYears, accruals, accrualTypeConfigs, getAccountBalance, getAccountsByType, getDescendantIds, getPostableAccounts, postTransaction, getTrialBalance, getBalanceSheet, getIncomeStatement, processAccountMappings, buildProcessPosting]);
 
   return (
     <FinanceContext.Provider value={value}>

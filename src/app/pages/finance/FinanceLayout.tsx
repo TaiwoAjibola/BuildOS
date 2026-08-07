@@ -47,7 +47,7 @@ const sidebarSections = [
   {
     label: "Payroll & Claims",
     items: [
-      { label: "Payroll Integration", href: "/apps/finance/payroll", icon: <Users2   className="w-4 h-4" />, end: true },
+      { label: "Payroll Overview", href: "/apps/finance/payroll", icon: <Users2   className="w-4 h-4" />, end: true },
       { label: "Claims Management",   href: "/apps/finance/claims",  icon: <FileText className="w-4 h-4" />, end: true },
     ],
   },
@@ -67,6 +67,7 @@ const sidebarSections = [
   {
     label: "Ledger & Reports",
     items: [
+      { label: "General Ledger",     href: "/apps/finance/general-ledger", icon: <BookOpen   className="w-4 h-4" />, end: true },
       { label: "Transactions Ledger",  href: "/apps/finance/ledger",           icon: <List     className="w-4 h-4" />, end: true },
       { label: "Posting Engine",        href: "/apps/finance/posting-engine",    icon: <Zap      className="w-4 h-4" />, end: true },
       { label: "Reports",              href: "/apps/finance/reports",           icon: <BarChart3  className="w-4 h-4" />, end: true },

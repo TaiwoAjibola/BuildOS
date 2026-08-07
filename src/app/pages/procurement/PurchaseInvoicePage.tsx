@@ -102,7 +102,7 @@ function PayInvoiceModal({ invoice, onClose, onConfirm }: {
 
   const [date, setDate] = useState(new Date().toISOString().slice(0, 10));
   const [method, setMethod] = useState("Bank Transfer");
-  const [reference, setReference] = useState("");
+  const [reference] = useState(invoice.invoiceNo);
   const [lines, setLines] = useState<JournalLineInput[]>([
     { id: `dr-${Date.now()}`, account: "2110 Accounts Payable", debit: total, credit: 0, description: `Settle ${invoice.invoiceNo} — ${invoice.supplier}` },
     { id: `cr-${Date.now()}`, account: "1110 Cash & Bank", debit: 0, credit: total, description: `Payment to ${invoice.supplier}` },
@@ -151,7 +151,11 @@ function PayInvoiceModal({ invoice, onClose, onConfirm }: {
             </div>
             <div>
               <label className="block text-xs font-semibold text-gray-700 mb-1.5">Payment Reference</label>
-              <input value={reference} onChange={(e) => setReference(e.target.value)} placeholder="e.g. PAY-2026-0051" className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" />
+              <div className="flex items-center gap-1.5">
+                <input value={reference} readOnly tabIndex={-1}
+                  className="w-full px-3 py-2 text-sm border border-gray-200 bg-gray-50 rounded-lg text-gray-500 cursor-default focus:outline-none" />
+                <span className="text-[10px] text-gray-400 whitespace-nowrap" title="Auto-inherited from the invoice number">Locked to invoice</span>
+              </div>
             </div>
           </div>
 

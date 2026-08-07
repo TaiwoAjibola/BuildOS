@@ -3,9 +3,9 @@ import {
   Zap, Search, X, CheckCircle, Clock, XCircle, Send,
   Plus, ArrowLeft, Building2, Users, ShoppingCart, Package,
   Briefcase, FileText, ChevronDown, AlertTriangle, Eye,
-  BookOpen, Layers,
+  BookOpen, Layers, Trash2, Edit, GitBranch,
 } from "lucide-react";
-import { useFinance } from "../../stores/financeStore";
+import { useFinance, type ProcessAccountMapping } from "../../stores/financeStore";
 import { useChangelog } from "../../stores/changelogStore";
 import { useNumbering } from "../../stores/numberingStore";
 import { DataTable, type Column } from "../../components/DataTable";
@@ -213,6 +213,97 @@ function NewCategoryModal({ onClose, onSave, accounts }: {
             onClick={() => { onSave({ id: `cat-${Date.now()}`, ...form }); onClose(); }}
             className="px-5 py-2 text-sm bg-emerald-600 text-white rounded-xl hover:bg-emerald-700 disabled:opacity-40 disabled:cursor-not-allowed flex items-center gap-2">
             <Plus className="w-4 h-4" /> Create Category
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ── Process Account Mapping Modal ──────────────────────────────────────────
+const MAPPING_FIELDS = [
+  "Gross Salary", "PAYE Tax", "Net Pay", "Allowance Total", "Advance Amount",
+  "Payment Amount", "Claim Amount", "Invoice Amount", "Purchase Value", "WHT Deducted",
+];
+
+const PROCESS_NAMES = [
+  "Payroll Disbursement", "Supplier Payments", "Expense Claims", "Contract Revenue",
+  "Material Purchases", "Material Transfers", "Salary Advances", "Employee Allowances",
+];
+
+function MappingModal({ initial, onClose, onSave, accounts }: {
+  initial?: ProcessAccountMapping;
+  onClose: () => void;
+  onSave: (m: ProcessAccountMapping) => void;
+  accounts: { code: string; name: string }[];
+}) {
+  const accountOptions = accounts.map(a => `${a.code} ${a.name}`);
+  const [process, setProcess] = useState(initial?.process ?? PROCESS_NAMES[0]);
+  const [account, setAccount] = useState(initial?.account ?? accountOptions[0] ?? "");
+  const [action, setAction] = useState<"debit" | "credit">(initial?.action ?? "debit");
+  const [amountField, setAmountField] = useState(initial?.amountField ?? MAPPING_FIELDS[0]);
+  const canSubmit = process.trim() && account.trim() && amountField.trim();
+
+  return (
+    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md max-h-[90vh] overflow-y-auto">
+        <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
+          <div>
+            <h2 className="text-base font-semibold text-gray-900">{initial ? "Edit Process Mapping" : "New Process Mapping"}</h2>
+            <p className="text-xs text-gray-500 mt-0.5">Map a process to a Chart of Accounts debit/credit</p>
+          </div>
+          <button onClick={onClose} className="text-gray-400 hover:text-gray-600"><X className="w-5 h-5" /></button>
+        </div>
+        <div className="px-6 py-5 space-y-4">
+          <div>
+            <label className="block text-xs font-medium text-gray-600 mb-1">Process <span className="text-red-500">*</span></label>
+            <div className="relative">
+              <select value={process} onChange={e => setProcess(e.target.value)}
+                className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm bg-white appearance-none pr-7 focus:ring-2 focus:ring-emerald-500">
+                {PROCESS_NAMES.map(p => <option key={p}>{p}</option>)}
+              </select>
+              <ChevronDown className="absolute right-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-400 pointer-events-none" />
+            </div>
+          </div>
+          <div>
+            <label className="block text-xs font-medium text-gray-600 mb-1">Account <span className="text-red-500">*</span></label>
+            <div className="relative">
+              <select value={account} onChange={e => setAccount(e.target.value)}
+                className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm bg-white appearance-none focus:ring-2 focus:ring-emerald-500 pr-7">
+                <option value="">Select account…</option>
+                {accountOptions.map(a => <option key={a}>{a}</option>)}
+              </select>
+              <ChevronDown className="absolute right-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-400 pointer-events-none" />
+            </div>
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="block text-xs font-medium text-gray-600 mb-1">Action <span className="text-red-500">*</span></label>
+              <select value={action} onChange={e => setAction(e.target.value as "debit" | "credit")}
+                className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm bg-white focus:ring-2 focus:ring-emerald-500">
+                <option value="debit">Debit</option>
+                <option value="credit">Credit</option>
+              </select>
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-gray-600 mb-1">Amount From <span className="text-red-500">*</span></label>
+              <select value={amountField} onChange={e => setAmountField(e.target.value)}
+                className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm bg-white focus:ring-2 focus:ring-emerald-500">
+                {MAPPING_FIELDS.map(f => <option key={f}>{f}</option>)}
+              </select>
+            </div>
+          </div>
+          <div className="bg-blue-50 border border-blue-100 rounded-xl px-3 py-2.5 flex items-start gap-2">
+            <AlertTriangle className="w-3.5 h-3.5 text-blue-500 mt-0.5 shrink-0" />
+            <p className="text-xs text-blue-700">Postings built from this mapping must balance (total debits = total credits) before they can be posted to the ledger.</p>
+          </div>
+        </div>
+        <div className="px-6 py-4 border-t border-gray-100 flex justify-end gap-3">
+          <button onClick={onClose} className="px-4 py-2 text-sm border border-gray-200 rounded-xl text-gray-700 hover:bg-gray-50">Cancel</button>
+          <button disabled={!canSubmit}
+            onClick={() => { onSave({ id: initial?.id ?? `pam-${Date.now()}`, process, account, action, amountField }); onClose(); }}
+            className="px-5 py-2 text-sm bg-emerald-600 text-white rounded-xl hover:bg-emerald-700 disabled:opacity-40 disabled:cursor-not-allowed flex items-center gap-2">
+            <Plus className="w-4 h-4" /> {initial ? "Save Changes" : "Add Mapping"}
           </button>
         </div>
       </div>
@@ -532,7 +623,7 @@ function CategoryCard({ category, transactions, onClick }: {
 
 // ── Main Page ─────────────────────────────────────────────────────────────────
 export function PostingEnginePage() {
-  const { accounts, transactions: ledgerTransactions, setTransactions: setLedgerTransactions } = useFinance();
+  const { accounts, transactions: ledgerTransactions, setTransactions: setLedgerTransactions, processAccountMappings, setProcessAccountMappings } = useFinance();
   const { logChange } = useChangelog();
   const { getNextId } = useNumbering();
   const [categories, setCategories]           = useState<ProcessCategory[]>(SEED_CATEGORIES);
@@ -541,6 +632,9 @@ export function PostingEnginePage() {
   const [showNewCatModal, setShowNewCatModal] = useState(false);
   const [search, setSearch]                   = useState("");
   const [appFilter, setAppFilter]             = useState<SourceApp | "all">("all");
+  const [view, setView]                       = useState<"categories" | "mappings">("categories");
+  const [mappingEdit, setMappingEdit]         = useState<ProcessAccountMapping | undefined>();
+  const [showMappingModal, setShowMappingModal] = useState(false);
 
   const now = todayStr();
 
@@ -592,6 +686,23 @@ export function PostingEnginePage() {
   const totalPosted     = transactions.filter(t => t.status === "posted").length;
   const totalPendingAmt = transactions.filter(t => t.status === "pending").reduce((s, t) => s + t.amount, 0);
 
+  // ── Process Account Mapping state ────────────────────────────────────────
+  function saveMapping(m: ProcessAccountMapping) {
+    const exists = processAccountMappings.find(x => x.id === m.id);
+    setProcessAccountMappings(prev =>
+      exists ? prev.map(x => x.id === m.id ? m : x) : [...prev, m],
+    );
+    logChange({ module: "Finance", action: exists ? "Updated" : "Created", entityType: "ProcessAccountMapping", entityId: m.id, summary: `${exists ? "Updated" : "Created"} mapping — ${m.process}: ${m.account} (${m.action})`, performedBy: "Sola Adeleke" });
+  }
+  function deleteMapping(id: string) {
+    const target = processAccountMappings.find(x => x.id === id);
+    setProcessAccountMappings(prev => prev.filter(x => x.id !== id));
+    if (target) logChange({ module: "Finance", action: "Deleted", entityType: "ProcessAccountMapping", entityId: id, summary: `Deleted mapping — ${target.process}: ${target.account}`, performedBy: "Sola Adeleke" });
+  }
+
+  const filteredMappings = processAccountMappings;
+  const mappedProcessCount = new Set(processAccountMappings.map(m => m.process)).size;
+
   if (activeCategory) {
     return (
       <CategoryDetailView
@@ -624,6 +735,66 @@ export function PostingEnginePage() {
         </button>
       </div>
 
+      {/* View toggle */}
+      <div className="flex items-center gap-2 flex-wrap">
+        <div className="flex items-center gap-1 bg-white border border-gray-200 rounded-xl p-1">
+          <button onClick={() => setView("categories")}
+            className={`px-3 py-1.5 text-xs font-medium rounded-lg transition-colors ${view === "categories" ? "bg-emerald-600 text-white" : "text-gray-600 hover:bg-gray-100"}`}>
+            Process Categories
+          </button>
+          <button onClick={() => setView("mappings")}
+            className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg transition-colors ${view === "mappings" ? "bg-emerald-600 text-white" : "text-gray-600 hover:bg-gray-100"}`}>
+            <GitBranch className="w-3.5 h-3.5" /> Process Account Mapping
+            <span className={`px-1.5 py-0.5 rounded text-[10px] font-bold ${view === "mappings" ? "bg-white/20" : "bg-gray-100 text-gray-500"}`}>{processAccountMappings.length}</span>
+          </button>
+        </div>
+      </div>
+
+      {view === "mappings" ? (
+        /* ── Process Account Mapping table ── */
+        <div className="space-y-4">
+          <div className="flex items-center justify-between gap-3">
+            <p className="text-sm text-gray-500">
+              {processAccountMappings.length} account line{processAccountMappings.length !== 1 ? "s" : ""} across <strong>{mappedProcessCount}</strong> process{ mappedProcessCount !== 1 ? "es" : ""} — postings are built from these lines when a process fires.
+            </p>
+            <button onClick={() => { setMappingEdit(undefined); setShowMappingModal(true); }}
+              className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs rounded-lg font-medium">
+              <Plus className="w-4 h-4" /> Add Mapping
+            </button>
+          </div>
+
+          <DataTable
+            columns={[
+              { key: "process", label: "Process", sortable: true, filterable: true,
+                render: (m) => <span className="font-medium text-gray-900">{m.process}</span> },
+              { key: "code", label: "Account Code", sortable: true, filterable: true,
+                render: (m) => <span className="font-mono text-xs text-gray-500">{m.account.split(" ")[0]}</span> },
+              { key: "name", label: "Account Name", sortable: true, filterable: true,
+                render: (m) => <span className="text-sm text-gray-700">{m.account.slice(m.account.indexOf(" ") + 1)}</span> },
+              { key: "action", label: "Action", sortable: true, filterable: true,
+                render: (m) => <span className={`px-2 py-0.5 text-xs rounded-full font-bold ${m.action === "debit" ? "bg-blue-100 text-blue-700" : "bg-green-100 text-green-700"}`}>{m.action === "debit" ? "DR" : "CR"} {m.action === "debit" ? "Debit" : "Credit"}</span> },
+              { key: "field", label: "Amount From", sortable: true, filterable: true,
+                render: (m) => <span className="text-xs text-gray-500">{m.amountField}</span> },
+              { key: "actions", label: "Actions", sortable: false, filterable: false, className: "text-right", headerClassName: "text-right",
+                render: (m) => (
+                  <div className="flex items-center justify-end gap-1">
+                    <button onClick={() => { setMappingEdit(m); setShowMappingModal(true); }}
+                      className="p-1.5 text-gray-400 hover:text-emerald-600 rounded-lg hover:bg-emerald-50" title="Edit mapping"><Edit className="w-3.5 h-3.5" /></button>
+                    <button onClick={() => deleteMapping(m.id)}
+                      className="p-1.5 text-gray-400 hover:text-red-500 rounded-lg hover:bg-red-50" title="Delete mapping"><Trash2 className="w-3.5 h-3.5" /></button>
+                  </div>
+                ),
+              },
+            ]}
+            data={filteredMappings}
+            keyExtractor={m => m.id}
+            searchPlaceholder="Search mappings…"
+            searchFields={[m => m.process, m => m.account, m => m.amountField]}
+            emptyMessage="No mappings configured. Add a mapping to control how processes post to the Chart of Accounts."
+          />
+        </div>
+      ) : (
+      <>
       {/* Summary tiles */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
         <div className="bg-white border border-gray-200 rounded-xl p-4">
@@ -694,9 +865,17 @@ export function PostingEnginePage() {
         </div>
       )}
 
+      </>
+      )}
+
       {showNewCatModal && (
         <NewCategoryModal onClose={() => setShowNewCatModal(false)}
           onSave={c => setCategories(prev => [...prev, c])}
+          accounts={accounts.map(a => ({ code: a.code, name: a.name }))} />
+      )}
+      {showMappingModal && (
+        <MappingModal initial={mappingEdit} onClose={() => setShowMappingModal(false)}
+          onSave={saveMapping}
           accounts={accounts.map(a => ({ code: a.code, name: a.name }))} />
       )}
     </div>

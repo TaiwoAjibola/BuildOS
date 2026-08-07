@@ -64,6 +64,7 @@ import { PaymentManagementPage } from "./pages/finance/PaymentManagementPage";
 import { PayrollIntegrationPage } from "./pages/finance/PayrollIntegrationPage";
 import { ClaimsManagementPage } from "./pages/finance/ClaimsManagementPage";
 import { TransactionsLedgerPage } from "./pages/finance/TransactionsLedgerPage";
+import { GeneralLedgerPage } from "./pages/finance/GeneralLedgerPage";
 import { FinanceReportsPage } from "./pages/finance/FinanceReportsPage";
 import { FinanceSettingsPage } from "./pages/finance/FinanceSettingsPage";
 
@@ -269,6 +270,7 @@ export const router = createBrowserRouter([
               { path: "claims", Component: ClaimsManagementPage },
               { path: "approvals", Component: FinanceApprovalsPage },
               { path: "ledger", Component: TransactionsLedgerPage },
+              { path: "general-ledger", Component: GeneralLedgerPage },
               { path: "reports", Component: FinanceReportsPage },
               { path: "settings", Component: FinanceSettingsPage },
               { path: "tasks", Component: FinanceTasksPage },
