@@ -114,24 +114,51 @@ function todayStr() {
 }
 
 // ── New Category Modal ────────────────────────────────────────────────────────
+// Amount-source fields available to process→account mapping rows. Shared with
+// the Process Account Mapping modal so both editors stay consistent.
+const MAPPING_FIELDS = [
+  "Gross Salary", "PAYE Tax", "Net Pay", "Allowance Total", "Advance Amount",
+  "Payment Amount", "Claim Amount", "Invoice Amount", "Purchase Value", "WHT Deducted",
+];
+
+interface MappingLineForm {
+  account: string;
+  action: "debit" | "credit";
+  amountField: string;
+}
+
 function NewCategoryModal({ onClose, onSave, accounts }: {
   onClose: () => void;
-  onSave: (c: ProcessCategory) => void;
+  onSave: (c: ProcessCategory, lines: MappingLineForm[]) => void;
   accounts: { code: string; name: string }[];
 }) {
   const accountOptions = accounts.map(a => `${a.code} ${a.name}`);
+  const defaultDebit = accountOptions.includes("5100 Labour Costs") ? "5100 Labour Costs" : accountOptions[0] ?? "";
+  const defaultCredit = accountOptions.includes("1110 Cash & Bank") ? "1110 Cash & Bank" : accountOptions[1] ?? accountOptions[0] ?? "";
+
   const [form, setForm] = useState({
     name: "", description: "",
     sourceApp: "HR" as SourceApp,
     linkedProcess: "",
-    debitAccount: "5100 Labour Costs",
-    creditAccount: "1110 Cash & Bank",
   });
-  const canSubmit = form.name.trim() && form.linkedProcess.trim() && form.debitAccount !== form.creditAccount;
+  const [lines, setLines] = useState<MappingLineForm[]>([
+    { account: defaultDebit,  action: "debit",  amountField: "Payment Amount" },
+    { account: defaultCredit, action: "credit", amountField: "Payment Amount" },
+  ]);
+
+  const debitCount  = lines.filter(l => l.action === "debit").length;
+  const creditCount = lines.filter(l => l.action === "credit").length;
+  const allFilled   = lines.length > 1 && lines.every(l => l.account.trim() && l.amountField.trim());
+  const bothSides   = debitCount > 0 && creditCount > 0;
+  const canSubmit   = form.name.trim() && form.linkedProcess.trim() && allFilled && bothSides;
+
+  function updateLine(idx: number, patch: Partial<MappingLineForm>) {
+    setLines(prev => prev.map((l, i) => i === idx ? { ...l, ...patch } : l));
+  }
 
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto">
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-xl max-h-[90vh] overflow-y-auto">
         <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 sticky top-0 bg-white z-10">
           <div>
             <h2 className="text-base font-semibold text-gray-900">New Process Category</h2>
@@ -170,38 +197,61 @@ function NewCategoryModal({ onClose, onSave, accounts }: {
                 className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-emerald-500" />
             </div>
           </div>
-          <div className="border border-gray-100 rounded-xl overflow-hidden">
-            <div className="bg-gray-50 px-4 py-2.5 border-b border-gray-100">
+
+          {/* Process-to-Account Mapping */}
+          <div className="border border-gray-200 rounded-xl overflow-hidden">
+            <div className="bg-gray-50 px-4 py-2.5 border-b border-gray-100 flex items-center justify-between">
               <p className="text-xs font-semibold text-gray-600 uppercase tracking-wide">Process-to-Account Mapping</p>
+              <button onClick={() => setLines(prev => [...prev, { account: defaultCredit, action: "debit", amountField: "Payment Amount" }])}
+                className="flex items-center gap-1 px-2 py-1 text-xs bg-emerald-600 text-white rounded-lg hover:bg-emerald-700">
+                <Plus className="w-3.5 h-3.5" /> Add Line
+              </button>
             </div>
             <div className="p-4 space-y-3">
-              <div>
-                <label className="block text-xs font-medium text-gray-600 mb-1">
-                  <span className="bg-blue-100 text-blue-700 text-xs px-1.5 py-0.5 rounded font-bold mr-1.5">DR</span>Debit Account
-                </label>
-                <div className="relative">
-                    <select value={form.debitAccount} onChange={e => setForm(p => ({ ...p, debitAccount: e.target.value }))}
+              <div className="grid grid-cols-[1fr_96px_1fr_32px] gap-2 items-center">
+                <span className="text-[10px] font-semibold text-gray-400 uppercase tracking-wide">Account</span>
+                <span className="text-[10px] font-semibold text-gray-400 uppercase tracking-wide">Action</span>
+                <span className="text-[10px] font-semibold text-gray-400 uppercase tracking-wide">Amount From</span>
+                <span />
+              </div>
+              {lines.map((line, idx) => (
+                <div key={idx} className="grid grid-cols-[1fr_96px_1fr_32px] gap-2 items-center">
+                  <div className="relative">
+                    <select value={line.account} onChange={e => updateLine(idx, { account: e.target.value })}
                       className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-emerald-500 bg-white appearance-none pr-7">
                       {accountOptions.map(a => <option key={a}>{a}</option>)}
+                    </select>
+                    <ChevronDown className="absolute right-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-400 pointer-events-none" />
+                  </div>
+                  <select value={line.action}
+                    onChange={e => updateLine(idx, { action: e.target.value as "debit" | "credit" })}
+                    className={`w-full border border-gray-200 rounded-xl px-2 py-2 text-sm font-semibold focus:ring-2 focus:ring-emerald-500 ${line.action === "debit" ? "text-blue-700 bg-blue-50" : "text-green-700 bg-green-50"}`}>
+                    <option value="debit" className="text-blue-700">DR</option>
+                    <option value="credit" className="text-green-700">CR</option>
                   </select>
-                  <ChevronDown className="absolute right-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-400 pointer-events-none" />
-                </div>
-              </div>
-              <div>
-                <label className="block text-xs font-medium text-gray-600 mb-1">
-                  <span className="bg-green-100 text-green-700 text-xs px-1.5 py-0.5 rounded font-bold mr-1.5">CR</span>Credit Account
-                </label>
-                <div className="relative">
-                    <select value={form.creditAccount} onChange={e => setForm(p => ({ ...p, creditAccount: e.target.value }))}
-                      className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-emerald-500 bg-white appearance-none pr-7">
-                      {accountOptions.map(a => <option key={a}>{a}</option>)}
+                  <select value={line.amountField} onChange={e => updateLine(idx, { amountField: e.target.value })}
+                    className="w-full border border-gray-200 rounded-xl px-2 py-2 text-sm bg-white focus:ring-2 focus:ring-emerald-500">
+                    {MAPPING_FIELDS.map(f => <option key={f}>{f}</option>)}
                   </select>
-                  <ChevronDown className="absolute right-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-400 pointer-events-none" />
+                  <button onClick={() => setLines(prev => prev.filter((_, i) => i !== idx))}
+                    disabled={lines.length <= 1}
+                    className="p-1.5 text-gray-400 hover:text-red-500 rounded-lg hover:bg-red-50 disabled:opacity-30 disabled:cursor-not-allowed" title="Remove line">
+                    <Trash2 className="w-4 h-4" />
+                  </button>
                 </div>
+              ))}
+              <div className="flex items-center justify-between gap-2 pt-1">
+                <p className="text-xs text-gray-400">
+                  <span className={debitCount > 0 ? "text-blue-600 font-semibold" : "text-gray-400"}>{debitCount} DR</span>
+                  {" · "}
+                  <span className={creditCount > 0 ? "text-green-600 font-semibold" : "text-gray-400"}>{creditCount} CR</span>
+                  {" line"}{(debitCount + creditCount) !== 1 ? "s" : ""}
+                </p>
+                <p className="text-xs text-gray-400">Amounts are sourced from the fields selected per line</p>
               </div>
-              {form.debitAccount === form.creditAccount && (
+              {!bothSides && (
                 <p className="text-xs text-red-500 flex items-center gap-1">
-                  <AlertTriangle className="w-3.5 h-3.5" /> Debit and credit accounts must differ.
+                  <AlertTriangle className="w-3.5 h-3.5" /> Add at least one DR and one CR line so the posting can balance.
                 </p>
               )}
             </div>
@@ -210,7 +260,12 @@ function NewCategoryModal({ onClose, onSave, accounts }: {
         <div className="px-6 py-4 border-t border-gray-100 flex justify-end gap-3">
           <button onClick={onClose} className="px-4 py-2 text-sm border border-gray-200 rounded-xl text-gray-700 hover:bg-gray-50">Cancel</button>
           <button disabled={!canSubmit}
-            onClick={() => { onSave({ id: `cat-${Date.now()}`, ...form }); onClose(); }}
+            onClick={() => {
+              const debit = lines.find(l => l.action === "debit");
+              const credit = lines.find(l => l.action === "credit");
+              onSave({ id: `cat-${Date.now()}`, ...form, debitAccount: debit?.account ?? "", creditAccount: credit?.account ?? "" }, lines);
+              onClose();
+            }}
             className="px-5 py-2 text-sm bg-emerald-600 text-white rounded-xl hover:bg-emerald-700 disabled:opacity-40 disabled:cursor-not-allowed flex items-center gap-2">
             <Plus className="w-4 h-4" /> Create Category
           </button>
@@ -221,10 +276,7 @@ function NewCategoryModal({ onClose, onSave, accounts }: {
 }
 
 // ── Process Account Mapping Modal ──────────────────────────────────────────
-const MAPPING_FIELDS = [
-  "Gross Salary", "PAYE Tax", "Net Pay", "Allowance Total", "Advance Amount",
-  "Payment Amount", "Claim Amount", "Invoice Amount", "Purchase Value", "WHT Deducted",
-];
+// Amount-source fields are defined above (shared with the New Category modal).
 
 const PROCESS_NAMES = [
   "Payroll Disbursement", "Supplier Payments", "Expense Claims", "Contract Revenue",
@@ -636,6 +688,27 @@ export function PostingEnginePage() {
   const [mappingEdit, setMappingEdit]         = useState<ProcessAccountMapping | undefined>();
   const [showMappingModal, setShowMappingModal] = useState(false);
 
+  // ── Create a process category together with its account-mapping lines ────
+  function saveCategory(c: ProcessCategory, lines: MappingLineForm[]) {
+    setCategories(prev => [...prev, c]);
+    const mappings: ProcessAccountMapping[] = lines.map((l, i) => ({
+      id: `pam-${Date.now()}-${i}`,
+      process: c.name,
+      account: l.account,
+      action: l.action,
+      amountField: l.amountField,
+    }));
+    setProcessAccountMappings(prev => [...prev, ...mappings]);
+    logChange({
+      module: "Finance",
+      action: "Created",
+      entityType: "ProcessCategory",
+      entityId: c.id,
+      summary: `Created process category "${c.name}" with ${mappings.length} account mapping line${mappings.length !== 1 ? "s" : ""} (DR ${lines.filter(l => l.action === "debit").length} / CR ${lines.filter(l => l.action === "credit").length})`,
+      performedBy: "Sola Adeleke",
+    });
+  }
+
   const now = todayStr();
 
   function approveTransaction(id: string) {
@@ -870,7 +943,7 @@ export function PostingEnginePage() {
 
       {showNewCatModal && (
         <NewCategoryModal onClose={() => setShowNewCatModal(false)}
-          onSave={c => setCategories(prev => [...prev, c])}
+          onSave={saveCategory}
           accounts={accounts.map(a => ({ code: a.code, name: a.name }))} />
       )}
       {showMappingModal && (
