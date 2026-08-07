@@ -121,7 +121,26 @@ const MAPPING_FIELDS = [
   "Payment Amount", "Claim Amount", "Invoice Amount", "Purchase Value", "WHT Deducted",
 ];
 
+const PROCESS_NAMES = [
+  "Payroll Disbursement", "Supplier Payments", "Expense Claims", "Contract Revenue",
+  "Material Purchases", "Material Transfers", "Salary Advances", "Employee Allowances",
+];
+
+const ACCOUNT_TYPE_OPTIONS = ["Assets", "Liabilities", "Equity", "Income", "Expenses"];
+
+const FIELD_FOR_PROCESS: Record<string, string> = {
+  "Payroll Disbursement": "Gross Salary",
+  "Supplier Payments": "Payment Amount",
+  "Expense Claims": "Claim Amount",
+  "Contract Revenue": "Invoice Amount",
+  "Material Purchases": "Purchase Value",
+  "Material Transfers": "Purchase Value",
+  "Salary Advances": "Advance Amount",
+  "Employee Allowances": "Allowance Total",
+};
+
 interface MappingLineForm {
+  process: string;
   account: string;
   action: "debit" | "credit";
   amountField: string;
@@ -132,7 +151,6 @@ function NewCategoryModal({ onClose, onSave, accounts }: {
   onSave: (c: ProcessCategory, lines: MappingLineForm[]) => void;
   accounts: { code: string; name: string; type: string }[];
 }) {
-  const ACCOUNT_TYPES = ["Assets", "Liabilities", "Equity", "Income", "Expenses"];
   const accountOptions = accounts.map(a => `${a.code} ${a.name}`);
   const typeByAccount = Object.fromEntries(accounts.map(a => [`${a.code} ${a.name}`, a.type]));
   const defaultDebit = accountOptions.includes("5100 Labour Costs") ? "5100 Labour Costs" : accountOptions[0] ?? "";
@@ -144,13 +162,13 @@ function NewCategoryModal({ onClose, onSave, accounts }: {
     linkedProcess: "",
   });
   const [lines, setLines] = useState<MappingLineForm[]>([
-    { account: defaultDebit,  action: "debit",  amountField: "Payment Amount" },
-    { account: defaultCredit, action: "credit", amountField: "Payment Amount" },
+    { process: PROCESS_NAMES[0], account: defaultDebit,  action: "debit",  amountField: FIELD_FOR_PROCESS[PROCESS_NAMES[0]] ?? "Payment Amount" },
+    { process: PROCESS_NAMES[0], account: defaultCredit, action: "credit", amountField: FIELD_FOR_PROCESS[PROCESS_NAMES[0]] ?? "Payment Amount" },
   ]);
 
   const debitCount  = lines.filter(l => l.action === "debit").length;
   const creditCount = lines.filter(l => l.action === "credit").length;
-  const allFilled   = lines.length > 1 && lines.every(l => l.account.trim() && l.amountField.trim());
+  const allFilled   = lines.length > 1 && lines.every(l => l.process.trim() && l.account.trim() && l.amountField.trim());
   const bothSides   = debitCount > 0 && creditCount > 0;
   const canSubmit   = form.name.trim() && form.linkedProcess.trim() && allFilled && bothSides;
 
@@ -208,69 +226,98 @@ function NewCategoryModal({ onClose, onSave, accounts }: {
           <div className="border border-gray-200 rounded-xl overflow-hidden">
             <div className="bg-gray-50 px-4 py-2.5 border-b border-gray-100 flex items-center justify-between">
               <p className="text-xs font-semibold text-gray-600 uppercase tracking-wide">Process-to-Account Mapping</p>
-              <button onClick={() => setLines(prev => [...prev, { account: defaultCredit, action: "credit", amountField: "Payment Amount" }])}
+              <button onClick={() => setLines(prev => [...prev, { process: PROCESS_NAMES[0], account: defaultCredit, action: "credit", amountField: FIELD_FOR_PROCESS[PROCESS_NAMES[0]] ?? "Payment Amount" }])}
                 className="flex items-center gap-1 px-2 py-1 text-xs bg-emerald-600 text-white rounded-lg hover:bg-emerald-700">
                 <Plus className="w-3.5 h-3.5" /> Add Line
               </button>
             </div>
-            <div className="p-4 space-y-3">
-              <div className="grid grid-cols-[1fr_1fr_1fr_96px_32px] gap-2 items-center">
-                <span className="text-[10px] font-semibold text-gray-400 uppercase tracking-wide">Account type</span>
-                <span className="text-[10px] font-semibold text-gray-400 uppercase tracking-wide">No</span>
-                <span className="text-[10px] font-semibold text-gray-400 uppercase tracking-wide">Name</span>
-                <span className="text-[10px] font-semibold text-gray-400 uppercase tracking-wide">Action</span>
-                <span />
-              </div>
-              {lines.map((line, idx) => (
-                <div key={idx} className="grid grid-cols-[1fr_1fr_1fr_96px_32px] gap-2 items-center">
-                  <div className="relative">
-                    <select value={typeByAccount[line.account] ?? "All"} onChange={e => { const t = e.target.value; const first = t === "All" ? accounts[0] : accounts.find(a => a.type === t)!; updateLine(idx, { account: first ? `${first.code} ${first.name}` : "" }); }}
-                      className="w-full border border-gray-200 rounded-xl px-1.5 py-2 text-sm outline-none focus:ring-2 focus:ring-emerald-500 bg-white appearance-none pr-6">
-                      {["All", ...ACCOUNT_TYPES].map(t => <option key={t}>{t}</option>)}
-                    </select>
-                    <ChevronDown className="absolute right-1.5 top-1/2 -translate-y-1/2 w-3 h-3 text-gray-400 pointer-events-none" />
-                  </div>
-                  <div className="relative">
-                    <select value={line.account}
-                      onChange={e => updateLine(idx, { account: e.target.value })}
-                      className="w-full border border-gray-200 rounded-xl px-2 py-2 text-sm outline-none focus:ring-2 focus:ring-emerald-500 bg-white appearance-none pr-6">
-                      {(typeByAccount[line.account] ? accounts.filter(a => a.type === typeByAccount[line.account]) : accounts).map(a => (
-                        <option key={a.code} value={`${a.code} ${a.name}`}>{a.code} – {a.name}</option>
-                      ))}
-                    </select>
-                    <ChevronDown className="absolute right-1.5 top-1/2 -translate-y-1/2 w-3 h-3 text-gray-400 pointer-events-none" />
-                  </div>
-                  <input readOnly value={accountNameOf(line.account)}
-                    placeholder="Name"
-                    className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm bg-gray-50 text-gray-600 pointer-events-none" />
-                  <select value={line.action}
-                    onChange={e => updateLine(idx, { action: e.target.value as "debit" | "credit" })}
-                    className={`w-full border border-gray-200 rounded-xl px-2 py-2 text-sm font-semibold focus:ring-2 focus:ring-emerald-500 ${line.action === "debit" ? "text-blue-700 bg-blue-50" : "text-green-700 bg-green-50"}`}>
-                    <option value="debit" className="text-blue-700">Debit</option>
-                    <option value="credit" className="text-green-700">Credit</option>
-                  </select>
-                  <button onClick={() => setLines(prev => prev.filter((_, i) => i !== idx))}
-                    disabled={lines.length <= 1}
-                    className="p-1.5 text-gray-400 hover:text-red-500 rounded-lg hover:bg-red-50 disabled:opacity-30 disabled:cursor-not-allowed" title="Remove line">
-                    <Trash2 className="w-4 h-4" />
-                  </button>
-                </div>
-              ))}
-              <div className="flex items-center justify-between gap-2 pt-1">
-                <p className="text-xs text-gray-400">
-                  <span className={debitCount > 0 ? "text-blue-600 font-semibold" : "text-gray-400"}>{debitCount} Debit</span>
-                  {" · "}
-                  <span className={creditCount > 0 ? "text-green-600 font-semibold" : "text-gray-400"}>{creditCount} Credit</span>
-                  {" line"}{(debitCount + creditCount) !== 1 ? "s" : ""}
-                </p>
-                <p className="text-xs text-gray-400">Each line maps an account to this process</p>
-              </div>
-              {!bothSides && (
-                <p className="text-xs text-red-500 flex items-center gap-1">
-                  <AlertTriangle className="w-3.5 h-3.5" /> Add at least one Debit and one Credit line so the posting can balance.
-                </p>
-              )}
+            <div className="overflow-x-auto">
+              <table className="w-full text-left text-sm">
+                <thead>
+                  <tr className="border-b border-gray-100 text-[10px] text-gray-400 uppercase tracking-wide">
+                    <th className="px-3 py-2 font-semibold min-w-36">Process</th>
+                    <th className="px-3 py-2 font-semibold min-w-28">Account type</th>
+                    <th className="px-3 py-2 font-semibold min-w-36">Account No</th>
+                    <th className="px-3 py-2 font-semibold min-w-36">AccountName</th>
+                    <th className="px-3 py-2 font-semibold min-w-24">Action</th>
+                    <th className="px-3 py-2 font-semibold min-w-28">Amount</th>
+                    <th className="px-3 py-2 font-semibold w-10" />
+                  </tr>
+                </thead>
+                <tbody>
+                  {lines.map((line, idx) => {
+                    const lineType = typeByAccount[line.account] ?? "";
+                    const typeOpts = lineType ? [lineType, ...ACCOUNT_TYPE_OPTIONS.filter(t => t !== lineType)] : ACCOUNT_TYPE_OPTIONS;
+                    return (
+                      <tr key={idx} className="border-b border-gray-50 last:border-0">
+                        <td className="px-3 py-2">
+                          <select value={line.process} onChange={e => { const p = e.target.value; updateLine(idx, { process: p, amountField: FIELD_FOR_PROCESS[p] ?? line.amountField }); }}
+                            className="w-full border border-gray-200 rounded-lg px-2 py-1.5 text-xs bg-white focus:ring-2 focus:ring-emerald-500">
+                            {PROCESS_NAMES.map(p => <option key={p}>{p}</option>)}
+                          </select>
+                        </td>
+                        <td className="px-3 py-2">
+                          <select value={lineType}
+                            onChange={e => { const t = e.target.value; const first = accounts.find(a => a.type === t); updateLine(idx, { account: first ? `${first.code} ${first.name}` : "" }); }}
+                            className="w-full border border-gray-200 rounded-lg px-2 py-1.5 text-sm bg-white focus:ring-2 focus:ring-emerald-500">
+                            {typeOpts.map(t => <option key={t}>{t}</option>)}
+                          </select>
+                        </td>
+                        <td className="px-3 py-2">
+                          <select value={line.account}
+                            onChange={e => updateLine(idx, { account: e.target.value })}
+                            className="w-full border border-gray-200 rounded-lg px-2 py-1.5 text-sm bg-white focus:ring-2 focus:ring-emerald-500">
+                            {accounts.filter(a => !lineType || a.type === lineType).map(a => (
+                              <option key={a.code} value={`${a.code} ${a.name}`}>{a.code} – {a.name}</option>
+                            ))}
+                          </select>
+                        </td>
+                        <td className="px-3 py-2">
+                          <input readOnly value={accountNameOf(line.account)}
+                            placeholder="Name"
+                            className="w-full border border-gray-200 rounded-lg px-2 py-1.5 text-sm bg-gray-50 text-gray-600 pointer-events-none" />
+                        </td>
+                        <td className="px-3 py-2">
+                          <select value={line.action}
+                            onChange={e => updateLine(idx, { action: e.target.value as "debit" | "credit" })}
+                            className={`w-full border border-gray-200 rounded-lg px-2 py-1.5 text-sm font-semibold focus:ring-2 focus:ring-emerald-500 ${line.action === "debit" ? "text-blue-700 bg-blue-50" : "text-green-700 bg-green-50"}`}>
+                            <option value="debit" className="text-blue-700">Debit</option>
+                            <option value="credit" className="text-green-700">Credit</option>
+                          </select>
+                        </td>
+                        <td className="px-3 py-2">
+                          <select value={line.amountField} onChange={e => updateLine(idx, { amountField: e.target.value })}
+                            className="w-full border border-gray-200 rounded-lg px-2 py-1.5 text-sm bg-white focus:ring-2 focus:ring-emerald-500">
+                            {MAPPING_FIELDS.map(f => <option key={f}>{f}</option>)}
+                          </select>
+                        </td>
+                        <td className="px-3 py-2">
+                          <button onClick={() => setLines(prev => prev.filter((_, i) => i !== idx))}
+                            disabled={lines.length <= 1}
+                            className="p-1.5 text-gray-400 hover:text-red-500 rounded-lg hover:bg-red-50 disabled:opacity-30 disabled:cursor-not-allowed" title="Remove line">
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
             </div>
+            <div className="flex items-center justify-between gap-2 px-4 pt-2 pb-3">
+              <p className="text-xs text-gray-400">
+                <span className={debitCount > 0 ? "text-blue-600 font-semibold" : "text-gray-400"}>{debitCount} Debit</span>
+                {" · "}
+                <span className={creditCount > 0 ? "text-green-600 font-semibold" : "text-gray-400"}>{creditCount} Credit</span>
+                {" line"}{(debitCount + creditCount) !== 1 ? "s" : ""}
+              </p>
+              <p className="text-xs text-gray-400">Each line maps an account to this process</p>
+            </div>
+            {!bothSides && (
+              <p className="text-xs text-red-500 flex items-center gap-1 px-4 pb-3">
+                <AlertTriangle className="w-3.5 h-3.5" /> Add at least one Debit and one Credit line so the posting can balance.
+              </p>
+            )}
           </div>
         </div>
         <div className="px-6 py-4 border-t border-gray-100 flex justify-end gap-3">
@@ -292,12 +339,8 @@ function NewCategoryModal({ onClose, onSave, accounts }: {
 }
 
 // ── Process Account Mapping Modal ──────────────────────────────────────────
-// Amount-source fields are defined above (shared with the New Category modal).
-
-const PROCESS_NAMES = [
-  "Payroll Disbursement", "Supplier Payments", "Expense Claims", "Contract Revenue",
-  "Material Purchases", "Material Transfers", "Salary Advances", "Employee Allowances",
-];
+// Amount-source fields, process names and per-process field defaults defined
+// above (shared with the New Category modal).
 
 function MappingModal({ initial, onClose, onSave, accounts }: {
   initial?: ProcessAccountMapping;
@@ -305,19 +348,6 @@ function MappingModal({ initial, onClose, onSave, accounts }: {
   onSave: (m: ProcessAccountMapping) => void;
   accounts: { code: string; name: string; type: string }[];
 }) {
-  const ACCOUNT_TYPES = ["Assets", "Liabilities", "Equity", "Income", "Expenses"];
-
-  const FIELD_FOR_PROCESS: Record<string, string> = {
-    "Payroll Disbursement": "Gross Salary",
-    "Supplier Payments": "Payment Amount",
-    "Expense Claims": "Claim Amount",
-    "Contract Revenue": "Invoice Amount",
-    "Material Purchases": "Purchase Value",
-    "Material Transfers": "Purchase Value",
-    "Salary Advances": "Advance Amount",
-    "Employee Allowances": "Allowance Total",
-  };
-
   const [process, setProcess] = useState(initial?.process ?? PROCESS_NAMES[0]);
   const [accountType, setAccountType] = useState<string>(initial?.account ? accounts.find(a => `${a.code} ${a.name}` === initial.account)?.type ?? "All" : "All");
   const [account, setAccount] = useState(initial?.account ?? "");
@@ -360,7 +390,7 @@ function MappingModal({ initial, onClose, onSave, accounts }: {
               <div className="relative">
                 <select value={accountType} onChange={e => { setAccountType(e.target.value); setAccount(""); }}
                   className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm bg-white appearance-none pr-7 focus:ring-2 focus:ring-emerald-500">
-                  {["All", ...ACCOUNT_TYPES].map(t => <option key={t}>{t}</option>)}
+                  {["All", ...ACCOUNT_TYPE_OPTIONS].map(t => <option key={t}>{t}</option>)}
                 </select>
                 <ChevronDown className="absolute right-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-400 pointer-events-none" />
               </div>
@@ -748,7 +778,7 @@ export function PostingEnginePage() {
     setCategories(prev => [...prev, c]);
     const mappings: ProcessAccountMapping[] = lines.map((l, i) => ({
       id: `pam-${Date.now()}-${i}`,
-      process: c.name,
+      process: l.process,
       account: l.account,
       action: l.action,
       amountField: l.amountField,
