@@ -130,9 +130,11 @@ interface MappingLineForm {
 function NewCategoryModal({ onClose, onSave, accounts }: {
   onClose: () => void;
   onSave: (c: ProcessCategory, lines: MappingLineForm[]) => void;
-  accounts: { code: string; name: string }[];
+  accounts: { code: string; name: string; type: string }[];
 }) {
+  const ACCOUNT_TYPES = ["Assets", "Liabilities", "Equity", "Income", "Expenses"];
   const accountOptions = accounts.map(a => `${a.code} ${a.name}`);
+  const typeByAccount = Object.fromEntries(accounts.map(a => [`${a.code} ${a.name}`, a.type]));
   const defaultDebit = accountOptions.includes("5100 Labour Costs") ? "5100 Labour Costs" : accountOptions[0] ?? "";
   const defaultCredit = accountOptions.includes("1110 Cash & Bank") ? "1110 Cash & Bank" : accountOptions[1] ?? accountOptions[0] ?? "";
 
@@ -156,9 +158,13 @@ function NewCategoryModal({ onClose, onSave, accounts }: {
     setLines(prev => prev.map((l, i) => i === idx ? { ...l, ...patch } : l));
   }
 
+  function accountNameOf(label: string) {
+    return label ? label.slice(label.indexOf(" ") + 1) : "";
+  }
+
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-xl max-h-[90vh] overflow-y-auto">
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
         <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 sticky top-0 bg-white z-10">
           <div>
             <h2 className="text-base font-semibold text-gray-900">New Process Category</h2>
@@ -208,23 +214,34 @@ function NewCategoryModal({ onClose, onSave, accounts }: {
               </button>
             </div>
             <div className="p-4 space-y-3">
-              <div className="grid grid-cols-[1fr_1fr_96px_32px] gap-2 items-center">
-                <span className="text-[10px] font-semibold text-gray-400 uppercase tracking-wide">Account</span>
+              <div className="grid grid-cols-[1fr_1fr_1fr_96px_32px] gap-2 items-center">
+                <span className="text-[10px] font-semibold text-gray-400 uppercase tracking-wide">Account type</span>
+                <span className="text-[10px] font-semibold text-gray-400 uppercase tracking-wide">No</span>
                 <span className="text-[10px] font-semibold text-gray-400 uppercase tracking-wide">Name</span>
                 <span className="text-[10px] font-semibold text-gray-400 uppercase tracking-wide">Action</span>
                 <span />
               </div>
               {lines.map((line, idx) => (
-                <div key={idx} className="grid grid-cols-[1fr_1fr_96px_32px] gap-2 items-center">
+                <div key={idx} className="grid grid-cols-[1fr_1fr_1fr_96px_32px] gap-2 items-center">
                   <div className="relative">
-                    <select value={line.account} onChange={e => updateLine(idx, { account: e.target.value })}
-                      className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-emerald-500 bg-white appearance-none pr-7">
-                      {accountOptions.map(a => <option key={a}>{a}</option>)}
+                    <select value={typeByAccount[line.account] ?? "All"} onChange={e => { const t = e.target.value; const first = t === "All" ? accounts[0] : accounts.find(a => a.type === t)!; updateLine(idx, { account: first ? `${first.code} ${first.name}` : "" }); }}
+                      className="w-full border border-gray-200 rounded-xl px-1.5 py-2 text-sm outline-none focus:ring-2 focus:ring-emerald-500 bg-white appearance-none pr-6">
+                      {["All", ...ACCOUNT_TYPES].map(t => <option key={t}>{t}</option>)}
                     </select>
-                    <ChevronDown className="absolute right-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-400 pointer-events-none" />
+                    <ChevronDown className="absolute right-1.5 top-1/2 -translate-y-1/2 w-3 h-3 text-gray-400 pointer-events-none" />
                   </div>
-                  <input readOnly value={line.account ? line.account.slice(line.account.indexOf(" ") + 1) : ""}
-                    placeholder="Account name"
+                  <div className="relative">
+                    <select value={line.account}
+                      onChange={e => updateLine(idx, { account: e.target.value })}
+                      className="w-full border border-gray-200 rounded-xl px-2 py-2 text-sm outline-none focus:ring-2 focus:ring-emerald-500 bg-white appearance-none pr-6">
+                      {(typeByAccount[line.account] ? accounts.filter(a => a.type === typeByAccount[line.account]) : accounts).map(a => (
+                        <option key={a.code} value={`${a.code} ${a.name}`}>{a.code} – {a.name}</option>
+                      ))}
+                    </select>
+                    <ChevronDown className="absolute right-1.5 top-1/2 -translate-y-1/2 w-3 h-3 text-gray-400 pointer-events-none" />
+                  </div>
+                  <input readOnly value={accountNameOf(line.account)}
+                    placeholder="Name"
                     className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm bg-gray-50 text-gray-600 pointer-events-none" />
                   <select value={line.action}
                     onChange={e => updateLine(idx, { action: e.target.value as "debit" | "credit" })}
@@ -286,9 +303,9 @@ function MappingModal({ initial, onClose, onSave, accounts }: {
   initial?: ProcessAccountMapping;
   onClose: () => void;
   onSave: (m: ProcessAccountMapping) => void;
-  accounts: { code: string; name: string }[];
+  accounts: { code: string; name: string; type: string }[];
 }) {
-  const accountOptions = accounts.map(a => `${a.code} ${a.name}`);
+  const ACCOUNT_TYPES = ["Assets", "Liabilities", "Equity", "Income", "Expenses"];
 
   const FIELD_FOR_PROCESS: Record<string, string> = {
     "Payroll Disbursement": "Gross Salary",
@@ -302,10 +319,14 @@ function MappingModal({ initial, onClose, onSave, accounts }: {
   };
 
   const [process, setProcess] = useState(initial?.process ?? PROCESS_NAMES[0]);
-  const [account, setAccount] = useState(initial?.account ?? accountOptions[0] ?? "");
+  const [accountType, setAccountType] = useState<string>(initial?.account ? accounts.find(a => `${a.code} ${a.name}` === initial.account)?.type ?? "All" : "All");
+  const [account, setAccount] = useState(initial?.account ?? "");
   const [action, setAction] = useState<"debit" | "credit">(initial?.action ?? "debit");
   const [amountField, setAmountField] = useState(initial?.amountField ?? (FIELD_FOR_PROCESS[initial?.process ?? PROCESS_NAMES[0]] ?? MAPPING_FIELDS[0]));
   const canSubmit = process.trim() && account.trim() && amountField.trim();
+
+  const filteredAccounts = accountType === "All" ? accounts : accounts.filter(a => a.type === accountType);
+  const selectedAccount = accounts.find(a => `${a.code} ${a.name}` === account);
 
   function handleProcessChange(next: string) {
     setProcess(next);
@@ -333,21 +354,33 @@ function MappingModal({ initial, onClose, onSave, accounts }: {
               <ChevronDown className="absolute right-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-400 pointer-events-none" />
             </div>
           </div>
-          <div>
-            <label className="block text-xs font-medium text-gray-600 mb-1">Account <span className="text-red-500">*</span></label>
-            <div className="relative">
-              <select value={account} onChange={e => setAccount(e.target.value)}
-                className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm bg-white appearance-none focus:ring-2 focus:ring-emerald-500 pr-7">
-                <option value="">Select account…</option>
-                {accountOptions.map(a => <option key={a}>{a}</option>)}
-              </select>
-              <ChevronDown className="absolute right-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-400 pointer-events-none" />
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="block text-xs font-medium text-gray-600 mb-1">Account type <span className="text-red-500">*</span></label>
+              <div className="relative">
+                <select value={accountType} onChange={e => { setAccountType(e.target.value); setAccount(""); }}
+                  className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm bg-white appearance-none pr-7 focus:ring-2 focus:ring-emerald-500">
+                  {["All", ...ACCOUNT_TYPES].map(t => <option key={t}>{t}</option>)}
+                </select>
+                <ChevronDown className="absolute right-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-400 pointer-events-none" />
+              </div>
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-gray-600 mb-1">Account No <span className="text-red-500">*</span></label>
+              <div className="relative">
+                <select value={account} onChange={e => setAccount(e.target.value)}
+                  className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm bg-white appearance-none focus:ring-2 focus:ring-emerald-500 pr-7">
+                  <option value="">Select account…</option>
+                  {filteredAccounts.map(a => <option key={a.code} value={`${a.code} ${a.name}`}>{a.code} – {a.name}</option>)}
+                </select>
+                <ChevronDown className="absolute right-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-400 pointer-events-none" />
+              </div>
             </div>
           </div>
           <div>
-            <label className="block text-xs font-medium text-gray-600 mb-1">Name <span className="text-red-500">*</span></label>
-            <input value={account ? account.slice(account.indexOf(" ") + 1) : ""} readOnly
-              placeholder="Account name appears here"
+            <label className="block text-xs font-medium text-gray-600 mb-1">AccountName <span className="text-red-500">*</span></label>
+            <input value={selectedAccount?.name ?? ""} readOnly
+              placeholder="Account name appears automatically"
               className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm bg-gray-50 text-gray-600 pointer-events-none" />
           </div>
           <div className="grid grid-cols-2 gap-3">
@@ -360,7 +393,7 @@ function MappingModal({ initial, onClose, onSave, accounts }: {
               </select>
             </div>
             <div>
-              <label className="block text-xs font-medium text-gray-600 mb-1">Amount From</label>
+              <label className="block text-xs font-medium text-gray-600 mb-1">Amount <span className="text-red-500">*</span></label>
               <select value={amountField} onChange={e => setAmountField(e.target.value)}
                 className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm bg-white focus:ring-2 focus:ring-emerald-500">
                 {MAPPING_FIELDS.map(f => <option key={f}>{f}</option>)}
@@ -862,12 +895,19 @@ export function PostingEnginePage() {
             columns={[
               { key: "process", label: "Process", sortable: true, filterable: true,
                 render: (m) => <span className="font-medium text-gray-900">{m.process}</span> },
-              { key: "code", label: "Account", sortable: true, filterable: true,
+              { key: "type", label: "Account type", sortable: true, filterable: true,
+                render: (m) => {
+                  const acct = accounts.find(a => `${a.code} ${a.name}` === m.account);
+                  return <span className="text-xs text-gray-500">{acct?.type ?? "—"}</span>;
+                } },
+              { key: "code", label: "No", sortable: true, filterable: true,
                 render: (m) => <span className="font-mono text-xs text-gray-500">{m.account.split(" ")[0]}</span> },
               { key: "name", label: "Name", sortable: true, filterable: true,
                 render: (m) => <span className="text-sm text-gray-700">{m.account.slice(m.account.indexOf(" ") + 1)}</span> },
               { key: "action", label: "Action", sortable: true, filterable: true,
                 render: (m) => <span className={`px-2 py-0.5 text-xs rounded-full font-bold ${m.action === "debit" ? "bg-blue-100 text-blue-700" : "bg-green-100 text-green-700"}`}>{m.action === "debit" ? "Debit" : "Credit"}</span> },
+              { key: "field", label: "Amount", sortable: true, filterable: true,
+                render: (m) => <span className="text-xs text-gray-500">{m.amountField}</span> },
               { key: "actions", label: "Actions", sortable: false, filterable: false, className: "text-right", headerClassName: "text-right",
                 render: (m) => (
                   <div className="flex items-center justify-end gap-1">
@@ -964,12 +1004,12 @@ export function PostingEnginePage() {
       {showNewCatModal && (
         <NewCategoryModal onClose={() => setShowNewCatModal(false)}
           onSave={saveCategory}
-          accounts={accounts.map(a => ({ code: a.code, name: a.name }))} />
+          accounts={accounts.map(a => ({ code: a.code, name: a.name, type: a.type }))} />
       )}
       {showMappingModal && (
         <MappingModal initial={mappingEdit} onClose={() => setShowMappingModal(false)}
           onSave={saveMapping}
-          accounts={accounts.map(a => ({ code: a.code, name: a.name }))} />
+          accounts={accounts.map(a => ({ code: a.code, name: a.name, type: a.type }))} />
       )}
     </div>
   );
