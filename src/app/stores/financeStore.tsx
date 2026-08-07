@@ -4,8 +4,17 @@ import type {
   Accrual, AccrualType, AccrualStatus, TxnType, AccrualTypeConfig,
 } from "../pages/finance/types";
 
+// ── Journal / posting line ─────────────────────────────────────────────────
+export interface LedgerLine {
+  id: string;
+  account: string;   // "<code> <name>" (matches store account)
+  debit: number;
+  credit: number;
+  description: string;
+}
+
 // ── Transaction type (from TransactionsLedger) ─────────────────────────────
-interface Transaction {
+export interface Transaction {
   id: string; type: TxnType; description: string;
   debitAccount: string; creditAccount: string;
   reference: string; amount: number; date: string; createdBy: string;
@@ -13,6 +22,26 @@ interface Transaction {
   approvalStatus: "approved" | "pending" | "auto-approved";
   linkedRecords?: { label: string; ref: string }[];
   notes?: string;
+  fiscalYearId?: string;
+  // Multi-line (double-entry) postings. When present, balances are derived from
+  // lines; otherwise they fall back to the single debit/credit pair above.
+  lines?: LedgerLine[];
+}
+
+// src for the shared posting constructor passed by modules (Journal, Invoice,
+// Payment, Posting Engine). Exported so forms can type the account selector.
+export interface PostingInput {
+  id: string;
+  type: TxnType;
+  description: string;
+  reference: string;
+  date: string;
+  createdBy: string;
+  sourceApp: string;
+  sourceProcess: string;
+  lines: LedgerLine[];
+  notes?: string;
+  linkedRecords?: { label: string; ref: string }[];
   fiscalYearId?: string;
 }
 
@@ -32,6 +61,8 @@ interface FinanceContextValue {
   getAccountBalance: (accountId: string) => number;
   getAccountsByType: (type: AccountType) => Account[];
   getDescendantIds: (parentId: string) => string[];
+  getPostableAccounts: () => Account[];
+  postTransaction: (input: PostingInput) => Transaction | null;
   getTrialBalance: (fiscalYearId?: string) => TrialBalanceRow[];
   getBalanceSheet: (fiscalYearId?: string) => BalanceSheetSection[];
   getIncomeStatement: (fiscalYearId?: string) => IncomeStatementRow[];
@@ -80,6 +111,86 @@ const SEED_ACCOUNTS: Account[] = [
   { id: "a18", code: "5200", name: "Material Costs",        type: "Expenses",    parentId: "a16", description: "Raw materials and supplies" },
   { id: "a19", code: "5300", name: "Equipment Costs",       type: "Expenses",    parentId: "a16", description: "Equipment hire and maintenance" },
   { id: "a20", code: "5400", name: "Overhead",              type: "Expenses",    parentId: "a16", description: "General overhead costs" },
+  { id: "a21", code: "1130", name: "Input VAT",             type: "Assets",      parentId: "a2",  description: "Recoverable input VAT" },
+  { id: "a22", code: "2130", name: "VAT Payable",           type: "Liabilities", parentId: "a8",  description: "Output VAT owed to tax authorities" },
+  { id: "a23", code: "2140", name: "WHT Payable",           type: "Liabilities", parentId: "a8",  description: "Withholding tax deducted and payable" },
+];
+
+// ── Seed posted ledger transactions ────────────────────────────────────────
+// Represent posted (approved) postings from Journal Entries, Payment Entries,
+// and Purchasing. These drive Chart of Accounts balances via getAccountBalance.
+const SEED_LEDGER: Transaction[] = [
+  {
+    id: "LGR-1001", type: "Journal", description: "Site materials purchase – Block A", reference: "REF-EXP-0041",
+    amount: 2400000, date: "2026-04-01", createdBy: "Amara Lawson", sourceApp: "Finance", sourceProcess: "Journal Entry",
+    approvalStatus: "approved", fiscalYearId: "fy2", linkedRecords: [{ label: "Journal Entry", ref: "JE-001" }],
+    debitAccount: "5200 Material Costs", creditAccount: "1110 Cash & Bank",
+    lines: [
+      { id: "ls-1a", account: "5200 Material Costs", debit: 2400000, credit: 0, description: "Cement & rebar" },
+      { id: "ls-1b", account: "1110 Cash & Bank", debit: 0, credit: 2400000, description: "Paid from ops account" },
+    ],
+  },
+  {
+    id: "LGR-1002", type: "Journal", description: "Progress billing – Phase 1", reference: "REF-INC-0018",
+    amount: 8500000, date: "2026-04-03", createdBy: "Femi Bode", sourceApp: "Finance", sourceProcess: "Journal Entry",
+    approvalStatus: "approved", fiscalYearId: "fy2", linkedRecords: [{ label: "Journal Entry", ref: "JE-002" }],
+    debitAccount: "1120 Accounts Receivable", creditAccount: "4100 Contract Revenue",
+    lines: [
+      { id: "ls-2a", account: "1120 Accounts Receivable", debit: 8500000, credit: 0, description: "Invoice INV-0018" },
+      { id: "ls-2b", account: "4100 Contract Revenue", debit: 0, credit: 8500000, description: "Phase 1 completion billing" },
+    ],
+  },
+  {
+    id: "LGR-1003", type: "Journal", description: "April 2026 payroll", reference: "PAYROLL-APR-2026",
+    amount: 12400000, date: "2026-04-07", createdBy: "HR System", sourceApp: "Finance", sourceProcess: "Journal Entry",
+    approvalStatus: "approved", fiscalYearId: "fy2", linkedRecords: [{ label: "Journal Entry", ref: "JE-003" }],
+    debitAccount: "5100 Labour Costs", creditAccount: "1110 Cash & Bank",
+    lines: [
+      { id: "ls-3a", account: "5100 Labour Costs", debit: 12400000, credit: 0, description: "Net salaries" },
+      { id: "ls-3b", account: "1110 Cash & Bank", debit: 0, credit: 10800000, description: "Net pay to employees" },
+      { id: "ls-3c", account: "2140 WHT Payable", debit: 0, credit: 1600000, description: "PAYE withheld" },
+    ],
+  },
+  {
+    id: "LGR-1004", type: "Payment", description: "Supplier invoice payment – CemCo Nigeria Ltd", reference: "PO-2025-014",
+    amount: 4950000, date: "2026-04-09", createdBy: "Sola Adeleke", sourceApp: "Finance", sourceProcess: "Purchase Invoice Payment",
+    approvalStatus: "approved", fiscalYearId: "fy2", linkedRecords: [{ label: "Invoice", ref: "PI-001" }],
+    debitAccount: "2110 Accounts Payable", creditAccount: "1110 Cash & Bank",
+    lines: [
+      { id: "ls-4a", account: "2110 Accounts Payable", debit: 4950000, credit: 0, description: "Settle CemCo invoice" },
+      { id: "ls-4b", account: "1110 Cash & Bank", debit: 0, credit: 4950000, description: "Bank transfer" },
+    ],
+  },
+  {
+    id: "LGR-1005", type: "Journal", description: "Supplier invoice accrual – SteelMart PO-2025-012", reference: "INV-STL-0089",
+    amount: 8340000, date: "2026-04-10", createdBy: "Emeka Obi", sourceApp: "Procurement", sourceProcess: "Purchase Invoice",
+    approvalStatus: "approved", fiscalYearId: "fy2", linkedRecords: [{ label: "Invoice", ref: "PI-002" }],
+    debitAccount: "5200 Material Costs", creditAccount: "2110 Accounts Payable",
+    lines: [
+      { id: "ls-5a", account: "5200 Material Costs", debit: 8340000, credit: 0, description: "Steel Rebar Y16 & binding wire" },
+      { id: "ls-5b", account: "2110 Accounts Payable", debit: 0, credit: 8340000, description: "Amount due to SteelMart" },
+    ],
+  },
+  {
+    id: "LGR-1006", type: "Payment", description: "Payroll disbursement – March 2026", reference: "PAY-2603",
+    amount: 4620000, date: "2026-04-01", createdBy: "Ngozi Adeyemi", sourceApp: "HR", sourceProcess: "Payroll Disbursement",
+    approvalStatus: "auto-approved", fiscalYearId: "fy2", linkedRecords: [{ label: "Posting Engine Ref", ref: "TXN-2026-002" }],
+    debitAccount: "5100 Labour Costs", creditAccount: "1110 Cash & Bank",
+    lines: [
+      { id: "ls-6a", account: "5100 Labour Costs", debit: 4620000, credit: 0, description: "March payroll" },
+      { id: "ls-6b", account: "1110 Cash & Bank", debit: 0, credit: 4620000, description: "Net pay" },
+    ],
+  },
+  {
+    id: "LGR-1007", type: "Adjustment", description: "Opening capital injection", reference: "OPN-2026",
+    amount: 30000000, date: "2026-01-05", createdBy: "Sola Adeleke", sourceApp: "Finance", sourceProcess: "Opening Balance",
+    approvalStatus: "approved", fiscalYearId: "fy2",
+    debitAccount: "1110 Cash & Bank", creditAccount: "3100 Retained Earnings",
+    lines: [
+      { id: "ls-7a", account: "1110 Cash & Bank", debit: 30000000, credit: 0, description: "Capital injection" },
+      { id: "ls-7b", account: "3100 Retained Earnings", debit: 0, credit: 30000000, description: "Opening capital" },
+    ],
+  },
 ];
 
 // ── Seed Fiscal Years ──────────────────────────────────────────────────────
@@ -148,9 +259,22 @@ const SEED_ACCRUAL_TYPE_CONFIGS: AccrualTypeConfig[] = [
 // ── Context ────────────────────────────────────────────────────────────────
 const FinanceContext = createContext<FinanceContextValue | null>(null);
 
+// Normalise a transaction into postable lines. Multi-line postings use their
+// lines directly; legacy single debit/credit pairs fall back to two lines.
+function txnLines(txn: Transaction): LedgerLine[] {
+  if (txn.lines && txn.lines.length > 0) return txn.lines;
+  if (txn.debitAccount && txn.creditAccount) {
+    return [
+      { id: `${txn.id}-d`, account: txn.debitAccount, debit: Math.abs(txn.amount), credit: 0, description: "" },
+      { id: `${txn.id}-c`, account: txn.creditAccount, credit: Math.abs(txn.amount), debit: 0, description: "" },
+    ];
+  }
+  return [];
+}
+
 export function FinanceProvider({ children }: { children: ReactNode }) {
   const [accounts, setAccounts] = useState<Account[]>(SEED_ACCOUNTS);
-  const [transactions, setTransactions] = useState<Transaction[]>([]);
+  const [transactions, setTransactions] = useState<Transaction[]>(SEED_LEDGER);
   const [fiscalYears, setFiscalYears] = useState<FiscalYear[]>(SEED_FISCAL_YEARS);
   const [accruals, setAccruals] = useState<Accrual[]>(SEED_ACCRUALS);
   const [accrualTypeConfigs, setAccrualTypeConfigs] = useState<AccrualTypeConfig[]>(SEED_ACCRUAL_TYPE_CONFIGS);
@@ -163,6 +287,42 @@ export function FinanceProvider({ children }: { children: ReactNode }) {
     ];
   }, [accounts]);
 
+  // Postable accounts — leaf (postable) accounts within the Chart of Accounts.
+  const getPostableAccounts = useCallback((): Account[] =>
+    accounts.filter(a => a.parentId !== null && !accounts.some(c => c.parentId === a.id)),
+  [accounts]);
+
+  // ── Central posting mechanism ────────────────────────────────────────────
+  // Every module (Journal Entry, Payment Entry, Purchasing, Posting Engine)
+  // routes its postings through this single entry point. Draft transactions
+  // must NOT call this — only posted/approved accounting events do.
+  const postTransaction = useCallback((input: PostingInput): Transaction | null => {
+    const totalDebits = input.lines.reduce((s, l) => s + (l.debit || 0), 0);
+    const totalCredits = input.lines.reduce((s, l) => s + (l.credit || 0), 0);
+    if (totalDebits !== totalCredits || totalDebits <= 0) return null;
+
+    const txn: Transaction = {
+      id: input.id,
+      type: input.type,
+      description: input.description,
+      reference: input.reference,
+      date: input.date,
+      createdBy: input.createdBy,
+      sourceApp: input.sourceApp,
+      sourceProcess: input.sourceProcess,
+      approvalStatus: "approved",
+      amount: totalDebits,
+      debitAccount: input.lines.find(l => l.debit)?.account ?? "",
+      creditAccount: input.lines.find(l => l.credit)?.account ?? "",
+      lines: input.lines,
+      notes: input.notes,
+      linkedRecords: input.linkedRecords,
+      fiscalYearId: input.fiscalYearId,
+    };
+    setTransactions(prev => [...prev, txn]);
+    return txn;
+  }, []);
+
   const getAccountBalance = useCallback((accountId: string): number => {
     const account = accounts.find(a => a.id === accountId);
     if (!account) return 0;
@@ -172,18 +332,14 @@ export function FinanceProvider({ children }: { children: ReactNode }) {
 
     let balance = 0;
     for (const txn of transactions) {
-      const matchesDR = descendantIds.some(id => {
-        const a = accounts.find(ac => ac.id === id);
-        return a && txn.debitAccount.includes(a.code);
-      });
-      const matchesCR = descendantIds.some(id => {
-        const a = accounts.find(ac => ac.id === id);
-        return a && txn.creditAccount.includes(a.code);
-      });
-
-      if (matchesDR && matchesCR) continue; // contra entry
-      if (matchesDR) balance += Math.abs(txn.amount);
-      if (matchesCR) balance -= Math.abs(txn.amount);
+      for (const line of txnLines(txn)) {
+        const matches = descendantIds.some(id => {
+          const a = accounts.find(ac => ac.id === id);
+          return a && line.account.includes(a.code);
+        });
+        if (!matches) continue;
+        balance += (line.debit || 0) - (line.credit || 0);
+      }
     }
 
     return isDebitType ? balance : -balance;
@@ -206,22 +362,20 @@ export function FinanceProvider({ children }: { children: ReactNode }) {
       const descIds = getDescendantIds(account.id);
       let dr = 0; let cr = 0;
       for (const txn of filtered) {
-        const matchesDR = descIds.some(id => {
-          const a = accounts.find(ac => ac.id === id);
-          return a && txn.debitAccount.includes(a.code);
-        });
-        const matchesCR = descIds.some(id => {
-          const a = accounts.find(ac => ac.id === id);
-          return a && txn.creditAccount.includes(a.code);
-        });
-        if (matchesDR === matchesCR) continue;
-        if (matchesDR) {
-          if (account.type === "Assets" || account.type === "Expenses") dr += Math.abs(txn.amount);
-          else cr += Math.abs(txn.amount);
-        }
-        if (matchesCR) {
-          if (account.type === "Liabilities" || account.type === "Equity" || account.type === "Income") cr += Math.abs(txn.amount);
-          else dr += Math.abs(txn.amount);
+        for (const line of txnLines(txn)) {
+          const matches = descIds.some(id => {
+            const a = accounts.find(ac => ac.id === id);
+            return a && line.account.includes(a.code);
+          });
+          if (!matches) continue;
+          if (line.debit) {
+            if (account.type === "Assets" || account.type === "Expenses") dr += line.debit;
+            else cr += line.debit;
+          }
+          if (line.credit) {
+            if (account.type === "Liabilities" || account.type === "Equity" || account.type === "Income") cr += line.credit;
+            else dr += line.credit;
+          }
         }
       }
       accountBalances[account.id] = { debit: dr, credit: cr };
@@ -309,8 +463,9 @@ export function FinanceProvider({ children }: { children: ReactNode }) {
     accruals, setAccruals,
     accrualTypeConfigs, setAccrualTypeConfigs,
     getAccountBalance, getAccountsByType, getDescendantIds,
+    getPostableAccounts, postTransaction,
     getTrialBalance, getBalanceSheet, getIncomeStatement,
-  }), [accounts, transactions, fiscalYears, accruals, accrualTypeConfigs, getAccountBalance, getAccountsByType, getDescendantIds, getTrialBalance, getBalanceSheet, getIncomeStatement]);
+  }), [accounts, transactions, fiscalYears, accruals, accrualTypeConfigs, getAccountBalance, getAccountsByType, getDescendantIds, getPostableAccounts, postTransaction, getTrialBalance, getBalanceSheet, getIncomeStatement]);
 
   return (
     <FinanceContext.Provider value={value}>

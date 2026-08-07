@@ -1,20 +1,15 @@
 import { useState } from "react";
-import { Plus, Search, Eye, Edit, Trash2, X, BookOpen } from "lucide-react";
+import { Plus, Search, Eye, Edit, Trash2, X } from "lucide-react";
 import { exportCSV } from "../../utils/exportCSV";
 import { useChangelog } from "../../stores/changelogStore";
 import { DataTable, type Column } from "../../components/DataTable";
 import { useNumbering } from "../../stores/numberingStore";
+import { useFinance } from "../../stores/financeStore";
+import { JournalLinesEditor, newJournalLine, type JournalLineInput } from "../../components/JournalLinesEditor";
 
 type EntryStatus = "Draft" | "Posted" | "Reversed";
 
-interface JournalLine {
-  id: string;
-  account: string;
-  glCode: string;
-  debit: number;
-  credit: number;
-  description: string;
-}
+type JournalLine = JournalLineInput;
 
 interface JournalEntry {
   id: string;
@@ -26,65 +21,41 @@ interface JournalEntry {
   lines: JournalLine[];
 }
 
-const ACCOUNTS = [
-  { code: "1010", name: "Cash & Bank" },
-  { code: "1100", name: "Accounts Receivable" },
-  { code: "1200", name: "Inventory" },
-  { code: "1500", name: "Fixed Assets" },
-  { code: "2000", name: "Accounts Payable" },
-  { code: "2100", name: "Accrued Liabilities" },
-  { code: "2300", name: "VAT Payable" },
-  { code: "2310", name: "WHT Payable" },
-  { code: "3000", name: "Share Capital" },
-  { code: "3100", name: "Retained Earnings" },
-  { code: "4000", name: "Revenue" },
-  { code: "4100", name: "Other Income" },
-  { code: "5100", name: "Labour Expense" },
-  { code: "5200", name: "Materials Expense" },
-  { code: "5300", name: "Equipment Expense" },
-  { code: "5400", name: "Operating Expense" },
-  { code: "6000", name: "Interest Expense" },
-];
-
 const mockEntries: JournalEntry[] = [
   {
     id: "JE-001", date: "2026-04-01", reference: "REF-EXP-0041", description: "Site materials purchase – Block A",
     status: "Posted", createdBy: "Amara Lawson",
     lines: [
-      { id: "l1", account: "Materials Expense", glCode: "5200", debit: 2400000, credit: 0, description: "Cement & rebar" },
-      { id: "l2", account: "Cash & Bank", glCode: "1010", debit: 0, credit: 2400000, description: "Paid from ops account" },
+      { id: "l1", account: "5200 Material Costs", debit: 2400000, credit: 0, description: "Cement & rebar" },
+      { id: "l2", account: "1110 Cash & Bank", debit: 0, credit: 2400000, description: "Paid from ops account" },
     ],
   },
   {
     id: "JE-002", date: "2026-04-03", reference: "REF-INC-0018", description: "Progress billing – Phase 1",
     status: "Posted", createdBy: "Femi Bode",
     lines: [
-      { id: "l3", account: "Accounts Receivable", glCode: "1100", debit: 8500000, credit: 0, description: "Invoice INV-0018" },
-      { id: "l4", account: "Revenue", glCode: "4000", debit: 0, credit: 8500000, description: "Phase 1 completion billing" },
+      { id: "l3", account: "1120 Accounts Receivable", debit: 8500000, credit: 0, description: "Invoice INV-0018" },
+      { id: "l4", account: "4100 Contract Revenue", debit: 0, credit: 8500000, description: "Phase 1 completion billing" },
     ],
   },
   {
     id: "JE-003", date: "2026-04-07", reference: "PAYROLL-APR-2026", description: "April 2026 payroll",
     status: "Posted", createdBy: "HR System",
     lines: [
-      { id: "l5", account: "Labour Expense", glCode: "5100", debit: 12400000, credit: 0, description: "Net salaries" },
-      { id: "l6", account: "Cash & Bank", glCode: "1010", debit: 0, credit: 10800000, description: "Net pay to employees" },
-      { id: "l7", account: "WHT Payable", glCode: "2310", debit: 0, credit: 1600000, description: "PAYE withheld" },
+      { id: "l5", account: "5100 Labour Costs", debit: 12400000, credit: 0, description: "Net salaries" },
+      { id: "l6", account: "1110 Cash & Bank", debit: 0, credit: 10800000, description: "Net pay to employees" },
+      { id: "l7", account: "2140 WHT Payable", debit: 0, credit: 1600000, description: "PAYE withheld" },
     ],
   },
   {
     id: "JE-004", date: "2026-04-10", reference: "ADJ-001", description: "Inventory adjustment – stock count variance",
     status: "Draft", createdBy: "Amara Lawson",
     lines: [
-      { id: "l8", account: "Operating Expense", glCode: "5400", debit: 180000, credit: 0, description: "Adjustment loss" },
-      { id: "l9", account: "Inventory", glCode: "1200", debit: 0, credit: 180000, description: "Write-down" },
+      { id: "l8", account: "5400 Overhead", debit: 180000, credit: 0, description: "Adjustment loss" },
+      { id: "l9", account: "5200 Material Costs", debit: 0, credit: 180000, description: "Write-down" },
     ],
   },
 ];
-
-const blankLine = (): JournalLine => ({
-  id: `ln-${Date.now()}-${Math.random()}`, account: "", glCode: "", debit: 0, credit: 0, description: "",
-});
 
 const STATUS_STYLES: Record<EntryStatus, string> = {
   Draft: "bg-amber-100 text-amber-700",
@@ -95,17 +66,18 @@ const STATUS_STYLES: Record<EntryStatus, string> = {
 export function JournalEntryPage() {
   const { logChange } = useChangelog();
   const { getNextId } = useNumbering();
+  const { getPostableAccounts, postTransaction } = useFinance();
+  const postableAccounts = getPostableAccounts().map(a => ({ code: a.code, name: a.name }));
   const [entries, setEntries] = useState<JournalEntry[]>(mockEntries);
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<EntryStatus | "All">("All");
-  const [expandedId, setExpandedId] = useState<string | null>(null);
   const [modalOpen, setModalOpen] = useState(false);
   const [editId, setEditId] = useState<string | null>(null);
   const [viewEntry, setViewEntry] = useState<JournalEntry | null>(null);
 
   const [form, setForm] = useState<{
     date: string; reference: string; description: string; lines: JournalLine[];
-  }>({ date: new Date().toISOString().slice(0, 10), reference: "", description: "", lines: [blankLine(), blankLine()] });
+  }>({ date: new Date().toISOString().slice(0, 10), reference: "", description: "", lines: [newJournalLine(), newJournalLine()] });
 
   const filtered = entries.filter((e) => {
     if (statusFilter !== "All" && e.status !== statusFilter) return false;
@@ -115,7 +87,7 @@ export function JournalEntryPage() {
 
   function openCreate() {
     setEditId(null);
-    setForm({ date: new Date().toISOString().slice(0, 10), reference: "", description: "", lines: [blankLine(), blankLine()] });
+    setForm({ date: new Date().toISOString().slice(0, 10), reference: "", description: "", lines: [newJournalLine(), newJournalLine()] });
     setModalOpen(true);
   }
 
@@ -123,29 +95,6 @@ export function JournalEntryPage() {
     setEditId(e.id);
     setForm({ date: e.date, reference: e.reference, description: e.description, lines: e.lines.map(l => ({ ...l })) });
     setModalOpen(true);
-  }
-
-  function addLine() {
-    setForm((f) => ({ ...f, lines: [...f.lines, blankLine()] }));
-  }
-
-  function removeLine(id: string) {
-    setForm((f) => ({ ...f, lines: f.lines.filter((l) => l.id !== id) }));
-  }
-
-  function updateLine(id: string, field: keyof JournalLine, value: string | number) {
-    setForm((f) => ({
-      ...f,
-      lines: f.lines.map((l) => {
-        if (l.id !== id) return l;
-        const updated = { ...l, [field]: value };
-        if (field === "account") {
-          const acct = ACCOUNTS.find((a) => a.name === value);
-          if (acct) updated.glCode = acct.code;
-        }
-        return updated;
-      }),
-    }));
   }
 
   const totalDebits = form.lines.reduce((s, l) => s + (l.debit || 0), 0);
@@ -164,6 +113,22 @@ export function JournalEntryPage() {
       };
       setEntries([newEntry, ...entries]);
       logChange({ module: "Finance", action: "Created", entityType: "JournalEntry", entityId: newEntry.id, summary: `Journal Entry ${newEntry.id}: ${form.description} [${status}]`, performedBy: "Current User" });
+    }
+
+    // Only posted entries update the Chart of Accounts balances. Drafts do not.
+    if (status === "Posted") {
+      postTransaction({
+        id: getNextId("Transaction"),
+        type: "Journal",
+        description: form.description,
+        reference: form.reference || getNextId("JournalEntry"),
+        date: form.date,
+        createdBy: "Current User",
+        sourceApp: "Finance",
+        sourceProcess: "Journal Entry",
+        lines: form.lines.map(l => ({ ...l, debit: l.debit || 0, credit: l.credit || 0 })),
+        linkedRecords: [{ label: "Journal Entry", ref: editId || form.reference || "JE" }],
+      });
     }
     setModalOpen(false);
   }
@@ -277,65 +242,14 @@ export function JournalEntryPage() {
               <div>
                 <div className="flex items-center justify-between mb-2">
                   <label className="text-xs font-semibold text-gray-700">Journal Lines</label>
-                  <button onClick={addLine} className="text-xs text-emerald-600 hover:underline flex items-center gap-1"><Plus className="w-3 h-3" /> Add line</button>
+                  <span className="text-xs text-gray-400">Total debits must equal total credits to post.</span>
                 </div>
-                <div className="rounded-lg border border-gray-200 overflow-hidden">
-                  <table className="w-full">
-                    <thead className="bg-gray-50 border-b border-gray-200">
-                      <tr>
-                        <th className="text-left px-3 py-2 text-xs font-semibold text-gray-500">Account</th>
-                        <th className="text-left px-3 py-2 text-xs font-semibold text-gray-500 w-20">GL Code</th>
-                        <th className="text-left px-3 py-2 text-xs font-semibold text-gray-500 w-28">Debit</th>
-                        <th className="text-left px-3 py-2 text-xs font-semibold text-gray-500 w-28">Credit</th>
-                        <th className="text-left px-3 py-2 text-xs font-semibold text-gray-500">Note</th>
-                        <th className="w-8" />
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-gray-100">
-                      {form.lines.map((line) => (
-                        <tr key={line.id}>
-                          <td className="px-2 py-1.5">
-                            <select value={line.account} onChange={(e) => updateLine(line.id, "account", e.target.value)} className="w-full px-2 py-1.5 text-sm border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-emerald-500">
-                              <option value="">Select account</option>
-                              {ACCOUNTS.map((a) => <option key={a.code} value={a.name}>{a.name}</option>)}
-                            </select>
-                          </td>
-                          <td className="px-2 py-1.5">
-                            <input value={line.glCode} readOnly className="w-full px-2 py-1.5 text-sm border border-gray-200 rounded bg-gray-50 font-mono text-gray-500" />
-                          </td>
-                          <td className="px-2 py-1.5">
-                            <input type="number" min={0} value={line.debit || ""} onChange={(e) => updateLine(line.id, "debit", parseFloat(e.target.value) || 0)} placeholder="0" disabled={!!line.credit} className="w-full px-2 py-1.5 text-sm border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-emerald-500" />
-                          </td>
-                          <td className="px-2 py-1.5">
-                            <input type="number" min={0} value={line.credit || ""} onChange={(e) => updateLine(line.id, "credit", parseFloat(e.target.value) || 0)} placeholder="0" disabled={!!line.debit} className="w-full px-2 py-1.5 text-sm border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-emerald-500" />
-                          </td>
-                          <td className="px-2 py-1.5">
-                            <input value={line.description} onChange={(e) => updateLine(line.id, "description", e.target.value)} placeholder="Note" className="w-full px-2 py-1.5 text-sm border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-emerald-500" />
-                          </td>
-                          <td className="px-2 py-1.5">
-                            {form.lines.length > 2 && (
-                              <button onClick={() => removeLine(line.id)} className="p-1 text-gray-400 hover:text-red-500"><X className="w-3.5 h-3.5" /></button>
-                            )}
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                    <tfoot className="bg-gray-50 border-t border-gray-200">
-                      <tr>
-                        <td colSpan={2} className="px-3 py-2 text-xs font-semibold text-gray-600 text-right">Totals:</td>
-                        <td className="px-3 py-2 text-xs font-bold text-emerald-700">{totalDebits.toLocaleString()}</td>
-                        <td className="px-3 py-2 text-xs font-bold text-red-600">{totalCredits.toLocaleString()}</td>
-                        <td colSpan={2} className="px-3 py-2">
-                          {totalDebits > 0 && (
-                            <span className={`text-xs font-semibold ${isBalanced ? "text-emerald-600" : "text-red-600"}`}>
-                              {isBalanced ? "✓ Balanced" : `Difference: ₦${Math.abs(totalDebits - totalCredits).toLocaleString()}`}
-                            </span>
-                          )}
-                        </td>
-                      </tr>
-                    </tfoot>
-                  </table>
-                </div>
+                <JournalLinesEditor
+                  lines={form.lines}
+                  onChange={(lines) => setForm((f) => ({ ...f, lines }))}
+                  accounts={postableAccounts}
+                  minLines={2}
+                />
               </div>
             </div>
             <div className="px-6 py-4 border-t border-gray-100 flex items-center justify-between">
@@ -381,8 +295,8 @@ export function JournalEntryPage() {
                 <tbody className="divide-y divide-gray-100">
                   {viewEntry.lines.map((l) => (
                     <tr key={l.id}>
-                      <td className="px-3 py-2 font-medium text-gray-800">{l.account}</td>
-                      <td className="px-3 py-2 font-mono text-gray-500 text-xs">{l.glCode}</td>
+                      <td className="px-3 py-2 font-medium text-gray-800">{l.account.replace(/^\d+\s/, "")}</td>
+                      <td className="px-3 py-2 font-mono text-gray-500 text-xs">{l.account.split(" ")[0]}</td>
                       <td className="px-3 py-2 text-right text-emerald-700 font-medium">{l.debit ? fmt(l.debit) : ""}</td>
                       <td className="px-3 py-2 text-right text-red-600 font-medium">{l.credit ? fmt(l.credit) : ""}</td>
                       <td className="px-3 py-2 text-gray-500 text-xs">{l.description}</td>

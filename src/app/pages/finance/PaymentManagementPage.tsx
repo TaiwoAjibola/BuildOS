@@ -1,8 +1,10 @@
 import { useState } from "react";
-import { Download, CreditCard, Clock, CheckCircle, XCircle, Send, Eye, X } from "lucide-react";
+import { Download, CreditCard, Clock, CheckCircle, XCircle, Send, Eye, X, BookOpen } from "lucide-react";
 import { exportCSV } from "../../utils/exportCSV";
 import { DataTable, type Column } from "../../components/DataTable";
 import { useChangelog } from "../../stores/changelogStore";
+import { useNumbering } from "../../stores/numberingStore";
+import { useFinance } from "../../stores/financeStore";
 
 type PaymentType = "Expense" | "Payroll" | "Vendor" | "Contractor";
 type PaymentStatus = "Approved Request" | "Sent to Finance" | "Payment Initiated" | "Payment Completed" | "Failed";
@@ -20,7 +22,16 @@ interface Payment {
   initiatedBy?: string;
   completedAt?: string;
   note?: string;
+  ledgerRef?: string;
 }
+
+// Default debit account per payment type (the credit side is always Cash & Bank).
+const DEBIT_ACCOUNT: Record<PaymentType, string> = {
+  Payroll:    "5100 Labour Costs",
+  Vendor:     "2110 Accounts Payable",
+  Contractor: "2110 Accounts Payable",
+  Expense:    "5400 Overhead",
+};
 
 const statusConfig: Record<PaymentStatus, { badge: string; icon: React.ReactNode; step: number }> = {
   "Approved Request":   { badge: "bg-blue-100 text-blue-700",    icon: <Clock className="w-3 h-3" />,       step: 1 },
@@ -57,6 +68,8 @@ export function PaymentManagementPage() {
   const [statusFilter, setStatusFilter] = useState<PaymentStatus | "All">("All");
   const [viewPayment, setViewPayment] = useState<Payment | null>(null);
   const { logChange } = useChangelog();
+  const { getNextId } = useNumbering();
+  const { postTransaction } = useFinance();
 
   const fmt = (n: number) => `$${n.toLocaleString()}`;
 
@@ -73,11 +86,34 @@ export function PaymentManagementPage() {
     if (idx < 0 || idx >= PAYMENT_FLOW.length - 1) return;
     const next = PAYMENT_FLOW[idx + 1];
 
+    let ledgerRef: string | undefined;
+    // Completing a payment posts a double-entry to the general ledger.
+    if (next === "Payment Completed") {
+      ledgerRef = `LGR-${String(Math.floor(1000 + Math.random() * 8999))}`;
+      const debitAccount = DEBIT_ACCOUNT[payment.type] ?? "5400 Overhead";
+      postTransaction({
+        id: getNextId("Transaction"),
+        type: "Payment",
+        description: `Payment ${payment.id} — ${payment.recipient} (${payment.type})`,
+        reference: payment.reference,
+        date: payment.date,
+        createdBy: "Current User",
+        sourceApp: "Finance",
+        sourceProcess: "Payment Entry",
+        lines: [
+          { id: `${payment.id}-dr`, account: debitAccount, debit: payment.amount, credit: 0, description: payment.recipient },
+          { id: `${payment.id}-cr`, account: "1110 Cash & Bank", debit: 0, credit: payment.amount, description: `Payment via ${payment.method}` },
+        ],
+        linkedRecords: [{ label: "Payment", ref: payment.id }],
+      });
+    }
+
     setPayments((prev) => prev.map((p) => {
       if (p.id !== id) return p;
       return {
         ...p,
         status: next,
+        ledgerRef,
         initiatedBy: next === "Payment Initiated" ? "Current User" : p.initiatedBy,
         completedAt: next === "Payment Completed" ? "Apr 13, 2026" : p.completedAt,
       };
@@ -88,7 +124,7 @@ export function PaymentManagementPage() {
       action: next,
       entityType: "Payment",
       entityId: id,
-      summary: `Payment ${id} advanced to ${next}`,
+      summary: `Payment ${id} advanced to ${next}${ledgerRef ? ` — posted ${ledgerRef}` : ""}`,
       performedBy: "Current User",
     });
 
@@ -296,7 +332,10 @@ export function PaymentManagementPage() {
               {viewPayment.completedAt && (
                 <div className="flex items-center gap-2 bg-emerald-50 rounded-lg p-3">
                   <CheckCircle className="w-4 h-4 text-emerald-600" />
-                  <p className="text-xs text-emerald-700 font-medium">Payment completed on {viewPayment.completedAt}</p>
+                  <p className="text-xs text-emerald-700 font-medium">
+                    Payment completed on {viewPayment.completedAt}
+                    {viewPayment.ledgerRef && <span className="ml-1">· Posted to ledger {viewPayment.ledgerRef}</span>}
+                  </p>
                 </div>
               )}
               {viewPayment.note && (

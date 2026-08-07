@@ -7,27 +7,30 @@ import { ChangelogProvider } from "../stores/changelogStore";
 import { NumberingProvider } from "../stores/numberingStore";
 import { ProjectTypeProvider } from "../stores/projectTypeStore";
 import { EmployeeProvider } from "../stores/employeeStore";
+import { FinanceProvider } from "../stores/financeStore";
 
 export function AppLayout() {
   return (
-    <ChangelogProvider>
-      <HRConfigProvider>
-        <ResourceProvider>
-          <TaskProvider>
-            <RolesProvider>
-              <NumberingProvider>
-                <ProjectTypeProvider>
-                  <EmployeeProvider>
-                    <div className="min-h-screen bg-gray-50">
-                      <Outlet />
-                    </div>
-                  </EmployeeProvider>
-                </ProjectTypeProvider>
-              </NumberingProvider>
-            </RolesProvider>
-          </TaskProvider>
-        </ResourceProvider>
-      </HRConfigProvider>
-    </ChangelogProvider>
+    <FinanceProvider>
+      <ChangelogProvider>
+        <HRConfigProvider>
+          <ResourceProvider>
+            <TaskProvider>
+              <RolesProvider>
+                <NumberingProvider>
+                  <ProjectTypeProvider>
+                    <EmployeeProvider>
+                      <div className="min-h-screen bg-gray-50">
+                        <Outlet />
+                      </div>
+                    </EmployeeProvider>
+                  </ProjectTypeProvider>
+                </NumberingProvider>
+              </RolesProvider>
+            </TaskProvider>
+          </ResourceProvider>
+        </HRConfigProvider>
+      </ChangelogProvider>
+    </FinanceProvider>
   );
 }

@@ -1,9 +1,11 @@
 import { useState } from "react";
-import { Plus, FileText, ChevronDown, ChevronUp } from "lucide-react";
+import { Plus, FileText, ChevronDown, ChevronUp, X, CreditCard, BookOpen } from "lucide-react";
 import { exportCSV } from "../../utils/exportCSV";
 import { DataTable, type Column } from "../../components/DataTable";
 import { useChangelog } from "../../stores/changelogStore";
 import { useNumbering } from "../../stores/numberingStore";
+import { useFinance } from "../../stores/financeStore";
+import { JournalLinesEditor, type JournalLineInput } from "../../components/JournalLinesEditor";
 
 type InvoiceStatus = "Draft" | "Pending Approval" | "Approved" | "Paid" | "Overdue";
 
@@ -88,15 +90,107 @@ const BLANK_FORM = {
   lines: [BLANK_LINE()],
 };
 
+// ── Pay Invoice modal (double-entry payment posting) ───────────────────────
+function PayInvoiceModal({ invoice, onClose, onConfirm }: {
+  invoice: PurchaseInvoice;
+  onClose: () => void;
+  onConfirm: (payload: { date: string; method: string; reference: string; lines: JournalLineInput[] }) => void;
+}) {
+  const { getPostableAccounts } = useFinance();
+  const postableAccounts = getPostableAccounts().map(a => ({ code: a.code, name: a.name }));
+  const total = lineTotal(invoice.lines);
+
+  const [date, setDate] = useState(new Date().toISOString().slice(0, 10));
+  const [method, setMethod] = useState("Bank Transfer");
+  const [reference, setReference] = useState("");
+  const [lines, setLines] = useState<JournalLineInput[]>([
+    { id: `dr-${Date.now()}`, account: "2110 Accounts Payable", debit: total, credit: 0, description: `Settle ${invoice.invoiceNo} — ${invoice.supplier}` },
+    { id: `cr-${Date.now()}`, account: "1110 Cash & Bank", debit: 0, credit: total, description: `Payment to ${invoice.supplier}` },
+  ]);
+
+  const totalDebits = lines.reduce((s, l) => s + (l.debit || 0), 0);
+  const totalCredits = lines.reduce((s, l) => s + (l.credit || 0), 0);
+  const balanced = totalDebits === totalCredits && totalDebits > 0;
+  const validAccounts = lines.every(l => l.account);
+
+  return (
+    <div className="fixed inset-0 bg-black/50 flex items-start justify-center z-50 py-6 overflow-y-auto">
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-3xl mx-4 my-auto">
+        <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
+          <div>
+            <h2 className="text-sm font-semibold text-gray-900">Pay Invoice — {invoice.invoiceNo}</h2>
+            <p className="text-xs text-gray-500 mt-0.5">{invoice.supplier} · Due {invoice.dueDate} · Amount {fmt(total)}</p>
+          </div>
+          <button onClick={onClose} className="p-1.5 hover:bg-gray-100 rounded-lg"><X className="w-4 h-4 text-gray-400" /></button>
+        </div>
+
+        <div className="px-6 py-5 space-y-5">
+          <div className="bg-blue-50 border border-blue-100 rounded-xl p-4 flex items-start gap-3">
+            <CreditCard className="w-5 h-5 text-blue-600 shrink-0 mt-0.5" />
+            <div>
+              <p className="text-sm font-medium text-blue-900">Post payment to the general ledger</p>
+              <p className="text-xs text-blue-700 mt-0.5">
+                Recording this payment posts a balanced double-entry to the Chart of Accounts (typically Accounts Payable → Cash &amp; Bank). Adjust or add lines as needed — debit and credit totals must match.
+              </p>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-3 gap-4">
+            <div>
+              <label className="block text-xs font-semibold text-gray-700 mb-1.5">Payment Date *</label>
+              <input type="date" value={date} onChange={(e) => setDate(e.target.value)} className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" />
+            </div>
+            <div>
+              <label className="block text-xs font-semibold text-gray-700 mb-1.5">Payment Method</label>
+              <select value={method} onChange={(e) => setMethod(e.target.value)} className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white">
+                <option>Bank Transfer</option>
+                <option>Cheque</option>
+                <option>Cash</option>
+                <option>Mobile Payment</option>
+              </select>
+            </div>
+            <div>
+              <label className="block text-xs font-semibold text-gray-700 mb-1.5">Payment Reference</label>
+              <input value={reference} onChange={(e) => setReference(e.target.value)} placeholder="e.g. PAY-2026-0051" className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" />
+            </div>
+          </div>
+
+          <div>
+            <div className="flex items-center justify-between mb-2">
+              <label className="text-xs font-semibold text-gray-700">Posting Lines</label>
+              <span className="text-xs text-gray-400">Total debits must equal total credits to post.</span>
+            </div>
+            <JournalLinesEditor lines={lines} onChange={setLines} accounts={postableAccounts} minLines={2} />
+          </div>
+        </div>
+
+        <div className="px-6 py-4 border-t border-gray-100 flex items-center justify-between">
+          <p className="text-xs text-gray-400">Only balanced postings update the Chart of Accounts.</p>
+          <div className="flex items-center gap-2">
+            <button onClick={onClose} className="px-4 py-2 text-sm text-gray-600 border border-gray-300 rounded-lg hover:bg-gray-50">Cancel</button>
+            <button onClick={() => onConfirm({ date, method, reference, lines })}
+              disabled={!balanced || !validAccounts}
+              className="px-4 py-2 text-sm bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 disabled:opacity-40 flex items-center gap-2">
+              <BookOpen className="w-4 h-4" /> Confirm & Post Payment
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export function PurchaseInvoicePage() {
   const [invoices, setInvoices] = useState<PurchaseInvoice[]>(MOCK_INVOICES);
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<InvoiceStatus | "All">("All");
   const [expanded, setExpanded] = useState<string | null>(null);
   const [showModal, setShowModal] = useState(false);
+  const [payTarget, setPayTarget] = useState<PurchaseInvoice | null>(null);
   const [form, setForm] = useState({ ...BLANK_FORM, lines: [BLANK_LINE()] });
   const { logChange } = useChangelog();
   const { getNextId } = useNumbering();
+  const { postTransaction } = useFinance();
 
   const filtered = invoices.filter((inv) => {
     const matchSearch =
@@ -144,6 +238,29 @@ export function PurchaseInvoicePage() {
     setExpanded((prev) => prev === id ? null : prev);
   }
 
+  function confirmPay(invoice: PurchaseInvoice, payload: { date: string; method: string; reference: string; lines: { id: string; account: string; debit: number; credit: number; description: string }[] }) {
+    const ledgerRef = `LGR-${String(Math.floor(1000 + Math.random() * 8999))}`;
+    const txn = postTransaction({
+      id: getNextId("Transaction"),
+      type: "Payment",
+      description: `Payment to ${invoice.supplier} — ${invoice.invoiceNo}`,
+      reference: payload.reference || ledgerRef,
+      date: payload.date,
+      createdBy: "Current User",
+      sourceApp: "Finance",
+      sourceProcess: "Purchase Invoice Payment",
+      lines: payload.lines.map(l => ({ ...l, debit: l.debit || 0, credit: l.credit || 0 })),
+      linkedRecords: [
+        { label: "Invoice", ref: invoice.invoiceNo },
+        { label: "Payment Ref", ref: payload.reference || ledgerRef },
+      ],
+    });
+    if (!txn) return;
+    setInvoices((prev) => prev.map((inv) => inv.id === invoice.id ? { ...inv, status: "Paid" as InvoiceStatus } : inv));
+    logChange({ module: "Procurement", action: "Paid", entityType: "PurchaseInvoice", entityId: invoice.id, summary: `Invoice ${invoice.invoiceNo} paid via ${payload.method} — posted ${ledgerRef}`, performedBy: "Current User" });
+    setPayTarget(null);
+  }
+
   function handleExport() {
     exportCSV("purchase-invoices", ["Invoice No", "Supplier", "PO Ref", "Issue Date", "Due Date", "Amount", "Status"],
       invoices.map((inv) => [inv.invoiceNo, inv.supplier, inv.poRef, inv.issueDate, inv.dueDate, fmt(lineTotal(inv.lines)), inv.status])
@@ -168,12 +285,12 @@ export function PurchaseInvoicePage() {
         );
       case "Approved":
         return (
-          <button onClick={() => updateStatus(inv.id, "Paid")}
+          <button onClick={() => setPayTarget(inv)}
             className="text-xs text-emerald-600 hover:underline">Pay →</button>
         );
       case "Overdue":
         return (
-          <button onClick={() => updateStatus(inv.id, "Paid")}
+          <button onClick={() => setPayTarget(inv)}
             className="text-xs text-emerald-600 hover:underline">Pay →</button>
         );
       case "Paid":
@@ -345,6 +462,15 @@ export function PurchaseInvoicePage() {
             </div>
           ))}
         </div>
+      )}
+
+      {/* Pay Invoice Modal */}
+      {payTarget && (
+        <PayInvoiceModal
+          invoice={payTarget}
+          onClose={() => setPayTarget(null)}
+          onConfirm={(payload) => confirmPay(payTarget, payload)}
+        />
       )}
 
       {/* Create Invoice Modal */}

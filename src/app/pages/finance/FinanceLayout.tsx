@@ -1,7 +1,6 @@
 import { Outlet } from "react-router";
 import { AppHeader } from "../../components/AppHeader";
 import { CollapsibleSidebar } from "../../components/CollapsibleSidebar";
-import { FinanceProvider } from "../../stores/financeStore";
 import {
   LayoutDashboard, BookOpen, Receipt, TrendingDown, TrendingUp,
   CreditCard, Users2, FileText, CheckSquare, List, BarChart3, Settings2, ListTodo, PenLine, User,
@@ -84,8 +83,7 @@ const sidebarSections = [
 
 export function FinanceLayout() {
   return (
-    <FinanceProvider>
-      <div className="h-screen flex flex-col overflow-hidden bg-gray-50">
+    <div className="h-screen flex flex-col overflow-hidden bg-gray-50">
         <AppHeader currentApp="finance" appColor="bg-emerald-600" />
         <div className="flex flex-1 overflow-hidden">
           <aside className="w-56 bg-white border-r border-gray-200 flex-shrink-0 overflow-y-auto">
@@ -100,7 +98,6 @@ export function FinanceLayout() {
           </main>
         </div>
       </div>
-    </FinanceProvider>
   );
 }
 
