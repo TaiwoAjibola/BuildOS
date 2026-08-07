@@ -202,20 +202,20 @@ function NewCategoryModal({ onClose, onSave, accounts }: {
           <div className="border border-gray-200 rounded-xl overflow-hidden">
             <div className="bg-gray-50 px-4 py-2.5 border-b border-gray-100 flex items-center justify-between">
               <p className="text-xs font-semibold text-gray-600 uppercase tracking-wide">Process-to-Account Mapping</p>
-              <button onClick={() => setLines(prev => [...prev, { account: defaultCredit, action: "debit", amountField: "Payment Amount" }])}
+              <button onClick={() => setLines(prev => [...prev, { account: defaultCredit, action: "credit", amountField: "Payment Amount" }])}
                 className="flex items-center gap-1 px-2 py-1 text-xs bg-emerald-600 text-white rounded-lg hover:bg-emerald-700">
                 <Plus className="w-3.5 h-3.5" /> Add Line
               </button>
             </div>
             <div className="p-4 space-y-3">
-              <div className="grid grid-cols-[1fr_96px_1fr_32px] gap-2 items-center">
+              <div className="grid grid-cols-[1fr_1fr_96px_32px] gap-2 items-center">
                 <span className="text-[10px] font-semibold text-gray-400 uppercase tracking-wide">Account</span>
+                <span className="text-[10px] font-semibold text-gray-400 uppercase tracking-wide">Name</span>
                 <span className="text-[10px] font-semibold text-gray-400 uppercase tracking-wide">Action</span>
-                <span className="text-[10px] font-semibold text-gray-400 uppercase tracking-wide">Amount From</span>
                 <span />
               </div>
               {lines.map((line, idx) => (
-                <div key={idx} className="grid grid-cols-[1fr_96px_1fr_32px] gap-2 items-center">
+                <div key={idx} className="grid grid-cols-[1fr_1fr_96px_32px] gap-2 items-center">
                   <div className="relative">
                     <select value={line.account} onChange={e => updateLine(idx, { account: e.target.value })}
                       className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-emerald-500 bg-white appearance-none pr-7">
@@ -223,15 +223,14 @@ function NewCategoryModal({ onClose, onSave, accounts }: {
                     </select>
                     <ChevronDown className="absolute right-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-400 pointer-events-none" />
                   </div>
+                  <input readOnly value={line.account ? line.account.slice(line.account.indexOf(" ") + 1) : ""}
+                    placeholder="Account name"
+                    className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm bg-gray-50 text-gray-600 pointer-events-none" />
                   <select value={line.action}
                     onChange={e => updateLine(idx, { action: e.target.value as "debit" | "credit" })}
                     className={`w-full border border-gray-200 rounded-xl px-2 py-2 text-sm font-semibold focus:ring-2 focus:ring-emerald-500 ${line.action === "debit" ? "text-blue-700 bg-blue-50" : "text-green-700 bg-green-50"}`}>
-                    <option value="debit" className="text-blue-700">DR</option>
-                    <option value="credit" className="text-green-700">CR</option>
-                  </select>
-                  <select value={line.amountField} onChange={e => updateLine(idx, { amountField: e.target.value })}
-                    className="w-full border border-gray-200 rounded-xl px-2 py-2 text-sm bg-white focus:ring-2 focus:ring-emerald-500">
-                    {MAPPING_FIELDS.map(f => <option key={f}>{f}</option>)}
+                    <option value="debit" className="text-blue-700">Debit</option>
+                    <option value="credit" className="text-green-700">Credit</option>
                   </select>
                   <button onClick={() => setLines(prev => prev.filter((_, i) => i !== idx))}
                     disabled={lines.length <= 1}
@@ -242,16 +241,16 @@ function NewCategoryModal({ onClose, onSave, accounts }: {
               ))}
               <div className="flex items-center justify-between gap-2 pt-1">
                 <p className="text-xs text-gray-400">
-                  <span className={debitCount > 0 ? "text-blue-600 font-semibold" : "text-gray-400"}>{debitCount} DR</span>
+                  <span className={debitCount > 0 ? "text-blue-600 font-semibold" : "text-gray-400"}>{debitCount} Debit</span>
                   {" · "}
-                  <span className={creditCount > 0 ? "text-green-600 font-semibold" : "text-gray-400"}>{creditCount} CR</span>
+                  <span className={creditCount > 0 ? "text-green-600 font-semibold" : "text-gray-400"}>{creditCount} Credit</span>
                   {" line"}{(debitCount + creditCount) !== 1 ? "s" : ""}
                 </p>
-                <p className="text-xs text-gray-400">Amounts are sourced from the fields selected per line</p>
+                <p className="text-xs text-gray-400">Each line maps an account to this process</p>
               </div>
               {!bothSides && (
                 <p className="text-xs text-red-500 flex items-center gap-1">
-                  <AlertTriangle className="w-3.5 h-3.5" /> Add at least one DR and one CR line so the posting can balance.
+                  <AlertTriangle className="w-3.5 h-3.5" /> Add at least one Debit and one Credit line so the posting can balance.
                 </p>
               )}
             </div>
