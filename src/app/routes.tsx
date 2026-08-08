@@ -168,6 +168,7 @@ import { PostingEnginePage } from "./pages/finance/PostingEnginePage";
 import { AccrualsPage } from "./pages/finance/AccrualsPage";
 import { YearEndClosePage } from "./pages/finance/YearEndClosePage";
 import { FiscalYearsPage } from "./pages/finance/FiscalYearsPage";
+import { FinancePurchaseOrdersPage } from "./pages/finance/FinancePurchaseOrdersPage";
 
 // HR new pages
 import { HRTasksPage } from "./pages/hr/HRTasksPage";
@@ -278,6 +279,7 @@ export const router = createBrowserRouter([
               { path: "process-mapping", Component: ProcessMappingPage },
               { path: "posting-engine", Component: PostingEnginePage },
               { path: "purchase-invoice", Component: PurchaseInvoicePage },
+              { path: "purchase-orders", Component: FinancePurchaseOrdersPage },
               { path: "year-end-close", Component: YearEndClosePage },
               { path: "fiscal-years", Component: FiscalYearsPage },
             ],
