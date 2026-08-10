@@ -21,7 +21,7 @@
 - [~] R12 — Attachments: Finance payment modal now shows REAL linked GRN refs (from shared store) + PO chip; file attachment storage still pending
 
 ## Posting Engine & Ledger
-- [~] R13 — Process-driven: PO payment modal auto-pre-fills lines from "Purchase Order Payment" mapping; payroll uses mapping. Manual-recreation gap closed where editors exist
+- [x] R13 — Process-driven: PO payment modal + payroll build from process mappings; Posting Engine "Post to Ledger" now builds lines from the Process Account Mapping (falls back to category DR/CR pair only when no mapping exists)
 - [~] R14 — Ledger/GL update on posting (postTransaction) — already the posting rule; verify in smoke test
 - [x] R15 — Posting configurations editable — MappingModal loads existing config into the form (Edit Posting Configuration)
 - [x] R16 — Process-specific amounts: PO → Amount Due (Total/Due/Balance exposed), payroll → granular components

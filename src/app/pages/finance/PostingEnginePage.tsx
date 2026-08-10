@@ -766,7 +766,7 @@ function CategoryCard({ category, transactions, onClick }: {
 
 // ── Main Page ─────────────────────────────────────────────────────────────────
 export function PostingEnginePage() {
-  const { accounts, transactions: ledgerTransactions, setTransactions: setLedgerTransactions, processAccountMappings, setProcessAccountMappings } = useFinance();
+  const { accounts, transactions: ledgerTransactions, setTransactions: setLedgerTransactions, processAccountMappings, setProcessAccountMappings, buildProcessPosting } = useFinance();
   const { logChange } = useChangelog();
   const { getNextId } = useNumbering();
   const [categories, setCategories]           = useState<ProcessCategory[]>(SEED_CATEGORIES);
@@ -817,6 +817,11 @@ export function PostingEnginePage() {
     if (!txn) return;
     const cat = categories.find(c => c.id === txn.categoryId);
     if (!cat) return;
+    // Process-driven: build the posting from the Process Account Mapping when
+    // one exists (e.g. Supplier Payments → DR 2110 / CR 1110). Fall back to the
+    // category's configured debit/credit pair only when no mapping exists.
+    const mappedField = processAccountMappings.find(m => m.process === cat.name)?.amountField;
+    const processLines = buildProcessPosting(cat.name, mappedField ? { [mappedField]: txn.amount } : {});
     const ledgerRef = `LGR-${String(Math.floor(1000 + Math.random() * 8999))}`;
     setTransactions(prev => prev.map(t => t.id === id ? { ...t, status: "posted", ledgerRef } : t));
     logChange({ module: "Finance", action: "Posted", entityType: "PostingEngineTxn", entityId: id, summary: `Posting Engine: "${txn.description}" → Ledger (${ledgerRef})`, performedBy: "Sola Adeleke" });
@@ -825,9 +830,10 @@ export function PostingEnginePage() {
       id: getNextId("Transaction"),
       type: "Journal" as const,
       description: `${cat.name}: ${txn.description}`,
-      debitAccount: cat.debitAccount,
-      creditAccount: cat.creditAccount,
       reference: ledgerRef,
+      ...(processLines.length
+        ? { lines: processLines.map(l => ({ id: l.id, account: l.account, debit: l.debit, credit: l.credit, description: l.description })) }
+        : { debitAccount: cat.debitAccount, creditAccount: cat.creditAccount }),
       amount: txn.amount,
       date: now,
       createdBy: txn.reviewedBy ?? "Posting Engine",
