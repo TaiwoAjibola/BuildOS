@@ -254,7 +254,7 @@ function PoPaymentModal({ po, mode, onClose, onSendForApproval, onPost }: {
 export function FinancePurchaseOrdersPage() {
   const { logChange } = useChangelog();
   const { postTransaction } = useFinance();
-  const { purchaseOrders, grns } = useProcurement();
+  const { purchaseOrders, grns, setPurchaseOrders } = useProcurement();
   const [postings, setPostings] = useState<Record<string, PostingState>>(SEED_POSTINGS);
   const [activeTab, setActiveTab] = useState<FinancePOStatus | "all">("all");
   const [payTarget, setPayTarget] = useState<FinancePO | null>(null);
@@ -328,6 +328,8 @@ export function FinancePurchaseOrdersPage() {
     });
     if (!txn) return;
     patchPosting(po.id, { status: "posted", paidAmount: po.amount, ledgerRef: txn.id, paymentMethod: method, paymentDate: date });
+    // Mirror the payment on the shared Procurement PO so both modules agree.
+    setPurchaseOrders(prev => prev.map(p => p.id === po.id ? { ...p, paymentStatus: "paid" as const } : p));
     logChange({ module: "Finance", action: "Payment Posted", entityType: "PurchaseOrder", entityId: po.id, summary: `PO ${po.id} paid — posted to ledger ${txn.id}`, performedBy: "Current User" });
     setPayTarget(null);
   }
