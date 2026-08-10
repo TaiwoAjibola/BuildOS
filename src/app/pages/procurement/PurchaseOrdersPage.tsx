@@ -9,6 +9,7 @@ import { useChangelog } from "../../stores/changelogStore";
 import { exportCSV } from "../../utils/exportCSV";
 import { useNumbering } from "../../stores/numberingStore";
 import { PAYMENT_TERM_PRESETS, getDefaultPaymentTermId, getPaymentTerm, tranchesLabel } from "../../config/paymentTerms";
+import { useProcurement } from "../../stores/procurementStore";
 
 type POStatus = "draft" | "sent" | "confirmed" | "partially_received" | "completed" | "cancelled";
 type PaymentStatus = "unpaid" | "confirmation_requested" | "paid";
@@ -21,63 +22,6 @@ interface PurchaseOrder {
   totalItems: number; totalValue: number; receivedValue: number;
   items: { material: string; qty: number; unit: string; unitCost: number; received: number }[];
 }
-
-const purchaseOrders: PurchaseOrder[] = [
-  {
-    id: "PO-0031", prRef: "PR-0018", mrRef: "MR-0038",
-    supplier: "CemCo Nigeria Ltd", supplierContact: "Tunde Adeyemi — +234 80 4521 7890",
-    status: "confirmed", paymentStatus: "unpaid", sentToFinance: false, paymentTermId: "full-delivery",
-    createdBy: "Amaka Osei", createdDate: "Apr 8, 2026", expectedDate: "Apr 12, 2026",
-    totalItems: 2, totalValue: 4500000, receivedValue: 0,
-    items: [
-      { material: "Cement (50kg bags)",    qty: 400,  unit: "Bags",  unitCost: 8500, received: 0 },
-      { material: "Concrete Block 9 Inch", qty: 2000, unit: "Units", unitCost: 350,  received: 0 },
-    ],
-  },
-  {
-    id: "PO-0030", prRef: "PR-0017", mrRef: "MR-0036",
-    supplier: "SteelMart International", supplierContact: "Kene Obi — +234 81 2233 4455",
-    status: "sent", paymentStatus: "unpaid", sentToFinance: false, paymentTermId: "50-50",
-    createdBy: "Amaka Osei", createdDate: "Apr 7, 2026", expectedDate: "Apr 15, 2026",
-    totalItems: 2, totalValue: 8250000, receivedValue: 0,
-    items: [
-      { material: "Steel Rebar Y16", qty: 15, unit: "Tonnes", unitCost: 410000, received: 0 },
-      { material: "Steel Rebar Y12", qty: 5,  unit: "Tonnes", unitCost: 380000, received: 0 },
-    ],
-  },
-  {
-    id: "PO-0029", prRef: "PR-0016", mrRef: "MR-0033",
-    supplier: "ElectraHub", supplierContact: "Femi Addo — +234 70 9988 7766",
-    status: "partially_received", paymentStatus: "confirmation_requested", sentToFinance: true, financeRef: "FIN-0044", paymentTermId: "net-30",
-    createdBy: "Amaka Osei", createdDate: "Apr 6, 2026", expectedDate: "Apr 11, 2026",
-    totalItems: 2, totalValue: 2225000, receivedValue: 1275000,
-    items: [
-      { material: "Electrical Conduit 25mm", qty: 1500, unit: "Metres", unitCost: 1200, received: 800 },
-      { material: "2.5mm Twin Cable",        qty: 500,  unit: "Metres", unitCost: 850,  received: 500 },
-    ],
-  },
-  {
-    id: "PO-0028", prRef: "PR-0015", mrRef: "MR-0031",
-    supplier: "Alpha Aggregates", supplierContact: "Lawal Musa — +234 81 5566 7788",
-    status: "completed", paymentStatus: "paid", sentToFinance: true, financeRef: "FIN-0041", paymentTermId: "full-delivery",
-    createdBy: "Amaka Osei", createdDate: "Apr 5, 2026", expectedDate: "Apr 9, 2026",
-    totalItems: 2, totalValue: 3480000, receivedValue: 3480000,
-    items: [
-      { material: "Sand (River)",     qty: 60, unit: "Tonnes", unitCost: 25000, received: 60 },
-      { material: "Granite 3/4 Inch", qty: 40, unit: "Tonnes", unitCost: 35000, received: 40 },
-    ],
-  },
-  {
-    id: "PO-0027", prRef: "PR-0014", mrRef: "MR-0029",
-    supplier: "BuildPlus Supplies", supplierContact: "Ngozi Eze — +234 80 7788 9900",
-    status: "draft", paymentStatus: "unpaid", sentToFinance: false, paymentTermId: "full-delivery",
-    createdBy: "Amaka Osei", createdDate: "Apr 9, 2026", expectedDate: "Apr 18, 2026",
-    totalItems: 1, totalValue: 5800000, receivedValue: 0,
-    items: [
-      { material: "Plywood Formwork 18mm", qty: 400, unit: "Sheets", unitCost: 14500, received: 0 },
-    ],
-  },
-];
 
 const PAYMENT_STATUS_CFG: Record<PaymentStatus, { label: string; badge: string }> = {
   unpaid:                  { label: "Unpaid",               badge: "bg-gray-100 text-gray-500" },
@@ -531,7 +475,7 @@ function PurchaseOrderDocumentModal({ po, onClose }: {
 
 export function PurchaseOrdersPage() {
   const { logChange } = useChangelog();
-  const [poList, setPoList] = useState<PurchaseOrder[]>(purchaseOrders);
+  const { purchaseOrders: poList, setPurchaseOrders: setPoList } = useProcurement();
   const [activeTab, setActiveTab] = useState<POStatus | "all">("all");
   const [showNewPO, setShowNewPO] = useState(false);
   const [sendPO, setSendPO] = useState<PurchaseOrder | null>(null);

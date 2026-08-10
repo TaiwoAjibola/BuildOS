@@ -8,29 +8,32 @@ import { NumberingProvider } from "../stores/numberingStore";
 import { ProjectTypeProvider } from "../stores/projectTypeStore";
 import { EmployeeProvider } from "../stores/employeeStore";
 import { FinanceProvider } from "../stores/financeStore";
+import { ProcurementProvider } from "../stores/procurementStore";
 
 export function AppLayout() {
   return (
     <FinanceProvider>
-      <ChangelogProvider>
-        <HRConfigProvider>
-          <ResourceProvider>
-            <TaskProvider>
-              <RolesProvider>
-                <NumberingProvider>
-                  <ProjectTypeProvider>
-                    <EmployeeProvider>
-                      <div className="min-h-screen bg-gray-50">
-                        <Outlet />
-                      </div>
-                    </EmployeeProvider>
-                  </ProjectTypeProvider>
-                </NumberingProvider>
-              </RolesProvider>
-            </TaskProvider>
-          </ResourceProvider>
-        </HRConfigProvider>
-      </ChangelogProvider>
+      <ProcurementProvider>
+        <ChangelogProvider>
+          <HRConfigProvider>
+            <ResourceProvider>
+              <TaskProvider>
+                <RolesProvider>
+                  <NumberingProvider>
+                    <ProjectTypeProvider>
+                      <EmployeeProvider>
+                        <div className="min-h-screen bg-gray-50">
+                          <Outlet />
+                        </div>
+                      </EmployeeProvider>
+                    </ProjectTypeProvider>
+                  </NumberingProvider>
+                </RolesProvider>
+              </TaskProvider>
+            </ResourceProvider>
+          </HRConfigProvider>
+        </ChangelogProvider>
+      </ProcurementProvider>
     </FinanceProvider>
   );
 }

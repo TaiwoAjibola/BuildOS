@@ -13,12 +13,12 @@
 - [x] R7 — Goods Receipt as formal document (company letterhead, linked PO/MR, delivery details, received/accepted/rejected lines, signature block, Download PDF via print)
 
 ## Finance Workflow
-- [~] R6 — Finance handoff rule: implemented as Payment Trigger column + gate (after_delivery POs await GRN before Pay); full automation from shared PO/GRN data still pending
+- [x] R6 — Finance handoff automation from shared PO/GRN data: new `procurementStore` (POs + GRNs) hoisted in AppLayout; Procurement PO page and GRN page write to it; Finance PO screen DERIVES rows from it — `sentToFinance` POs appear automatically, handoff follows the PO's payment term (`isPreDelivery`), `goodsReceived` computed from shared GRN records (gate unlocks when a GRN is recorded)
 - [x] R8 — Finance PO screen: View/Pay only — Accept/Decline removed; only Pay / Approve / Post actions
 - [x] R9 — Finance pay screen shows Total vs Amount Due vs Balance + Payment Trigger; payment seeds from Amount Due
 - [x] R10 — Send for Approval → Approved → Post → Posted (no auto-post). "Confirm & Post" removed in Finance PO, Payroll ("Post to Ledger") and Purchase Invoice (Send for Approval → Approve Payment → Post)
 - [x] R11 — Status vocabulary New/Open, Pending Approval, Approved, Posted on Finance PO screen; "Paid" removed as a posting status
-- [~] R12 — Attachments: supporting-doc chips (PO/GRN) shown in Finance PO payment modal; deeper attachment storage pending
+- [~] R12 — Attachments: Finance payment modal now shows REAL linked GRN refs (from shared store) + PO chip; file attachment storage still pending
 
 ## Posting Engine & Ledger
 - [~] R13 — Process-driven: PO payment modal auto-pre-fills lines from "Purchase Order Payment" mapping; payroll uses mapping. Manual-recreation gap closed where editors exist

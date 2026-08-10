@@ -4,59 +4,7 @@ import {
   ChevronDown, ChevronRight, XCircle, BarChart2, X, Plus, Trash2, LinkIcon, FileText, DownloadCloud,
 } from "lucide-react";
 import { useNumbering } from "../../stores/numberingStore";
-
-type GRNStatus = "pending" | "partial" | "completed" | "over_supply";
-
-const grns: {
-  id: string; poRef: string; mrRef: string; supplier: string; receivedBy: string; receivedDate: string;
-  status: GRNStatus; warehouse: string; deliveryNote: string;
-  items: { material: string; ordered: number; received: number; accepted: number; rejected: number; unit: string; reason?: string }[];
-}[] = [
-  {
-    id: "GRN-0031", poRef: "PO-0031", mrRef: "MR-0038",
-    supplier: "CemCo Nigeria Ltd", receivedBy: "Chukwudi Eze",
-    receivedDate: "Apr 9, 2026", status: "pending", warehouse: "Main Store", deliveryNote: "DN-CEM-9042",
-    items: [
-      { material: "Cement (50kg bags)",    ordered: 400,  received: 0, accepted: 0, rejected: 0, unit: "Bags" },
-      { material: "Concrete Block 9 Inch", ordered: 2000, received: 0, accepted: 0, rejected: 0, unit: "Units" },
-    ],
-  },
-  {
-    id: "GRN-0030", poRef: "PO-0029", mrRef: "MR-0033",
-    supplier: "ElectraHub", receivedBy: "Chukwudi Eze",
-    receivedDate: "Apr 8, 2026", status: "partial", warehouse: "Electrical Store", deliveryNote: "DN-ELEC-7831",
-    items: [
-      { material: "Electrical Conduit 25mm", ordered: 1500, received: 800, accepted: 800, rejected: 0,  unit: "Metres" },
-      { material: "2.5mm Twin Cable",        ordered: 500,  received: 500, accepted: 490, rejected: 10, unit: "Metres", reason: "10m damaged on delivery" },
-    ],
-  },
-  {
-    id: "GRN-0029", poRef: "PO-0028", mrRef: "MR-0031",
-    supplier: "Alpha Aggregates", receivedBy: "Chukwudi Eze",
-    receivedDate: "Apr 8, 2026", status: "completed", warehouse: "Yard B", deliveryNote: "DN-AGG-5512",
-    items: [
-      { material: "Sand (River)",     ordered: 60, received: 60, accepted: 60, rejected: 0, unit: "Tonnes" },
-      { material: "Granite 3/4 Inch", ordered: 40, received: 40, accepted: 40, rejected: 0, unit: "Tonnes" },
-    ],
-  },
-  {
-    id: "GRN-0028", poRef: "PO-0026", mrRef: "MR-0028",
-    supplier: "SteelMart International", receivedBy: "Chukwudi Eze",
-    receivedDate: "Apr 7, 2026", status: "over_supply", warehouse: "Shed 1", deliveryNote: "DN-STL-3301",
-    items: [
-      { material: "Binding Wire",  ordered: 100, received: 120, accepted: 120, rejected: 0, unit: "Rolls",  reason: "Supplier delivered 20 extra rolls" },
-      { material: "BRC Mesh A193", ordered: 50,  received: 50,  accepted: 50,  rejected: 0, unit: "Sheets" },
-    ],
-  },
-  {
-    id: "GRN-0027", poRef: "PO-0025", mrRef: "MR-0026",
-    supplier: "BuildPlus Supplies", receivedBy: "Chukwudi Eze",
-    receivedDate: "Apr 7, 2026", status: "partial", warehouse: "Timber Yard", deliveryNote: "DN-BUILD-2290",
-    items: [
-      { material: "Plywood Formwork 18mm", ordered: 200, received: 120, accepted: 110, rejected: 10, unit: "Sheets", reason: "10 sheets warped/water-damaged" },
-    ],
-  },
-];
+import { useProcurement, type GRN, type GRNStatus } from "../../stores/procurementStore";
 
 const statusConfig: Record<GRNStatus, { label: string; badge: string; icon: React.ReactNode }> = {
   pending: { label: "Pending Inspection", badge: "bg-amber-100 text-amber-700", icon: <Clock className="w-3.5 h-3.5 text-amber-500" /> },
@@ -74,15 +22,15 @@ const tabs: { key: GRNStatus | "all"; label: string }[] = [
 ];
 
 const GRN_WAREHOUSES = ["Main Store", "Electrical Store", "Yard B", "Shed 1", "Timber Yard", "Chemical Store", "Plumbing Store"];
-const GRN_PO_REFS = ["PO-0031", "PO-0030", "PO-0029", "PO-0028", "PO-0027", "PO-0026"];
+const GRN_PO_REFS = ["PO-0033", "PO-0032", "PO-0031", "PO-0030", "PO-0029", "PO-0028", "PO-0027", "PO-0026", "PO-0025"];
 const GRN_UNITS = ["Bags", "Units", "Metres", "Tonnes", "Sheets", "Rolls", "Litres", "Cartons"];
 
 interface GRNItem { material: string; ordered: string; received: string; accepted: string; rejected: string; unit: string; reason: string }
 
 function RecordDeliveryModal({ onClose, onSave, existingGrn }: {
   onClose: () => void;
-  onSave: (grn: typeof grns[0]) => void;
-  existingGrn?: typeof grns[0];
+  onSave: (grn: GRN) => void;
+  existingGrn?: GRN;
 }) {
   const today = new Date();
   const fmtDate = (d: Date) => d.toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" });
@@ -128,7 +76,7 @@ function RecordDeliveryModal({ onClose, onSave, existingGrn }: {
     }));
     const allComplete = builtItems.every(it => it.received >= it.ordered);
     const hasOver = builtItems.some(it => it.received > it.ordered);
-    const status: typeof grns[0]["status"] = hasOver ? "over_supply" : allComplete ? "completed" : "partial";
+    const status: GRNStatus = hasOver ? "over_supply" : allComplete ? "completed" : "partial";
     onSave({
       id: nextId,
       poRef,
@@ -260,7 +208,7 @@ function RecordDeliveryModal({ onClose, onSave, existingGrn }: {
 }
 
 function RaiseRejectionModal({ grn, onClose, onDone }: {
-  grn: typeof grns[0];
+  grn: GRN;
   onClose: () => void;
   onDone: (reason: string) => void;
 }) {
@@ -313,7 +261,7 @@ function RaiseRejectionModal({ grn, onClose, onDone }: {
 }
 
 function NotifySupplierModal({ grn, onClose, onDone }: {
-  grn: typeof grns[0];
+  grn: GRN;
   onClose: () => void;
   onDone: () => void;
 }) {
@@ -358,7 +306,7 @@ function NotifySupplierModal({ grn, onClose, onDone }: {
 // Goods Received Note as a formal document: company letterhead, linked PO/MR,
 // delivery details, line-by-line received/accepted/rejected, signature block.
 function GoodsReceiptDocumentModal({ grn, onClose }: {
-  grn: typeof grns[0];
+  grn: GRN;
   onClose: () => void;
 }) {
   const cfg = statusConfig[grn.status];
@@ -502,15 +450,15 @@ function GoodsReceiptDocumentModal({ grn, onClose }: {
 }
 
 export function GoodsReceiptPage() {
-  const [grnList, setGrnList] = useState(grns);
+  const { grns: grnList, setGrns: setGrnList } = useProcurement();
   const [activeTab, setActiveTab] = useState<GRNStatus | "all">("all");
   const [search, setSearch] = useState("");
   const [expanded, setExpanded] = useState<string | null>(null);
   const [showNewDelivery, setShowNewDelivery] = useState(false);
-  const [additionalDelivery, setAdditionalDelivery] = useState<typeof grns[0] | null>(null);
-  const [rejectGrn, setRejectGrn] = useState<typeof grns[0] | null>(null);
-  const [notifyGrn, setNotifyGrn] = useState<typeof grns[0] | null>(null);
-  const [viewGrn, setViewGrn] = useState<typeof grns[0] | null>(null);
+  const [additionalDelivery, setAdditionalDelivery] = useState<GRN | null>(null);
+  const [rejectGrn, setRejectGrn] = useState<GRN | null>(null);
+  const [notifyGrn, setNotifyGrn] = useState<GRN | null>(null);
+  const [viewGrn, setViewGrn] = useState<GRN | null>(null);
 
   const filtered = grnList.filter(g => {
     const matchTab = activeTab === "all" || g.status === activeTab;

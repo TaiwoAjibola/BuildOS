@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import {
   CreditCard, CheckCircle2, Clock, Send, X,
   Building2, FileText, Lock, CheckCircle, BookOpen, Paperclip, PackageCheck, BookOpenCheck,
@@ -8,6 +8,8 @@ import { JournalLinesEditor, type JournalLineInput, newJournalLine } from "../..
 import { exportCSV } from "../../utils/exportCSV";
 import { useChangelog } from "../../stores/changelogStore";
 import { useFinance } from "../../stores/financeStore";
+import { useProcurement } from "../../stores/procurementStore";
+import { getPaymentTerm, isPreDelivery } from "../../config/paymentTerms";
 
 // Finance-side purchase order payment workflow. POs listed here have already
 // passed Procurement approval and been sent to Finance — Finance does NOT ask
@@ -37,6 +39,7 @@ interface FinancePO {
   amount: number;        // Total PO amount
   handoff: Handoff;      // when Finance may start paying
   goodsReceived?: boolean; // GRN received (required for after_delivery POs)
+  grnRefs?: string[];    // GRNs recorded against this PO (shared Procurement data)
   paidAmount: number;    // already paid in earlier tranches
   status: FinancePOStatus;
   items: { material: string; qty: number; unit: string; unitCost: number }[];
@@ -46,38 +49,28 @@ interface FinancePO {
   approvedBy?: string;
 }
 
-const financePos: FinancePO[] = [
-  {
-    id: "PO-0033", financeRef: "FIN-0048", supplier: "BuildPlus Supplies", supplierContact: "Ngozi Eze — +234 80 7788 9900",
-    prRef: "PR-0021", receivedDate: "Apr 10, 2026", dueDate: "Apr 18, 2026",
-    amount: 5800000, handoff: "on_po_approval", paidAmount: 0, status: "open",
-    items: [{ material: "Plywood Formwork 18mm", qty: 400, unit: "Sheets", unitCost: 14500 }],
-  },
-  {
-    id: "PO-0032", financeRef: "FIN-0043", supplier: "PlumbTech Ltd", supplierContact: "Yusuf Bello — +234 70 1234 5678",
-    prRef: "PR-0020", receivedDate: "Apr 9, 2026", dueDate: "Apr 14, 2026",
-    amount: 2750000, handoff: "after_delivery", goodsReceived: true, paidAmount: 0, status: "open",
-    items: [{ material: "PVC Pipes 110mm", qty: 200, unit: "Lengths", unitCost: 8500 }, { material: "Sinks & Fittings", qty: 30, unit: "Sets", unitCost: 35000 }],
-  },
-  {
-    id: "PO-0031", financeRef: "FIN-0044", supplier: "CemCo Nigeria Ltd", supplierContact: "Tunde Adeyemi — +234 80 4521 7890",
-    prRef: "PR-0018", receivedDate: "Apr 8, 2026", dueDate: "Apr 12, 2026",
-    amount: 4500000, handoff: "on_po_approval", paidAmount: 0, status: "pending_approval",
-    items: [{ material: "Cement (50kg bags)", qty: 400, unit: "Bags", unitCost: 8500 }, { material: "Concrete Block 9 Inch", qty: 2000, unit: "Units", unitCost: 350 }],
-  },
-  {
-    id: "PO-0030", financeRef: "FIN-0042", supplier: "SteelMart International", supplierContact: "Kene Obi — +234 81 2233 4455",
-    prRef: "PR-0017", receivedDate: "Apr 7, 2026", dueDate: "Apr 15, 2026",
-    amount: 8250000, handoff: "after_delivery", goodsReceived: true, paidAmount: 0, status: "approved", approvedBy: "Sola Adeleke",
-    items: [{ material: "Steel Rebar Y16", qty: 15, unit: "Tonnes", unitCost: 410000 }, { material: "Steel Rebar Y12", qty: 5, unit: "Tonnes", unitCost: 380000 }],
-  },
-  {
-    id: "PO-0029", financeRef: "FIN-0040", supplier: "ElectraHub", supplierContact: "Femi Addo — +234 70 9988 7766",
-    prRef: "PR-0016", receivedDate: "Apr 6, 2026", dueDate: "Apr 11, 2026",
-    amount: 2225000, handoff: "on_po_approval", paidAmount: 2225000, status: "posted", paymentMethod: "Bank Transfer", paymentDate: "Apr 13, 2026", ledgerRef: "LGR-1010",
-    items: [{ material: "Electrical Conduit 25mm", qty: 1500, unit: "Metres", unitCost: 1200 }, { material: "2.5mm Twin Cable", qty: 500, unit: "Metres", unitCost: 850 }],
-  },
-];
+// Finance-local posting state, keyed by PO id. The PO rows themselves are
+// DERIVED from the shared Procurement store (sentToFinance POs + GRNs), so the
+// moment Procurement sends a PO to Finance or records a GRN this screen
+// reflects it. Only the payment workflow state (open → pending_approval →
+// approved → posted) lives here.
+interface PostingState {
+  status: FinancePOStatus;
+  paidAmount: number;
+  ledgerRef?: string;
+  paymentMethod?: string;
+  paymentDate?: string;
+  approvedBy?: string;
+}
+
+const SEED_POSTINGS: Record<string, PostingState> = {
+  "PO-0033": { status: "open", paidAmount: 0 },
+  "PO-0032": { status: "open", paidAmount: 0 },
+  "PO-0031": { status: "pending_approval", paidAmount: 0 },
+  "PO-0030": { status: "posted", paidAmount: 2225000, ledgerRef: "LGR-1010", paymentMethod: "Bank Transfer", paymentDate: "Apr 13, 2026" },
+  "PO-0029": { status: "posted", paidAmount: 2900000, ledgerRef: "LGR-1009", paymentMethod: "Bank Transfer", paymentDate: "Apr 10, 2026" },
+  "PO-0028": { status: "open", paidAmount: 0 },
+};
 
 const STATUS_CFG: Record<FinancePOStatus, { label: string; badge: string; icon: React.ReactNode }> = {
   open:              { label: "New/Open",         badge: "bg-gray-100 text-gray-600",       icon: <Clock       className="w-3.5 h-3.5" /> },
@@ -169,15 +162,23 @@ function PoPaymentModal({ po, mode, onClose, onSendForApproval, onPost }: {
             </div>
           </div>
 
-          {/* Supporting documents (visible to approvers) */}
+          {/* Supporting documents (visible to approvers) — real linked PO/GRN */}
           <div className="rounded-lg bg-gray-50 border border-gray-200 p-3 flex items-center gap-2 flex-wrap">
             <span className="text-xs font-medium text-gray-500 flex items-center gap-1"><Paperclip className="w-3.5 h-3.5" /> Supporting documents:</span>
             <span className="inline-flex items-center gap-1 text-xs px-2 py-1 rounded-md bg-white border border-gray-200 text-gray-700">
               <FileText className="w-3.5 h-3.5" /> {po.id} — PO
             </span>
-            <span className="inline-flex items-center gap-1 text-xs px-2 py-1 rounded-md bg-white border border-gray-200 text-gray-700">
-              <PackageCheck className="w-3.5 h-3.5" /> GRN
-            </span>
+            {po.goodsReceived && po.grnRefs && po.grnRefs.length > 0 ? (
+              po.grnRefs.map(ref => (
+                <span key={ref} className="inline-flex items-center gap-1 text-xs px-2 py-1 rounded-md bg-white border border-gray-200 text-gray-700">
+                  <PackageCheck className="w-3.5 h-3.5" /> {ref} — GRN
+                </span>
+              ))
+            ) : (
+              <span className="inline-flex items-center gap-1 text-xs px-2 py-1 rounded-md bg-amber-50 border border-amber-200 text-amber-700">
+                <PackageCheck className="w-3.5 h-3.5" /> Awaiting GRN
+              </span>
+            )}
           </div>
 
           {/* Locked payment reference = PO number */}
@@ -253,9 +254,47 @@ function PoPaymentModal({ po, mode, onClose, onSendForApproval, onPost }: {
 export function FinancePurchaseOrdersPage() {
   const { logChange } = useChangelog();
   const { postTransaction } = useFinance();
-  const [list, setList] = useState<FinancePO[]>(financePos);
+  const { purchaseOrders, grns } = useProcurement();
+  const [postings, setPostings] = useState<Record<string, PostingState>>(SEED_POSTINGS);
   const [activeTab, setActiveTab] = useState<FinancePOStatus | "all">("all");
   const [payTarget, setPayTarget] = useState<FinancePO | null>(null);
+
+  // Derive Finance PO rows from the shared Procurement store: every PO sent to
+  // Finance appears here, the payment trigger follows the PO's payment term,
+  // and goodsReceived is computed from the shared GRN records.
+  const list = useMemo<FinancePO[]>(() =>
+    purchaseOrders
+      .filter(po => po.sentToFinance)
+      .map(po => {
+        const term = getPaymentTerm(po.paymentTermId);
+        const posting = postings[po.id] ?? { status: "open" as FinancePOStatus, paidAmount: 0 };
+        return {
+          id: po.id,
+          financeRef: po.financeRef ?? `FIN-${Math.floor(Math.random() * 9000) + 1000}`,
+          supplier: po.supplier,
+          supplierContact: po.supplierContact,
+          prRef: po.prRef,
+          receivedDate: po.createdDate,
+          dueDate: po.expectedDate,
+          amount: po.totalValue,
+          handoff: isPreDelivery(term) ? "on_po_approval" as const : "after_delivery" as const,
+          goodsReceived: grns.some(g => g.poRef === po.id && g.items.some(it => it.received > 0)),
+          grnRefs: grns.filter(g => g.poRef === po.id).map(g => g.id),
+          paidAmount: posting.paidAmount,
+          status: posting.status,
+          items: po.items.map(it => ({ material: it.material, qty: it.qty, unit: it.unit, unitCost: it.unitCost })),
+          paymentMethod: posting.paymentMethod,
+          paymentDate: posting.paymentDate,
+          ledgerRef: posting.ledgerRef,
+          approvedBy: posting.approvedBy,
+        };
+      }),
+    [purchaseOrders, grns, postings],
+  );
+
+  function patchPosting(id: string, patch: Partial<PostingState>) {
+    setPostings(prev => ({ ...prev, [id]: { ...(prev[id] ?? { status: "open", paidAmount: 0 }), ...patch } }));
+  }
 
   function openPay(po: FinancePO) {
     if (payTarget) return;
@@ -263,13 +302,13 @@ export function FinancePurchaseOrdersPage() {
   }
 
   function sendForApproval(po: FinancePO) {
-    setList(prev => prev.map(p => p.id === po.id ? { ...p, status: "pending_approval" } : p));
+    patchPosting(po.id, { status: "pending_approval" });
     logChange({ module: "Finance", action: "Payment Sent for Approval", entityType: "PurchaseOrder", entityId: po.id, summary: `PO ${po.id} payment sent for approval (${po.supplier}, ${fmtFull(po.amount)})`, performedBy: "Current User" });
     setPayTarget(null);
   }
 
   function approvePayment(po: FinancePO) {
-    setList(prev => prev.map(p => p.id === po.id ? { ...p, status: "approved", approvedBy: "Sola Adeleke" } : p));
+    patchPosting(po.id, { status: "approved", approvedBy: "Sola Adeleke" });
     logChange({ module: "Finance", action: "Payment Approved", entityType: "PurchaseOrder", entityId: po.id, summary: `PO ${po.id} payment approved for posting`, performedBy: "Current User" });
   }
 
@@ -288,7 +327,7 @@ export function FinancePurchaseOrdersPage() {
       linkedRecords: [{ label: "Purchase Order", ref: po.id }],
     });
     if (!txn) return;
-    setList(prev => prev.map(p => p.id === po.id ? { ...p, status: "posted", paidAmount: po.amount, ledgerRef: txn.id, paymentMethod: method, paymentDate: date } : p));
+    patchPosting(po.id, { status: "posted", paidAmount: po.amount, ledgerRef: txn.id, paymentMethod: method, paymentDate: date });
     logChange({ module: "Finance", action: "Payment Posted", entityType: "PurchaseOrder", entityId: po.id, summary: `PO ${po.id} paid — posted to ledger ${txn.id}`, performedBy: "Current User" });
     setPayTarget(null);
   }
