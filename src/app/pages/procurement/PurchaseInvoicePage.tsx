@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Plus, FileText, ChevronDown, ChevronUp, X, CreditCard, BookOpen } from "lucide-react";
+import { Plus, FileText, ChevronDown, ChevronUp, X, CreditCard, BookOpen, Send, CheckCircle, ShieldCheck } from "lucide-react";
 import { exportCSV } from "../../utils/exportCSV";
 import { DataTable, type Column } from "../../components/DataTable";
 import { useChangelog } from "../../stores/changelogStore";
@@ -25,6 +25,8 @@ interface PurchaseInvoice {
   issueDate: string;
   dueDate: string;
   status: InvoiceStatus;
+  paymentStatus?: "Pending Payment Approval" | "Payment Approved";
+  ledgerRef?: string;
   lines: InvoiceLine[];
 }
 
@@ -91,17 +93,22 @@ const BLANK_FORM = {
 };
 
 // ── Pay Invoice modal (double-entry payment posting) ───────────────────────
-function PayInvoiceModal({ invoice, onClose, onConfirm }: {
+// "send" mode pre-approval: the ONLY action is "Send for Approval" — nothing is
+// posted yet. "execute" mode (payment approved): "Post to Ledger" posts a
+// balanced journal. Approving a payment never auto-posts.
+function PayInvoiceModal({ invoice, mode, onClose, onSend, onPost }: {
   invoice: PurchaseInvoice;
+  mode: "send" | "execute";
   onClose: () => void;
-  onConfirm: (payload: { date: string; method: string; reference: string; lines: JournalLineInput[] }) => void;
+  onSend: () => void;
+  onPost: (payload: { date: string; method: string; reference: string; lines: JournalLineInput[] }) => void;
 }) {
   const { getPostableAccounts } = useFinance();
   const postableAccounts = getPostableAccounts().map(a => ({ code: a.code, name: a.name }));
   const total = lineTotal(invoice.lines);
 
   const [date, setDate] = useState(new Date().toISOString().slice(0, 10));
-  const [method, setMethod] = useState("Bank Transfer");
+  const [method, setMethod] = useState(invoice.paymentMethod ?? "Bank Transfer");
   const [reference] = useState(invoice.invoiceNo);
   const [lines, setLines] = useState<JournalLineInput[]>([
     { id: `dr-${Date.now()}`, account: "2110 Accounts Payable", debit: total, credit: 0, description: `Settle ${invoice.invoiceNo} — ${invoice.supplier}` },
@@ -118,7 +125,7 @@ function PayInvoiceModal({ invoice, onClose, onConfirm }: {
       <div className="bg-white rounded-2xl shadow-2xl w-full max-w-3xl mx-4 my-auto">
         <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
           <div>
-            <h2 className="text-sm font-semibold text-gray-900">Pay Invoice — {invoice.invoiceNo}</h2>
+            <h2 className="text-sm font-semibold text-gray-900">{mode === "send" ? "Pay Invoice — " : "Post Payment — "}{invoice.invoiceNo}</h2>
             <p className="text-xs text-gray-500 mt-0.5">{invoice.supplier} · Due {invoice.dueDate} · Amount {fmt(total)}</p>
           </div>
           <button onClick={onClose} className="p-1.5 hover:bg-gray-100 rounded-lg"><X className="w-4 h-4 text-gray-400" /></button>
@@ -128,9 +135,13 @@ function PayInvoiceModal({ invoice, onClose, onConfirm }: {
           <div className="bg-blue-50 border border-blue-100 rounded-xl p-4 flex items-start gap-3">
             <CreditCard className="w-5 h-5 text-blue-600 shrink-0 mt-0.5" />
             <div>
-              <p className="text-sm font-medium text-blue-900">Post payment to the general ledger</p>
+              <p className="text-sm font-medium text-blue-900">
+                {mode === "send" ? "Prepare the payment for approval" : "Post approved payment to the general ledger"}
+              </p>
               <p className="text-xs text-blue-700 mt-0.5">
-                Recording this payment posts a balanced double-entry to the Chart of Accounts (typically Accounts Payable → Cash &amp; Bank). Adjust or add lines as needed — debit and credit totals must match.
+                {mode === "send"
+                  ? "Enter the payment details and posting lines, then send for approval. Nothing is posted at this stage."
+                  : "Approval is done. Posting writes a balanced double-entry to the Chart of Accounts — this is the only step that pays."}
               </p>
             </div>
           </div>
@@ -164,19 +175,26 @@ function PayInvoiceModal({ invoice, onClose, onConfirm }: {
               <label className="text-xs font-semibold text-gray-700">Posting Lines</label>
               <span className="text-xs text-gray-400">Total debits must equal total credits to post.</span>
             </div>
-            <JournalLinesEditor lines={lines} onChange={setLines} accounts={postableAccounts} minLines={2} />
+            <JournalLinesEditor lines={lines} onChange={setLines} accounts={postableAccounts} minLines={2} disabled={mode === "execute"} />
           </div>
         </div>
 
         <div className="px-6 py-4 border-t border-gray-100 flex items-center justify-between">
-          <p className="text-xs text-gray-400">Only balanced postings update the Chart of Accounts.</p>
+          <p className="text-xs text-gray-400">{mode === "send" ? "Sending for approval does not post to the ledger." : "Only balanced postings update the Chart of Accounts."}</p>
           <div className="flex items-center gap-2">
             <button onClick={onClose} className="px-4 py-2 text-sm text-gray-600 border border-gray-300 rounded-lg hover:bg-gray-50">Cancel</button>
-            <button onClick={() => onConfirm({ date, method, reference, lines })}
-              disabled={!balanced || !validAccounts}
-              className="px-4 py-2 text-sm bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 disabled:opacity-40 flex items-center gap-2">
-              <BookOpen className="w-4 h-4" /> Confirm & Post Payment
-            </button>
+            {mode === "send" ? (
+              <button onClick={onSend} disabled={!balanced || !validAccounts}
+                className="px-4 py-2 text-sm bg-violet-600 text-white rounded-lg hover:bg-violet-700 disabled:opacity-40 flex items-center gap-2">
+                <Send className="w-4 h-4" /> Send for Approval
+              </button>
+            ) : (
+              <button onClick={() => onPost({ date, method, reference, lines })}
+                disabled={!balanced || !validAccounts}
+                className="px-4 py-2 text-sm bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 disabled:opacity-40 flex items-center gap-2">
+                <BookOpen className="w-4 h-4" /> Post to Ledger
+              </button>
+            )}
           </div>
         </div>
       </div>
@@ -260,9 +278,20 @@ export function PurchaseInvoicePage() {
       ],
     });
     if (!txn) return;
-    setInvoices((prev) => prev.map((inv) => inv.id === invoice.id ? { ...inv, status: "Paid" as InvoiceStatus } : inv));
+    setInvoices((prev) => prev.map((inv) => inv.id === invoice.id ? { ...inv, status: "Paid" as InvoiceStatus, ledgerRef } : inv));
     logChange({ module: "Procurement", action: "Paid", entityType: "PurchaseInvoice", entityId: invoice.id, summary: `Invoice ${invoice.invoiceNo} paid via ${payload.method} — posted ${ledgerRef}`, performedBy: "Current User" });
     setPayTarget(null);
+  }
+
+  function sendForApproval(invoice: PurchaseInvoice) {
+    setInvoices((prev) => prev.map((inv) => inv.id === invoice.id ? { ...inv, paymentStatus: "Pending Payment Approval" as const } : inv));
+    logChange({ module: "Procurement", action: "Payment Sent for Approval", entityType: "PurchaseInvoice", entityId: invoice.id, summary: `Invoice ${invoice.invoiceNo} payment sent for approval (${invoice.supplier})`, performedBy: "Current User" });
+    setPayTarget(null);
+  }
+
+  function approvePayment(invoice: PurchaseInvoice) {
+    setInvoices((prev) => prev.map((inv) => inv.id === invoice.id ? { ...inv, paymentStatus: "Payment Approved" as const } : inv));
+    logChange({ module: "Procurement", action: "Payment Approved", entityType: "PurchaseInvoice", entityId: invoice.id, summary: `Invoice ${invoice.invoiceNo} payment approved for posting`, performedBy: "Current User" });
   }
 
   function handleExport() {
@@ -288,14 +317,27 @@ export function PurchaseInvoicePage() {
           </div>
         );
       case "Approved":
-        return (
-          <button onClick={() => setPayTarget(inv)}
-            className="text-xs text-emerald-600 hover:underline">Pay →</button>
-        );
       case "Overdue":
         return (
-          <button onClick={() => setPayTarget(inv)}
-            className="text-xs text-emerald-600 hover:underline">Pay →</button>
+          <div className="flex flex-col items-start gap-1">
+            {inv.paymentStatus === undefined && (
+              <button onClick={() => setPayTarget(inv)}
+                className="text-xs text-emerald-600 hover:underline">Pay →</button>
+            )}
+            {inv.paymentStatus === "Pending Payment Approval" && (
+              <button onClick={() => approvePayment(inv)}
+                className="flex items-center gap-1 text-xs text-violet-700 hover:underline">
+                <CheckCircle className="w-3 h-3" /> Approve Payment
+              </button>
+            )}
+            {inv.paymentStatus === "Payment Approved" && (
+              <div className="flex flex-col items-start gap-1">
+                <span className="text-[10px] text-violet-500 inline-flex items-center gap-1"><ShieldCheck className="w-3 h-3" /> Payment approved</span>
+                <button onClick={() => setPayTarget(inv)}
+                  className="text-xs text-emerald-600 hover:underline">Post →</button>
+              </div>
+            )}
+          </div>
         );
       case "Paid":
         return (
@@ -468,12 +510,14 @@ export function PurchaseInvoicePage() {
         </div>
       )}
 
-      {/* Pay Invoice Modal */}
+      {/* Pay / Post Invoice Modal */}
       {payTarget && (
         <PayInvoiceModal
           invoice={payTarget}
+          mode={payTarget.paymentStatus === "Payment Approved" ? "execute" : "send"}
           onClose={() => setPayTarget(null)}
-          onConfirm={(payload) => confirmPay(payTarget, payload)}
+          onSend={() => sendForApproval(payTarget)}
+          onPost={(payload) => confirmPay(payTarget, payload)}
         />
       )}
 

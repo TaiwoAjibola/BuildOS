@@ -151,9 +151,11 @@ const ALL_SUPPLIERS = ["Alpha Aggregates", "SteelMart Int'l", "CemCo Nigeria Ltd
 interface NewPRItemForm { material: string; qty: string; unit: string; estimatedUnitCost: string; }
 
 function NewPRModal({
+  existingRefs,
   onClose,
   onSave,
 }: {
+  existingRefs: string[];
   onClose: () => void;
   onSave: (pr: PurchaseRequest) => void;
 }) {
@@ -181,8 +183,12 @@ function NewPRModal({
   const { getNextId } = useNumbering();
   const valid = project && mrRef.trim() && items.every((it) => it.material.trim() && it.qty.trim());
 
+  // Dedupe: one material request → one purchase request. If the chosen MR ref is
+  // already linked to a PR, block creating a duplicate.
+  const mrTaken = existingRefs.includes(mrRef.trim());
+
   function save() {
-    if (!valid || !selectedSuppliers.length) return;
+    if (!valid || !selectedSuppliers.length || mrTaken) return;
     const id    = getNextId("PurchaseRequest");
     const total = items.reduce((s, it) => s + parseFloat(it.qty) * parseFloat(it.estimatedUnitCost || "0"), 0);
     onSave({
@@ -225,7 +231,10 @@ function NewPRModal({
             <div>
               <label className="block text-xs font-medium text-gray-600 mb-1">MR Reference</label>
               <input value={mrRef} onChange={(e) => setMrRef(e.target.value)} placeholder="e.g. MR-0041"
-                className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                className={`w-full border rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 ${mrTaken ? "border-red-300 bg-red-50" : "border-gray-200"}`} />
+              {mrTaken && (
+                <p className="text-xs text-red-600 mt-1">This material request already has a purchase request — one MR must raise only one PR (no duplicate procurement).</p>
+              )}
             </div>
             <div>
               <label className="block text-xs font-medium text-gray-600 mb-1">Required in (days)</label>
@@ -301,7 +310,7 @@ function NewPRModal({
         </div>
         <div className="flex justify-end gap-3 px-6 py-4 border-t border-gray-100">
           <button onClick={onClose} className="px-4 py-2 text-sm border border-gray-200 rounded-xl text-gray-700 hover:bg-gray-50">Cancel</button>
-          <button onClick={save} disabled={!valid || !selectedSuppliers.length}
+          <button onClick={save} disabled={!valid || !selectedSuppliers.length || mrTaken}
             className="px-4 py-2 text-sm bg-blue-700 text-white rounded-xl hover:bg-blue-800 disabled:opacity-40 disabled:cursor-not-allowed">
             Create PR
           </button>
@@ -563,6 +572,7 @@ export function PurchaseRequestsPage() {
 
       {showNewPR && (
         <NewPRModal
+          existingRefs={prList.map((pr) => pr.materialRequestRef)}
           onClose={() => setShowNewPR(false)}
           onSave={handleCreatePR}
         />

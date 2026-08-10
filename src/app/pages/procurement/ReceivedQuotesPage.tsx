@@ -5,6 +5,7 @@ import {
   X, Trash2, CheckCircle, Scale, MessageSquare, RotateCcw, MapPin, Layers,
 } from "lucide-react";
 import { useNumbering } from "../../stores/numberingStore";
+import { PAYMENT_TERM_PRESETS, getDefaultPaymentTermId, getPaymentTerm } from "../../config/paymentTerms";
 
 type VendorDocType = "quote" | "invoice";
 type DocStatus = "pending_review" | "approved" | "po_created" | "rejected";
@@ -450,7 +451,7 @@ function NegotiateModal({ doc, itemIndex, onClose, onSave }: {
   );
 }
 
-function CreatePOFromQuoteModal({ doc, onClose, onDone }: { doc: VendorDoc; onClose: () => void; onDone: (id: string) => void }) {  const { getNextId } = useNumbering();  const fmt = (n: number) => n >= 1_000_000 ? `₦${(n / 1_000_000).toFixed(2)}M` : n >= 1000 ? `₦${(n / 1000).toFixed(0)}K` : `₦${n}`;
+function CreatePOFromQuoteModal({ doc, onClose, onDone }: { doc: VendorDoc; onClose: () => void; onDone: (id: string, paymentTermId: string) => void }) {  const { getNextId } = useNumbering();  const fmt = (n: number) => n >= 1_000_000 ? `₦${(n / 1_000_000).toFixed(2)}M` : n >= 1000 ? `₦${(n / 1000).toFixed(0)}K` : `₦${n}`;
   const today = new Date().toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" }).replace(/ /g, " ");
   // Import suppliers from SuppliersPage
   // (If not possible, copy the suppliers array here or import from a shared module)
@@ -468,11 +469,13 @@ function CreatePOFromQuoteModal({ doc, onClose, onDone }: { doc: VendorDoc; onCl
   const [expectedDate, setExpectedDate] = useState("");
   const [supplierContact, setSupplierContact] = useState(defaultContact);
   const [notes, setNotes] = useState("");
+  const [paymentTermId, setPaymentTermId] = useState(getDefaultPaymentTermId());
+  const term = getPaymentTerm(paymentTermId);
 
   const nextPO = getNextId("PurchaseOrder");
 
   function handleCreate() {
-    onDone(nextPO);
+    onDone(nextPO, paymentTermId);
   }
 
   return (
@@ -532,6 +535,21 @@ function CreatePOFromQuoteModal({ doc, onClose, onDone }: { doc: VendorDoc; onCl
             <label className="block text-xs font-medium text-gray-600 mb-1">PO Notes</label>
             <textarea value={notes} onChange={e => setNotes(e.target.value)} rows={2}
               className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-blue-500" />
+          </div>
+          <div>
+            <label className="block text-xs font-medium text-gray-600 mb-1.5">Payment Terms</label>
+            <select value={paymentTermId} onChange={e => setPaymentTermId(e.target.value)}
+              className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+              {PAYMENT_TERM_PRESETS.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
+            </select>
+            <div className="flex flex-wrap gap-1.5 mt-2">
+              {term.tranches.map((t, i) => (
+                <span key={i} className={`inline-flex items-center text-xs px-2.5 py-1 rounded-full border ${t.timing === "on_po_approval" ? "bg-sky-50 text-sky-700 border-sky-200" : "bg-white text-gray-600 border-gray-200"}`}>
+                  {t.percent}% {t.title}
+                </span>
+              ))}
+            </div>
+            <p className="text-xs text-gray-400 mt-1.5">{term.description}</p>
           </div>
           <p className="text-xs text-gray-400">PO will be created as <span className="font-mono font-medium text-gray-700">{nextPO}</span> with status <em>Draft</em>. Created by {today}.</p>
         </div>
@@ -963,10 +981,10 @@ export function ReceivedQuotesPage() {
         <CreatePOFromQuoteModal
           doc={createPODoc}
           onClose={() => setCreatePODoc(null)}
-          onDone={(poId) => {
+          onDone={(poId, termId) => {
             setDocs(prev => prev.map(x => x.id === createPODoc!.id ? { ...x, status: "po_created" } : x));
             setCreatePODoc(null);
-            alert(`Purchase Order ${poId} has been created successfully.`);
+            alert(`Purchase Order ${poId} has been created successfully with payment terms: ${getPaymentTerm(termId).name}.`);
           }}
         />
       )}

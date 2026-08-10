@@ -7,6 +7,9 @@ import {
 import { AdvancedFilter, applyFiltersAndSort, type FilterFieldDef, type ActiveFilters, type SortConfig } from "../../components/AdvancedFilter";
 import { useNumbering } from "../../stores/numberingStore";
 
+// The linked PR ref documents the MR → PR trace. A single MR must produce only
+// one purchase request — once the PR is raised the MR moves to `in_procurement`
+// and the raise action no longer appears (dedupe).
 type ReqStatus = "pending" | "approved" | "rejected" | "in_procurement" | "fulfilled";
 
 const requests: {
@@ -14,6 +17,7 @@ const requests: {
   status: ReqStatus; priority: "urgent" | "high" | "normal";
   submittedDate: string; neededBy: string; totalItems: number;
   justification: string;
+  linkedPrRef?: string;
   items: { material: string; qty: number; unit: string; available: number; notes: string }[];
 }[] = [
   {
@@ -51,6 +55,7 @@ const requests: {
     id: "MR-0038", project: "Industrial Warehouse", requestedBy: "Mike Davis", department: "Foundation",
     status: "in_procurement", priority: "high", submittedDate: "Apr 7, 2026", neededBy: "Apr 12, 2026",
     totalItems: 4, justification: "Foundation pad casting for column grids A1-A6.",
+    linkedPrRef: "PR-0018",
     items: [
       { material: "Sand (River)", qty: 60, unit: "Tonnes", available: 0, notes: "Fine aggregate" },
       { material: "Granite 3/4 Inch", qty: 40, unit: "Tonnes", available: 95, notes: "Coarse aggregate" },
@@ -70,6 +75,7 @@ const requests: {
     id: "MR-0036", project: "Downtown Office Complex", requestedBy: "Tom Fox", department: "Structural",
     status: "fulfilled", priority: "normal", submittedDate: "Apr 6, 2026", neededBy: "Apr 8, 2026",
     totalItems: 2, justification: "Column work Level 4 complete.",
+    linkedPrRef: "PR-0017",
     items: [
       { material: "Steel Rebar Y16", qty: 15, unit: "Tonnes", available: 27, notes: "Column caging" },
       { material: "Steel Rebar Y12", qty: 5, unit: "Tonnes", available: 33, notes: "Links and stirrups" },
@@ -114,7 +120,8 @@ const MR_UNITS = ["Tonnes", "Bags", "Metres", "Sheets", "Rolls", "Units", "Carto
 
 interface MRItem { material: string; qty: string; unit: string; available: string; notes: string }
 
-function NewMRModal({ onClose, onSave }: {
+function NewMRModal({ existing, onClose, onSave }: {
+  existing: { id: string; project: string; status: ReqStatus; items: { material: string; qty: number }[] }[];
   onClose: () => void;
   onSave: (req: typeof requests[0]) => void;
 }) {
@@ -134,6 +141,17 @@ function NewMRModal({ onClose, onSave }: {
   const updateItem = (i: number, k: keyof MRItem, v: string) => setItems(p => p.map((it, j) => j === i ? { ...it, [k]: v } : it));
   const { getNextId } = useNumbering();
   const valid = project && justification.trim() && items.every(it => it.material.trim() && it.qty.trim());
+
+  // Dedupe: flag if an open (non-rejected) request on this project already asks
+  // for the same material in equal-or-greater quantity.
+  const similar = existing.filter(r =>
+    r.project === project && r.status !== "rejected" &&
+    items.some(it => {
+      const mat = it.material.trim().toLowerCase();
+      const qty = parseFloat(it.qty) || 0;
+      return mat && qty > 0 && r.items.some(ri => ri.material.toLowerCase() === mat && ri.qty >= qty);
+    }),
+  );
 
   function handleSave() {
     if (!valid) return;
@@ -167,6 +185,18 @@ function NewMRModal({ onClose, onSave }: {
           <button onClick={onClose} className="text-gray-400 hover:text-gray-600"><X className="w-5 h-5" /></button>
         </div>
         <div className="px-6 py-5 space-y-4">
+          {similar.length > 0 && (
+            <div className="rounded-xl border border-amber-200 bg-amber-50 p-3 flex items-start gap-2">
+              <AlertTriangle className="w-4 h-4 text-amber-600 mt-0.5 flex-shrink-0" />
+              <div className="text-sm text-amber-800">
+                <p className="font-medium">Possible duplicate request detected</p>
+                <p className="text-xs text-amber-700 mt-0.5">
+                  {similar.map(r => r.id).join(", ")} on {project} already requests the same material{similar.length > 1 ? "s" : ""}
+                  in equal or greater quantity. Avoid duplicate procurement unless quantities genuinely need to increase.
+                </p>
+              </div>
+            </div>
+          )}
           <div className="grid grid-cols-2 gap-4">
             <div>
               <label className="block text-xs font-medium text-gray-600 mb-1">Project <span className="text-red-500">*</span></label>
@@ -522,6 +552,9 @@ export function MaterialRequestsPage() {
                           <div className="flex gap-4"><span className="text-gray-500 w-24">Project</span><span className="font-medium text-gray-900">{req.project}</span></div>
                           <div className="flex gap-4"><span className="text-gray-500 w-24">Requested by</span><span className="font-medium text-gray-900">{req.requestedBy}</span></div>
                           <div className="flex gap-4"><span className="text-gray-500 w-24">Needed by</span><span className="font-medium text-gray-900">{req.neededBy}</span></div>
+                          {req.linkedPrRef && (
+                            <div className="flex gap-4"><span className="text-gray-500 w-24">Purchase Req</span><span className="font-medium text-blue-700 flex items-center gap-1"><ArrowRight className="w-3 h-3" /> {req.linkedPrRef}</span></div>
+                          )}
                         </div>
                       </div>
                     </div>
@@ -584,6 +617,7 @@ export function MaterialRequestsPage() {
 
       {showNewMR && (
         <NewMRModal
+          existing={reqList}
           onClose={() => setShowNewMR(false)}
           onSave={(req) => { setReqList(prev => [req, ...prev]); setShowNewMR(false); }}
         />
@@ -603,7 +637,7 @@ export function MaterialRequestsPage() {
           req={raisePRFor}
           onClose={() => setRaisePRFor(null)}
           onDone={(prId, _type, _suppliers) => {
-            setReqList(prev => prev.map(r => r.id === raisePRFor.id ? { ...r, status: "in_procurement" as const } : r));
+            setReqList(prev => prev.map(r => r.id === raisePRFor.id ? { ...r, status: "in_procurement" as const, linkedPrRef: prId } : r));
             setPrToast(prId);
             setTimeout(() => setPrToast(null), 5000);
           }}

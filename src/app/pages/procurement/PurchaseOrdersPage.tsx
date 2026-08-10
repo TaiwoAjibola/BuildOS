@@ -8,6 +8,7 @@ import { DataTable, type Column } from "../../components/DataTable";
 import { useChangelog } from "../../stores/changelogStore";
 import { exportCSV } from "../../utils/exportCSV";
 import { useNumbering } from "../../stores/numberingStore";
+import { PAYMENT_TERM_PRESETS, getDefaultPaymentTermId, getPaymentTerm, tranchesLabel } from "../../config/paymentTerms";
 
 type POStatus = "draft" | "sent" | "confirmed" | "partially_received" | "completed" | "cancelled";
 type PaymentStatus = "unpaid" | "confirmation_requested" | "paid";
@@ -15,6 +16,7 @@ type PaymentStatus = "unpaid" | "confirmation_requested" | "paid";
 interface PurchaseOrder {
   id: string; prRef: string; mrRef: string; supplier: string; supplierContact: string;
   status: POStatus; paymentStatus: PaymentStatus; sentToFinance: boolean; financeRef?: string;
+  paymentTermId: string;
   createdBy: string; createdDate: string; expectedDate: string;
   totalItems: number; totalValue: number; receivedValue: number;
   items: { material: string; qty: number; unit: string; unitCost: number; received: number }[];
@@ -24,7 +26,7 @@ const purchaseOrders: PurchaseOrder[] = [
   {
     id: "PO-0031", prRef: "PR-0018", mrRef: "MR-0038",
     supplier: "CemCo Nigeria Ltd", supplierContact: "Tunde Adeyemi — +234 80 4521 7890",
-    status: "confirmed", paymentStatus: "unpaid", sentToFinance: false,
+    status: "confirmed", paymentStatus: "unpaid", sentToFinance: false, paymentTermId: "full-delivery",
     createdBy: "Amaka Osei", createdDate: "Apr 8, 2026", expectedDate: "Apr 12, 2026",
     totalItems: 2, totalValue: 4500000, receivedValue: 0,
     items: [
@@ -35,7 +37,7 @@ const purchaseOrders: PurchaseOrder[] = [
   {
     id: "PO-0030", prRef: "PR-0017", mrRef: "MR-0036",
     supplier: "SteelMart International", supplierContact: "Kene Obi — +234 81 2233 4455",
-    status: "sent", paymentStatus: "unpaid", sentToFinance: false,
+    status: "sent", paymentStatus: "unpaid", sentToFinance: false, paymentTermId: "50-50",
     createdBy: "Amaka Osei", createdDate: "Apr 7, 2026", expectedDate: "Apr 15, 2026",
     totalItems: 2, totalValue: 8250000, receivedValue: 0,
     items: [
@@ -46,7 +48,7 @@ const purchaseOrders: PurchaseOrder[] = [
   {
     id: "PO-0029", prRef: "PR-0016", mrRef: "MR-0033",
     supplier: "ElectraHub", supplierContact: "Femi Addo — +234 70 9988 7766",
-    status: "partially_received", paymentStatus: "confirmation_requested", sentToFinance: true, financeRef: "FIN-0044",
+    status: "partially_received", paymentStatus: "confirmation_requested", sentToFinance: true, financeRef: "FIN-0044", paymentTermId: "net-30",
     createdBy: "Amaka Osei", createdDate: "Apr 6, 2026", expectedDate: "Apr 11, 2026",
     totalItems: 2, totalValue: 2225000, receivedValue: 1275000,
     items: [
@@ -57,7 +59,7 @@ const purchaseOrders: PurchaseOrder[] = [
   {
     id: "PO-0028", prRef: "PR-0015", mrRef: "MR-0031",
     supplier: "Alpha Aggregates", supplierContact: "Lawal Musa — +234 81 5566 7788",
-    status: "completed", paymentStatus: "paid", sentToFinance: true, financeRef: "FIN-0041",
+    status: "completed", paymentStatus: "paid", sentToFinance: true, financeRef: "FIN-0041", paymentTermId: "full-delivery",
     createdBy: "Amaka Osei", createdDate: "Apr 5, 2026", expectedDate: "Apr 9, 2026",
     totalItems: 2, totalValue: 3480000, receivedValue: 3480000,
     items: [
@@ -68,7 +70,7 @@ const purchaseOrders: PurchaseOrder[] = [
   {
     id: "PO-0027", prRef: "PR-0014", mrRef: "MR-0029",
     supplier: "BuildPlus Supplies", supplierContact: "Ngozi Eze — +234 80 7788 9900",
-    status: "draft", paymentStatus: "unpaid", sentToFinance: false,
+    status: "draft", paymentStatus: "unpaid", sentToFinance: false, paymentTermId: "full-delivery",
     createdBy: "Amaka Osei", createdDate: "Apr 9, 2026", expectedDate: "Apr 18, 2026",
     totalItems: 1, totalValue: 5800000, receivedValue: 0,
     items: [
@@ -126,6 +128,7 @@ function NewPOModal({ onClose, onSave }: {
   const [prRef, setPrRef] = useState("");
   const [project, setProject] = useState(PO_PROJECTS[0]);
   const [deliveryDays, setDeliveryDays] = useState("7");
+  const [paymentTermId, setPaymentTermId] = useState(getDefaultPaymentTermId());
   const [items, setItems] = useState<POItem[]>([{ material: "", qty: "", unit: PO_UNITS[0], unitCost: "" }]);
 
   const addItem = () => setItems(p => [...p, { material: "", qty: "", unit: PO_UNITS[0], unitCost: "" }]);
@@ -134,6 +137,7 @@ function NewPOModal({ onClose, onSave }: {
   const totalValue = items.reduce((s, it) => s + (parseFloat(it.qty) || 0) * (parseFloat(it.unitCost) || 0), 0);
   const { getNextId } = useNumbering();
   const valid = supplier && items.every(it => it.material.trim() && it.qty.trim() && it.unitCost.trim());
+  const term = getPaymentTerm(paymentTermId);
 
   function handleSave() {
     if (!valid) return;
@@ -142,6 +146,7 @@ function NewPOModal({ onClose, onSave }: {
       id: nextId, prRef: prRef.trim() || "—", mrRef: "—", supplier,
       supplierContact: supplierContact.trim() || supplier,
       status: "draft", paymentStatus: "unpaid", sentToFinance: false,
+      paymentTermId,
       createdBy: "Amaka Osei",
       createdDate: fmtDate(today),
       expectedDate: addDays(parseInt(deliveryDays) || 7),
@@ -223,6 +228,25 @@ function NewPOModal({ onClose, onSave }: {
                 <span className="text-sm font-semibold text-gray-800">Total: {fmt(totalValue)}</span>
               </div>
             )}
+          </div>
+
+          <div>
+            <label className="block text-xs font-medium text-gray-600 mb-1">Payment Terms <span className="text-red-500">*</span></label>
+            <select value={paymentTermId} onChange={e => setPaymentTermId(e.target.value)}
+              className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-500">
+              {PAYMENT_TERM_PRESETS.map(p => <option key={p.id} value={p.id}>{p.name} — {tranchesLabel(p.tranches)}</option>)}
+            </select>
+            <div className="rounded-lg bg-gray-50 border border-gray-200 p-3 mt-2">
+              <p className="text-xs font-medium text-gray-700">{term.name}</p>
+              <div className="flex flex-wrap gap-1.5 mt-1.5">
+                {term.tranches.map((t, i) => (
+                  <span key={i} className={`inline-flex items-center text-[11px] px-2 py-0.5 rounded-full border ${t.timing === "on_po_approval" ? "bg-sky-50 text-sky-700 border-sky-200" : "bg-white text-gray-600 border-gray-200"}`}>
+                    {t.percent}% {t.title}
+                  </span>
+                ))}
+              </div>
+              <p className="text-[11px] text-gray-400 mt-1.5">{term.description}</p>
+            </div>
           </div>
         </div>
         <div className="flex justify-end gap-3 px-6 py-4 border-t border-gray-100">
@@ -341,6 +365,170 @@ function RecordReceiptModal({ po, onClose, onDone }: { po: PurchaseOrder; onClos
   );
 }
 
+// ── Formal PO document ─────────────────────────────────────────────────────
+// Viewable/downloadable legal PO: company letterhead, supplier + delivery
+// details, line items, payment terms, signature block (Procurement Manager).
+function PurchaseOrderDocumentModal({ po, onClose }: {
+  po: PurchaseOrder;
+  onClose: () => void;
+}) {
+  const term = getPaymentTerm(po.paymentTermId);
+
+  function downloadPdf() {
+    const rows = po.items.map(it =>
+      `<tr><td style="padding:6px 8px;border-bottom:1px solid #eee;text-align:left">${it.material}</td>` +
+      `<td style="padding:6px 8px;border-bottom:1px solid #eee;text-align:right">${it.qty.toLocaleString()} ${it.unit}</td>` +
+      `<td style="padding:6px 8px;border-bottom:1px solid #eee;text-align:right">₦${it.unitCost.toLocaleString()}</td>` +
+      `<td style="padding:6px 8px;border-bottom:1px solid #eee;text-align:right">₦${(it.qty * it.unitCost).toLocaleString()}</td></tr>`).join("");
+    const tranches = term.tranches.map(t => `${t.percent}% ${t.title}`).join(" + ");
+    const w = window.open("", "_blank");
+    if (!w) return;
+    w.document.write(`<!DOCTYPE html><html><head><meta charset="utf-8"><title>${po.id}</title></head>
+      <body style="font-family:Georgia,serif;color:#111;max-width:720px;margin:32px auto;line-height:1.5">
+        <div style="border-bottom:3px double #1e3a8a;padding-bottom:12px;display:flex;justify-content:space-between;align-items:flex-end">
+          <div><div style="font-size:22px;font-weight:bold;color:#1e3a8a">BUILDOS CONSTRUCTION</div>
+          <div style="font-size:11px;color:#555">Block A, Industrial Estate · Lagos · +234 1 234 5678</div></div>
+          <div style="text-align:right"><div style="font-size:16px;font-weight:bold">PURCHASE ORDER</div>
+          <div style="font-size:11px">No: <b>${po.id}</b></div><div style="font-size:11px">Date: ${po.createdDate}</div></div>
+        </div>
+        <table style="width:100%;margin-top:16px;font-size:13px;border-collapse:collapse">
+          <tr>
+            <td style="vertical-align:top"><div style="font-weight:bold;border-bottom:1px solid #999;margin-bottom:6px;padding-bottom:2px">Supplier</div>
+              <div>${po.supplier}</div><div style="color:#555;font-size:12px">${po.supplierContact}</div></td>
+            <td style="vertical-align:top"><div style="font-weight:bold;border-bottom:1px solid #999;margin-bottom:6px;padding-bottom:2px">Deliver To</div>
+              <div>Site Stores — Main Yard</div><div style="color:#555;font-size:12px">Lagos, Nigeria</div>
+              <div style="color:#555;font-size:12px">Expected: ${po.expectedDate}</div></td>
+          </tr>
+        </table>
+        <div style="font-weight:bold;border-bottom:1px solid #999;margin:16px 0 6px;padding-bottom:2px">Items</div>
+        <table style="width:100%;font-size:12px;border-collapse:collapse;border:1px solid #ddd">
+          <thead><tr style="background:#f5f5f5"><th style="padding:6px 8px;text-align:left">Description</th>
+          <th style="padding:6px 8px;text-align:right">Qty</th><th style="padding:6px 8px;text-align:right">Unit Price</th>
+          <th style="padding:6px 8px;text-align:right">Amount</th></tr></thead>
+          <tbody>${rows}</tbody>
+          <tfoot><tr><td colspan="3" style="padding:8px;text-align:right;font-weight:bold">TOTAL</td>
+          <td style="padding:8px;text-align:right;font-weight:bold">₦${po.totalValue.toLocaleString()}</td></tr></tfoot>
+        </table>
+        <div style="font-weight:bold;border-bottom:1px solid #999;margin:16px 0 6px;padding-bottom:2px">Payment Terms</div>
+        <div style="font-size:12px">${term.name} — ${tranches}</div>
+        <div style="font-size:11px;color:#555;margin-top:2px">${term.description}</div>
+        <div style="margin-top:24px;display:flex;justify-content:space-between;gap:24px;font-size:12px">
+          <div style="flex:1"><div style="border-top:1px solid #000;padding-top:4px">Authorised for BUILDOS<br/>Procurement Manager</div></div>
+          <div style="flex:1"><div style="border-top:1px solid #000;padding-top:4px">Supplier Acknowledgement<br/>Name &amp; Signature</div></div>
+        </div>
+      </body></html>`);
+    w.document.close();
+    w.focus();
+    w.print();
+  }
+
+  return (
+    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-3xl max-h-[92vh] overflow-y-auto">
+        <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 sticky top-0 bg-white z-10">
+          <div>
+            <h2 className="text-base font-semibold text-gray-900">Purchase Order {po.id}</h2>
+            <p className="text-xs text-gray-500 mt-0.5">Formal document · {po.supplier}</p>
+          </div>
+          <div className="flex items-center gap-2">
+            <button onClick={downloadPdf} className="flex items-center gap-1.5 px-3 py-1.5 text-xs bg-emerald-600 text-white rounded-lg hover:bg-emerald-700">
+              <DownloadCloud className="w-3.5 h-3.5" /> Download PDF
+            </button>
+            <button onClick={onClose} className="text-gray-400 hover:text-gray-600"><X className="w-5 h-5" /></button>
+          </div>
+        </div>
+
+        <div className="px-6 py-6 bg-gray-50/40">
+          {/* Letterhead */}
+          <div className="rounded-xl border border-gray-200 bg-white overflow-hidden">
+            <div className="px-6 py-5 border-b-4 border-double border-blue-800 flex items-start justify-between">
+              <div>
+                <p className="text-xl font-bold text-blue-900">BUILDOS CONSTRUCTION</p>
+                <p className="text-xs text-gray-500 mt-0.5">Block A, Industrial Estate · Lagos · +234 1 234 5678</p>
+                <p className="text-xs text-gray-400">VAT 051-2345-6789 · RCN 2019/0456789</p>
+              </div>
+              <div className="text-right">
+                <p className="text-sm font-bold text-gray-900">PURCHASE ORDER</p>
+                <p className="text-xs text-gray-600 mt-0.5">No: <span className="font-mono font-semibold">{po.id}</span></p>
+                <p className="text-xs text-gray-600">Date: {po.createdDate}</p>
+              </div>
+            </div>
+
+            <div className="px-6 py-4 grid grid-cols-2 gap-6 border-b border-gray-100">
+              <div>
+                <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide border-b border-gray-200 pb-1 mb-2">Bill To / Supplier</p>
+                <p className="text-sm font-semibold text-gray-900">{po.supplier}</p>
+                <p className="text-xs text-gray-600">{po.supplierContact}</p>
+                <p className="text-xs text-gray-500 mt-1">Payment ref: <span className="font-mono">{po.id}</span></p>
+              </div>
+              <div>
+                <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide border-b border-gray-200 pb-1 mb-2">Ship To</p>
+                <p className="text-sm text-gray-900">Site Stores — Main Yard</p>
+                <p className="text-xs text-gray-600">Lagos, Nigeria</p>
+                <p className="text-xs text-gray-500 mt-1">Expected delivery: {po.expectedDate}</p>
+              </div>
+            </div>
+
+            {/* Items */}
+            <table className="w-full text-sm">
+              <thead className="bg-gray-50 border-b border-gray-200">
+                <tr className="text-xs text-gray-500 uppercase tracking-wide">
+                  <th className="px-6 py-2.5 text-left font-semibold">Description</th>
+                  <th className="px-4 py-2.5 text-right font-semibold">Qty</th>
+                  <th className="px-4 py-2.5 text-right font-semibold">Unit Price</th>
+                  <th className="px-6 py-2.5 text-right font-semibold">Amount</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-100">
+                {po.items.map((it, i) => (
+                  <tr key={i}>
+                    <td className="px-6 py-2.5 text-gray-800">{it.material}</td>
+                    <td className="px-4 py-2.5 text-right text-gray-700">{it.qty.toLocaleString()} {it.unit}</td>
+                    <td className="px-4 py-2.5 text-right text-gray-700">₦{it.unitCost.toLocaleString()}</td>
+                    <td className="px-6 py-2.5 text-right font-medium text-gray-900">₦{(it.qty * it.unitCost).toLocaleString()}</td>
+                  </tr>
+                ))}
+                <tr className="bg-gray-50">
+                  <td colSpan={3} className="px-6 py-3 text-right text-sm font-semibold text-gray-700">TOTAL</td>
+                  <td className="px-6 py-3 text-right font-bold text-gray-900">₦{po.totalValue.toLocaleString()}</td>
+                </tr>
+              </tbody>
+            </table>
+
+            {/* Payment terms */}
+            <div className="px-6 py-4 border-t border-gray-100">
+              <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide border-b border-gray-200 pb-1 mb-2">Payment Terms</p>
+              <p className="text-sm text-gray-800 font-medium">{term.name}</p>
+              <div className="flex flex-wrap gap-2 mt-2">
+                {term.tranches.map((t, i) => (
+                  <span key={i} className={`inline-flex items-center text-xs px-2.5 py-1 rounded-full border ${t.timing === "on_po_approval" ? "bg-sky-50 text-sky-700 border-sky-200" : "bg-white text-gray-600 border-gray-200"}`}>
+                    {t.percent}% {t.title}
+                  </span>
+                ))}
+              </div>
+              <p className="text-xs text-gray-500 mt-2">{term.description}</p>
+            </div>
+
+            {/* Signature block */}
+            <div className="px-6 py-5 border-t border-gray-100 grid grid-cols-2 gap-8">
+              <div>
+                <div className="h-10 border-b border-gray-900" />
+                <p className="text-xs text-gray-700 mt-1.5">Authorised for BUILDOS</p>
+                <p className="text-xs font-semibold text-gray-900">Procurement Manager — Amaka Osei</p>
+              </div>
+              <div>
+                <div className="h-10 border-b border-gray-900" />
+                <p className="text-xs text-gray-700 mt-1.5">Supplier acknowledgement</p>
+                <p className="text-xs text-gray-600">Name &amp; signature</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export function PurchaseOrdersPage() {
   const { logChange } = useChangelog();
   const [poList, setPoList] = useState<PurchaseOrder[]>(purchaseOrders);
@@ -348,6 +536,7 @@ export function PurchaseOrdersPage() {
   const [showNewPO, setShowNewPO] = useState(false);
   const [sendPO, setSendPO] = useState<PurchaseOrder | null>(null);
   const [receiptPO, setReceiptPO] = useState<PurchaseOrder | null>(null);
+  const [viewPO, setViewPO] = useState<PurchaseOrder | null>(null);
 
   function sendToFinance(po: PurchaseOrder) {
     const ref = `FIN-${String(Math.floor(Math.random() * 9000) + 1000)}`;
@@ -402,6 +591,7 @@ export function PurchaseOrdersPage() {
       render: (po) => (
         <div className="text-sm text-gray-600">
           {po.items.length} item{po.items.length > 1 ? "s" : ""}: {po.items.map(it => it.material).join(", ")}
+          <p className="text-xs text-gray-400 mt-0.5">Terms: {getPaymentTerm(po.paymentTermId).name}</p>
         </div>
       ),
     },
@@ -451,6 +641,9 @@ export function PurchaseOrdersPage() {
       filterable: false,
       render: (po) => (
         <div className="flex items-center gap-1">
+          <button onClick={(e) => { e.stopPropagation(); setViewPO(po); }} className="p-1.5 text-gray-400 hover:bg-gray-100 rounded-md transition-colors" title="View formal PO document">
+            <FileText className="w-3.5 h-3.5" />
+          </button>
           {po.status === "draft" && (
             <>
               <button onClick={(e) => { e.stopPropagation(); setSendPO(po); }} className="p-1.5 text-blue-600 hover:bg-blue-50 rounded-md transition-colors" title="Send to Supplier">
@@ -562,6 +755,9 @@ export function PurchaseOrdersPage() {
         }
       />
 
+      {viewPO && (
+        <PurchaseOrderDocumentModal po={viewPO} onClose={() => setViewPO(null)} />
+      )}
       {showNewPO && (
         <NewPOModal
           onClose={() => setShowNewPO(false)}

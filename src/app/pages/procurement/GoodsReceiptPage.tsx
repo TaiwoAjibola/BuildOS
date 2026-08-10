@@ -1,7 +1,7 @@
 import { useState } from "react";
 import {
   PackageCheck, Search, Truck, CheckCircle, Clock, AlertTriangle,
-  ChevronDown, ChevronRight, XCircle, BarChart2, X, Plus, Trash2, LinkIcon,
+  ChevronDown, ChevronRight, XCircle, BarChart2, X, Plus, Trash2, LinkIcon, FileText, DownloadCloud,
 } from "lucide-react";
 import { useNumbering } from "../../stores/numberingStore";
 
@@ -354,6 +354,153 @@ function NotifySupplierModal({ grn, onClose, onDone }: {
   );
 }
 
+// ── Formal GRN document ─────────────────────────────────────────────────────
+// Goods Received Note as a formal document: company letterhead, linked PO/MR,
+// delivery details, line-by-line received/accepted/rejected, signature block.
+function GoodsReceiptDocumentModal({ grn, onClose }: {
+  grn: typeof grns[0];
+  onClose: () => void;
+}) {
+  const cfg = statusConfig[grn.status];
+
+  function downloadPdf() {
+    const rows = grn.items.map(it =>
+      `<tr><td style="padding:6px 8px;border-bottom:1px solid #eee;text-align:left">${it.material}</td>` +
+      `<td style="padding:6px 8px;border-bottom:1px solid #eee;text-align:right">${it.ordered} ${it.unit}</td>` +
+      `<td style="padding:6px 8px;border-bottom:1px solid #eee;text-align:right">${it.received}</td>` +
+      `<td style="padding:6px 8px;border-bottom:1px solid #eee;text-align:right">${it.accepted}</td>` +
+      `<td style="padding:6px 8px;border-bottom:1px solid #eee;text-align:right">${it.rejected}</td>` +
+      `<td style="padding:6px 8px;border-bottom:1px solid #eee;text-align:left">${it.reason || "—"}</td></tr>`).join("");
+    const w = window.open("", "_blank");
+    if (!w) return;
+    w.document.write(`<!DOCTYPE html><html><head><meta charset="utf-8"><title>${grn.id}</title></head>
+      <body style="font-family:Georgia,serif;color:#111;max-width:720px;margin:32px auto;line-height:1.5">
+        <div style="border-bottom:3px double #1e3a8a;padding-bottom:12px;display:flex;justify-content:space-between;align-items:flex-end">
+          <div><div style="font-size:22px;font-weight:bold;color:#1e3a8a">BUILDOS CONSTRUCTION</div>
+          <div style="font-size:11px;color:#555">Block A, Industrial Estate · Lagos · +234 1 234 5678</div></div>
+          <div style="text-align:right"><div style="font-size:16px;font-weight:bold">GOODS RECEIVED NOTE</div>
+          <div style="font-size:11px">No: <b>${grn.id}</b></div><div style="font-size:11px">Date: ${grn.receivedDate}</div></div>
+        </div>
+        <table style="width:100%;margin-top:16px;font-size:13px;border-collapse:collapse">
+          <tr>
+            <td style="vertical-align:top"><div style="font-weight:bold;border-bottom:1px solid #999;margin-bottom:6px;padding-bottom:2px">Delivery</div>
+              <div>Supplier: ${grn.supplier}</div><div style="color:#555;font-size:12px">Delivery Note: ${grn.deliveryNote}</div></td>
+            <td style="vertical-align:top"><div style="font-weight:bold;border-bottom:1px solid #999;margin-bottom:6px;padding-bottom:2px">Receipt</div>
+              <div>PO: ${grn.poRef}${grn.mrRef ? ` · MR: ${grn.mrRef}` : ""}</div>
+              <div style="color:#555;font-size:12px">Received at ${grn.warehouse} by ${grn.receivedBy}</div></td>
+          </tr>
+        </table>
+        <div style="font-weight:bold;border-bottom:1px solid #999;margin:16px 0 6px;padding-bottom:2px">Items</div>
+        <table style="width:100%;font-size:12px;border-collapse:collapse;border:1px solid #ddd">
+          <thead><tr style="background:#f5f5f5"><th style="padding:6px 8px;text-align:left">Description</th>
+          <th style="padding:6px 8px;text-align:right">Ordered</th><th style="padding:6px 8px;text-align:right">Received</th>
+          <th style="padding:6px 8px;text-align:right">Accepted</th><th style="padding:6px 8px;text-align:right">Rejected</th>
+          <th style="padding:6px 8px;text-align:left">Notes</th></tr></thead>
+          <tbody>${rows}</tbody>
+        </table>
+        <div style="margin-top:24px;display:flex;justify-content:space-between;gap:24px;font-size:12px">
+          <div style="flex:1"><div style="border-top:1px solid #000;padding-top:4px">Received By<br/>${grn.receivedBy}</div></div>
+          <div style="flex:1"><div style="border-top:1px solid #000;padding-top:4px">Stores / QA Check<br/>Name &amp; Signature</div></div>
+        </div>
+      </body></html>`);
+    w.document.close();
+    w.focus();
+    w.print();
+  }
+
+  return (
+    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-3xl max-h-[92vh] overflow-y-auto">
+        <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 sticky top-0 bg-white z-10">
+          <div>
+            <h2 className="text-base font-semibold text-gray-900">Goods Received Note {grn.id}</h2>
+            <p className="text-xs text-gray-500 mt-0.5">Formal document · {grn.supplier}</p>
+          </div>
+          <div className="flex items-center gap-2">
+            <button onClick={downloadPdf} className="flex items-center gap-1.5 px-3 py-1.5 text-xs bg-emerald-600 text-white rounded-lg hover:bg-emerald-700">
+              <DownloadCloud className="w-3.5 h-3.5" /> Download PDF
+            </button>
+            <button onClick={onClose} className="text-gray-400 hover:text-gray-600"><X className="w-5 h-5" /></button>
+          </div>
+        </div>
+
+        <div className="px-6 py-6 bg-gray-50/40">
+          <div className="rounded-xl border border-gray-200 bg-white overflow-hidden">
+            {/* Letterhead */}
+            <div className="px-6 py-5 border-b-4 border-double border-blue-800 flex items-start justify-between">
+              <div>
+                <p className="text-xl font-bold text-blue-900">BUILDOS CONSTRUCTION</p>
+                <p className="text-xs text-gray-500 mt-0.5">Block A, Industrial Estate · Lagos · +234 1 234 5678</p>
+                <p className="text-xs text-gray-400">VAT 051-2345-6789 · RCN 2019/0456789</p>
+              </div>
+              <div className="text-right">
+                <p className="text-sm font-bold text-gray-900">GOODS RECEIVED NOTE</p>
+                <p className="text-xs text-gray-600 mt-0.5">No: <span className="font-mono font-semibold">{grn.id}</span></p>
+                <p className="text-xs text-gray-600">Date: {grn.receivedDate}</p>
+              </div>
+            </div>
+
+            {/* Delivery + receipt refs */}
+            <div className="px-6 py-4 grid grid-cols-2 gap-6 border-b border-gray-100">
+              <div>
+                <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide border-b border-gray-200 pb-1 mb-2">Delivery</p>
+                <p className="text-sm font-semibold text-gray-900">{grn.supplier}</p>
+                <p className="text-xs text-gray-600">Delivery note: {grn.deliveryNote}</p>
+              </div>
+              <div>
+                <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide border-b border-gray-200 pb-1 mb-2">Receipt</p>
+                <p className="text-sm text-gray-900">PO: <span className="font-mono">{grn.poRef}</span>{grn.mrRef && <span className="text-gray-500"> · MR: <span className="font-mono">{grn.mrRef}</span></span>}</p>
+                <p className="text-xs text-gray-600">Received at {grn.warehouse} by {grn.receivedBy}</p>
+                <p className="text-xs text-gray-500 mt-0.5">Status: <span className="font-medium">{cfg.label}</span></p>
+              </div>
+            </div>
+
+            {/* Items */}
+            <table className="w-full text-sm">
+              <thead className="bg-gray-50 border-b border-gray-200">
+                <tr className="text-xs text-gray-500 uppercase tracking-wide">
+                  <th className="px-6 py-2.5 text-left font-semibold">Description</th>
+                  <th className="px-4 py-2.5 text-right font-semibold">Ordered</th>
+                  <th className="px-4 py-2.5 text-right font-semibold">Received</th>
+                  <th className="px-4 py-2.5 text-right font-semibold">Accepted</th>
+                  <th className="px-4 py-2.5 text-right font-semibold">Rejected</th>
+                  <th className="px-6 py-2.5 text-left font-semibold">Notes</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-100">
+                {grn.items.map((it, i) => (
+                  <tr key={i}>
+                    <td className="px-6 py-2.5 text-gray-800">{it.material}</td>
+                    <td className="px-4 py-2.5 text-right text-gray-700">{it.ordered} {it.unit}</td>
+                    <td className="px-4 py-2.5 text-right font-medium text-gray-900">{it.received} {it.unit}</td>
+                    <td className="px-4 py-2.5 text-right text-green-700 font-medium">{it.accepted}</td>
+                    <td className="px-4 py-2.5 text-right">{it.rejected > 0 ? <span className="text-red-600 font-medium">{it.rejected}</span> : <span className="text-gray-300">—</span>}</td>
+                    <td className="px-6 py-2.5 text-xs text-gray-400">{it.reason || "—"}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+
+            {/* Signature block */}
+            <div className="px-6 py-5 border-t border-gray-100 grid grid-cols-2 gap-8">
+              <div>
+                <div className="h-10 border-b border-gray-900" />
+                <p className="text-xs text-gray-700 mt-1.5">Received by</p>
+                <p className="text-xs font-semibold text-gray-900">{grn.receivedBy}</p>
+              </div>
+              <div>
+                <div className="h-10 border-b border-gray-900" />
+                <p className="text-xs text-gray-700 mt-1.5">Stores / QA inspection</p>
+                <p className="text-xs text-gray-600">Name &amp; signature</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export function GoodsReceiptPage() {
   const [grnList, setGrnList] = useState(grns);
   const [activeTab, setActiveTab] = useState<GRNStatus | "all">("all");
@@ -363,6 +510,7 @@ export function GoodsReceiptPage() {
   const [additionalDelivery, setAdditionalDelivery] = useState<typeof grns[0] | null>(null);
   const [rejectGrn, setRejectGrn] = useState<typeof grns[0] | null>(null);
   const [notifyGrn, setNotifyGrn] = useState<typeof grns[0] | null>(null);
+  const [viewGrn, setViewGrn] = useState<typeof grns[0] | null>(null);
 
   const filtered = grnList.filter(g => {
     const matchTab = activeTab === "all" || g.status === activeTab;
@@ -499,6 +647,9 @@ export function GoodsReceiptPage() {
                     </tbody>
                   </table>
                   <div className="flex justify-end gap-2">
+                    <button onClick={() => setViewGrn(grn)} className="px-4 py-2 text-sm border border-gray-300 text-gray-700 rounded-md hover:bg-gray-50 flex items-center gap-1.5">
+                      <FileText className="w-3.5 h-3.5" /> View Document
+                    </button>
                     {grn.status === "pending" && (
                       <>
                         <button onClick={() => setRejectGrn(grn)} className="px-4 py-2 text-sm border border-red-300 text-red-600 rounded-md hover:bg-red-50">Raise Rejection Note</button>
@@ -548,6 +699,9 @@ export function GoodsReceiptPage() {
           onClose={() => setNotifyGrn(null)}
           onDone={() => setNotifyGrn(null)}
         />
+      )}
+      {viewGrn && (
+        <GoodsReceiptDocumentModal grn={viewGrn} onClose={() => setViewGrn(null)} />
       )}
     </div>
   );

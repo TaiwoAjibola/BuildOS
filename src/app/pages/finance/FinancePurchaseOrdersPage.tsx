@@ -1,7 +1,7 @@
 import { useState } from "react";
 import {
-  CreditCard, CheckCircle2, Clock, Send, BookOpenCheck, X, AlertTriangle,
-  Building2, FileText, Lock, CheckCircle, BookOpen,
+  CreditCard, CheckCircle2, Clock, Send, X,
+  Building2, FileText, Lock, CheckCircle, BookOpen, Paperclip, PackageCheck, BookOpenCheck,
 } from "lucide-react";
 import { DataTable, type Column } from "../../components/DataTable";
 import { JournalLinesEditor, type JournalLineInput, newJournalLine } from "../../components/JournalLinesEditor";
@@ -11,10 +11,20 @@ import { useFinance } from "../../stores/financeStore";
 
 // Finance-side purchase order payment workflow. POs listed here have already
 // passed Procurement approval and been sent to Finance — Finance does NOT ask
-// Procurement to re-approve. Payment progress: received → pay popup
-// ("Send for Approval") → Pending Payment Approval → approved → Pay → Posted
-// to the ledger (only a posted, balanced payment updates account balances).
-type FinancePOStatus = "received" | "pending_payment_approval" | "payment_approved" | "paid";
+// Procurement to re-approve (actions are View + Pay only).
+//
+// Handoff by payment schedule (the "later tranche" rule):
+//   • on_po_approval  — payment is due before delivery (e.g. deposit tranche):
+//                       Finance acts as soon as the signed-off PO lands.
+//   • after_delivery  — payment is due after goods receipt / invoice: Finance
+//                       waits until the GRN is marked received before paying.
+//
+// Status vocabulary (spec): New/Open → Send for Approval → Pending Approval →
+// Approved → Post → Posted. Approving payment NEVER auto-posts — a balanced
+// "Post" is the only step that writes to the ledger.
+type FinancePOStatus = "open" | "pending_approval" | "approved" | "posted";
+
+type Handoff = "on_po_approval" | "after_delivery";
 
 interface FinancePO {
   id: string;             // PO number seen in Procurement
@@ -24,7 +34,10 @@ interface FinancePO {
   prRef: string;
   receivedDate: string;
   dueDate: string;
-  amount: number;
+  amount: number;        // Total PO amount
+  handoff: Handoff;      // when Finance may start paying
+  goodsReceived?: boolean; // GRN received (required for after_delivery POs)
+  paidAmount: number;    // already paid in earlier tranches
   status: FinancePOStatus;
   items: { material: string; qty: number; unit: string; unitCost: number }[];
   paymentMethod?: string;
@@ -37,40 +50,45 @@ const financePos: FinancePO[] = [
   {
     id: "PO-0033", financeRef: "FIN-0048", supplier: "BuildPlus Supplies", supplierContact: "Ngozi Eze — +234 80 7788 9900",
     prRef: "PR-0021", receivedDate: "Apr 10, 2026", dueDate: "Apr 18, 2026",
-    amount: 5800000, status: "received",
+    amount: 5800000, handoff: "on_po_approval", paidAmount: 0, status: "open",
     items: [{ material: "Plywood Formwork 18mm", qty: 400, unit: "Sheets", unitCost: 14500 }],
   },
   {
     id: "PO-0032", financeRef: "FIN-0043", supplier: "PlumbTech Ltd", supplierContact: "Yusuf Bello — +234 70 1234 5678",
     prRef: "PR-0020", receivedDate: "Apr 9, 2026", dueDate: "Apr 14, 2026",
-    amount: 2750000, status: "received",
+    amount: 2750000, handoff: "after_delivery", goodsReceived: true, paidAmount: 0, status: "open",
     items: [{ material: "PVC Pipes 110mm", qty: 200, unit: "Lengths", unitCost: 8500 }, { material: "Sinks & Fittings", qty: 30, unit: "Sets", unitCost: 35000 }],
   },
   {
     id: "PO-0031", financeRef: "FIN-0044", supplier: "CemCo Nigeria Ltd", supplierContact: "Tunde Adeyemi — +234 80 4521 7890",
     prRef: "PR-0018", receivedDate: "Apr 8, 2026", dueDate: "Apr 12, 2026",
-    amount: 4500000, status: "payment_approved", approvedBy: "Sola Adeleke",
+    amount: 4500000, handoff: "on_po_approval", paidAmount: 0, status: "pending_approval",
     items: [{ material: "Cement (50kg bags)", qty: 400, unit: "Bags", unitCost: 8500 }, { material: "Concrete Block 9 Inch", qty: 2000, unit: "Units", unitCost: 350 }],
   },
   {
     id: "PO-0030", financeRef: "FIN-0042", supplier: "SteelMart International", supplierContact: "Kene Obi — +234 81 2233 4455",
     prRef: "PR-0017", receivedDate: "Apr 7, 2026", dueDate: "Apr 15, 2026",
-    amount: 8250000, status: "pending_payment_approval",
+    amount: 8250000, handoff: "after_delivery", goodsReceived: true, paidAmount: 0, status: "approved", approvedBy: "Sola Adeleke",
     items: [{ material: "Steel Rebar Y16", qty: 15, unit: "Tonnes", unitCost: 410000 }, { material: "Steel Rebar Y12", qty: 5, unit: "Tonnes", unitCost: 380000 }],
   },
   {
     id: "PO-0029", financeRef: "FIN-0040", supplier: "ElectraHub", supplierContact: "Femi Addo — +234 70 9988 7766",
     prRef: "PR-0016", receivedDate: "Apr 6, 2026", dueDate: "Apr 11, 2026",
-    amount: 2225000, status: "paid", paymentMethod: "Bank Transfer", paymentDate: "Apr 13, 2026", ledgerRef: "LGR-1010",
+    amount: 2225000, handoff: "on_po_approval", paidAmount: 2225000, status: "posted", paymentMethod: "Bank Transfer", paymentDate: "Apr 13, 2026", ledgerRef: "LGR-1010",
     items: [{ material: "Electrical Conduit 25mm", qty: 1500, unit: "Metres", unitCost: 1200 }, { material: "2.5mm Twin Cable", qty: 500, unit: "Metres", unitCost: 850 }],
   },
 ];
 
 const STATUS_CFG: Record<FinancePOStatus, { label: string; badge: string; icon: React.ReactNode }> = {
-  received:                 { label: "Payment Pending",          badge: "bg-gray-100 text-gray-600",       icon: <Clock          className="w-3.5 h-3.5" /> },
-  pending_payment_approval: { label: "Pending Payment Approval", badge: "bg-amber-100 text-amber-700",   icon: <AlertTriangle  className="w-3.5 h-3.5" /> },
-  payment_approved:         { label: "Payment Approved",         badge: "bg-violet-100 text-violet-700", icon: <CheckCircle    className="w-3.5 h-3.5" /> },
-  paid:                     { label: "Paid",                     badge: "bg-emerald-100 text-emerald-700", icon: <BookOpenCheck  className="w-3.5 h-3.5" /> },
+  open:              { label: "New/Open",         badge: "bg-gray-100 text-gray-600",       icon: <Clock       className="w-3.5 h-3.5" /> },
+  pending_approval:  { label: "Pending Approval", badge: "bg-amber-100 text-amber-700",     icon: <Clock       className="w-3.5 h-3.5" /> },
+  approved:          { label: "Approved",         badge: "bg-violet-100 text-violet-700",   icon: <CheckCircle className="w-3.5 h-3.5" /> },
+  posted:            { label: "Posted",           badge: "bg-emerald-100 text-emerald-700", icon: <BookOpenCheck className="w-3.5 h-3.5" /> },
+};
+
+const HANDOFF_LABEL: Record<Handoff, string> = {
+  on_po_approval: "On PO approval",
+  after_delivery: "After delivery",
 };
 
 function fmt(n: number) {
@@ -79,13 +97,17 @@ function fmt(n: number) {
   return `₦${n}`;
 }
 
-// ── Payment / invoice popup ────────────────────────────────────────────────
+function fmtFull(n: number) {
+  return "₦" + n.toLocaleString();
+}
+
+// ── Payment / posting popup ───────────────────────────────────────────────
 // Opens on "Pay". Shows the proposed posting lines for the supplier PO and
 // walks the payment through Finance approval before it can be posted.
 // • "send"  mode — pre-approval. The ONLY action is "Send for Approval";
-//   clicking it marks the PO "Pending Payment Approval" (nothing is paid yet).
-// • "execute" mode — approval granted. "Send for Approval" is gone; the button
-//   becomes "Confirm & Post Payment" which only posts a balanced journal.
+//   clicking it marks the PO "Pending Approval" (nothing is paid yet).
+// • "execute" mode — approval granted. The button becomes "Post to Ledger"
+//   which only writes a balanced journal to the ledger.
 function PoPaymentModal({ po, mode, onClose, onSendForApproval, onPost }: {
   po: FinancePO;
   mode: "send" | "execute";
@@ -93,19 +115,27 @@ function PoPaymentModal({ po, mode, onClose, onSendForApproval, onPost }: {
   onSendForApproval: () => void;
   onPost: (lines: JournalLineInput[], method: string, date: string) => void;
 }) {
-  const { getPostableAccounts } = useFinance();
+  const { getPostableAccounts, buildProcessPosting } = useFinance();
   const accounts = getPostableAccounts().map(a => ({ code: a.code, name: a.name }));
-  const [method, setMethod] = useState("Bank Transfer");
+  const [method, setMethod] = useState(po.paymentMethod ?? "Bank Transfer");
   const [date, setDate] = useState(new Date().toISOString().split("T")[0]);
-  const seeded = [
-    { ...newJournalLine(), account: "2110 Accounts Payable", debit: po.amount, credit: 0, description: `${po.id} — ${po.supplier}` },
-    { ...newJournalLine(), account: "1110 Cash & Bank", debit: 0, credit: po.amount, description: "Supplier payment" },
-  ];
+  const amountDue = po.amount - po.paidAmount;
+
+  // Process-driven: pre-fill from the "Purchase Order Payment" posting
+  // configuration in the Posting Engine. If none exists yet, fall back to the
+  // standard DR Accounts Payable / CR Cash template.
+  const templateLines = buildProcessPosting("Purchase Order Payment", { "Amount Due": amountDue });
+  const seeded: JournalLineInput[] = templateLines.length > 0
+    ? templateLines.map(l => ({ id: l.id, account: l.account, debit: l.debit, credit: l.credit, description: `${po.id} — ${po.supplier}` }))
+    : [
+        { ...newJournalLine(), account: "2110 Accounts Payable", debit: amountDue, credit: 0, description: `${po.id} — ${po.supplier}` },
+        { ...newJournalLine(), account: "1110 Cash & Bank", debit: 0, credit: amountDue, description: "Supplier payment" },
+      ];
   const [lines, setLines] = useState<JournalLineInput[]>(seeded);
 
   const totalDebits = lines.reduce((s, l) => s + (l.debit || 0), 0);
   const totalCredits = lines.reduce((s, l) => s + (l.credit || 0), 0);
-  const balanced = totalDebits > 0 && totalDebits === totalCredits;
+  const balanced = totalDebits > 0 && totalDebits === totalCredits && totalDebits === amountDue;
   const everyLineHasAccount = lines.every(l => l.account);
   const canSubmit = balanced && everyLineHasAccount && method.trim();
 
@@ -114,7 +144,7 @@ function PoPaymentModal({ po, mode, onClose, onSendForApproval, onPost }: {
       <div className="bg-white rounded-2xl shadow-2xl w-full max-w-3xl max-h-[92vh] overflow-y-auto">
         <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 sticky top-0 bg-white z-10">
           <h2 className="text-base font-semibold text-gray-900">
-            {mode === "send" ? "Pay Supplier — " : "Confirm & Post Payment — "}{po.id}
+            {mode === "send" ? "Pay Supplier — " : "Post Payment — "}{po.id}
           </h2>
           <button onClick={onClose} className="text-gray-400 hover:text-gray-600"><X className="w-5 h-5" /></button>
         </div>
@@ -133,13 +163,24 @@ function PoPaymentModal({ po, mode, onClose, onSendForApproval, onPost }: {
               <p className="text-xs text-gray-400 mt-0.5 font-mono">{po.prRef}</p>
             </div>
             <div className="bg-gray-50 border border-gray-200 rounded-lg p-3">
-              <p className="text-xs text-gray-500">PO Amount · Due</p>
-              <p className="text-sm font-semibold text-gray-900 mt-0.5">{po.amount.toLocaleString()}</p>
-              <p className="text-xs text-gray-400 mt-0.5">{po.dueDate}</p>
+              <p className="text-xs text-gray-500">Total · Amount Due</p>
+              <p className="text-sm font-semibold text-gray-900 mt-0.5">{fmtFull(po.amount)}</p>
+              <p className="text-xs font-medium text-emerald-700 mt-0.5">{fmtFull(amountDue)} due</p>
             </div>
           </div>
 
-          {/* Locked payment reference = PO number (invoice-derived) */}
+          {/* Supporting documents (visible to approvers) */}
+          <div className="rounded-lg bg-gray-50 border border-gray-200 p-3 flex items-center gap-2 flex-wrap">
+            <span className="text-xs font-medium text-gray-500 flex items-center gap-1"><Paperclip className="w-3.5 h-3.5" /> Supporting documents:</span>
+            <span className="inline-flex items-center gap-1 text-xs px-2 py-1 rounded-md bg-white border border-gray-200 text-gray-700">
+              <FileText className="w-3.5 h-3.5" /> {po.id} — PO
+            </span>
+            <span className="inline-flex items-center gap-1 text-xs px-2 py-1 rounded-md bg-white border border-gray-200 text-gray-700">
+              <PackageCheck className="w-3.5 h-3.5" /> GRN
+            </span>
+          </div>
+
+          {/* Locked payment reference = PO number */}
           <div className="grid grid-cols-2 gap-4">
             <div>
               <label className="block text-xs font-medium text-gray-600 mb-1">Payment Reference</label>
@@ -170,12 +211,20 @@ function PoPaymentModal({ po, mode, onClose, onSendForApproval, onPost }: {
             <JournalLinesEditor lines={lines} onChange={setLines} accounts={accounts} disabled={mode === "execute"} />
           </div>
 
-          {mode === "send" && (
+          {mode === "send" ? (
             <div className="rounded-lg bg-violet-50 border border-violet-100 p-3 text-sm text-violet-700 flex items-start gap-2">
               <Send className="w-4 h-4 mt-0.5 flex-shrink-0" />
               <span>
                 This PO already passed <strong>Procurement approval</strong>. Sending for approval asks Finance to review
-                the payment before any money moves — nothing is paid at this stage.
+                the payment before any money moves — nothing is posted at this stage.
+              </span>
+            </div>
+          ) : (
+            <div className="rounded-lg bg-emerald-50 border border-emerald-100 p-3 text-sm text-emerald-800 flex items-start gap-2">
+              <BookOpen className="w-4 h-4 mt-0.5 flex-shrink-0" />
+              <span>
+                Payment is <strong>approved</strong>. Posting writes a balanced double-entry to the General Ledger and
+                updates Chart of Accounts balances — this is the only step that pays the supplier.
               </span>
             </div>
           )}
@@ -189,9 +238,9 @@ function PoPaymentModal({ po, mode, onClose, onSendForApproval, onPost }: {
               <Send className="w-4 h-4" /> Send for Approval
             </button>
           ) : (
-            <button onClick={() => onPost(lines, method, date)} disabled={!balanced || !everyLineHasAccount}
+            <button onClick={() => onPost(lines, method, date)} disabled={!canSubmit}
               className="px-4 py-2 text-sm bg-emerald-600 text-white rounded-xl hover:bg-emerald-700 disabled:opacity-40 disabled:cursor-not-allowed flex items-center gap-2">
-              <CreditCard className="w-4 h-4" /> Confirm & Post Payment
+              <BookOpen className="w-4 h-4" /> Post to Ledger
             </button>
           )}
         </div>
@@ -203,12 +252,10 @@ function PoPaymentModal({ po, mode, onClose, onSendForApproval, onPost }: {
 // ── Page ───────────────────────────────────────────────────────────────────
 export function FinancePurchaseOrdersPage() {
   const { logChange } = useChangelog();
-  const { postTransaction, getPostableAccounts } = useFinance();
+  const { postTransaction } = useFinance();
   const [list, setList] = useState<FinancePO[]>(financePos);
   const [activeTab, setActiveTab] = useState<FinancePOStatus | "all">("all");
   const [payTarget, setPayTarget] = useState<FinancePO | null>(null);
-
-  const accounts = getPostableAccounts().map(a => ({ code: a.code, name: a.name }));
 
   function openPay(po: FinancePO) {
     if (payTarget) return;
@@ -216,13 +263,13 @@ export function FinancePurchaseOrdersPage() {
   }
 
   function sendForApproval(po: FinancePO) {
-    setList(prev => prev.map(p => p.id === po.id ? { ...p, status: "pending_payment_approval" } : p));
-    logChange({ module: "Finance", action: "Payment Sent for Approval", entityType: "PurchaseOrder", entityId: po.id, summary: `PO ${po.id} payment sent for approval (${po.supplier}, ₦${po.amount.toLocaleString()})`, performedBy: "Current User" });
+    setList(prev => prev.map(p => p.id === po.id ? { ...p, status: "pending_approval" } : p));
+    logChange({ module: "Finance", action: "Payment Sent for Approval", entityType: "PurchaseOrder", entityId: po.id, summary: `PO ${po.id} payment sent for approval (${po.supplier}, ${fmtFull(po.amount)})`, performedBy: "Current User" });
     setPayTarget(null);
   }
 
   function approvePayment(po: FinancePO) {
-    setList(prev => prev.map(p => p.id === po.id ? { ...p, status: "payment_approved", approvedBy: "Sola Adeleke" } : p));
+    setList(prev => prev.map(p => p.id === po.id ? { ...p, status: "approved", approvedBy: "Sola Adeleke" } : p));
     logChange({ module: "Finance", action: "Payment Approved", entityType: "PurchaseOrder", entityId: po.id, summary: `PO ${po.id} payment approved for posting`, performedBy: "Current User" });
   }
 
@@ -241,7 +288,7 @@ export function FinancePurchaseOrdersPage() {
       linkedRecords: [{ label: "Purchase Order", ref: po.id }],
     });
     if (!txn) return;
-    setList(prev => prev.map(p => p.id === po.id ? { ...p, status: "paid", ledgerRef: txn.id, paymentMethod: method, paymentDate: date } : p));
+    setList(prev => prev.map(p => p.id === po.id ? { ...p, status: "posted", paidAmount: po.amount, ledgerRef: txn.id, paymentMethod: method, paymentDate: date } : p));
     logChange({ module: "Finance", action: "Payment Posted", entityType: "PurchaseOrder", entityId: po.id, summary: `PO ${po.id} paid — posted to ledger ${txn.id}`, performedBy: "Current User" });
     setPayTarget(null);
   }
@@ -271,15 +318,33 @@ export function FinancePurchaseOrdersPage() {
       ),
     },
     {
-      key: "amount", label: "Amount", sortable: true, className: "text-right", headerClassName: "text-right",
-      render: (po) => <span className="font-semibold text-gray-900">{po.amount.toLocaleString()}</span>,
+      key: "amount", label: "Total", sortable: true, className: "text-right", headerClassName: "text-right",
+      render: (po) => <span className="font-semibold text-gray-900">{fmtFull(po.amount)}</span>,
     },
     {
-      key: "receivedDate", label: "Received", sortable: true,
-      render: (po) => <span className="text-gray-600 text-sm">{po.receivedDate}</span>,
+      key: "amountDue", label: "Amount Due", sortable: true, className: "text-right", headerClassName: "text-right",
+      render: (po) => {
+        const due = po.amount - po.paidAmount;
+        return <span className={due > 0 ? "text-amber-700 font-semibold" : "text-gray-400"}>{fmtFull(due)}</span>;
+      },
     },
     {
-      key: "status", label: "Payment Status", sortable: true, filterable: true,
+      key: "balance", label: "Balance", sortable: true, className: "text-right", headerClassName: "text-right",
+      render: (po) => <span className={po.paidAmount > 0 ? "text-emerald-700" : "text-gray-400"}>{fmtFull(po.amount - po.paidAmount)}</span>,
+    },
+    {
+      key: "handoff", label: "Payment Trigger", sortable: true, filterable: true,
+      render: (po) => (
+        <div>
+          <span className="text-xs text-gray-600">{HANDOFF_LABEL[po.handoff]}</span>
+          {po.handoff === "after_delivery" && !po.goodsReceived && (
+            <p className="text-[10px] text-red-500 mt-0.5">Awaiting goods receipt</p>
+          )}
+        </div>
+      ),
+    },
+    {
+      key: "status", label: "Status", sortable: true, filterable: true,
       render: (po) => {
         const cfg = STATUS_CFG[po.status];
         return (
@@ -292,14 +357,18 @@ export function FinancePurchaseOrdersPage() {
     {
       key: "actions", label: "", sortable: false, filterable: false,
       render: (po) => {
-        if (po.status === "received") {
-          return <button onClick={(e) => { e.stopPropagation(); openPay(po); }} className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-colors" title="Start payment"><CreditCard className="w-3.5 h-3.5" /> Pay</button>;
+        // Handoff gate: after_delivery POs cannot be paid until the GRN is in.
+        if (po.handoff === "after_delivery" && !po.goodsReceived) {
+          return <span className="text-xs text-gray-400 flex items-center gap-1"><PackageCheck className="w-3.5 h-3.5" /> Awaiting GRN</span>;
         }
-        if (po.status === "pending_payment_approval") {
-          return <button onClick={(e) => { e.stopPropagation(); approvePayment(po); }} className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs bg-violet-600 text-white rounded-lg hover:bg-violet-700 transition-colors" title="Approve payment"><CheckCircle2 className="w-3.5 h-3.5" /> Approve Payment</button>;
+        if (po.status === "open") {
+          return <button onClick={(e) => { e.stopPropagation(); openPay(po); }} className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-colors" title="Start payment approval"><CreditCard className="w-3.5 h-3.5" /> Pay</button>;
         }
-        if (po.status === "payment_approved") {
-          return <button onClick={(e) => { e.stopPropagation(); openPay(po); }} className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-colors" title="Execute approved payment"><CreditCard className="w-3.5 h-3.5" /> Pay</button>;
+        if (po.status === "pending_approval") {
+          return <button onClick={(e) => { e.stopPropagation(); approvePayment(po); }} className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs bg-violet-600 text-white rounded-lg hover:bg-violet-700 transition-colors" title="Approve payment for posting"><CheckCircle2 className="w-3.5 h-3.5" /> Approve</button>;
+        }
+        if (po.status === "approved") {
+          return <button onClick={(e) => { e.stopPropagation(); openPay(po); }} className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-colors" title="Post approved payment"><BookOpen className="w-3.5 h-3.5" /> Post</button>;
         }
         return <span className="text-xs text-emerald-600 font-medium flex items-center gap-1"><BookOpen className="w-3.5 h-3.5" /> Posted {po.ledgerRef}</span>;
       },
@@ -307,26 +376,26 @@ export function FinancePurchaseOrdersPage() {
   ];
 
   function handleExport() {
-    const headers = ["PO ID", "Finance Ref", "PR Ref", "Supplier", "Status", "Amount", "Received Date", "Due Date", "Ledger Ref"];
+    const headers = ["PO ID", "Finance Ref", "PR Ref", "Supplier", "Status", "Total", "Due", "Paid", "Received Date", "Due Date", "Ledger Ref"];
     const rows = filtered.map(po => [
       po.id, po.financeRef, po.prRef, po.supplier, STATUS_CFG[po.status].label,
-      String(po.amount), po.receivedDate, po.dueDate, po.ledgerRef ?? "",
+      String(po.amount), String(po.amount - po.paidAmount), String(po.paidAmount), po.receivedDate, po.dueDate, po.ledgerRef ?? "",
     ]);
     exportCSV("finance-purchase-orders", headers, rows);
   }
 
-  const notPaid = list.filter(p => p.status !== "paid");
-  const totalOutstanding = notPaid.reduce((s, p) => s + p.amount, 0);
-  const pendingApproval = list.filter(p => p.status === "pending_payment_approval").length;
-  const approvedForPayment = list.filter(p => p.status === "payment_approved").length;
-  const totalPaid = list.filter(p => p.status === "paid").reduce((s, p) => s + p.amount, 0);
+  const notPosted = list.filter(p => p.status !== "posted");
+  const totalDue = notPosted.reduce((s, p) => s + (p.amount - p.paidAmount), 0);
+  const pendingApproval = list.filter(p => p.status === "pending_approval").length;
+  const approvedForPosting = list.filter(p => p.status === "approved").length;
+  const totalPosted = list.filter(p => p.status === "posted").reduce((s, p) => s + p.paidAmount, 0);
 
   const tabs: { key: FinancePOStatus | "all"; label: string }[] = [
     { key: "all", label: "All" },
-    { key: "received", label: "Pending" },
-    { key: "pending_payment_approval", label: "Pending Approval" },
-    { key: "payment_approved", label: "Approved" },
-    { key: "paid", label: "Paid" },
+    { key: "open", label: "New/Open" },
+    { key: "pending_approval", label: "Pending Approval" },
+    { key: "approved", label: "Approved" },
+    { key: "posted", label: "Posted" },
   ];
 
   return (
@@ -334,7 +403,7 @@ export function FinancePurchaseOrdersPage() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-semibold text-gray-900">Purchase Orders — Payments</h1>
-          <p className="text-sm text-gray-500 mt-0.5">Signed-off POs from Procurement · Finance pays them end-to-end</p>
+          <p className="text-sm text-gray-500 mt-0.5">Signed-off POs from Procurement · Finance approves and posts end-to-end</p>
         </div>
       </div>
 
@@ -342,18 +411,21 @@ export function FinancePurchaseOrdersPage() {
       <div className="rounded-xl border border-sky-200 bg-sky-50 p-4 flex items-start gap-3">
         <Building2 className="w-5 h-5 text-sky-600 mt-0.5 flex-shrink-0" />
         <div className="text-sm text-sky-900">
-          <p className="font-semibold">Already approved in Procurement — finance <span className="underline">does not re-ask for approval</span>.</p>
-          <p className="mt-0.5 text-sky-700">Use <strong>Pay</strong> to record the supplier invoice payment. The payment popup first sends the payment for Finance approval, then posts it to the General Ledger only after approval.</p>
+          <p className="font-semibold">Already approved in Procurement — finance does not re-ask for approval (View + Pay only).</p>
+          <p className="mt-0.5 text-sky-700">
+            POs due <strong>before delivery</strong> reach Finance at PO approval. POs due <strong>after delivery</strong> wait for the
+            goods receipt / invoice. Either way the payment goes <strong>Send for Approval → Approved → Post</strong> — posting is the only step that pays.
+          </p>
         </div>
       </div>
 
       {/* Stats */}
       <div className="grid grid-cols-4 gap-4">
         {[
-          { label: "Outstanding POs", value: notPaid.length, sub: fmt(totalOutstanding) + " open", color: "bg-amber-50 border-amber-200 text-amber-700" },
-          { label: "Pending Payment Approval", value: pendingApproval, sub: "Awaiting sign-off", color: "bg-violet-50 border-violet-200 text-violet-700" },
-          { label: "Approved for Payment", value: approvedForPayment, sub: "Ready to post", color: "bg-emerald-50 border-emerald-200 text-emerald-700" },
-          { label: "Paid (posted)", value: list.filter(p => p.status === "paid").length, sub: fmt(totalPaid) + " to ledger", color: "bg-gray-50 border-gray-200 text-gray-900" },
+          { label: "Open POs", value: notPosted.length, sub: fmtFull(totalDue) + " due", color: "bg-amber-50 border-amber-200 text-amber-700" },
+          { label: "Pending Approval", value: pendingApproval, sub: "Awaiting sign-off", color: "bg-violet-50 border-violet-200 text-violet-700" },
+          { label: "Approved — Ready to Post", value: approvedForPosting, sub: "Post to pay", color: "bg-emerald-50 border-emerald-200 text-emerald-700" },
+          { label: "Posted to Ledger", value: list.filter(p => p.status === "posted").length, sub: fmtFull(totalPosted) + " posted", color: "bg-gray-50 border-gray-200 text-gray-900" },
         ].map(s => (
           <div key={s.label} className={`p-4 rounded-lg border ${s.color}`}>
             <p className="text-2xl font-bold">{s.value}</p>
@@ -392,7 +464,7 @@ export function FinancePurchaseOrdersPage() {
       {payTarget && (
         <PoPaymentModal
           po={payTarget}
-          mode={payTarget.status === "received" ? "send" : "execute"}
+          mode={payTarget.status === "open" ? "send" : "execute"}
           onClose={() => setPayTarget(null)}
           onSendForApproval={() => sendForApproval(payTarget)}
           onPost={(lines, method, date) => postPayment(payTarget, lines, method, date)}

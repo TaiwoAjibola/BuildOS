@@ -274,25 +274,32 @@ const SEED_ACCRUAL_TYPE_CONFIGS: AccrualTypeConfig[] = [
 
 // ── Seed Process → Account Mappings ───────────────────────────────────────
 // These rows are surfaced in Posting Engine → Process Account Mapping. The
-// Payroll Disbursement rows drive the payroll posting workflow (DR Labour for
-// gross, CR WHT for deductions, CR Cash for net = balanced).
+// Payroll Disbursement rows drive the payroll posting workflow. Each pay
+// component posts to Labour Costs (debit), PAYE/WHT to the tax liability and
+// net cash to Cash & Bank (credits) — together the balanced payroll entry.
+// NOTE: employer pension posting (CR to a Pension Payable account) is NOT
+// configured — the liability account + effect await accounting validation.
 const SEED_PROCESS_ACCOUNT_MAPPINGS: ProcessAccountMapping[] = [
-  // Payroll Disbursement
-  { id: "pam-001", process: "Payroll Disbursement", account: "5100 Labour Costs", action: "debit", amountField: "Gross Salary" },
-  { id: "pam-002", process: "Payroll Disbursement", account: "2140 WHT Payable",   action: "credit", amountField: "PAYE Tax" },
-  { id: "pam-003", process: "Payroll Disbursement", account: "1110 Cash & Bank",   action: "credit", amountField: "Net Pay" },
+  // Payroll Disbursement (granular components)
+  { id: "pam-001", process: "Payroll Disbursement", account: "5100 Labour Costs", action: "debit", amountField: "Basic Salary" },
+  { id: "pam-002", process: "Payroll Disbursement", account: "5100 Labour Costs", action: "debit", amountField: "Allowances Total" },
+  { id: "pam-003", process: "Payroll Disbursement", account: "2140 WHT Payable",   action: "credit", amountField: "PAYE Tax" },
+  { id: "pam-004", process: "Payroll Disbursement", account: "1110 Cash & Bank",   action: "credit", amountField: "Net Pay" },
   // Supplier Payments
-  { id: "pam-004", process: "Supplier Payments", account: "2110 Accounts Payable", action: "debit",  amountField: "Payment Amount" },
-  { id: "pam-005", process: "Supplier Payments", account: "1110 Cash & Bank",      action: "credit", amountField: "Payment Amount" },
+  { id: "pam-005", process: "Supplier Payments", account: "2110 Accounts Payable", action: "debit",  amountField: "Payment Amount" },
+  { id: "pam-006", process: "Supplier Payments", account: "1110 Cash & Bank",      action: "credit", amountField: "Payment Amount" },
   // Expense Claims
-  { id: "pam-006", process: "Expense Claims", account: "5400 Overhead",        action: "debit",  amountField: "Claim Amount" },
-  { id: "pam-007", process: "Expense Claims", account: "2110 Accounts Payable", action: "credit", amountField: "Claim Amount" },
+  { id: "pam-007", process: "Expense Claims", account: "5400 Overhead",        action: "debit",  amountField: "Claim Amount" },
+  { id: "pam-008", process: "Expense Claims", account: "2110 Accounts Payable", action: "credit", amountField: "Claim Amount" },
   // Contract Revenue
-  { id: "pam-008", process: "Contract Revenue", account: "1120 Accounts Receivable", action: "debit",  amountField: "Invoice Amount" },
-  { id: "pam-009", process: "Contract Revenue", account: "4100 Contract Revenue",    action: "credit", amountField: "Invoice Amount" },
+  { id: "pam-009", process: "Contract Revenue", account: "1120 Accounts Receivable", action: "debit",  amountField: "Invoice Amount" },
+  { id: "pam-010", process: "Contract Revenue", account: "4100 Contract Revenue",    action: "credit", amountField: "Invoice Amount" },
   // Material Purchases
-  { id: "pam-010", process: "Material Purchases", account: "5200 Material Costs",   action: "debit",  amountField: "Purchase Value" },
-  { id: "pam-011", process: "Material Purchases", account: "2110 Accounts Payable", action: "credit", amountField: "Purchase Value" },
+  { id: "pam-011", process: "Material Purchases", account: "5200 Material Costs",   action: "debit",  amountField: "Purchase Value" },
+  { id: "pam-012", process: "Material Purchases", account: "2110 Accounts Payable", action: "credit", amountField: "Purchase Value" },
+  // Purchase Order Payment (Finance pays a signed-off PO)
+  { id: "pam-013", process: "Purchase Order Payment", account: "2110 Accounts Payable", action: "debit",  amountField: "Amount Due" },
+  { id: "pam-014", process: "Purchase Order Payment", account: "1110 Cash & Bank",      action: "credit", amountField: "Amount Due" },
 ];
 
 // ── Context ────────────────────────────────────────────────────────────────

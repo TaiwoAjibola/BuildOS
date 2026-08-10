@@ -115,28 +115,34 @@ function todayStr() {
 
 // ── New Category Modal ────────────────────────────────────────────────────────
 // Amount-source fields available to process→account mapping rows. Shared with
-// the Process Account Mapping modal so both editors stay consistent.
+// the Process Account Mapping modal so both editors stay consistent. Granular
+// payroll components and PO amounts (total / due / balance) keep postings
+// process-specific instead of collapsed into one figure.
 const MAPPING_FIELDS = [
-  "Gross Salary", "PAYE Tax", "Net Pay", "Allowance Total", "Advance Amount",
-  "Payment Amount", "Claim Amount", "Invoice Amount", "Purchase Value", "WHT Deducted",
+  "Basic Salary", "Allowances Total", "Housing Allowance", "Transport Allowance",
+  "Other Allowances", "PAYE Tax", "Net Pay",
+  "Advance Amount", "Payment Amount", "Claim Amount", "Invoice Amount",
+  "Purchase Value", "WHT Deducted", "PO Total", "Amount Due", "PO Balance",
 ];
 
 const PROCESS_NAMES = [
   "Payroll Disbursement", "Supplier Payments", "Expense Claims", "Contract Revenue",
   "Material Purchases", "Material Transfers", "Salary Advances", "Employee Allowances",
+  "Purchase Order Payment",
 ];
 
 const ACCOUNT_TYPE_OPTIONS = ["Assets", "Liabilities", "Equity", "Income", "Expenses"];
 
 const FIELD_FOR_PROCESS: Record<string, string> = {
-  "Payroll Disbursement": "Gross Salary",
+  "Payroll Disbursement": "Basic Salary",
   "Supplier Payments": "Payment Amount",
   "Expense Claims": "Claim Amount",
   "Contract Revenue": "Invoice Amount",
   "Material Purchases": "Purchase Value",
   "Material Transfers": "Purchase Value",
   "Salary Advances": "Advance Amount",
-  "Employee Allowances": "Allowance Total",
+  "Employee Allowances": "Allowances Total",
+  "Purchase Order Payment": "Amount Due",
 };
 
 interface MappingLineForm {

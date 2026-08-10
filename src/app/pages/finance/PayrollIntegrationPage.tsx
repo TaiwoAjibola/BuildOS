@@ -26,6 +26,8 @@ interface PayrollRun {
   department: string;
   headcount: number;
   grossPay: number;
+  basicSalary: number;
+  allowancesTotal: number;
   deductions: number;
   netPay: number;
   status: PayrollStatus;
@@ -63,12 +65,23 @@ const statusConfig: Record<PayrollStatus, { badge: string; icon: React.ReactNode
 };
 
 const mockPayrollRuns: PayrollRun[] = [
-  { id: "PRLL-JUL26-01", payrollCode: "PAY-001", month: "July",  year: "2026", period: "July 2026",   department: "All Departments", headcount: 150, grossPay: 6010000, deductions: 1020000, netPay: 4990000, status: "Approved",              submittedBy: "Ngozi Okafor", approvedBy: "Amaka Osei", approvedAt: "Jul 6, 2026" },
-  { id: "PRLL-JUN26-01", payrollCode: "PAY-002", month: "June",  year: "2026", period: "June 2026",   department: "All Departments", headcount: 152, grossPay: 6010000, deductions: 1020000, netPay: 4990000, status: "Pending Posting Approval", submittedBy: "Ngozi Okafor", approvedBy: "Amaka Osei", approvedAt: "Jun 4, 2026", sentForPostingBy: "Sola Adeleke", sentForPostingAt: "Jun 5, 2026" },
-  { id: "PRLL-MAY26-01", payrollCode: "PAY-003", month: "May",   year: "2026", period: "May 2026",    department: "All Departments", headcount: 150, grossPay: 5960000, deductions: 1010000, netPay: 4950000, status: "Posted",                submittedBy: "Ngozi Okafor", approvedBy: "Amaka Osei", approvedAt: "May 7, 2026", sentForPostingBy: "Sola Adeleke", sentForPostingAt: "May 8, 2026", postingApprovedBy: "Sola Adeleke", postingApprovedAt: "May 9, 2026", postedBy: "Sola Adeleke", postedAt: "May 9, 2026", ledgerRef: "LGR-1006" },
-  { id: "PRLL-APR26-01", payrollCode: "PAY-004", month: "April", year: "2026", period: "April 2026",   department: "All Departments", headcount: 148, grossPay: 5840000, deductions: 990000, netPay: 4850000, status: "Posted",                submittedBy: "Ngozi Okafor", approvedBy: "Amaka Osei", approvedAt: "Apr 8, 2026", sentForPostingBy: "Sola Adeleke", sentForPostingAt: "Apr 8, 2026", postingApprovedBy: "Sola Adeleke", postingApprovedAt: "Apr 9, 2026", postedBy: "Sola Adeleke", postedAt: "Apr 10, 2026", ledgerRef: "LGR-1003" },
-  { id: "PRLL-MAR26-01", payrollCode: "PAY-005", month: "March", year: "2026", period: "March 2026",   department: "All Departments", headcount: 145, grossPay: 5720000, deductions: 970000, netPay: 4750000, status: "Draft",                submittedBy: "Ngozi Okafor" },
+  { id: "PRLL-JUL26-01", payrollCode: "PAY-001", month: "July",  year: "2026", period: "July 2026",   department: "All Departments", headcount: 150, grossPay: 6010000, basicSalary: 3606000, allowancesTotal: 2404000, deductions: 1020000, netPay: 4990000, status: "Approved",              submittedBy: "Ngozi Okafor", approvedBy: "Amaka Osei", approvedAt: "Jul 6, 2026" },
+  { id: "PRLL-JUN26-01", payrollCode: "PAY-002", month: "June",  year: "2026", period: "June 2026",   department: "All Departments", headcount: 152, grossPay: 6010000, basicSalary: 3606000, allowancesTotal: 2404000, deductions: 1020000, netPay: 4990000, status: "Pending Posting Approval", submittedBy: "Ngozi Okafor", approvedBy: "Amaka Osei", approvedAt: "Jun 4, 2026", sentForPostingBy: "Sola Adeleke", sentForPostingAt: "Jun 5, 2026" },
+  { id: "PRLL-MAY26-01", payrollCode: "PAY-003", month: "May",   year: "2026", period: "May 2026",    department: "All Departments", headcount: 150, grossPay: 5960000, basicSalary: 3576000, allowancesTotal: 2384000, deductions: 1010000, netPay: 4950000, status: "Posted",                submittedBy: "Ngozi Okafor", approvedBy: "Amaka Osei", approvedAt: "May 7, 2026", sentForPostingBy: "Sola Adeleke", sentForPostingAt: "May 8, 2026", postingApprovedBy: "Sola Adeleke", postingApprovedAt: "May 9, 2026", postedBy: "Sola Adeleke", postedAt: "May 9, 2026", ledgerRef: "LGR-1006" },
+  { id: "PRLL-APR26-01", payrollCode: "PAY-004", month: "April", year: "2026", period: "April 2026",   department: "All Departments", headcount: 148, grossPay: 5840000, basicSalary: 3504000, allowancesTotal: 2336000, deductions: 990000, netPay: 4850000, status: "Posted",                submittedBy: "Ngozi Okafor", approvedBy: "Amaka Osei", approvedAt: "Apr 8, 2026", sentForPostingBy: "Sola Adeleke", sentForPostingAt: "Apr 8, 2026", postingApprovedBy: "Sola Adeleke", postingApprovedAt: "Apr 9, 2026", postedBy: "Sola Adeleke", postedAt: "Apr 10, 2026", ledgerRef: "LGR-1003" },
+  { id: "PRLL-MAR26-01", payrollCode: "PAY-005", month: "March", year: "2026", period: "March 2026",   department: "All Departments", headcount: 145, grossPay: 5720000, basicSalary: 3432000, allowancesTotal: 2288000, deductions: 970000, netPay: 4750000, status: "Draft",                submittedBy: "Ngozi Okafor" },
 ];
+
+// Helper: the process-specific fields used to build the Payroll Disbursement
+// posting from the Process Account Mapping (granular per-component amounts).
+function payrollPostingFields(run: PayrollRun): Record<string, number> {
+  return {
+    "Basic Salary": run.basicSalary,
+    "Allowances Total": run.allowancesTotal,
+    "PAYE Tax": run.deductions,
+    "Net Pay": run.netPay,
+  };
+}
 
 const mockEmployees: PayrollEmployee[] = [
   { name: "Amaka Osei", role: "Admin", department: "IT", basicSalary: 450000, allowances: 80000, deductions: 82000, net: 448000, bank: "GTBank", accountNo: "****8821" },
@@ -156,7 +169,7 @@ function PostingModal({ run, lines, onConfirm, onClose }: {
           <button onClick={onClose} className="px-4 py-2 text-sm border border-gray-200 rounded-xl text-gray-700 hover:bg-gray-50">Cancel</button>
           <button onClick={handleConfirm} disabled={!balanced || posting}
             className="flex items-center gap-2 px-5 py-2 text-sm bg-purple-600 text-white rounded-xl hover:bg-purple-700 disabled:opacity-40">
-            <BookOpen className="w-4 h-4" /> {posting ? "Posting…" : "Confirm & Post"}
+            <BookOpen className="w-4 h-4" /> {posting ? "Posting…" : "Post to Ledger"}
           </button>
         </div>
       </div>
@@ -212,6 +225,18 @@ function RunDrawer({ run, actions, onClose }: {
             <div className="bg-gray-50 rounded-xl p-4 text-center"><p className="text-xs text-gray-500">Total Earnings</p><p className="text-lg font-bold text-gray-900 mt-1">{fmt(run.grossPay)}</p></div>
             <div className="bg-red-50 rounded-xl p-4 text-center"><p className="text-xs text-gray-500">Total Deductions</p><p className="text-lg font-bold text-red-600 mt-1">−{fmt(run.deductions)}</p></div>
             <div className="bg-emerald-50 rounded-xl p-4 text-center"><p className="text-xs text-gray-500">Net Pay</p><p className="text-lg font-bold text-emerald-700 mt-1">{fmt(run.netPay)}</p></div>
+          </div>
+
+          {/* Granular pay components — posted per component via the process mapping */}
+          <div className="rounded-xl border border-gray-200 p-4">
+            <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">Pay Components (posted per component)</p>
+            <div className="flex items-center gap-2 flex-wrap text-xs">
+              <span className="px-2.5 py-1 rounded-full bg-blue-50 text-blue-700 border border-blue-100">Basic {fmt(run.basicSalary)}</span>
+              <span className="px-2.5 py-1 rounded-full bg-indigo-50 text-indigo-700 border border-indigo-100">Allowances {fmt(run.allowancesTotal)}</span>
+              <span className="px-2.5 py-1 rounded-full bg-red-50 text-red-700 border border-red-100">PAYE {fmt(run.deductions)}</span>
+              <span className="px-2.5 py-1 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-100">Net {fmt(run.netPay)}</span>
+            </div>
+            <p className="text-[11px] text-gray-400 mt-2">Basic + Allowances (DR Labour) = PAYE + Net (CR) — balanced double-entry.</p>
           </div>
 
           {/* Audit trail */}
@@ -281,12 +306,9 @@ export function PayrollIntegrationPage() {
   }
 
   function postRun(run: PayrollRun) {
-    // Build journal lines from the Process Account Mapping for Payroll Disbursement.
-    const lines = buildProcessPosting("Payroll Disbursement", {
-      "Gross Salary": run.grossPay,
-      "PAYE Tax": run.deductions,
-      "Net Pay": run.netPay,
-    });
+    // Build journal lines from the Process Account Mapping for Payroll
+    // Disbursement — granular per-component amounts (Basic, Allowances, PAYE, Net).
+    const lines = buildProcessPosting("Payroll Disbursement", payrollPostingFields(run));
     const totalDebits = lines.reduce((s, l) => s + (l.debit || 0), 0);
     const totalCredits = lines.reduce((s, l) => s + (l.credit || 0), 0);
     if (totalDebits === 0 || totalDebits !== totalCredits) return;
@@ -326,6 +348,8 @@ export function PayrollIntegrationPage() {
       department: "All Departments",
       headcount: 0,
       grossPay: 0,
+      basicSalary: 0,
+      allowancesTotal: 0,
       deductions: 0,
       netPay: 0,
       status: "Draft",
@@ -541,11 +565,7 @@ export function PayrollIntegrationPage() {
       {postingTarget && (
         <PostingModal
           run={postingTarget}
-          lines={buildProcessPosting("Payroll Disbursement", {
-            "Gross Salary": postingTarget.grossPay,
-            "PAYE Tax": postingTarget.deductions,
-            "Net Pay": postingTarget.netPay,
-          })}
+          lines={buildProcessPosting("Payroll Disbursement", payrollPostingFields(postingTarget))}
           onClose={() => setPostingTarget(null)}
           onConfirm={() => { postRun(postingTarget); setPostingTarget(null); }}
         />
