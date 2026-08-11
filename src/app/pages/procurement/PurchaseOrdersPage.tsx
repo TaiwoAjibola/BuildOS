@@ -69,7 +69,7 @@ interface CustomTranche {
 
 function NewPOModal({ onClose, onSave }: {
   onClose: () => void;
-  onSave: (po: PurchaseOrder, action: "send-to-finance" | "download" | "send") => void;
+  onSave: (po: PurchaseOrder, action: "send-to-finance" | "download" | "send" | "draft") => void;
 }) {
   const { paymentTerms, signatories, defaultPaymentTermId, addPaymentTerm } = useProcurementSettings();
   const today = new Date();
@@ -121,6 +121,22 @@ function NewPOModal({ onClose, onSave }: {
     && Math.round(customTotal) === 100;
   const canNext = customMode ? customValid : filteredTerms.length > 0;
 
+  // When the timing bucket changes, keep the selected term valid for that
+  // bucket — otherwise the term detail would show a term the filter hides.
+  function pickTermForCat(cat: "before" | "after" | "both" | "any") {
+    const matches = (t: PaymentTermPreset) => {
+      const b = hasBefore(t);
+      const a = hasAfter(t);
+      if (cat === "before") return b && !a;
+      if (cat === "after") return a && !b;
+      if (cat === "both") return b && a;
+      return true;
+    };
+    return matches(paymentTerms.find(t => t.id === paymentTermId) ?? paymentTerms[0])
+      ? paymentTermId
+      : (paymentTerms.find(matches)?.id ?? defaultPaymentTermId);
+  }
+
   const toggleSignatory = (name: string) =>
     setSelectedSignatories(prev => prev.includes(name) ? prev.filter(n => n !== name) : [...prev, name]);
 
@@ -166,6 +182,13 @@ function NewPOModal({ onClose, onSave }: {
 
   const pendingPO = validSetup ? buildPO() : null;
 
+  // Exiting mid-preview still keeps the PO as a draft — the row then lets you
+  // view the attachment or send it to the supplier later.
+  function handleClose() {
+    if (step === 3 && pendingPO) onSave(pendingPO, "draft");
+    else onClose();
+  }
+
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
       <div className="bg-white rounded-2xl shadow-2xl w-full max-w-3xl max-h-[90vh] overflow-y-auto">
@@ -176,7 +199,7 @@ function NewPOModal({ onClose, onSave }: {
               Step {step} of 3 — {step === 1 ? "PO setup" : step === 2 ? "Payment terms & signatories" : "Preview & send"}
             </p>
           </div>
-          <button onClick={onClose} className="text-gray-400 hover:text-gray-600"><X className="w-5 h-5" /></button>
+          <button onClick={handleClose} className="text-gray-400 hover:text-gray-600"><X className="w-5 h-5" /></button>
         </div>
 
         {step === 1 && (
@@ -254,7 +277,7 @@ function NewPOModal({ onClose, onSave }: {
                 { key: "after",  label: "After Delivery",  desc: "Due after goods received" },
                 { key: "both",   label: "Before & After",  desc: "Split across both" },
               ] as const).map(c => (
-                <button key={c.key} onClick={() => { setTimingCat(c.key); setCustomMode(false); setCommitTermId(null); }}
+                <button key={c.key} onClick={() => { setTimingCat(c.key); setCustomMode(false); setCommitTermId(null); setPaymentTermId(pickTermForCat(c.key)); }}
                   className={`rounded-xl border p-3 text-left transition-colors ${timingCat === c.key ? "border-blue-600 bg-blue-50 ring-1 ring-blue-600" : "border-gray-200 bg-white hover:border-gray-300"}`}>
                   <p className={`text-sm font-semibold ${timingCat === c.key ? "text-blue-800" : "text-gray-800"}`}>{c.label}</p>
                   <p className="text-[11px] text-gray-500 mt-0.5">{c.desc}</p>
@@ -742,7 +765,7 @@ export function PurchaseOrdersPage() {
           <p className="text-sm text-gray-500 mt-0.5">Manage PO lifecycle from draft to completed delivery</p>
         </div>
         <button onClick={() => setShowNewPO(true)} className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-700 text-white rounded-md text-sm hover:bg-blue-800">
-          <Plus className="w-3.5 h-3.5" /> New Purchase Order
+          <Plus className="w-3.5 h-3.5" /> Create PO
         </button>
       </div>
 
@@ -816,6 +839,8 @@ export function PurchaseOrdersPage() {
             } else if (action === "send") {
               const saved = save(po);
               setSendPO(saved);
+            } else if (action === "draft") {
+              save(po);
             }
           }}
         />
