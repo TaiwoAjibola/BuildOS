@@ -1,6 +1,7 @@
 import { useState } from "react";
-import { History, Search, RotateCcw, Filter } from "lucide-react";
-import { useChangelog } from "../../stores/changelogStore";
+import { Link } from "react-router";
+import { Search, RotateCcw, Filter, ArrowUpRight } from "lucide-react";
+import { useChangelog, type ChangelogEntry } from "../../stores/changelogStore";
 import { DataTable, type Column } from "../../components/DataTable";
 
 const MODULES = ["Finance", "HR", "Procurement", "Projects", "Admin", "ESS", "Storefront"];
@@ -12,25 +13,99 @@ const MODULE_COLORS: Record<string, string> = {
   Storefront: "bg-orange-100 text-orange-700",
 };
 
+// Which app page a changelog entry happened on, so each entry can deep-link to
+// where the change was made. Keyed "<module>|<entityType>" (lowercased); falls
+// back to the module's dashboard then the app launcher.
+const ENTITY_ROUTE: Record<string, string> = {
+  "finance|fiscalyear": "/apps/finance/fiscal-years",
+  "finance|fiscalyearreport": "/apps/finance/fiscal-years",
+  "finance|postingenginetxn": "/apps/finance/posting-engine",
+  "finance|processaccountmapping": "/apps/finance/posting-engine",
+  "finance|processcategory": "/apps/finance/posting-engine",
+  "finance|process_mapping": "/apps/finance/process-mapping",
+  "finance|purchaseorder": "/apps/finance/purchase-orders",
+  "finance|payrollrun": "/apps/finance/payroll",
+  "finance|income": "/apps/finance/income",
+  "finance|account": "/apps/finance/chart-of-accounts",
+  "finance|expense": "/apps/finance/expenses",
+  "finance|payment": "/apps/finance/payments",
+  "finance|claim": "/apps/finance/claims",
+  "finance|report": "/apps/finance/reports",
+  "finance|journalentry": "/apps/finance/journal",
+  "finance|accrual": "/apps/finance/accruals",
+  "finance|budget": "/apps/finance/budget",
+  "finance|transaction": "/apps/finance/general-ledger",
+  "finance|financeconfig": "/apps/finance/settings",
+  "finance|paymentmethod": "/apps/finance/settings",
+  "finance|bankaccount": "/apps/finance/settings",
+  "finance|taxrule": "/apps/finance/settings",
+  "finance|accrualtypeconfig": "/apps/finance/settings",
+  "procurement|purchase_request": "/apps/procurement/purchase-requests",
+  "procurement|purchaseinvoice": "/apps/procurement/purchase-invoice",
+  "procurement|purchaseorder": "/apps/procurement/purchase-orders",
+  "procurement|vendor_doc": "/apps/procurement/received-quotes",
+  "procurement|quote": "/apps/procurement/received-quotes",
+  "procurement|goodsreceipt": "/apps/procurement/goods-receipt",
+  "procurement|materialrequest": "/apps/procurement/material-requests",
+  "procurement|supplier": "/apps/procurement/suppliers",
+};
+
+const MODULE_ROUTE: Record<string, string> = {
+  finance: "/apps/finance",
+  procurement: "/apps/procurement",
+  hr: "/apps/hr",
+  ess: "/apps/ess",
+  admin: "/apps/admin",
+  storefront: "/apps/storefront",
+  projects: "/apps/construction",
+  construction: "/apps/construction",
+};
+
+function routeFor(e: ChangelogEntry): string {
+  if (e.pageRoute) return e.pageRoute;
+  const key = `${e.module.toLowerCase()}|${e.entityType.toLowerCase()}`;
+  return ENTITY_ROUTE[key] ?? MODULE_ROUTE[e.module.toLowerCase()] ?? "/apps";
+}
+
+function moduleLabel(module: string): string {
+  return module.charAt(0).toUpperCase() + module.slice(1);
+}
+
 export function ChangelogPage() {
   const { entries, clearAll } = useChangelog();
   const [search, setSearch] = useState("");
   const [moduleFilter, setModuleFilter] = useState<string | "all">("all");
 
   const filtered = entries.filter(e => {
-    if (moduleFilter !== "all" && e.module !== moduleFilter) return false;
+    if (moduleFilter !== "all" && e.module.toLowerCase() !== moduleFilter.toLowerCase()) return false;
     if (search && ![e.summary, e.action, e.entityType, e.entityId, e.performedBy]
       .some(f => f.toLowerCase().includes(search.toLowerCase()))) return false;
     return true;
   });
 
-  const columns: Column<(typeof entries)[0]>[] = [
+  const columns: Column<ChangelogEntry>[] = [
     { key: "module", label: "Module", render: e => (
-      <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${MODULE_COLORS[e.module] ?? "bg-gray-100 text-gray-600"}`}>{e.module}</span>
+      <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${MODULE_COLORS[moduleLabel(e.module)] ?? "bg-gray-100 text-gray-600"}`}>{moduleLabel(e.module)}</span>
     ), sortable: true, filterable: true },
     { key: "action", label: "Action", render: e => <span className="text-xs font-medium text-gray-900">{e.action}</span>, sortable: true, filterable: true },
-    { key: "entity", label: "Entity", render: e => <span className="text-xs text-gray-400">{e.entityType} · {e.entityId}</span>, sortable: true, filterable: true, minWidth: 140 },
-    { key: "summary", label: "Summary", render: e => <span className="text-sm text-gray-700">{e.summary}</span>, sortable: true, filterable: true, minWidth: 250 },
+    { key: "entity", label: "Entity", render: e => {
+      const href = routeFor(e);
+      return (
+        <Link
+          to={href}
+          title={`Open ${href}`}
+          className="inline-flex items-center gap-1 text-xs font-medium text-indigo-600 hover:text-indigo-800 hover:underline"
+        >
+          {e.entityType} · {e.entityId}
+          <ArrowUpRight className="w-3 h-3 flex-shrink-0" />
+        </Link>
+      );
+    }, sortable: true, filterable: true, minWidth: 170 },
+    { key: "summary", label: "Summary", render: e => (
+      <Link to={routeFor(e)} title="Open the page where this change was made" className="text-sm text-gray-700 hover:text-indigo-600 block">
+        {e.summary}
+      </Link>
+    ), sortable: true, filterable: true, minWidth: 250 },
     { key: "timestamp", label: "Timestamp", render: e => (
       <span className="text-xs text-gray-400 whitespace-nowrap">{new Date(e.timestamp).toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" })}</span>
     ), sortable: true, filterable: false, minWidth: 140 },

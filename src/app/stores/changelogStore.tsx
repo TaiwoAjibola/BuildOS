@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, useCallback, type ReactNode } from "react";
+import { createContext, useContext, useState, useCallback, useEffect, type ReactNode } from "react";
 
 export interface ChangelogEntry {
   id: string;
@@ -10,6 +10,8 @@ export interface ChangelogEntry {
   summary: string;
   details?: string;
   performedBy: string;
+  /** Optional explicit app route the entry points to (falls back to a module/entity map). */
+  pageRoute?: string;
 }
 
 interface ChangelogContextValue {
@@ -39,8 +41,33 @@ const SEED_ENTRIES: ChangelogEntry[] = [
   { id: "seed-14", timestamp: "2026-07-21T14:00:00.000Z", module: "Admin", action: "CHANGELOG", entityType: "System", entityId: "UPD-014", summary: "14. Employee lifecycle: Restructured employee creation — HR now creates complete records with General/Contact/Payment details (firstName, middleName, lastName, jobTitle, supervisor, employmentDate, DOB, maritalStatus, phone, email, address, nextOfKin, PFA, RSA, bank, taxId, grade, nationality). New employeeStore shares data between HR and Admin. Admin Users page shows employees from HR with Synced/Unsynced status and a Sync Employee panel to create user accounts with role-based permissions. Updated EmployeeProfilePage to display all new fields.", performedBy: "System" },
 ];
 
+const STORAGE_KEY = "buildos-changelog-v1";
+
+function loadInitialEntries(): ChangelogEntry[] {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      if (Array.isArray(parsed) && parsed.length > 0) return parsed as ChangelogEntry[];
+    }
+  } catch {
+    /* fall through to seeds */
+  }
+  return SEED_ENTRIES;
+}
+
 export function ChangelogProvider({ children }: { children: ReactNode }) {
-  const [entries, setEntries] = useState<ChangelogEntry[]>(SEED_ENTRIES);
+  // Persisted to localStorage so logged changes survive page reloads — this is
+  // also how the "Changelog" page keeps showing entries made in other modules.
+  const [entries, setEntries] = useState<ChangelogEntry[]>(loadInitialEntries);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(entries));
+    } catch {
+      /* storage unavailable — in-memory only */
+    }
+  }, [entries]);
 
   const logChange = useCallback((entry: Omit<ChangelogEntry, "id" | "timestamp">) => {
     setEntries(prev => [{
@@ -51,14 +78,21 @@ export function ChangelogProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const getByModule = useCallback((module: string) =>
-    entries.filter(e => e.module === module),
+    entries.filter(e => e.module.toLowerCase() === module.toLowerCase()),
   [entries]);
 
   const getByEntity = useCallback((entityType: string, entityId: string) =>
     entries.filter(e => e.entityType === entityType && e.entityId === entityId),
   [entries]);
 
-  const clearAll = useCallback(() => setEntries([]), []);
+  const clearAll = useCallback(() => {
+    setEntries([]);
+    try {
+      localStorage.removeItem(STORAGE_KEY);
+    } catch {
+      /* ignore */
+    }
+  }, []);
 
   return (
     <ChangelogContext.Provider value={{ entries, logChange, getByModule, getByEntity, clearAll }}>
