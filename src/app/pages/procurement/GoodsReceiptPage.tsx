@@ -1,10 +1,12 @@
 import { useState } from "react";
 import {
   PackageCheck, Search, Truck, CheckCircle, Clock, AlertTriangle,
-  ChevronDown, ChevronRight, XCircle, BarChart2, X, Plus, Trash2, LinkIcon, FileText, DownloadCloud,
+  ChevronDown, ChevronRight, XCircle, BarChart2, X, Plus, Trash2, LinkIcon, FileText, DownloadCloud, Building2,
 } from "lucide-react";
 import { useNumbering } from "../../stores/numberingStore";
 import { useProcurement, type GRN, type GRNStatus } from "../../stores/procurementStore";
+import { useProcurementSettings, isPreDelivery } from "../../stores/procurementSettingsStore";
+import { useChangelog } from "../../stores/changelogStore";
 
 const statusConfig: Record<GRNStatus, { label: string; badge: string; icon: React.ReactNode }> = {
   pending: { label: "Pending Inspection", badge: "bg-amber-100 text-amber-700", icon: <Clock className="w-3.5 h-3.5 text-amber-500" /> },
@@ -450,7 +452,9 @@ function GoodsReceiptDocumentModal({ grn, onClose }: {
 }
 
 export function GoodsReceiptPage() {
-  const { grns: grnList, setGrns: setGrnList } = useProcurement();
+  const { grns: grnList, setGrns: setGrnList, purchaseOrders, setPurchaseOrders } = useProcurement();
+  const { getPaymentTerm } = useProcurementSettings();
+  const { logChange } = useChangelog();
   const [activeTab, setActiveTab] = useState<GRNStatus | "all">("all");
   const [search, setSearch] = useState("");
   const [expanded, setExpanded] = useState<string | null>(null);
@@ -459,6 +463,13 @@ export function GoodsReceiptPage() {
   const [rejectGrn, setRejectGrn] = useState<GRN | null>(null);
   const [notifyGrn, setNotifyGrn] = useState<GRN | null>(null);
   const [viewGrn, setViewGrn] = useState<GRN | null>(null);
+
+  function sendGrnToFinance(grn: GRN) {
+    const ref = `FIN-${String(Math.floor(Math.random() * 9000) + 1000)}`;
+    setPurchaseOrders(prev => prev.map(p => p.id === grn.poRef ? { ...p, sentToFinance: true, financeRef: ref } : p));
+    logChange({ module: "Procurement", action: "Sent to Finance", entityType: "GoodsReceipt", entityId: grn.id, summary: `GRN ${grn.id} sent to finance (${ref})`, performedBy: "Current User" });
+    setExpanded(null);
+  }
 
   const filtered = grnList.filter(g => {
     const matchTab = activeTab === "all" || g.status === activeTab;
@@ -519,6 +530,9 @@ export function GoodsReceiptPage() {
           const cfg = statusConfig[grn.status];
           const isExpanded = expanded === grn.id;
           const hasRejections = grn.items.some(i => i.rejected > 0);
+          const linkedPo = purchaseOrders.find(p => p.id === grn.poRef);
+          const poTerm = linkedPo ? getPaymentTerm(linkedPo.paymentTermId) : null;
+          const afterDelivery = !!poTerm && !isPreDelivery(poTerm);
           return (
             <div key={grn.id} className="bg-white rounded-lg border border-gray-200 overflow-hidden">
               <div className="flex items-center gap-4 px-5 py-4 cursor-pointer hover:bg-gray-50" onClick={() => setExpanded(isExpanded ? null : grn.id)}>
@@ -533,6 +547,7 @@ export function GoodsReceiptPage() {
                     )}
                     <span className={`flex items-center gap-1 text-xs px-2 py-1 rounded-full font-medium ${cfg.badge}`}>{cfg.icon}{cfg.label}</span>
                     {hasRejections && <span className="flex items-center gap-1 text-xs px-2 py-1 rounded-full bg-red-100 text-red-700 font-medium"><XCircle className="w-3 h-3" /> Rejections</span>}
+                    {linkedPo?.sentToFinance && <span className="flex items-center gap-1 text-xs px-2 py-1 rounded-full bg-indigo-100 text-indigo-700 font-medium"><Building2 className="w-3 h-3" /> Sent to Finance</span>}
                   </div>
                   <p className="text-sm text-gray-700 font-medium mt-1">{grn.supplier}</p>
                   <p className="text-xs text-gray-400 mt-0.5">Received by {grn.receivedBy} · {grn.items.length} line item{grn.items.length > 1 ? "s" : ""} · DN: {grn.deliveryNote}</p>
@@ -609,6 +624,11 @@ export function GoodsReceiptPage() {
                     )}
                     {grn.status === "over_supply" && (
                       <button onClick={() => setNotifyGrn(grn)} className="px-4 py-2 text-sm bg-amber-500 text-white rounded-md hover:bg-amber-600">Notify Supplier</button>
+                    )}
+                    {grn.status === "completed" && linkedPo && !linkedPo.sentToFinance && afterDelivery && (
+                      <button onClick={() => sendGrnToFinance(grn)} className="px-4 py-2 text-sm bg-indigo-600 text-white rounded-md hover:bg-indigo-700 flex items-center gap-1.5">
+                        <Building2 className="w-3.5 h-3.5" /> Send to Finance
+                      </button>
                     )}
                   </div>
                 </div>

@@ -1,4 +1,4 @@
-import { useState, useMemo, type ReactNode } from "react";
+import { useState, useMemo, Fragment, type ReactNode } from "react";
 import { ChevronUp, ChevronDown, ArrowUpDown, Search, X, SlidersHorizontal } from "lucide-react";
 
 export interface Column<T> {
@@ -21,6 +21,9 @@ interface DataTableProps<T> {
   emptyMessage?: string;
   onRowClick?: (row: T) => void;
   headerExtra?: ReactNode;
+  expandedKey?: string | null;
+  onToggleExpand?: (row: T) => void;
+  renderExpanded?: (row: T) => ReactNode;
   pageSize?: number;
 }
 
@@ -40,6 +43,7 @@ export function DataTable<T>({
   columns, data, keyExtractor, searchPlaceholder = "Search...",
   searchFields, emptyMessage = "No data found",
   onRowClick, headerExtra, pageSize = 50,
+  expandedKey, onToggleExpand, renderExpanded,
 }: DataTableProps<T>) {
   const [globalSearch, setGlobalSearch] = useState("");
   const [sort, setSort] = useState<SortState>({ key: "", dir: null });
@@ -197,14 +201,27 @@ export function DataTable<T>({
             {paged.length === 0 ? (
               <tr><td colSpan={columns.length} className="px-4 py-12 text-center text-sm text-gray-400">{emptyMessage}</td></tr>
             ) : (
-              paged.map(row => (
-                <tr key={keyExtractor(row)} onClick={() => onRowClick?.(row)}
-                  className={`transition-colors ${onRowClick ? "cursor-pointer hover:bg-emerald-50/40" : "hover:bg-gray-50"}`}>
-                  {columns.map(col => (
-                    <td key={col.key} className={`px-4 py-3 text-sm ${col.className ?? ""}`}>{col.render(row)}</td>
-                  ))}
-                </tr>
-              ))
+              paged.map(row => {
+                const key = keyExtractor(row);
+                const isExpanded = renderExpanded != null && expandedKey === key;
+                return (
+                  <Fragment key={key}>
+                    <tr onClick={() => onRowClick?.(row)}
+                      className={`transition-colors ${onRowClick ? "cursor-pointer hover:bg-emerald-50/40" : "hover:bg-gray-50"}`}>
+                      {columns.map(col => (
+                        <td key={col.key} className={`px-4 py-3 text-sm ${col.className ?? ""}`}>{col.render(row)}</td>
+                      ))}
+                    </tr>
+                    {isExpanded && (
+                      <tr className="border-b border-gray-100 bg-gray-50/60">
+                        <td colSpan={columns.length} className="px-4 py-3">
+                          {renderExpanded!(row)}
+                        </td>
+                      </tr>
+                    )}
+                  </Fragment>
+                );
+              })
             )}
           </tbody>
         </table>
