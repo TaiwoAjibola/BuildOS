@@ -8,7 +8,7 @@ import { DataTable, type Column } from "../../components/DataTable";
 import { useChangelog } from "../../stores/changelogStore";
 import { exportCSV } from "../../utils/exportCSV";
 import { useNumbering } from "../../stores/numberingStore";
-import { PAYMENT_TERM_PRESETS, getDefaultPaymentTermId, getPaymentTerm, tranchesLabel } from "../../config/paymentTerms";
+import { useProcurementSettings, tranchesLabel } from "../../stores/procurementSettingsStore";
 import { useProcurement } from "../../stores/procurementStore";
 
 type POStatus = "draft" | "sent" | "confirmed" | "partially_received" | "completed" | "cancelled";
@@ -59,10 +59,17 @@ const PO_UNITS = ["Tonnes", "Bags", "Metres", "Sheets", "Rolls", "Units", "Carto
 
 interface POItem { material: string; qty: string; unit: string; unitCost: string }
 
+interface CustomTranche {
+  title: string;
+  percent: string;
+  timing: "on_po_approval" | "on_delivery" | "net_30" | "net_60";
+}
+
 function NewPOModal({ onClose, onSave }: {
   onClose: () => void;
   onSave: (po: PurchaseOrder) => void;
 }) {
+  const { paymentTerms, signatories, defaultPaymentTermId, addPaymentTerm } = useProcurementSettings();
   const today = new Date();
   const fmtDate = (d: Date) => d.toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" }).replace(/ /g, " ");
   const addDays = (n: number) => { const d2 = new Date(today); d2.setDate(d2.getDate() + n); return fmtDate(d2); };
@@ -72,7 +79,14 @@ function NewPOModal({ onClose, onSave }: {
   const [prRef, setPrRef] = useState("");
   const [project, setProject] = useState(PO_PROJECTS[0]);
   const [deliveryDays, setDeliveryDays] = useState("7");
-  const [paymentTermId, setPaymentTermId] = useState(getDefaultPaymentTermId());
+  const [paymentTermId, setPaymentTermId] = useState(defaultPaymentTermId);
+  const [customMode, setCustomMode] = useState(false);
+  const [customForm, setCustomForm] = useState<{ name: string; description: string; tranches: CustomTranche[] }>({
+    name: "", description: "", tranches: [{ title: "", percent: "100", timing: "on_delivery" }],
+  });
+  const [selectedSignatories, setSelectedSignatories] = useState<string[]>(() =>
+    signatories.filter(s => s.role === "Procurement Manager").map(s => s.name),
+  );
   const [items, setItems] = useState<POItem[]>([{ material: "", qty: "", unit: PO_UNITS[0], unitCost: "" }]);
 
   const addItem = () => setItems(p => [...p, { material: "", qty: "", unit: PO_UNITS[0], unitCost: "" }]);
@@ -81,16 +95,37 @@ function NewPOModal({ onClose, onSave }: {
   const totalValue = items.reduce((s, it) => s + (parseFloat(it.qty) || 0) * (parseFloat(it.unitCost) || 0), 0);
   const { getNextId } = useNumbering();
   const valid = supplier && items.every(it => it.material.trim() && it.qty.trim() && it.unitCost.trim());
-  const term = getPaymentTerm(paymentTermId);
+  const term = paymentTerms.find(t => t.id === paymentTermId) ?? paymentTerms[0];
+
+  const customTotal = customForm.tranches.reduce((s, t) => s + (parseFloat(t.percent) || 0), 0);
+  const customValid = customForm.name.trim()
+    && customForm.tranches.length > 0
+    && customForm.tranches.every(t => t.title.trim() && (parseFloat(t.percent) > 0))
+    && Math.round(customTotal) === 100;
+  const canSave = valid && (customMode ? customValid : true);
+
+  const toggleSignatory = (name: string) =>
+    setSelectedSignatories(prev => prev.includes(name) ? prev.filter(n => n !== name) : [...prev, name]);
 
   function handleSave() {
-    if (!valid) return;
+    if (!valid || (customMode && !customValid)) return;
+    let termId = paymentTermId;
+    if (customMode) {
+      termId = `pt-${Date.now()}`;
+      addPaymentTerm({
+        id: termId,
+        name: customForm.name.trim(),
+        description: customForm.description.trim(),
+        tranches: customForm.tranches.map(t => ({ title: t.title.trim(), percent: parseFloat(t.percent) || 0, timing: t.timing })),
+      });
+    }
     const nextId = getNextId("PurchaseOrder");
     onSave({
       id: nextId, prRef: prRef.trim() || "—", mrRef: "—", supplier,
       supplierContact: supplierContact.trim() || supplier,
       status: "draft", paymentStatus: "unpaid", sentToFinance: false,
-      paymentTermId,
+      paymentTermId: termId,
+      signatories: selectedSignatories,
       createdBy: "Amaka Osei",
       createdDate: fmtDate(today),
       expectedDate: addDays(parseInt(deliveryDays) || 7),
@@ -175,29 +210,97 @@ function NewPOModal({ onClose, onSave }: {
           </div>
 
           <div>
-            <label className="block text-xs font-medium text-gray-600 mb-1">Payment Terms <span className="text-red-500">*</span></label>
-            <select value={paymentTermId} onChange={e => setPaymentTermId(e.target.value)}
-              className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-500">
-              {PAYMENT_TERM_PRESETS.map(p => <option key={p.id} value={p.id}>{p.name} — {tranchesLabel(p.tranches)}</option>)}
-            </select>
-            <div className="rounded-lg bg-gray-50 border border-gray-200 p-3 mt-2">
-              <p className="text-xs font-medium text-gray-700">{term.name}</p>
-              <div className="flex flex-wrap gap-1.5 mt-1.5">
-                {term.tranches.map((t, i) => (
-                  <span key={i} className={`inline-flex items-center text-[11px] px-2 py-0.5 rounded-full border ${t.timing === "on_po_approval" ? "bg-sky-50 text-sky-700 border-sky-200" : "bg-white text-gray-600 border-gray-200"}`}>
-                    {t.percent}% {t.title}
-                  </span>
-                ))}
-              </div>
-              <p className="text-[11px] text-gray-400 mt-1.5">{term.description}</p>
+            <div className="flex items-center justify-between mb-1">
+              <label className="text-xs font-medium text-gray-600">Payment Terms <span className="text-red-500">*</span></label>
+              <label className="flex items-center gap-1.5 text-xs text-gray-500 cursor-pointer">
+                <input type="checkbox" checked={customMode} onChange={e => setCustomMode(e.target.checked)} className="w-3.5 h-3.5 rounded border-gray-300 text-blue-700 focus:ring-blue-500" />
+                Create custom terms
+              </label>
             </div>
+            {customMode ? (
+              <div className="rounded-lg bg-gray-50 border border-gray-200 p-3 space-y-2">
+                <div className="grid grid-cols-2 gap-2">
+                  <input value={customForm.name} onChange={e => setCustomForm({ ...customForm, name: e.target.value })}
+                    placeholder="Term name e.g. 30% deposit + 70% Net 60"
+                    className="border border-gray-300 rounded-lg px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                  <input value={customForm.description} onChange={e => setCustomForm({ ...customForm, description: e.target.value })}
+                    placeholder="Short description (optional)"
+                    className="border border-gray-300 rounded-lg px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                </div>
+                {customForm.tranches.map((tr, i) => (
+                  <div key={i} className="grid grid-cols-[1fr_70px_1fr_28px] gap-1.5 items-center">
+                    <input value={tr.title} onChange={e => setCustomForm({ ...customForm, tranches: customForm.tranches.map((x, j) => j === i ? { ...x, title: e.target.value } : x) })}
+                      placeholder="Tranche title" className="border border-gray-300 rounded-lg px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                    <div className="relative">
+                      <input type="number" min={0} max={100} value={tr.percent}
+                        onChange={e => setCustomForm({ ...customForm, tranches: customForm.tranches.map((x, j) => j === i ? { ...x, percent: e.target.value } : x) })}
+                        placeholder="%" className="w-full border border-gray-300 rounded-lg px-2 py-1.5 text-sm pr-6 focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                      <span className="absolute right-2 top-1/2 -translate-y-1/2 text-[11px] text-gray-400">%</span>
+                    </div>
+                    <select value={tr.timing} onChange={e => setCustomForm({ ...customForm, tranches: customForm.tranches.map((x, j) => j === i ? { ...x, timing: e.target.value as CustomTranche["timing"] } : x) })}
+                      className="border border-gray-300 rounded-lg px-2 py-1.5 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-500">
+                      <option value="on_po_approval">Before delivery</option>
+                      <option value="on_delivery">On delivery</option>
+                      <option value="net_30">Net 30</option>
+                      <option value="net_60">Net 60</option>
+                    </select>
+                    <button disabled={customForm.tranches.length <= 1} onClick={() => setCustomForm({ ...customForm, tranches: customForm.tranches.filter((_, j) => j !== i) })}
+                      className="p-1.5 text-gray-400 hover:text-red-600 rounded-lg disabled:opacity-30"><Trash2 className="w-3.5 h-3.5" /></button>
+                  </div>
+                ))}
+                <div className="flex items-center gap-3">
+                  <button onClick={() => setCustomForm({ ...customForm, tranches: [...customForm.tranches, { title: "", percent: "", timing: "on_delivery" }] })}
+                    className="text-xs text-blue-600 hover:text-blue-800 flex items-center gap-1"><Plus className="w-3 h-3" /> Add Tranche</button>
+                  <p className="text-[11px] text-gray-500">Total: <span className={`font-semibold ${Math.round(customTotal) === 100 ? "text-emerald-600" : "text-amber-600"}`}>{Math.round(customTotal)}%</span></p>
+                  {Math.round(customTotal) !== 100 && <p className="text-[11px] text-amber-600">must total 100%</p>}
+                </div>
+              </div>
+            ) : (
+              <>
+                <select value={paymentTermId} onChange={e => setPaymentTermId(e.target.value)}
+                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-500">
+                  {paymentTerms.map(p => <option key={p.id} value={p.id}>{p.name} — {tranchesLabel(p.tranches)}</option>)}
+                </select>
+                <div className="rounded-lg bg-gray-50 border border-gray-200 p-3 mt-2">
+                  <p className="text-xs font-medium text-gray-700">{term?.name}</p>
+                  <div className="flex flex-wrap gap-1.5 mt-1.5">
+                    {term?.tranches.map((t, i) => (
+                      <span key={i} className={`inline-flex items-center text-[11px] px-2 py-0.5 rounded-full border ${t.timing === "on_po_approval" ? "bg-sky-50 text-sky-700 border-sky-200" : "bg-white text-gray-600 border-gray-200"}`}>
+                        {t.percent}% {t.title}
+                      </span>
+                    ))}
+                  </div>
+                  <p className="text-[11px] text-gray-400 mt-1.5">{term?.description}</p>
+                </div>
+              </>
+            )}
+          </div>
+
+          <div>
+            <label className="block text-xs font-medium text-gray-600 mb-1.5">Signatories on PO</label>
+            {signatories.length === 0 ? (
+              <p className="text-xs text-gray-400">No signatories configured — add them under Procurement Settings.</p>
+            ) : (
+              <div className="flex flex-wrap gap-1.5">
+                {signatories.map(s => {
+                  const on = selectedSignatories.includes(s.name);
+                  return (
+                    <button key={s.id} onClick={() => toggleSignatory(s.name)}
+                      className={`inline-flex items-center gap-1.5 text-xs px-2.5 py-1.5 rounded-lg border transition-colors ${on ? "bg-blue-50 border-blue-300 text-blue-700" : "bg-white border-gray-200 text-gray-600 hover:bg-gray-50"}`}>
+                      <CheckCircle className={`w-3.5 h-3.5 ${on ? "text-blue-600" : "text-gray-300"}`} />
+                      {s.name} <span className="text-[10px] text-gray-400">· {s.role}</span>
+                    </button>
+                  );
+                })}
+              </div>
+            )}
           </div>
         </div>
         <div className="flex justify-end gap-3 px-6 py-4 border-t border-gray-100">
           <button onClick={onClose} className="px-4 py-2 text-sm border border-gray-300 rounded-xl text-gray-700 hover:bg-gray-50">Cancel</button>
-          <button onClick={handleSave} disabled={!valid}
+          <button onClick={handleSave} disabled={!canSave}
             className="px-4 py-2 text-sm bg-blue-700 text-white rounded-xl hover:bg-blue-800 disabled:opacity-40 disabled:cursor-not-allowed flex items-center gap-2">
-            <ShoppingCart className="w-4 h-4" /> Create Draft PO
+            <ShoppingCart className="w-4 h-4" /> Generate PO
           </button>
         </div>
       </div>
@@ -316,7 +419,12 @@ function PurchaseOrderDocumentModal({ po, onClose }: {
   po: PurchaseOrder;
   onClose: () => void;
 }) {
+  const { getPaymentTerm } = useProcurementSettings();
+  const { signatories, signatoriesFor } = useProcurementSettings();
   const term = getPaymentTerm(po.paymentTermId);
+  const poSignatories = po.signatories?.length
+    ? signatoriesFor(po.signatories)
+    : signatories.filter(s => s.role === "Procurement Manager");
 
   function downloadPdf() {
     const rows = po.items.map(it =>
@@ -325,6 +433,9 @@ function PurchaseOrderDocumentModal({ po, onClose }: {
       `<td style="padding:6px 8px;border-bottom:1px solid #eee;text-align:right">₦${it.unitCost.toLocaleString()}</td>` +
       `<td style="padding:6px 8px;border-bottom:1px solid #eee;text-align:right">₦${(it.qty * it.unitCost).toLocaleString()}</td></tr>`).join("");
     const tranches = term.tranches.map(t => `${t.percent}% ${t.title}`).join(" + ");
+    const sigHtml = poSignatories.map(s =>
+      `<div style="margin-bottom:10px"><div style="border-top:1px solid #000;padding-top:4px">${s.name}<br/><span style="color:#555;font-size:11px">${s.role}</span></div></div>`
+    ).join("");
     const w = window.open("", "_blank");
     if (!w) return;
     w.document.write(`<!DOCTYPE html><html><head><meta charset="utf-8"><title>${po.id}</title></head>
@@ -357,7 +468,7 @@ function PurchaseOrderDocumentModal({ po, onClose }: {
         <div style="font-size:12px">${term.name} — ${tranches}</div>
         <div style="font-size:11px;color:#555;margin-top:2px">${term.description}</div>
         <div style="margin-top:24px;display:flex;justify-content:space-between;gap:24px;font-size:12px">
-          <div style="flex:1"><div style="border-top:1px solid #000;padding-top:4px">Authorised for BUILDOS<br/>Procurement Manager</div></div>
+          <div style="flex:1">${sigHtml}<div style="margin-top:4px;font-weight:bold">Authorised for BUILDOS</div></div>
           <div style="flex:1"><div style="border-top:1px solid #000;padding-top:4px">Supplier Acknowledgement<br/>Name &amp; Signature</div></div>
         </div>
       </body></html>`);
@@ -456,9 +567,22 @@ function PurchaseOrderDocumentModal({ po, onClose }: {
             {/* Signature block */}
             <div className="px-6 py-5 border-t border-gray-100 grid grid-cols-2 gap-8">
               <div>
-                <div className="h-10 border-b border-gray-900" />
-                <p className="text-xs text-gray-700 mt-1.5">Authorised for BUILDOS</p>
-                <p className="text-xs font-semibold text-gray-900">Procurement Manager — Amaka Osei</p>
+                <div className="space-y-3">
+                  {poSignatories.map(s => (
+                    <div key={s.name}>
+                      <div className="h-9 border-b border-gray-900" />
+                      <p className="text-xs font-semibold text-gray-900 mt-1">{s.name}</p>
+                      <p className="text-[11px] text-gray-500">{s.role}</p>
+                    </div>
+                  ))}
+                  {poSignatories.length === 0 && (
+                    <>
+                      <div className="h-9 border-b border-gray-900" />
+                      <p className="text-xs font-semibold text-gray-900 mt-1">Procurement Manager</p>
+                    </>
+                  )}
+                </div>
+                <p className="text-xs text-gray-700 mt-3 font-medium">Authorised for BUILDOS</p>
               </div>
               <div>
                 <div className="h-10 border-b border-gray-900" />
@@ -476,6 +600,7 @@ function PurchaseOrderDocumentModal({ po, onClose }: {
 export function PurchaseOrdersPage() {
   const { logChange } = useChangelog();
   const { purchaseOrders: poList, setPurchaseOrders: setPoList } = useProcurement();
+  const { getPaymentTerm } = useProcurementSettings();
   const [activeTab, setActiveTab] = useState<POStatus | "all">("all");
   const [showNewPO, setShowNewPO] = useState(false);
   const [sendPO, setSendPO] = useState<PurchaseOrder | null>(null);

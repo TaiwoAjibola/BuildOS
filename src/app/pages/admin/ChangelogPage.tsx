@@ -23,7 +23,7 @@ const ENTITY_ROUTE: Record<string, string> = {
   "finance|processaccountmapping": "/apps/finance/posting-engine",
   "finance|processcategory": "/apps/finance/posting-engine",
   "finance|process_mapping": "/apps/finance/process-mapping",
-  "finance|purchaseorder": "/apps/finance/purchase-orders",
+  "finance|purchaseorder": "/apps/finance/purchase-invoice",
   "finance|payrollrun": "/apps/finance/payroll",
   "finance|income": "/apps/finance/income",
   "finance|account": "/apps/finance/chart-of-accounts",

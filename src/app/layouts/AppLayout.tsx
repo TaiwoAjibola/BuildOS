@@ -9,30 +9,33 @@ import { ProjectTypeProvider } from "../stores/projectTypeStore";
 import { EmployeeProvider } from "../stores/employeeStore";
 import { FinanceProvider } from "../stores/financeStore";
 import { ProcurementProvider } from "../stores/procurementStore";
+import { ProcurementSettingsProvider } from "../stores/procurementSettingsStore";
 
 export function AppLayout() {
   return (
     <FinanceProvider>
-      <ProcurementProvider>
-        <ChangelogProvider>
-          <HRConfigProvider>
-            <ResourceProvider>
-              <TaskProvider>
-                <RolesProvider>
-                  <NumberingProvider>
-                    <ProjectTypeProvider>
-                      <EmployeeProvider>
-                        <div className="min-h-screen bg-gray-50">
-                          <Outlet />
-                        </div>
-                      </EmployeeProvider>
-                    </ProjectTypeProvider>
-                  </NumberingProvider>
-                </RolesProvider>
-              </TaskProvider>
-            </ResourceProvider>
-          </HRConfigProvider>
-        </ChangelogProvider>
+<ProcurementProvider>
+        <ProcurementSettingsProvider>
+          <ChangelogProvider>
+            <HRConfigProvider>
+              <ResourceProvider>
+                <TaskProvider>
+                  <RolesProvider>
+                    <NumberingProvider>
+                      <ProjectTypeProvider>
+                        <EmployeeProvider>
+                          <div className="min-h-screen bg-gray-50">
+                            <Outlet />
+                          </div>
+                        </EmployeeProvider>
+                      </ProjectTypeProvider>
+                    </NumberingProvider>
+                  </RolesProvider>
+                </TaskProvider>
+              </ResourceProvider>
+            </HRConfigProvider>
+          </ChangelogProvider>
+        </ProcurementSettingsProvider>
       </ProcurementProvider>
     </FinanceProvider>
   );

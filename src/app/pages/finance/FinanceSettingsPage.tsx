@@ -6,7 +6,6 @@ import { useChangelog } from "../../stores/changelogStore";
 import { DataTable, type Column } from "../../components/DataTable";
 import { exportCSV } from "../../utils/exportCSV";
 import type { AccrualTypeConfig } from "./types";
-import { PAYMENT_TERM_PRESETS, getDefaultPaymentTermId, setDefaultPaymentTermId, getPaymentTerm, tranchesLabel } from "../../config/paymentTerms";
 
 const TABS = ["general", "accounts", "tax", "accruals", "numbering"] as const;
 type Tab = typeof TABS[number];
@@ -82,14 +81,12 @@ function GeneralSetupPanel() {
   const [currency, setCurrency] = useState("USD");
   const [fiscalYearStart, setFiscalYearStart] = useState("January");
   const [approvalThreshold, setApprovalThreshold] = useState("100000");
-  const [defaultPaymentTerm, setDefaultPaymentTerm] = useState(getDefaultPaymentTermId());
   const [saved, setSaved] = useState(false);
   const { logChange } = useChangelog();
 
   function saveAll() {
-    setDefaultPaymentTermId(defaultPaymentTerm);
     setSaved(true);
-    logChange({ module: "Finance", action: "Updated", entityType: "FinanceConfig", entityId: "global", summary: `General finance settings saved — default PO payment terms: ${getPaymentTerm(defaultPaymentTerm).name}`, performedBy: "Sola Adeleke" });
+    logChange({ module: "Finance", action: "Updated", entityType: "FinanceConfig", entityId: "global", summary: "General finance settings saved", performedBy: "Sola Adeleke" });
     setTimeout(() => setSaved(false), 2500);
   }
 
@@ -126,40 +123,6 @@ function GeneralSetupPanel() {
             <label className="block text-xs font-semibold text-gray-700 mb-1.5">Approval Threshold (USD)</label>
             <input value={approvalThreshold} onChange={e => setApprovalThreshold(e.target.value)} placeholder="e.g. 100000" className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500" />
             <p className="text-xs text-gray-400 mt-1">Expenses above this amount require manager approval</p>
-          </div>
-        </div>
-      </div>
-
-      {/* Default PO Payment Terms — applied when a Purchase Order is created */}
-      <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
-        <div className="px-5 py-4 border-b border-gray-100 flex items-center gap-2">
-          <CreditCard className="w-4 h-4 text-emerald-600" />
-          <div>
-            <h3 className="text-sm font-semibold text-gray-900">Default PO Payment Terms</h3>
-            <p className="text-xs text-gray-500">Pre-selected when Procurement creates a Purchase Order. Each PO can still override per transaction.</p>
-          </div>
-        </div>
-        <div className="px-5 py-4 space-y-4">
-          <div>
-            <label className="block text-xs font-semibold text-gray-700 mb-1.5">Default preset</label>
-            <select value={defaultPaymentTerm} onChange={e => setDefaultPaymentTerm(e.target.value)}
-              className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500">
-              {PAYMENT_TERM_PRESETS.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
-            </select>
-          </div>
-          <div className="rounded-lg bg-gray-50 border border-gray-200 p-3">
-            <div className="flex items-center justify-between">
-              <p className="text-xs font-medium text-gray-700">{getPaymentTerm(defaultPaymentTerm).name}</p>
-              <span className="text-xs text-gray-500">{tranchesLabel(getPaymentTerm(defaultPaymentTerm).tranches)}</span>
-            </div>
-            <p className="text-xs text-gray-500 mt-1">{getPaymentTerm(defaultPaymentTerm).description}</p>
-            <div className="flex flex-wrap gap-2 mt-2">
-              {getPaymentTerm(defaultPaymentTerm).tranches.map((t, i) => (
-                <span key={i} className="inline-flex items-center gap-1 text-xs px-2 py-1 rounded-full bg-white border border-gray-200 text-gray-700">
-                  {t.percent}% — {t.title}
-                </span>
-              ))}
-            </div>
           </div>
         </div>
       </div>

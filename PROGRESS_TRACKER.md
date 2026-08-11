@@ -7,14 +7,22 @@
 ## Procurement Documents & Requests
 - [x] R1 — MR/PR dedup: duplicate-raise blocked (one MR → one PR), similarity warning in New MR, PR dup-block on same MR ref, MR→PR trace link shown
 - [x] R2 — Purchase Orders as formal documents (company template, delivery address, terms, supplier details, Download PDF via print)
-- [x] R3 — Procurement Manager signature on PO document (signature block on formal PO + PDF printout)
-- [x] R4 — Payment terms per transaction (configurable tranches) — PO seeds, New PO, quote→PO create all carry `paymentTermId`
-- [x] R5 — Default payment terms settings so presets exist on create
+- [x] R3 — PO signatories on document — signatory block on formal PO + PDF now renders the SELECTED signatories (Procurement Settings → Signatories); defaults to Procurement Manager
+- [x] R4 — Payment terms per transaction — now configured in a SHARED reactive store (`procurementSettingsStore`) + CRUD in Procurement Settings → Payment Terms; PO setup can pick an existing term OR build a custom one inline (before/after delivery, %, tranches, timing)
+- [x] R5 — Default payment terms moved OUT of Finance Settings into Procurement Settings → Payment Terms (default badge + "set as default"); default term read by PO + quote→PO create
 - [x] R7 — Goods Receipt as formal document (company letterhead, linked PO/MR, delivery details, received/accepted/rejected lines, signature block, Download PDF via print)
+
+## Restructure Round (Finance Purchase Orders removed)
+- [x] K1 — Procurement Settings gained **Payment Terms** (add/edit/delete/set-default, tranche builder that must total 100%) and **Signatories** (add/edit/delete) tabs
+- [x] K2 — PO creation flow: New PO → pick existing OR create custom payment terms inline → select signatories → Generate PO → formal document render + PDF download (one modal, no page-jump)
+- [x] K3 — Removed the Finance Purchase Orders page + `/apps/finance/purchase-orders` route + sidebar entry; deleted `FinancePurchaseOrdersPage.tsx` (+ old Process Mapping "purchase orders" changelog link → purchase-invoice)
+- [x] K4 — Removed the Default PO Payment Terms card from Finance Settings (belongs to Procurement now)
+- [x] K5 — Purchase Invoice stays the Finance PO-of-record surface: invoice keeps a GREYED PO ref under the invoice number; Finance actions speak **Post** (Post → Send for Approval → Pending Approval → Approved → Post to Ledger → Posted)
+- [x] K6 — Posting Engine left intact; New Category "Linked Process" is now a DROPDOWN of configured processes (no manual entry)
 
 ## Finance Workflow
 - [x] R6 — Finance handoff automation from shared PO/GRN data: new `procurementStore` (POs + GRNs) hoisted in AppLayout; Procurement PO page and GRN page write to it; Finance PO screen DERIVES rows from it — `sentToFinance` POs appear automatically, handoff follows the PO's payment term (`isPreDelivery`), `goodsReceived` computed from shared GRN records (gate unlocks when a GRN is recorded)
-- [x] R8 — Finance PO screen: View/Pay only — Accept/Decline removed; only Pay / Approve / Post actions
+- [x] R8 — Finance PO screen: View/Pay only — Accept/Decline removed; only Pay / Approve / Post actions. NOTE: superseded by K3 — Finance PO screen removed; Purchase Invoice is the Finance PO-of-record surface (see K5)
 - [x] R9 — Finance pay screen shows Total vs Amount Due vs Balance + Payment Trigger; payment seeds from Amount Due
 - [x] R10 — Send for Approval → Approved → Post → Posted (no auto-post). "Confirm & Post" removed in Finance PO, Payroll ("Post to Ledger") and Purchase Invoice (Send for Approval → Approve Payment → Post)
 - [x] R11 — Status vocabulary New/Open, Pending Approval, Approved, Posted on Finance PO screen; "Paid" removed as a posting status

@@ -5,7 +5,7 @@ import {
   X, Trash2, CheckCircle, Scale, MessageSquare, RotateCcw, MapPin, Layers,
 } from "lucide-react";
 import { useNumbering } from "../../stores/numberingStore";
-import { PAYMENT_TERM_PRESETS, getDefaultPaymentTermId, getPaymentTerm } from "../../config/paymentTerms";
+import { useProcurementSettings } from "../../stores/procurementSettingsStore";
 
 type VendorDocType = "quote" | "invoice";
 type DocStatus = "pending_review" | "approved" | "po_created" | "rejected";
@@ -451,7 +451,7 @@ function NegotiateModal({ doc, itemIndex, onClose, onSave }: {
   );
 }
 
-function CreatePOFromQuoteModal({ doc, onClose, onDone }: { doc: VendorDoc; onClose: () => void; onDone: (id: string, paymentTermId: string) => void }) {  const { getNextId } = useNumbering();  const fmt = (n: number) => n >= 1_000_000 ? `₦${(n / 1_000_000).toFixed(2)}M` : n >= 1000 ? `₦${(n / 1000).toFixed(0)}K` : `₦${n}`;
+function CreatePOFromQuoteModal({ doc, onClose, onDone }: { doc: VendorDoc; onClose: () => void; onDone: (id: string, paymentTermId: string) => void }) {  const { getNextId } = useNumbering();  const { paymentTerms, defaultPaymentTermId, getPaymentTerm } = useProcurementSettings();  const fmt = (n: number) => n >= 1_000_000 ? `₦${(n / 1_000_000).toFixed(2)}M` : n >= 1000 ? `₦${(n / 1000).toFixed(0)}K` : `₦${n}`;
   const today = new Date().toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" }).replace(/ /g, " ");
   // Import suppliers from SuppliersPage
   // (If not possible, copy the suppliers array here or import from a shared module)
@@ -469,7 +469,7 @@ function CreatePOFromQuoteModal({ doc, onClose, onDone }: { doc: VendorDoc; onCl
   const [expectedDate, setExpectedDate] = useState("");
   const [supplierContact, setSupplierContact] = useState(defaultContact);
   const [notes, setNotes] = useState("");
-  const [paymentTermId, setPaymentTermId] = useState(getDefaultPaymentTermId());
+  const [paymentTermId, setPaymentTermId] = useState(defaultPaymentTermId);
   const term = getPaymentTerm(paymentTermId);
 
   const nextPO = getNextId("PurchaseOrder");
@@ -540,7 +540,7 @@ function CreatePOFromQuoteModal({ doc, onClose, onDone }: { doc: VendorDoc; onCl
             <label className="block text-xs font-medium text-gray-600 mb-1.5">Payment Terms</label>
             <select value={paymentTermId} onChange={e => setPaymentTermId(e.target.value)}
               className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
-              {PAYMENT_TERM_PRESETS.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
+              {paymentTerms.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
             </select>
             <div className="flex flex-wrap gap-1.5 mt-2">
               {term.tranches.map((t, i) => (
@@ -689,6 +689,7 @@ function CompareQuotesModal({ prRef, quotes, onClose, onCreatePO }: {
 
 export function ReceivedQuotesPage() {
   const [docs, setDocs] = useState<VendorDoc[]>(MOCK_DOCS);
+  const { paymentTerms } = useProcurementSettings();
   const [statusFilter, setStatusFilter] = useState<DocStatus | "all">("all");
   const [search, setSearch] = useState("");
   const [expanded, setExpanded] = useState<string | null>(null);
@@ -984,7 +985,8 @@ export function ReceivedQuotesPage() {
           onDone={(poId, termId) => {
             setDocs(prev => prev.map(x => x.id === createPODoc!.id ? { ...x, status: "po_created" } : x));
             setCreatePODoc(null);
-            alert(`Purchase Order ${poId} has been created successfully with payment terms: ${getPaymentTerm(termId).name}.`);
+            const termName = paymentTerms.find(t => t.id === termId)?.name ?? termId;
+            alert(`Purchase Order ${poId} has been created successfully with payment terms: ${termName}.`);
           }}
         />
       )}

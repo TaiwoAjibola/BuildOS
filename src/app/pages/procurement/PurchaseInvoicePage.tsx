@@ -125,7 +125,7 @@ function PayInvoiceModal({ invoice, mode, onClose, onSend, onPost }: {
       <div className="bg-white rounded-2xl shadow-2xl w-full max-w-3xl mx-4 my-auto">
         <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
           <div>
-            <h2 className="text-sm font-semibold text-gray-900">{mode === "send" ? "Pay Invoice — " : "Post Payment — "}{invoice.invoiceNo}</h2>
+            <h2 className="text-sm font-semibold text-gray-900">{mode === "send" ? "Post Invoice — " : "Post Payment — "}{invoice.invoiceNo}</h2>
             <p className="text-xs text-gray-500 mt-0.5">{invoice.supplier} · Due {invoice.dueDate} · Amount {fmt(total)}</p>
           </div>
           <button onClick={onClose} className="p-1.5 hover:bg-gray-100 rounded-lg"><X className="w-4 h-4 text-gray-400" /></button>
@@ -322,7 +322,7 @@ export function PurchaseInvoicePage() {
           <div className="flex flex-col items-start gap-1">
             {inv.paymentStatus === undefined && (
               <button onClick={() => setPayTarget(inv)}
-                className="text-xs text-emerald-600 hover:underline">Pay →</button>
+                className="text-xs text-emerald-600 hover:underline">Post →</button>
             )}
             {inv.paymentStatus === "Pending Payment Approval" && (
               <button onClick={() => approvePayment(inv)}
@@ -353,7 +353,12 @@ export function PurchaseInvoicePage() {
       label: "Invoice No",
       sortable: true,
       filterable: true,
-      render: (inv) => <span className="font-mono text-xs text-gray-700">{inv.invoiceNo}</span>,
+      render: (inv) => (
+        <div>
+          <span className="font-mono text-xs text-gray-700">{inv.invoiceNo}</span>
+          {inv.poRef && <p className="text-[11px] text-gray-400 mt-0.5 font-mono">PO {inv.poRef}</p>}
+        </div>
+      ),
     },
     {
       key: "supplier",

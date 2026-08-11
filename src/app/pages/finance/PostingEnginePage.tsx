@@ -165,7 +165,7 @@ function NewCategoryModal({ onClose, onSave, accounts }: {
   const [form, setForm] = useState({
     name: "", description: "",
     sourceApp: "HR" as SourceApp,
-    linkedProcess: "",
+    linkedProcess: PROCESS_NAMES[0],
   });
   const [lines, setLines] = useState<MappingLineForm[]>([
     { process: PROCESS_NAMES[0], account: defaultDebit,  action: "debit",  amountField: FIELD_FOR_PROCESS[PROCESS_NAMES[0]] ?? "Payment Amount" },
@@ -222,9 +222,13 @@ function NewCategoryModal({ onClose, onSave, accounts }: {
             </div>
             <div>
               <label className="block text-xs font-medium text-gray-600 mb-1">Linked Process <span className="text-red-500">*</span></label>
-              <input value={form.linkedProcess} onChange={e => setForm(p => ({ ...p, linkedProcess: e.target.value }))}
-                placeholder="e.g. Payroll Run"
-                className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-emerald-500" />
+              <div className="relative">
+                <select value={form.linkedProcess} onChange={e => setForm(p => ({ ...p, linkedProcess: e.target.value }))}
+                  className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm bg-white appearance-none pr-7 focus:ring-2 focus:ring-emerald-500">
+                  {PROCESS_NAMES.map(p => <option key={p}>{p}</option>)}
+                </select>
+                <ChevronDown className="absolute right-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-400 pointer-events-none" />
+              </div>
             </div>
           </div>
 

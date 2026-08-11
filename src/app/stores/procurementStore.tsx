@@ -15,6 +15,7 @@ export interface PurchaseOrder {
   id: string; prRef: string; mrRef: string; supplier: string; supplierContact: string;
   status: POStatus; paymentStatus: PaymentStatus; sentToFinance: boolean; financeRef?: string;
   paymentTermId: string;
+  signatories?: string[];
   createdBy: string; createdDate: string; expectedDate: string;
   totalItems: number; totalValue: number; receivedValue: number;
   items: POItem[];
@@ -33,6 +34,7 @@ export const SEED_PURCHASE_ORDERS: PurchaseOrder[] = [
     id: "PO-0033", prRef: "PR-0021", mrRef: "MR-0040",
     supplier: "CemCo Nigeria Ltd", supplierContact: "Tunde Adeyemi — +234 80 4521 7890",
     status: "confirmed", paymentStatus: "unpaid", sentToFinance: true, financeRef: "FIN-0048", paymentTermId: "50-50",
+    signatories: ["Amaka Osei", "Sola Adeleke"],
     createdBy: "Amaka Osei", createdDate: "Apr 10, 2026", expectedDate: "Apr 18, 2026",
     totalItems: 2, totalValue: 4100000, receivedValue: 0,
     items: [
@@ -55,6 +57,7 @@ export const SEED_PURCHASE_ORDERS: PurchaseOrder[] = [
     id: "PO-0031", prRef: "PR-0018", mrRef: "MR-0038",
     supplier: "SteelMart International", supplierContact: "Kene Obi — +234 81 2233 4455",
     status: "confirmed", paymentStatus: "unpaid", sentToFinance: true, financeRef: "FIN-0042", paymentTermId: "50-50",
+    signatories: ["Amaka Osei"],
     createdBy: "Amaka Osei", createdDate: "Apr 8, 2026", expectedDate: "Apr 15, 2026",
     totalItems: 2, totalValue: 8050000, receivedValue: 0,
     items: [
@@ -77,6 +80,7 @@ export const SEED_PURCHASE_ORDERS: PurchaseOrder[] = [
     id: "PO-0029", prRef: "PR-0015", mrRef: "MR-0031",
     supplier: "Alpha Aggregates", supplierContact: "Lawal Musa — +234 81 5566 7788",
     status: "completed", paymentStatus: "paid", sentToFinance: true, financeRef: "FIN-0041", paymentTermId: "full-delivery",
+    signatories: ["Amaka Osei", "Sola Adeleke"],
     createdBy: "Amaka Osei", createdDate: "Apr 5, 2026", expectedDate: "Apr 9, 2026",
     totalItems: 2, totalValue: 2900000, receivedValue: 2900000,
     items: [

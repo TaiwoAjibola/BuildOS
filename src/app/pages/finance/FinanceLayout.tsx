@@ -4,7 +4,7 @@ import { CollapsibleSidebar } from "../../components/CollapsibleSidebar";
 import {
   LayoutDashboard, BookOpen, Receipt, TrendingDown, TrendingUp,
   CreditCard, Users2, FileText, CheckSquare, List, BarChart3, Settings2, ListTodo, PenLine, User,
-  Zap, GitBranch, CalendarCheck, RefreshCw, ScrollText, ShoppingCart,
+  Zap, GitBranch, CalendarCheck, RefreshCw, ScrollText,
 } from "lucide-react";
 
 const sidebarSections = [
@@ -41,7 +41,6 @@ const sidebarSections = [
     items: [
       { label: "Budget Management",  href: "/apps/finance/budget",            icon: <TrendingUp className="w-4 h-4" />, end: true },
       { label: "Payment Management", href: "/apps/finance/payments",          icon: <CreditCard  className="w-4 h-4" />, end: true },
-      { label: "Purchase Orders",   href: "/apps/finance/purchase-orders",   icon: <ShoppingCart className="w-4 h-4" />, end: true },
       { label: "Purchase Invoice",   href: "/apps/finance/purchase-invoice", icon: <Receipt     className="w-4 h-4" />, end: true },
     ],
   },
