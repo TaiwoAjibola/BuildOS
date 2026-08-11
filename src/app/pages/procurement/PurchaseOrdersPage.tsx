@@ -67,19 +67,20 @@ interface CustomTranche {
   timing: "on_po_approval" | "on_delivery" | "net_30" | "net_60";
 }
 
-function NewPOModal({ onClose, onSave }: {
+function NewPOModal({ onClose, onSave, initial }: {
   onClose: () => void;
   onSave: (po: PurchaseOrder, action: "send-to-finance" | "download" | "send" | "draft") => void;
+  initial?: PurchaseOrder;
 }) {
   const { paymentTerms, signatories, defaultPaymentTermId, addPaymentTerm } = useProcurementSettings();
   const today = new Date();
   const fmtDate = (d: Date) => d.toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" }).replace(/ /g, " ");
   const addDays = (n: number) => { const d2 = new Date(today); d2.setDate(d2.getDate() + n); return fmtDate(d2); };
 
-  const [step, setStep] = useState<1 | 2 | 3>(1);
-  const [supplier, setSupplier] = useState(PO_SUPPLIERS[0]);
-  const [supplierContact, setSupplierContact] = useState("");
-  const [prRef, setPrRef] = useState("");
+  const [step, setStep] = useState<1 | 2 | 3>(initial ? 2 : 1);
+  const [supplier, setSupplier] = useState(initial?.supplier ?? PO_SUPPLIERS[0]);
+  const [supplierContact, setSupplierContact] = useState(initial?.supplierContact ?? "");
+  const [prRef, setPrRef] = useState(initial?.prRef ?? "");
   const [project, setProject] = useState(PO_PROJECTS[0]);
   const [deliveryDays, setDeliveryDays] = useState("7");
   const [timingCat, setTimingCat] = useState<"before" | "after" | "both" | "any">("any");
@@ -92,7 +93,9 @@ function NewPOModal({ onClose, onSave }: {
   const [selectedSignatories, setSelectedSignatories] = useState<string[]>(() =>
     signatories.filter(s => s.role === "Procurement Manager").map(s => s.name),
   );
-  const [items, setItems] = useState<POItem[]>([{ material: "", qty: "", unit: PO_UNITS[0], unitCost: "" }]);
+  const [items, setItems] = useState<POItem[]>(initial
+    ? initial.items.map(it => ({ material: it.material, qty: String(it.qty), unit: it.unit, unitCost: String(it.unitCost) }))
+    : [{ material: "", qty: "", unit: PO_UNITS[0], unitCost: "" }]);
 
   const addItem = () => setItems(p => [...p, { material: "", qty: "", unit: PO_UNITS[0], unitCost: "" }]);
   const removeItem = (i: number) => setItems(p => p.filter((_, j) => j !== i));
@@ -196,6 +199,7 @@ function NewPOModal({ onClose, onSave }: {
           <div>
             <h2 className="text-base font-semibold text-gray-900">Create Purchase Order</h2>
             <p className="text-xs text-gray-500 mt-0.5">
+              {initial && <span className="text-blue-600">Inherited from {initial.id} · </span>}
               Step {step} of 3 — {step === 1 ? "PO setup" : step === 2 ? "Payment terms & signatories" : "Preview & send"}
             </p>
           </div>
@@ -591,9 +595,58 @@ export function PurchaseOrdersPage() {
   const { getPaymentTerm, signatories, signatoriesFor } = useProcurementSettings();
   const [activeTab, setActiveTab] = useState<POStatus | "all">("all");
   const [showNewPO, setShowNewPO] = useState(false);
+  const [createFrom, setCreateFrom] = useState<PurchaseOrder | null>(null);
   const [sendPO, setSendPO] = useState<PurchaseOrder | null>(null);
   const [receiptPO, setReceiptPO] = useState<PurchaseOrder | null>(null);
   const [viewPO, setViewPO] = useState<PurchaseOrder | null>(null);
+
+  // Creating a PO is term-driven: a term that pays BEFORE delivery routes the
+  // PO to Finance (deposit posting); after-delivery terms run through Goods
+  // Receipt first and only reach Finance when the GRN hands them over.
+  function routeCreated(po: PurchaseOrder): PurchaseOrder {
+    const term = getPaymentTerm(po.paymentTermId);
+    const hasPreDelivery = term.tranches.some(t => t.timing === "on_po_approval");
+    if (hasPreDelivery) {
+      const ref = `FIN-${String(Math.floor(Math.random() * 9000) + 1000)}`;
+      return { ...po, status: "confirmed" as const, sentToFinance: true, financeRef: ref };
+    }
+    return { ...po, status: "confirmed" as const };
+  }
+
+  function handleCreate(po: PurchaseOrder, action: "send-to-finance" | "download" | "send" | "draft") {
+    const save = (next: PurchaseOrder) => {
+      setPoList(prev => [next, ...prev]);
+      logChange({ module: "Procurement", action: "Created", entityType: "PurchaseOrder", entityId: next.id, summary: `PO ${next.id} created — ${next.supplier} (${fmt(next.totalValue)})`, performedBy: "Current User" });
+      setShowNewPO(false);
+      setCreateFrom(null);
+      return next;
+    };
+
+    if (action === "draft") {
+      save(po);
+      return;
+    }
+
+    const routed = routeCreated(po);
+    const term = getPaymentTerm(routed.paymentTermId);
+    const hasPreDelivery = term.tranches.some(t => t.timing === "on_po_approval");
+    const saved = save(routed);
+
+    if (hasPreDelivery) {
+      logChange({ module: "Procurement", action: "Sent to Finance", entityType: "PurchaseOrder", entityId: saved.id, summary: `PO ${saved.id} routed to Finance — ${routed.financeRef} (${term.name})`, performedBy: "Current User" });
+    } else {
+      logChange({ module: "Procurement", action: "Routed to Goods Receipt", entityType: "PurchaseOrder", entityId: saved.id, summary: `PO ${saved.id} awaits delivery — routes to Goods Receipt (${term.name})`, performedBy: "Current User" });
+    }
+
+    if (action === "download") {
+      const poSignatories = saved.signatories?.length
+        ? signatoriesFor(saved.signatories)
+        : signatories.filter(s => s.role === "Procurement Manager");
+      printPoDocument(saved, term, poSignatories);
+    } else if (action === "send") {
+      setSendPO(saved);
+    }
+  }
 
   function sendToFinance(po: PurchaseOrder) {
     const ref = `FIN-${String(Math.floor(Math.random() * 9000) + 1000)}`;
@@ -698,6 +751,12 @@ export function PurchaseOrdersPage() {
       filterable: false,
       render: (po) => (
         <div className="flex items-center gap-1">
+          {po.status !== "cancelled" && (
+            <button onClick={(e) => { e.stopPropagation(); setCreateFrom(po); }}
+              className="flex items-center gap-1 px-2 py-1 text-xs font-medium text-blue-700 bg-blue-50 border border-blue-200 rounded-md hover:bg-blue-100 transition-colors" title="Create PO from this row (inherits supplier + items)">
+              <Plus className="w-3 h-3" /> Create PO
+            </button>
+          )}
           <button onClick={(e) => { e.stopPropagation(); setViewPO(po); }} className="p-1.5 text-gray-400 hover:bg-gray-100 rounded-md transition-colors" title="View formal PO document">
             <FileText className="w-3.5 h-3.5" />
           </button>
@@ -818,31 +877,14 @@ export function PurchaseOrdersPage() {
       {showNewPO && (
         <NewPOModal
           onClose={() => setShowNewPO(false)}
-          onSave={(po, action) => {
-            const save = (next: PurchaseOrder) => {
-              setPoList(prev => [next, ...prev]);
-              logChange({ module: "Procurement", action: "Created", entityType: "PurchaseOrder", entityId: next.id, summary: `PO ${next.id} created — ${next.supplier} (${fmt(next.totalValue)})`, performedBy: "Current User" });
-              setShowNewPO(false);
-              return next;
-            };
-            if (action === "send-to-finance") {
-              const ref = `FIN-${String(Math.floor(Math.random() * 9000) + 1000)}`;
-              save({ ...po, sentToFinance: true, financeRef: ref });
-              logChange({ module: "Procurement", action: "Sent to Finance", entityType: "PurchaseOrder", entityId: po.id, summary: `PO ${po.id} sent to finance (${ref})`, performedBy: "Current User" });
-            } else if (action === "download") {
-              const saved = save(po);
-              const term = getPaymentTerm(saved.paymentTermId);
-              const poSignatories = saved.signatories?.length
-                ? signatoriesFor(saved.signatories)
-                : signatories.filter(s => s.role === "Procurement Manager");
-              printPoDocument(saved, term, poSignatories);
-            } else if (action === "send") {
-              const saved = save(po);
-              setSendPO(saved);
-            } else if (action === "draft") {
-              save(po);
-            }
-          }}
+          onSave={handleCreate}
+        />
+      )}
+      {createFrom && (
+        <NewPOModal
+          initial={createFrom}
+          onClose={() => setCreateFrom(null)}
+          onSave={handleCreate}
         />
       )}
       {sendPO && (

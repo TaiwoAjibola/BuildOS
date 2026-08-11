@@ -5,7 +5,7 @@ import {
 } from "lucide-react";
 import { useNumbering } from "../../stores/numberingStore";
 import { useProcurement, type GRN, type GRNStatus } from "../../stores/procurementStore";
-import { useProcurementSettings, isPreDelivery } from "../../stores/procurementSettingsStore";
+import { useProcurementSettings } from "../../stores/procurementSettingsStore";
 import { useChangelog } from "../../stores/changelogStore";
 
 const statusConfig: Record<GRNStatus, { label: string; badge: string; icon: React.ReactNode }> = {
@@ -37,6 +37,8 @@ function RecordDeliveryModal({ onClose, onSave, existingGrn }: {
   const today = new Date();
   const fmtDate = (d: Date) => d.toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" });
   const isAdditional = !!existingGrn;
+  const { purchaseOrders } = useProcurement();
+  const poOptions = purchaseOrders.filter(p => p.status !== "cancelled");
 
   const [poRef, setPoRef] = useState(existingGrn?.poRef || GRN_PO_REFS[0]);
   const [supplier, setSupplier] = useState(existingGrn?.supplier || "");
@@ -107,8 +109,15 @@ function RecordDeliveryModal({ onClose, onSave, existingGrn }: {
               {isAdditional ? (
                 <div className="border border-gray-200 rounded-lg px-3 py-2 text-sm bg-gray-50 text-gray-700">{poRef}</div>
               ) : (
-                <select value={poRef} onChange={e => setPoRef(e.target.value)} className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-500">
-                  {GRN_PO_REFS.map(r => <option key={r}>{r}</option>)}
+                <select value={poRef} onChange={e => {
+                  const v = e.target.value;
+                  setPoRef(v);
+                  const chosen = poOptions.find(p => p.id === v);
+                  if (chosen && !supplier) setSupplier(chosen.supplier);
+                }} className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-500">
+                  {(poOptions.length > 0 ? poOptions : GRN_PO_REFS.map(r => ({ id: r, supplier: r }))).map(p =>
+                    <option key={p.id} value={p.id}>{p.id} — {p.supplier}</option>
+                  )}
                 </select>
               )}
             </div>
@@ -532,7 +541,6 @@ export function GoodsReceiptPage() {
           const hasRejections = grn.items.some(i => i.rejected > 0);
           const linkedPo = purchaseOrders.find(p => p.id === grn.poRef);
           const poTerm = linkedPo ? getPaymentTerm(linkedPo.paymentTermId) : null;
-          const afterDelivery = !!poTerm && !isPreDelivery(poTerm);
           return (
             <div key={grn.id} className="bg-white rounded-lg border border-gray-200 overflow-hidden">
               <div className="flex items-center gap-4 px-5 py-4 cursor-pointer hover:bg-gray-50" onClick={() => setExpanded(isExpanded ? null : grn.id)}>
@@ -564,6 +572,7 @@ export function GoodsReceiptPage() {
                     {[
                       { label: "GRN Number",       value: grn.id },
                       { label: "Purchase Order",   value: grn.poRef },
+                      { label: "Payment Term",     value: poTerm?.name ?? "—" },
                       { label: "Material Request", value: grn.mrRef || "—" },
                       { label: "Delivery Note",    value: grn.deliveryNote },
                       { label: "Warehouse",        value: grn.warehouse },
@@ -625,7 +634,7 @@ export function GoodsReceiptPage() {
                     {grn.status === "over_supply" && (
                       <button onClick={() => setNotifyGrn(grn)} className="px-4 py-2 text-sm bg-amber-500 text-white rounded-md hover:bg-amber-600">Notify Supplier</button>
                     )}
-                    {grn.status === "completed" && linkedPo && !linkedPo.sentToFinance && afterDelivery && (
+                    {(grn.status === "completed" || grn.status === "partial") && linkedPo && !linkedPo.sentToFinance && (
                       <button onClick={() => sendGrnToFinance(grn)} className="px-4 py-2 text-sm bg-indigo-600 text-white rounded-md hover:bg-indigo-700 flex items-center gap-1.5">
                         <Building2 className="w-3.5 h-3.5" /> Send to Finance
                       </button>
