@@ -5,6 +5,15 @@ type MaterialStatus = "In Stock" | "Low Stock" | "Out of Stock";
 type MaterialType = "Consumable" | "Reusable";
 type AllocationStatus = "Available" | "Allocated" | "Under Maintenance";
 
+interface MaterialVariant {
+  name: string;            // e.g. "Wall tile", "Floor tile"
+  dimensions?: string;      // e.g. "600x600mm"
+  thickness?: string;       // e.g. "8mm"
+  finish?: string;          // e.g. "Gloss", "Matte"
+  unitCost: number;
+  sku?: string;
+}
+
 interface Material {
   id: string;
   name: string;
@@ -20,6 +29,7 @@ interface Material {
   allocatedTo?: string;
   allocatedProject?: string;
   condition?: string;
+  variants?: MaterialVariant[];
 }
 
 const MOCK: Material[] = [
@@ -34,7 +44,10 @@ const MOCK: Material[] = [
   { id: "MAT-009", name: "Formwork Plywood",          category: "Timber",     unit: "Sheets",  totalQty: 30,   availableQty: 25,  reservedQty: 5,   unitCost: 14000,  reorderLevel: 15,  materialType: "Reusable",  allocationStatus: "Available", condition: "Good" },
   { id: "MAT-010", name: "Steel Rebar Y12",           category: "Steel",      unit: "Tonnes",  totalQty: 8,    availableQty: 8,   reservedQty: 0,   unitCost: 390000, reorderLevel: 5,   materialType: "Consumable" },
   { id: "MAT-011", name: "Flush Doors",               category: "Finishes",   unit: "Units",   totalQty: 20,   availableQty: 14,  reservedQty: 6,   unitCost: 45000,  reorderLevel: 10,  materialType: "Consumable" },
-  { id: "MAT-012", name: "Granite Tiles 600x600",     category: "Finishes",   unit: "Boxes",   totalQty: 0,    availableQty: 0,   reservedQty: 0,   unitCost: 28000,  reorderLevel: 20,  materialType: "Consumable" },
+  { id: "MAT-012", name: "Granite Tiles 600x600", category: "Finishes", unit: "Boxes", totalQty: 0, availableQty: 0, reservedQty: 0, unitCost: 28000, reorderLevel: 20, materialType: "Consumable", variants: [
+    { name: "Wall Tile", dimensions: "600x600mm", thickness: "8mm", finish: "Matte", unitCost: 26000, sku: "GT-W-600600-MAT" },
+    { name: "Floor Tile", dimensions: "600x600mm", thickness: "10mm", finish: "Gloss", unitCost: 30000, sku: "GT-F-600600-GLO" },
+  ] },
   { id: "MAT-013", name: "Concrete Mixer (350L)",     category: "Equipment",  unit: "Units",   totalQty: 4,    availableQty: 1,   reservedQty: 0,   unitCost: 450000, reorderLevel: 1,   materialType: "Reusable",  allocationStatus: "Allocated",  allocatedTo: "Block A Site Team", allocatedProject: "Industrial Warehouse", condition: "Good" },
   { id: "MAT-014", name: "Water Pump (3 inch)",       category: "Equipment",  unit: "Units",   totalQty: 6,    availableQty: 3,   reservedQty: 0,   unitCost: 180000, reorderLevel: 1,   materialType: "Reusable",  allocationStatus: "Available",  condition: "Good" },
   { id: "MAT-015", name: "Plate Compactor",           category: "Equipment",  unit: "Units",   totalQty: 2,    availableQty: 0,   reservedQty: 0,   unitCost: 320000, reorderLevel: 1,   materialType: "Reusable",  allocationStatus: "Under Maintenance", condition: "Needs Servicing" },
@@ -49,7 +62,12 @@ const BLANK: Omit<Material, "id"> = {
   name: "", category: "Concrete", unit: "Units",
   totalQty: 0, availableQty: 0, reservedQty: 0, unitCost: 0, reorderLevel: 0,
   materialType: "Consumable",
+  variants: [],
 };
+
+type VariantForm = Omit<MaterialVariant, "unitCost"> & { unitCost: string };
+
+const BLANK_VARIANT: VariantForm = { name: "", dimensions: "", thickness: "", finish: "", unitCost: "", sku: "" };
 
 function getStatus(m: Material): MaterialStatus {
   if (m.availableQty === 0) return "Out of Stock";
@@ -164,6 +182,7 @@ export function AllMaterialsPage() {
   const [showModal, setShowModal] = useState(false);
   const [editTarget, setEditTarget] = useState<Material | null>(null);
   const [form, setForm] = useState<Omit<Material, "id">>({ ...BLANK });
+  const [variants, setVariants] = useState<VariantForm[]>([{ ...BLANK_VARIANT }]);
   const [deleteTarget, setDeleteTarget] = useState<Material | null>(null);
   const [procurementTarget, setProcurementTarget] = useState<Material | null>(null);
   const [procurementQty, setProcurementQty] = useState("");
@@ -179,16 +198,27 @@ export function AllMaterialsPage() {
     return matchSearch && matchCat && matchStatus && matchType;
   });
 
-  function openAdd() { setEditTarget(null); setForm({ ...BLANK }); setShowModal(true); }
-  function openEdit(m: Material) { setEditTarget(m); const { id: _id, ...rest } = m; setForm(rest); setShowModal(true); }
+  function openAdd() { setEditTarget(null); setForm({ ...BLANK }); setVariants([{ ...BLANK_VARIANT }]); setShowModal(true); }
+  function openEdit(m: Material) { setEditTarget(m); const { id: _id, ...rest } = m; setForm(rest); setVariants((m.variants?.length ? m.variants : [BLANK_VARIANT]).map(v => ({ ...v, unitCost: String(v.unitCost) }))); setShowModal(true); }
   function save() {
+    const parsedVariants: MaterialVariant[] = variants
+      .filter(v => v.name.trim())
+      .map(v => ({
+        name: v.name.trim(),
+        dimensions: v.dimensions || undefined,
+        thickness: v.thickness || undefined,
+        finish: v.finish || undefined,
+        unitCost: Number(v.unitCost) || 0,
+        sku: v.sku || undefined,
+      }));
+    const withVariants = { ...form, variants: parsedVariants.length ? parsedVariants : undefined };
     if (editTarget) {
-      setMaterials((prev) => prev.map((m) => m.id === editTarget.id ? { ...form, id: editTarget.id } : m));
+      setMaterials((prev) => prev.map((m) => m.id === editTarget.id ? { ...withVariants, id: editTarget.id } : m));
     } else {
       const id = `MAT-${String(materials.length + 1).padStart(3, "0")}`;
-      setMaterials((prev) => [...prev, { ...form, id }]);
+      setMaterials((prev) => [...prev, { ...withVariants, id }]);
     }
-    setShowModal(false); setForm({ ...BLANK }); setEditTarget(null);
+    setShowModal(false); setForm({ ...BLANK }); setVariants([{ ...BLANK_VARIANT }]); setEditTarget(null);
   }
   function doDelete() {
     if (deleteTarget) setMaterials((prev) => prev.filter((m) => m.id !== deleteTarget.id));
@@ -196,8 +226,8 @@ export function AllMaterialsPage() {
   }
   function exportCSV() {
     const rows = [
-      ["Material ID", "Name", "Category", "Type", "Unit", "Total Qty", "Available Qty", "Unit Cost", "Status"],
-      ...filtered.map((m) => [m.id, m.name, m.category, m.materialType, m.unit, m.totalQty, m.availableQty, m.unitCost, getStatus(m)]),
+      ["Material ID", "Name", "Category", "Type", "Unit", "Total Qty", "Available Qty", "Unit Cost", "Variants", "Status"],
+      ...filtered.map((m) => [m.id, m.name, m.category, m.materialType, m.unit, m.totalQty, m.availableQty, m.unitCost, m.variants?.map(v => `${v.name} ${v.dimensions ?? ""} ${v.finish ?? ""}`.trim()).join(" | ") ?? "", getStatus(m)]),
     ];
     const csv = rows.map((r) => r.join(",")).join("\n");
     const a = document.createElement("a"); a.href = "data:text/csv," + encodeURIComponent(csv); a.download = "materials.csv"; a.click();
@@ -305,13 +335,14 @@ export function AllMaterialsPage() {
               <th className="px-4 py-3 text-left font-medium">Available</th>
               <th className="px-4 py-3 text-left font-medium">Unit Cost</th>
               <th className="px-4 py-3 text-left font-medium">Stock Status</th>
-              <th className="px-4 py-3 text-left font-medium">Allocation</th>
-              <th className="px-4 py-3 w-28"></th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-gray-50">
-            {filtered.length === 0 && (
-              <tr><td colSpan={10} className="px-4 py-8 text-center text-gray-400 text-sm">No materials found.</td></tr>
+               <th className="px-4 py-3 text-left font-medium">Allocation</th>
+               <th className="px-4 py-3 text-left font-medium">Variants</th>
+               <th className="px-4 py-3 w-28"></th>
+             </tr>
+           </thead>
+           <tbody className="divide-y divide-gray-50">
+             {filtered.length === 0 && (
+               <tr><td colSpan={11} className="px-4 py-8 text-center text-gray-400 text-sm">No materials found.</td></tr>
             )}
             {filtered.map((m) => {
               const status = getStatus(m);
@@ -335,14 +366,28 @@ export function AllMaterialsPage() {
                   <td className="px-4 py-3">
                     <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${STATUS_STYLE[status]}`}>{status}</span>
                   </td>
-                  <td className="px-4 py-3">
-                    {m.materialType === "Reusable" && m.allocationStatus ? (
-                      <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${ALLOC_STYLE[m.allocationStatus]}`}>{m.allocationStatus}</span>
-                    ) : <span className="text-gray-300 text-xs">—</span>}
-                  </td>
-                  <td className="px-4 py-3">
-                    <div className="flex items-center gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity">
-                      {m.materialType === "Reusable" && (
+               <td className="px-4 py-3">
+                     {m.materialType === "Reusable" && m.allocationStatus ? (
+                       <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${ALLOC_STYLE[m.allocationStatus]}`}>{m.allocationStatus}</span>
+                     ) : <span className="text-gray-300 text-xs">—</span>}
+                   </td>
+                   <td className="px-4 py-3">
+                     {m.variants && m.variants.length > 0 ? (
+                       <div className="flex flex-col gap-1">
+                         {m.variants.map((v) => (
+                           <span key={v.sku ?? v.name} className="inline-flex items-center gap-1.5 px-2 py-0.5 text-xs bg-gray-50 border border-gray-200 rounded-md w-fit">
+                             <span className="font-medium text-gray-700">{v.name}</span>
+                             {v.dimensions && <span className="text-gray-400">{v.dimensions}</span>}
+                             {v.finish && <span className="text-gray-400">({v.finish})</span>}
+                             {v.sku && <span className="font-mono text-[9px] text-gray-400">{v.sku}</span>}
+                           </span>
+                         ))}
+                       </div>
+                     ) : <span className="text-gray-300 text-xs">—</span>}
+                   </td>
+                   <td className="px-4 py-3">
+                     <div className="flex items-center gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity">
+                       {m.materialType === "Reusable" && (
                         <button onClick={() => setTrackTarget(m)}
                           className="p-1 text-indigo-400 hover:text-indigo-600 rounded hover:bg-indigo-50" title="Track / Return">
                           <ArrowRightLeft className="w-3.5 h-3.5" />
@@ -422,6 +467,63 @@ export function AllMaterialsPage() {
                   </select>
                 </div>
               )}
+              <div>
+                <div className="flex items-center justify-between mb-2">
+                  <label className="block text-xs font-semibold text-gray-600">Material Variants / Levels</label>
+                  <button onClick={() => setVariants(p => [...p, { ...BLANK_VARIANT }])}
+                    className="text-xs text-teal-700 hover:text-teal-800 font-medium flex items-center gap-1">
+                    <Plus className="w-3 h-3" /> Add Variant
+                  </button>
+                </div>
+                <p className="text-[10px text-gray-400 mb-2">Define per-level specs (e.g. wall/floor tiles, dimensions) so requestors pick a specific variant.</p>
+                <div className="space-y-3">
+                  {variants.map((v, i) => (
+                    <div key={i} className="grid grid-cols-2 gap-2 items-end p-3 border border-gray-200 rounded-lg">
+                      <div>
+                        <label className="block text-[10px] font-medium text-gray-500 mb-1">Variant Name *</label>
+                        <input value={v.name} onChange={e => setVariants(p => p.map((x, j) => j === i ? { ...x, name: e.target.value } : x))}
+                          placeholder="e.g. Wall Tile"
+                          className="w-full border border-gray-200 rounded-lg px-2 py-1.5 text-sm outline-none focus:ring-2 focus:ring-teal-500" />
+                      </div>
+                      <div>
+                        <label className="block text-[10px] font-medium text-gray-500 mb-1">Unit Cost (₦)</label>
+                        <input type="number" min={0} value={v.unitCost} onChange={e => setVariants(p => p.map((x, j) => j === i ? { ...x, unitCost: e.target.value } : x))}
+                          className="w-full border border-gray-200 rounded-lg px-2 py-1.5 text-sm outline-none focus:ring-2 focus:ring-teal-500" />
+                      </div>
+                      <div>
+                        <label className="block text-[10px] font-medium text-gray-500 mb-1">Dimensions</label>
+                        <input value={v.dimensions} onChange={e => setVariants(p => p.map((x, j) => j === i ? { ...x, dimensions: e.target.value } : x))}
+                          placeholder="e.g. 600x600mm"
+                          className="w-full border border-gray-200 rounded-lg px-2 py-1.5 text-sm outline-none focus:ring-2 focus:ring-teal-500" />
+                      </div>
+                      <div>
+                        <label className="block text-[10px] font-medium text-gray-500 mb-1">Thickness</label>
+                        <input value={v.thickness} onChange={e => setVariants(p => p.map((x, j) => j === i ? { ...x, thickness: e.target.value } : x))}
+                          placeholder="e.g. 8mm"
+                          className="w-full border border-gray-200 rounded-lg px-2 py-1.5 text-sm outline-none focus:ring-2 focus:ring-teal-500" />
+                      </div>
+                      <div>
+                        <label className="block text-[10px] font-medium text-gray-500 mb-1">Finish</label>
+                        <input value={v.finish} onChange={e => setVariants(p => p.map((x, j) => j === i ? { ...x, finish: e.target.value } : x))}
+                          placeholder="e.g. Gloss"
+                          className="w-full border border-gray-200 rounded-lg px-2 py-1.5 text-sm outline-none focus:ring-2 focus:ring-teal-500" />
+                      </div>
+                      <div>
+                        <label className="block text-[10px] font-medium text-gray-500 mb-1">SKU</label>
+                        <input value={v.sku} onChange={e => setVariants(p => p.map((x, j) => j === i ? { ...x, sku: e.target.value } : x))}
+                          className="w-full border border-gray-200 rounded-lg px-2 py-1.5 text-sm outline-none focus:ring-2 focus:ring-teal-500" />
+                      </div>
+                      <div className="flex gap-1 items-end">
+                        <button disabled={variants.length === 1}
+                          onClick={() => setVariants(p => p.filter((_, j) => j !== i))}
+                          className="text-gray-400 hover:text-red-500 disabled:opacity-30">
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
             </div>
             <div className="px-6 py-4 border-t border-gray-100 flex justify-end gap-3">
               <button onClick={() => setShowModal(false)} className="px-4 py-2 text-sm border border-gray-200 rounded-xl text-gray-700 hover:bg-gray-50">Cancel</button>

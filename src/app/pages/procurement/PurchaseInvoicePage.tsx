@@ -1,11 +1,13 @@
 import { useState } from "react";
-import { Plus, FileText, ChevronDown, ChevronUp, X, CreditCard, BookOpen, Send, CheckCircle, ShieldCheck } from "lucide-react";
+import { Plus, FileText, ChevronDown, ChevronUp, X, CreditCard, BookOpen, Send, CheckCircle, ShieldCheck, Save } from "lucide-react";
 import { exportCSV } from "../../utils/exportCSV";
 import { DataTable, type Column } from "../../components/DataTable";
 import { useChangelog } from "../../stores/changelogStore";
 import { useNumbering } from "../../stores/numberingStore";
 import { useFinance } from "../../stores/financeStore";
 import { JournalLinesEditor, type JournalLineInput } from "../../components/JournalLinesEditor";
+import { useProcurementSettings } from "../../stores/procurementSettingsStore";
+import { getPaymentTerm as termFromConfig, DEFAULT_PAYMENT_TERM_ID } from "../../config/paymentTerms";
 
 type InvoiceStatus = "Draft" | "Pending Approval" | "Approved" | "Paid" | "Overdue";
 
@@ -15,6 +17,7 @@ interface InvoiceLine {
   qty: number;
   unit: string;
   unitPrice: number;
+  unitPriceOverride?: number;
 }
 
 interface PurchaseInvoice {
@@ -27,6 +30,7 @@ interface PurchaseInvoice {
   status: InvoiceStatus;
   paymentStatus?: "Pending Payment Approval" | "Payment Approved";
   ledgerRef?: string;
+  paymentTermId: string;
   lines: InvoiceLine[];
 }
 
@@ -43,7 +47,7 @@ const STATUS_ORDER: InvoiceStatus[] = ["Draft", "Pending Approval", "Approved", 
 const MOCK_INVOICES: PurchaseInvoice[] = [
   {
     id: "PI-001", invoiceNo: "INV-CEM-0142", supplier: "CemCo Nigeria Ltd", poRef: "PO-2025-014",
-    issueDate: "May 20, 2025", dueDate: "Jun 19, 2025", status: "Approved",
+    issueDate: "May 20, 2025", dueDate: "Jun 19, 2025", status: "Approved", paymentTermId: "50-50",
     lines: [
       { id: "l1", description: "Cement (50kg)", qty: 500, unit: "Bags", unitPrice: 8500 },
       { id: "l2", description: "Concrete Block 9 Inch", qty: 2000, unit: "Units", unitPrice: 350 },
@@ -51,7 +55,7 @@ const MOCK_INVOICES: PurchaseInvoice[] = [
   },
   {
     id: "PI-002", invoiceNo: "INV-STL-0089", supplier: "SteelMart International", poRef: "PO-2025-012",
-    issueDate: "May 15, 2025", dueDate: "Jun 14, 2025", status: "Paid",
+    issueDate: "May 15, 2025", dueDate: "Jun 14, 2025", status: "Paid", paymentTermId: "30-70",
     lines: [
       { id: "l3", description: "Steel Rebar Y16", qty: 20, unit: "Tonnes", unitPrice: 410000 },
       { id: "l4", description: "Binding Wire", qty: 50, unit: "Rolls", unitPrice: 2800 },
@@ -59,26 +63,46 @@ const MOCK_INVOICES: PurchaseInvoice[] = [
   },
   {
     id: "PI-003", invoiceNo: "INV-ELT-0033", supplier: "ElectraHub", poRef: "PO-2025-010",
-    issueDate: "Apr 30, 2025", dueDate: "May 30, 2025", status: "Overdue",
+    issueDate: "Apr 30, 2025", dueDate: "May 30, 2025", status: "Overdue", paymentTermId: "full-delivery",
     lines: [
       { id: "l5", description: "Electrical Conduit 25mm", qty: 1000, unit: "Metres", unitPrice: 1200 },
     ],
   },
   {
     id: "PI-004", invoiceNo: "INV-STL-0090", supplier: "SteelMart International", poRef: "PO-2025-018",
-    issueDate: "Jun 1, 2025", dueDate: "Jul 1, 2025", status: "Pending Approval",
+    issueDate: "Jun 1, 2025", dueDate: "Jul 1, 2025", status: "Pending Approval", paymentTermId: "net-30",
     lines: [
       { id: "l6", description: "Steel Rebar Y12", qty: 15, unit: "Tonnes", unitPrice: 380000 },
     ],
   },
 ];
 
-function lineTotal(lines: InvoiceLine[]) {
-  return lines.reduce((s, l) => s + l.qty * l.unitPrice, 0);
+function lineTotal(l: InvoiceLine) {
+  return l.qty * (l.unitPriceOverride ?? l.unitPrice);
+}
+
+function lineTotalAll(lines: InvoiceLine[]) {
+  return lines.reduce((s, l) => s + lineTotal(l), 0);
 }
 
 function fmt(n: number) {
   return "₦" + n.toLocaleString("en-NG");
+}
+
+function tranchePercent(inv: PurchaseInvoice, getPaymentTerm: (id: string) => { tranches: { percent: number; timing: string }[] }): number {
+  const term = getPaymentTerm(inv.paymentTermId);
+  const prePct = term.tranches
+    .filter(t => t.timing === "on_po_approval" || t.timing === "on_delivery")
+    .reduce((s, t) => s + t.percent, 0);
+  return prePct > 0 ? Math.min(prePct, 100) : 0;
+}
+
+function dueAmount(inv: PurchaseInvoice, getPaymentTerm: (id: string) => { tranches: { percent: number; timing: string }[] }): number {
+  return Math.round(lineTotalAll(inv.lines) * tranchePercent(inv, getPaymentTerm) / 100);
+}
+
+function termName(id: string, getPaymentTerm: (id: string) => { name: string }): string {
+  try { return getPaymentTerm(id).name; } catch { return "—"; }
 }
 
 const BLANK_LINE = (): InvoiceLine => ({
@@ -88,7 +112,8 @@ const BLANK_LINE = (): InvoiceLine => ({
 
 const BLANK_FORM = {
   invoiceNo: "", supplier: "", poRef: "",
-  issueDate: "", dueDate: "", status: "Draft" as InvoiceStatus,
+  issueDate: "", dueDate: "", status: "Draft" as InvoiceStatus, paymentStatus: undefined as undefined,
+  paymentTermId: DEFAULT_PAYMENT_TERM_ID,
   lines: [BLANK_LINE()],
 };
 
@@ -105,7 +130,7 @@ function PayInvoiceModal({ invoice, mode, onClose, onSend, onPost }: {
 }) {
   const { getPostableAccounts } = useFinance();
   const postableAccounts = getPostableAccounts().map(a => ({ code: a.code, name: a.name }));
-  const total = lineTotal(invoice.lines);
+  const total = lineTotalAll(invoice.lines);
 
   const [date, setDate] = useState(new Date().toISOString().slice(0, 10));
   const [method, setMethod] = useState(invoice.paymentMethod ?? "Bank Transfer");
@@ -213,6 +238,7 @@ export function PurchaseInvoicePage() {
   const { logChange } = useChangelog();
   const { getNextId } = useNumbering();
   const { postTransaction } = useFinance();
+  const { getPaymentTerm, paymentTerms, defaultPaymentTermId } = useProcurementSettings();
 
   const filtered = invoices.filter((inv) => {
     const matchSearch =
@@ -236,6 +262,13 @@ export function PurchaseInvoicePage() {
       ...f,
       lines: f.lines.map((l) => (l.id === id ? { ...l, [key]: value } : l)),
     }));
+  }
+
+  function updateUnitPrice(invId: string, lineId: string, price: number) {
+    setInvoices((prev) => prev.map((inv) => inv.id === invId ? {
+      ...inv, lines: inv.lines.map((l) => l.id === lineId ? { ...l, unitPriceOverride: price } : l)
+    } : inv));
+    logChange({ module: "Procurement", action: "UnitPriceOverride", entityType: "PurchaseInvoice", entityId: lineId, summary: `Invoice ${invId}: unit price override ${fmt(price)}`, performedBy: "Current User" });
   }
 
   function saveInvoice() {
@@ -295,8 +328,8 @@ export function PurchaseInvoicePage() {
   }
 
   function handleExport() {
-    exportCSV("purchase-invoices", ["Invoice No", "Supplier", "PO Ref", "Issue Date", "Due Date", "Amount", "Status"],
-      invoices.map((inv) => [inv.invoiceNo, inv.supplier, inv.poRef, inv.issueDate, inv.dueDate, fmt(lineTotal(inv.lines)), inv.status])
+    exportCSV("purchase-invoices", ["Invoice No", "Supplier", "PO Ref", "Issue Date", "Due Date", "Total", "Amount Due", "Balance", "Payment Term", "Status"],
+      invoices.map((inv) => [inv.invoiceNo, inv.supplier, inv.poRef, inv.issueDate, inv.dueDate, fmt(lineTotalAll(inv.lines)), fmt(dueAmount(inv, getPaymentTerm)), fmt(lineTotalAll(inv.lines) - dueAmount(inv, getPaymentTerm)), termName(inv.paymentTermId, getPaymentTerm), inv.status])
     );
   }
 
@@ -322,7 +355,7 @@ export function PurchaseInvoicePage() {
           <div className="flex flex-col items-start gap-1">
             {inv.paymentStatus === undefined && (
               <button onClick={() => setPayTarget(inv)}
-                className="text-xs text-emerald-600 hover:underline">Post →</button>
+                className="text-xs text-emerald-600 hover:underline">Send for approval →</button>
             )}
             {inv.paymentStatus === "Pending Payment Approval" && (
               <button onClick={() => approvePayment(inv)}
@@ -377,11 +410,37 @@ export function PurchaseInvoicePage() {
     },
     {
       key: "amount",
-      label: "Amount ($)",
+      label: "Total",
       sortable: true,
       className: "text-right",
       headerClassName: "text-right",
-      render: (inv) => <span className="font-semibold text-gray-900">{fmt(lineTotal(inv.lines))}</span>,
+      render: (inv) => <span className="font-semibold text-gray-900">{fmt(lineTotalAll(inv.lines))}</span>,
+    },
+    {
+      key: "amountDue",
+      label: "Amount Due",
+      sortable: true,
+      className: "text-right",
+      headerClassName: "text-right",
+      render: (inv) => <span className="font-medium text-orange-700">{fmt(dueAmount(inv, getPaymentTerm))}</span>,
+    },
+    {
+      key: "balance",
+      label: "Balance",
+      sortable: true,
+      className: "text-right",
+      headerClassName: "text-right",
+      render: (inv) => {
+        const bal = lineTotalAll(inv.lines) - dueAmount(inv, getPaymentTerm);
+        return <span className={`font-medium ${bal > 0 ? "text-red-600" : "text-green-700"}`}>{fmt(bal)}</span>;
+      },
+    },
+    {
+      key: "paymentTerm",
+      label: "Payment Term",
+      sortable: false,
+      filterable: false,
+      render: (inv) => <span className="text-xs text-gray-500">{termName(inv.paymentTermId, getPaymentTerm)}</span>,
     },
     {
       key: "date",
@@ -436,7 +495,7 @@ export function PurchaseInvoicePage() {
       <div className="grid grid-cols-4 gap-4">
         {(["Draft", "Pending Approval", "Approved", "Overdue"] as InvoiceStatus[]).map((s) => {
           const count = invoices.filter((i) => i.status === s).length;
-          const total = invoices.filter((i) => i.status === s).reduce((acc, i) => acc + lineTotal(i.lines), 0);
+          const total = invoices.filter((i) => i.status === s).reduce((acc, i) => acc + lineTotalAll(i.lines), 0);
           return (
             <div key={s} className={`p-4 rounded-xl border ${STATUS_STYLES[s]} border-current/20 bg-white`}>
               <p className="text-2xl font-bold">{count}</p>
@@ -470,6 +529,61 @@ export function PurchaseInvoicePage() {
         searchPlaceholder="Search invoices..."
         searchFields={[inv => inv.invoiceNo, inv => inv.supplier, inv => inv.poRef]}
         emptyMessage="No invoices found"
+        expandedKey={expanded}
+        onToggleExpand={(inv) => setExpanded((p) => (p === inv.id ? null : inv.id))}
+        renderExpanded={(inv) => (
+          <div className="bg-gray-50 border-t border-gray-200 px-5 py-4">
+            <div className="flex items-center justify-between mb-3">
+              <h3 className="text-sm font-semibold text-gray-800">Line Items — {inv.invoiceNo}</h3>
+              <span className="text-xs text-gray-500">{termName(inv.paymentTermId, getPaymentTerm)} · Due {inv.dueDate}</span>
+            </div>
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="text-xs text-gray-500 uppercase tracking-wide border-b border-gray-200">
+                  <th className="pb-2 text-left font-medium">Description</th>
+                  <th className="pb-2 text-right font-medium">Qty</th>
+                  <th className="pb-2 text-right font-medium">Unit</th>
+                  <th className="pb-2 text-right font-medium">Supplier Unit Price</th>
+                  <th className="pb-2 text-right font-medium">Finance Unit Price *</th>
+                  <th className="pb-2 text-right font-medium">Line Total</th>
+                  <th className="pb-2 text-right font-medium">Line Due</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-100">
+                {inv.lines.map((l) => {
+                  const override = l.unitPriceOverride ?? l.unitPrice;
+                  const lineDue = (l.qty * override) * (tranchePercent(inv, getPaymentTerm) / 100);
+                  return (
+                    <tr key={l.id} className="bg-white">
+                      <td className="py-2 pr-2 text-gray-700">{l.description}</td>
+                      <td className="py-2 text-right text-gray-600">{l.qty}</td>
+                      <td className="py-2 text-right text-gray-500">{l.unit}</td>
+                      <td className="py-2 text-right text-gray-500">{fmt(l.unitPrice)}</td>
+                      <td className="py-2 text-right">
+                        <div className="inline-flex items-center gap-1">
+                          <input type="number" min={0} step="1"
+                            value={l.unitPriceOverride ?? ""}
+                            onChange={e => updateUnitPrice(inv.id, l.id, parseFloat(e.target.value) || 0)}
+                            className="w-24 text-right px-1.5 py-1 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                            placeholder={fmt(l.unitPrice)}
+                            title="Finance-adjusted unit price (override)" />
+                          {l.unitPriceOverride != null && <Save className="w-3 h-3 text-green-600" />}
+                        </div>
+                      </td>
+                      <td className="py-2 text-right font-medium text-gray-900">{fmt(l.qty * override)}</td>
+                      <td className="py-2 text-right text-orange-700">{fmt(lineDue)}</td>
+                    </tr>
+                  );
+                })}
+                <tr className="border-t border-gray-200">
+                  <td colSpan={6} className="pt-3 text-right font-semibold text-gray-700 text-sm">Total</td>
+                  <td className="pt-3 text-right font-bold text-gray-900">{fmt(lineTotalAll(inv.lines))}</td>
+                </tr>
+              </tbody>
+            </table>
+            <p className="mt-2 text-[10px] text-gray-400">* Finance adjusts the unit price here to impute the payment per item; totals, Amount Due and Balance update live.</p>
+          </div>
+        )}
         headerExtra={
           <button onClick={handleExport}
             className="flex items-center gap-1.5 px-3 py-1.5 text-xs border border-gray-300 rounded-lg hover:bg-gray-50">
@@ -477,43 +591,6 @@ export function PurchaseInvoicePage() {
           </button>
         }
       />
-
-      {/* Expanded line items */}
-      {expanded && (
-        <div className="bg-white border border-gray-200 rounded-xl p-5 space-y-3">
-          {invoices.filter(inv => inv.id === expanded).map(inv => (
-            <div key={inv.id}>
-              <h3 className="text-sm font-semibold text-gray-700 mb-2">Line Items — {inv.invoiceNo}</h3>
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="text-xs text-gray-500 uppercase tracking-wide border-b border-gray-200">
-                    <th className="pb-2 text-left font-medium">Description</th>
-                    <th className="pb-2 text-right font-medium">Qty</th>
-                    <th className="pb-2 text-right font-medium">Unit</th>
-                    <th className="pb-2 text-right font-medium">Unit Price</th>
-                    <th className="pb-2 text-right font-medium">Total</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-gray-100">
-                  {inv.lines.map((l) => (
-                    <tr key={l.id}>
-                      <td className="py-2 text-gray-700">{l.description}</td>
-                      <td className="py-2 text-right text-gray-600">{l.qty}</td>
-                      <td className="py-2 text-right text-gray-500">{l.unit}</td>
-                      <td className="py-2 text-right text-gray-600">{fmt(l.unitPrice)}</td>
-                      <td className="py-2 text-right font-medium text-gray-900">{fmt(l.qty * l.unitPrice)}</td>
-                    </tr>
-                  ))}
-                  <tr>
-                    <td colSpan={4} className="pt-3 text-right font-semibold text-gray-700 text-sm">Total</td>
-                    <td className="pt-3 text-right font-bold text-gray-900">{fmt(lineTotal(inv.lines))}</td>
-                  </tr>
-                </tbody>
-              </table>
-            </div>
-          ))}
-        </div>
-      )}
 
       {/* Pay / Post Invoice Modal */}
       {payTarget && (
@@ -551,15 +628,23 @@ export function PurchaseInvoicePage() {
                   <input className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-blue-500"
                     placeholder="PO-2025-XXX" value={form.poRef} onChange={(e) => setForm({ ...form, poRef: e.target.value })} />
                 </div>
-                <div>
-                  <label className="block text-xs font-medium text-gray-600 mb-1">Status</label>
-                  <select className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-blue-500"
-                    value={form.status} onChange={(e) => setForm({ ...form, status: e.target.value as InvoiceStatus })}>
-                    {(["Draft", "Pending Approval", "Approved"] as InvoiceStatus[]).map((s) => (
-                      <option key={s}>{s}</option>
-                    ))}
-                  </select>
-                </div>
+                 <div>
+                   <label className="block text-xs font-medium text-gray-600 mb-1">Status</label>
+                   <select className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-blue-500"
+                     value={form.status} onChange={(e) => setForm({ ...form, status: e.target.value as InvoiceStatus })}>
+                     {(["Draft", "Pending Approval", "Approved"] as InvoiceStatus[]).map((s) => (
+                       <option key={s}>{s}</option>
+                     ))}
+                   </select>
+                 </div>
+                 <div>
+                   <label className="block text-xs font-medium text-gray-600 mb-1">Payment Term</label>
+                   <select className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-blue-500 bg-white"
+                     value={form.paymentTermId} onChange={(e) => setForm({ ...form, paymentTermId: e.target.value })}>
+                     <option value={defaultPaymentTermId}>Default ({getPaymentTerm(defaultPaymentTermId).name})</option>
+                     {paymentTerms.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
+                   </select>
+                 </div>
                 <div>
                   <label className="block text-xs font-medium text-gray-600 mb-1">Issue Date</label>
                   <input type="date" className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-blue-500"
@@ -607,7 +692,7 @@ export function PurchaseInvoicePage() {
                 </div>
                 <div className="mt-3 text-right">
                   <span className="text-sm font-semibold text-gray-700">
-                    Total: {fmt(form.lines.reduce((s, l) => s + l.qty * l.unitPrice, 0))}
+                    Total: {fmt(lineTotalAll(form.lines))}
                   </span>
                 </div>
               </div>

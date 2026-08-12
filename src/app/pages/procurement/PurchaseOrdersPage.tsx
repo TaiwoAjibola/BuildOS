@@ -2,12 +2,13 @@ import { useState } from "react";
 import {
   ShoppingCart, Plus, Search, ChevronDown, ChevronRight,
   FileText, Truck, CheckCircle, Clock, XCircle, Send, Download, Package, X, Trash2,
-  CreditCard, Building2, LinkIcon, DownloadCloud,
+  Building2, LinkIcon, DownloadCloud,
 } from "lucide-react";
 import { DataTable, type Column } from "../../components/DataTable";
 import { useChangelog } from "../../stores/changelogStore";
 import { exportCSV } from "../../utils/exportCSV";
-import { useNumbering } from "../../stores/numberingStore";
+import { useNavigate } from "react-router";
+import { useNumbering, formatId } from "../../stores/numberingStore";
 import { useProcurementSettings, tranchesLabel, type PaymentTermPreset, type Signatory } from "../../stores/procurementSettingsStore";
 import { useProcurement } from "../../stores/procurementStore";
 import { PurchaseOrderPaper, printPoDocument } from "../../components/PurchaseOrderDocument";
@@ -18,6 +19,7 @@ type PaymentStatus = "unpaid" | "confirmation_requested" | "paid";
 interface PurchaseOrder {
   id: string; prRef: string; mrRef: string; supplier: string; supplierContact: string;
   status: POStatus; paymentStatus: PaymentStatus; sentToFinance: boolean; financeRef?: string;
+  created?: boolean;
   paymentTermId: string;
   signatories?: string[];
   createdBy: string; createdDate: string; expectedDate: string;
@@ -101,8 +103,18 @@ function NewPOModal({ onClose, onSave, initial }: {
   const removeItem = (i: number) => setItems(p => p.filter((_, j) => j !== i));
   const updateItem = (i: number, k: keyof POItem, v: string) => setItems(p => p.map((it, j) => j === i ? { ...it, [k]: v } : it));
   const totalValue = items.reduce((s, it) => s + (parseFloat(it.qty) || 0) * (parseFloat(it.unitCost) || 0), 0);
-  const { getNextId } = useNumbering();
+  const { configs } = useNumbering();
   const validSetup = !!supplier && items.every(it => it.material.trim() && it.qty.trim() && it.unitCost.trim());
+
+  // Pure read of the next PO number — getNextId() MUTATES store state, so it
+  // must never be called during render (it caused an infinite render loop in
+  // the preview). The real counter advances once, at commit time (handleCreate).
+  function peekNextId(): string {
+    const cfg = configs.find(c => c.module === "PurchaseOrder");
+    if (!cfg) return "PO-0001";
+    const nextNum = cfg.lastUsedNumber === 0 ? cfg.startingNumber : cfg.lastUsedNumber + cfg.incrementBy;
+    return formatId(cfg.template, nextNum);
+  }
 
   const term = paymentTerms.find(t => t.id === paymentTermId) ?? paymentTerms[0];
 
@@ -162,11 +174,11 @@ function NewPOModal({ onClose, onSave, initial }: {
   }
 
   function buildPO(): PurchaseOrder {
-    const nextId = getNextId("PurchaseOrder");
+    const nextId = peekNextId();
     return {
       id: nextId, prRef: prRef.trim() || "—", mrRef: "—", supplier,
       supplierContact: supplierContact.trim() || supplier,
-      status: "draft", paymentStatus: "unpaid", sentToFinance: false,
+      status: "draft", paymentStatus: "unpaid", sentToFinance: false, created: true,
       paymentTermId: customMode ? (commitTermId ?? paymentTermId) : paymentTermId,
       signatories: selectedSignatories,
       createdBy: "Amaka Osei",
@@ -484,73 +496,6 @@ function SendToSupplierModal({ po, onClose, onDone }: { po: PurchaseOrder; onClo
   );
 }
 
-function RecordReceiptModal({ po, onClose, onDone }: { po: PurchaseOrder; onClose: () => void; onDone: (received: number[]) => void }) {
-  const [received, setReceived] = useState<string[]>(po.items.map(() => ""));
-  const [warehouse, setWarehouse] = useState("Main Store");
-  const [deliveryNote, setDeliveryNote] = useState("");
-  const valid = received.every(v => v.trim() !== "") && deliveryNote.trim();
-
-  return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto">
-        <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 sticky top-0 bg-white z-10">
-          <h2 className="text-base font-semibold text-gray-900">Record Delivery — {po.id}</h2>
-          <button onClick={onClose} className="text-gray-400 hover:text-gray-600"><X className="w-5 h-5" /></button>
-        </div>
-        <div className="px-6 py-5 space-y-4">
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label className="block text-xs font-medium text-gray-600 mb-1">Warehouse / Location</label>
-              <input value={warehouse} onChange={e => setWarehouse(e.target.value)}
-                className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
-            </div>
-            <div>
-              <label className="block text-xs font-medium text-gray-600 mb-1">Delivery Note No. <span className="text-red-500">*</span></label>
-              <input value={deliveryNote} onChange={e => setDeliveryNote(e.target.value)} placeholder="DN-XXXX-0000"
-                className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
-            </div>
-          </div>
-          <div>
-            <p className="text-xs font-medium text-gray-600 mb-2">Quantities Received</p>
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="bg-gray-50 text-xs text-gray-500 border-b border-gray-200">
-                  <th className="text-left px-3 py-2">Material</th>
-                  <th className="text-right px-3 py-2">Ordered</th>
-                  <th className="text-right px-3 py-2">Already Rcvd</th>
-                  <th className="px-3 py-2">Qty Received Now</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-100">
-                {po.items.map((item, i) => (
-                  <tr key={i} className="bg-white">
-                    <td className="px-3 py-2 font-medium text-gray-800">{item.material}</td>
-                    <td className="px-3 py-2 text-right text-gray-600">{item.qty} {item.unit}</td>
-                    <td className="px-3 py-2 text-right text-gray-500">{item.received} {item.unit}</td>
-                    <td className="px-3 py-2">
-                      <input type="number" min={0} max={item.qty - item.received}
-                        value={received[i]} onChange={e => setReceived(p => p.map((v, j) => j === i ? e.target.value : v))}
-                        placeholder={`Max ${item.qty - item.received}`}
-                        className="w-full border border-gray-300 rounded-lg px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </div>
-        <div className="flex justify-end gap-3 px-6 py-4 border-t border-gray-100">
-          <button onClick={onClose} className="px-4 py-2 text-sm border border-gray-300 rounded-xl text-gray-700 hover:bg-gray-50">Cancel</button>
-          <button onClick={() => valid && onDone(received.map(v => parseFloat(v) || 0))} disabled={!valid}
-            className="px-4 py-2 text-sm bg-green-600 text-white rounded-xl hover:bg-green-700 disabled:opacity-40 disabled:cursor-not-allowed flex items-center gap-2">
-            <Truck className="w-4 h-4" /> Confirm Receipt
-          </button>
-        </div>
-      </div>
-    </div>
-  );
-}
-
 // ── Formal PO document ─────────────────────────────────────────────────────
 // Viewable/downloadable legal PO rendered as a reusable "paper" (see
 // components/PurchaseOrderDocument) shared with the create-PO preview and the
@@ -593,11 +538,12 @@ export function PurchaseOrdersPage() {
   const { logChange } = useChangelog();
   const { purchaseOrders: poList, setPurchaseOrders: setPoList } = useProcurement();
   const { getPaymentTerm, signatories, signatoriesFor } = useProcurementSettings();
+  const { getNextId } = useNumbering();
+  const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState<POStatus | "all">("all");
   const [showNewPO, setShowNewPO] = useState(false);
   const [createFrom, setCreateFrom] = useState<PurchaseOrder | null>(null);
   const [sendPO, setSendPO] = useState<PurchaseOrder | null>(null);
-  const [receiptPO, setReceiptPO] = useState<PurchaseOrder | null>(null);
   const [viewPO, setViewPO] = useState<PurchaseOrder | null>(null);
 
   // Creating a PO is term-driven: a term that pays BEFORE delivery routes the
@@ -614,8 +560,11 @@ export function PurchaseOrdersPage() {
   }
 
   function handleCreate(po: PurchaseOrder, action: "send-to-finance" | "download" | "send" | "draft") {
+    const sourceId = createFrom?.id ?? null;
+    const finalId = getNextId("PurchaseOrder");
+    const finalPo = { ...po, id: finalId };
     const save = (next: PurchaseOrder) => {
-      setPoList(prev => [next, ...prev]);
+      setPoList(prev => sourceId ? [next, ...prev.filter(p => p.id !== sourceId)] : [next, ...prev]);
       logChange({ module: "Procurement", action: "Created", entityType: "PurchaseOrder", entityId: next.id, summary: `PO ${next.id} created — ${next.supplier} (${fmt(next.totalValue)})`, performedBy: "Current User" });
       setShowNewPO(false);
       setCreateFrom(null);
@@ -623,11 +572,11 @@ export function PurchaseOrdersPage() {
     };
 
     if (action === "draft") {
-      save(po);
+      save(finalPo);
       return;
     }
 
-    const routed = routeCreated(po);
+    const routed = routeCreated(finalPo);
     const term = getPaymentTerm(routed.paymentTermId);
     const hasPreDelivery = term.tranches.some(t => t.timing === "on_po_approval");
     const saved = save(routed);
@@ -652,22 +601,6 @@ export function PurchaseOrdersPage() {
     const ref = `FIN-${String(Math.floor(Math.random() * 9000) + 1000)}`;
     setPoList((prev) => prev.map((p) => p.id === po.id ? { ...p, sentToFinance: true, financeRef: ref } : p));
     logChange({ module: "Procurement", action: "Sent to Finance", entityType: "PurchaseOrder", entityId: po.id, summary: `PO ${po.id} sent to finance (${ref})`, performedBy: "Current User" });
-  }
-
-  function requestPaymentConfirmation(po: PurchaseOrder) {
-    setPoList((prev) => prev.map((p) => p.id === po.id ? { ...p, paymentStatus: "confirmation_requested" as PaymentStatus } : p));
-    logChange({ module: "Procurement", action: "Payment Confirmation Requested", entityType: "PurchaseOrder", entityId: po.id, summary: `Payment confirmation requested for PO ${po.id}`, performedBy: "Current User" });
-  }
-
-  function markPaid(po: PurchaseOrder) {
-    setPoList((prev) => prev.map((p) => p.id === po.id ? { ...p, paymentStatus: "paid" as PaymentStatus } : p));
-    logChange({ module: "Procurement", action: "Paid", entityType: "PurchaseOrder", entityId: po.id, summary: `PO ${po.id} marked as paid`, performedBy: "Current User" });
-  }
-
-  function deletePO(po: PurchaseOrder) {
-    if (!window.confirm(`Delete ${po.id}?`)) return;
-    setPoList((prev) => prev.filter((p) => p.id !== po.id));
-    logChange({ module: "Procurement", action: "Deleted", entityType: "PurchaseOrder", entityId: po.id, summary: `PO ${po.id} deleted`, performedBy: "Current User" });
   }
 
   const filtered = poList.filter(po => activeTab === "all" || po.status === activeTab);
@@ -749,55 +682,35 @@ export function PurchaseOrdersPage() {
       label: "Actions",
       sortable: false,
       filterable: false,
-      render: (po) => (
-        <div className="flex items-center gap-1">
-          {po.status !== "cancelled" && (
+      render: (po) => {
+        if (!po.created) {
+          // Not yet a PO — the only action is Create PO.
+          return (
             <button onClick={(e) => { e.stopPropagation(); setCreateFrom(po); }}
               className="flex items-center gap-1 px-2 py-1 text-xs font-medium text-blue-700 bg-blue-50 border border-blue-200 rounded-md hover:bg-blue-100 transition-colors" title="Create PO from this row (inherits supplier + items)">
               <Plus className="w-3 h-3" /> Create PO
             </button>
-          )}
-          <button onClick={(e) => { e.stopPropagation(); setViewPO(po); }} className="p-1.5 text-gray-400 hover:bg-gray-100 rounded-md transition-colors" title="View formal PO document">
-            <FileText className="w-3.5 h-3.5" />
-          </button>
-          {po.status === "draft" && (
-            <>
-              <button onClick={(e) => { e.stopPropagation(); setSendPO(po); }} className="p-1.5 text-blue-600 hover:bg-blue-50 rounded-md transition-colors" title="Send to Supplier">
-                <Send className="w-3.5 h-3.5" />
+          );
+        }
+        const term = getPaymentTerm(po.paymentTermId);
+        const hasPreDelivery = term.tranches.some(t => t.timing === "on_po_approval");
+        return (
+          <div className="flex items-center gap-1">
+            <button onClick={(e) => { e.stopPropagation(); setViewPO(po); }} className="p-1.5 text-gray-400 hover:bg-gray-100 rounded-md transition-colors" title="View PO document">
+              <FileText className="w-3.5 h-3.5" />
+            </button>
+            {hasPreDelivery ? (
+              po.sentToFinance
+                ? <span className="inline-flex items-center gap-1 text-xs px-2 py-1 rounded-full bg-indigo-100 text-indigo-700 font-medium"><Building2 className="w-3 h-3" /> Sent to Finance</span>
+                : <button onClick={(e) => { e.stopPropagation(); sendToFinance(po); }} className="flex items-center gap-1 px-2 py-1 text-xs font-medium text-indigo-700 bg-indigo-50 border border-indigo-200 rounded-md hover:bg-indigo-100 transition-colors"><Building2 className="w-3 h-3" /> Send to Finance</button>
+            ) : (
+              <button onClick={(e) => { e.stopPropagation(); navigate("/apps/procurement/goods-receipt"); }} className="flex items-center gap-1 px-2 py-1 text-xs font-medium text-amber-700 bg-amber-50 border border-amber-200 rounded-md hover:bg-amber-100 transition-colors" title="After-delivery term — record delivery on Goods Receipt">
+                <Truck className="w-3 h-3" /> Goods Receipt
               </button>
-              <button onClick={(e) => { e.stopPropagation(); deletePO(po); }} className="p-1.5 text-red-500 hover:bg-red-50 rounded-md transition-colors" title="Delete PO">
-                <Trash2 className="w-3.5 h-3.5" />
-              </button>
-            </>
-          )}
-          {["confirmed", "partially_received", "completed"].includes(po.status) && !po.sentToFinance && (
-            <button onClick={(e) => { e.stopPropagation(); sendToFinance(po); }} className="p-1.5 text-indigo-600 hover:bg-indigo-50 rounded-md transition-colors" title="Send to Finance">
-              <Building2 className="w-3.5 h-3.5" />
-            </button>
-          )}
-          {po.status === "confirmed" && po.paymentStatus === "unpaid" && (
-            <button onClick={(e) => { e.stopPropagation(); requestPaymentConfirmation(po); }} className="p-1.5 text-green-600 hover:bg-green-50 rounded-md transition-colors" title="Request Payment Confirmation">
-              <CreditCard className="w-3.5 h-3.5" />
-            </button>
-          )}
-          {po.status === "confirmed" && po.paymentStatus === "confirmation_requested" && (
-            <button onClick={(e) => { e.stopPropagation(); markPaid(po); }} className="p-1.5 text-emerald-600 hover:bg-emerald-50 rounded-md transition-colors" title="Mark as Paid">
-              <CheckCircle className="w-3.5 h-3.5" />
-            </button>
-          )}
-          {po.status === "partially_received" && (
-            <button onClick={(e) => { e.stopPropagation(); setReceiptPO(po); }} className="p-1.5 text-amber-600 hover:bg-amber-50 rounded-md transition-colors" title="Record Delivery">
-              <Truck className="w-3.5 h-3.5" />
-            </button>
-          )}
-          {po.status === "sent" && (
-            <span className="text-xs text-gray-400 italic">Awaiting confirmation</span>
-          )}
-          {po.status === "completed" && po.paymentStatus === "paid" && (
-            <span className="text-xs text-green-600 font-medium">Completed</span>
-          )}
-        </div>
-      ),
+            )}
+          </div>
+        );
+      },
     },
   ];
 
@@ -895,23 +808,6 @@ export function PurchaseOrdersPage() {
             setPoList(prev => prev.map(p => p.id === sendPO.id ? { ...p, status: "sent" as const } : p));
             logChange({ module: "Procurement", action: "Sent", entityType: "PurchaseOrder", entityId: sendPO.id, summary: `PO ${sendPO.id} sent to supplier (${sendPO.supplier})`, performedBy: "Current User" });
             setSendPO(null);
-          }}
-        />
-      )}
-      {receiptPO && (
-        <RecordReceiptModal
-          po={receiptPO}
-          onClose={() => setReceiptPO(null)}
-          onDone={(received) => {
-            setPoList(prev => prev.map(p => {
-              if (p.id !== receiptPO.id) return p;
-              const newItems = p.items.map((it, i) => ({ ...it, received: it.received + (received[i] || 0) }));
-              const newReceivedValue = newItems.reduce((s, it) => s + it.received * it.unitCost, 0);
-              const allReceived = newItems.every(it => it.received >= it.qty);
-              return { ...p, items: newItems, receivedValue: newReceivedValue, status: (allReceived ? "completed" : "partially_received") as typeof p.status };
-            }));
-            logChange({ module: "Procurement", action: "Delivery Recorded", entityType: "PurchaseOrder", entityId: receiptPO.id, summary: `Delivery recorded for PO ${receiptPO.id}`, performedBy: "Current User" });
-            setReceiptPO(null);
           }}
         />
       )}
