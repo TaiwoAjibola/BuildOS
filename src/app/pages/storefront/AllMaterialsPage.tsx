@@ -1,5 +1,6 @@
-import { useState } from "react";
-import { Plus, Search, Download, Filter, AlertTriangle, Pencil, Trash2, ShoppingCart, CheckCircle, X, RefreshCw, ArrowRightLeft, Package } from "lucide-react";
+import { Fragment, useMemo, useState } from "react";
+import { Plus, Search, Download, Filter, AlertTriangle, Pencil, Trash2, ShoppingCart, CheckCircle, X, RefreshCw, ArrowRightLeft, Package, ChevronRight, Layers } from "lucide-react";
+import { useStorefront, type CategoryMaterial } from "../../stores/storefrontStore";
 
 type MaterialStatus = "In Stock" | "Low Stock" | "Out of Stock";
 type MaterialType = "Consumable" | "Reusable";
@@ -16,11 +17,18 @@ interface Material {
   unitCost: number;
   reorderLevel: number;
   materialType: MaterialType;
+  types?: CatalogType[];
   allocationStatus?: AllocationStatus;
   allocatedTo?: string;
   allocatedProject?: string;
   condition?: string;
 }
+
+type CatalogType = {
+  name: string;
+  dimensions: { standard: string; value: string; unit: string }[];
+  sku?: string;
+};
 
 const MOCK: Material[] = [
   { id: "MAT-001", name: "Cement (50kg bag)",        category: "Concrete",   unit: "Bags",    totalQty: 380,  availableQty: 260, reservedQty: 120, unitCost: 8500,   reorderLevel: 100, materialType: "Consumable" },
@@ -68,6 +76,22 @@ const ALLOC_STYLE: Record<AllocationStatus, string> = {
   Allocated:           "bg-blue-100 text-blue-700",
   "Under Maintenance": "bg-orange-100 text-orange-700",
 };
+
+// Resolve the catalogue types (variants) for a material row by name.
+function resolveTypes(m: Material, catalog: { material: CategoryMaterial }[]): CatalogType[] {
+  if (m.types && m.types.length > 0) return m.types;
+  const norm = (s: string) => s.toLowerCase().trim();
+  const n = norm(m.name);
+  let best: CategoryMaterial | null = null;
+  let bestScore = 0;
+  for (const { material } of catalog) {
+    const mn = norm(material.name);
+    if (mn === n) { best = material; bestScore = 100; break; }
+    if (n.startsWith(mn) && mn.length > bestScore) { best = material; bestScore = mn.length; }
+    if (mn.startsWith(n) && n.length > bestScore) { best = material; bestScore = n.length; }
+  }
+  return best ? best.types.map(t => ({ name: t.name, dimensions: t.dimensions, sku: t.sku })) : [];
+}
 
 // ── Allocation Tracking Modal ─────────────────────────────────────────────────
 function TrackModal({ material, onClose, onSave }: {
@@ -155,7 +179,68 @@ function TrackModal({ material, onClose, onSave }: {
   );
 }
 
+// ── Search & select catalogue material (auto-fills category / name / unit) ──
+function CataloguePicker({ onPick, placeholder }: {
+  onPick: (cm: CategoryMaterial, categoryName: string) => void;
+  placeholder?: string;
+}) {
+  const { categories } = useStorefront();
+  const [q, setQ] = useState("");
+  const [open, setOpen] = useState(false);
+
+  const results = useMemo(() => {
+    const needle = q.toLowerCase().trim();
+    const rows: { categoryName: string; material: CategoryMaterial }[] = [];
+    for (const c of categories) {
+      for (const m of c.materials) {
+        if (!needle
+          || m.name.toLowerCase().includes(needle)
+          || c.name.toLowerCase().includes(needle)
+          || m.types.some(t => t.name.toLowerCase().includes(needle))) {
+          rows.push({ categoryName: c.name, material: m });
+        }
+      }
+    }
+    return rows.slice(0, 30);
+  }, [q, categories]);
+
+  function pick(cm: CategoryMaterial, categoryName: string) {
+    onPick(cm, categoryName);
+    setQ("");
+    setOpen(false);
+  }
+
+  return (
+    <div className="relative">
+      <div className="relative">
+        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+        <input value={q} onChange={e => { setQ(e.target.value); setOpen(true); }} onFocus={() => setOpen(true)} onBlur={() => setTimeout(() => setOpen(false), 150)}
+          placeholder={placeholder ?? "Search catalogue for a material…"} autoComplete="off"
+          className="w-full pl-9 pr-4 py-2 border border-gray-200 rounded-xl text-sm outline-none focus:ring-2 focus:ring-teal-500" />
+      </div>
+      {open && (
+        <div className="absolute z-20 mt-1 w-full bg-white border border-gray-200 rounded-xl shadow-xl max-h-64 overflow-y-auto">
+          {results.length === 0 && <p className="px-4 py-3 text-sm text-gray-400">No matching materials.</p>}
+          {results.map(({ categoryName, material }, i) => (
+            <button key={i} type="button" onMouseDown={() => pick(material, categoryName)}
+              className="w-full text-left px-4 py-2.5 hover:bg-teal-50 border-b border-gray-50 last:border-0 flex items-start justify-between gap-2">
+              <div className="min-w-0">
+                <p className="text-sm font-medium text-gray-800 truncate">{material.name}</p>
+                <p className="text-[10px] text-gray-400 mt-0.5">{categoryName} · {material.types.length} type{material.types.length === 1 ? "" : "s"}</p>
+              </div>
+              <span className={`text-[10px] px-2 py-0.5 rounded-full font-medium flex-shrink-0 ${material.classification === "Reusable" ? "bg-indigo-100 text-indigo-700" : "bg-gray-100 text-gray-600"}`}>
+                {material.classification}
+              </span>
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 export function AllMaterialsPage() {
+  const { categories, allCategoryMaterials } = useStorefront();
   const [materials, setMaterials] = useState<Material[]>(MOCK);
   const [search, setSearch] = useState("");
   const [catFilter, setCatFilter] = useState("All");
@@ -169,6 +254,7 @@ export function AllMaterialsPage() {
   const [procurementQty, setProcurementQty] = useState("");
   const [sentToProcurement, setSentToProcurement] = useState<Set<string>>(new Set());
   const [trackTarget, setTrackTarget] = useState<Material | null>(null);
+  const [expanded, setExpanded] = useState<string | null>(null);
 
   const filtered = materials.filter((m) => {
     const q = search.toLowerCase();
@@ -181,6 +267,20 @@ export function AllMaterialsPage() {
 
   function openAdd() { setEditTarget(null); setForm({ ...BLANK }); setShowModal(true); }
   function openEdit(m: Material) { setEditTarget(m); const { id: _id, ...rest } = m; setForm(rest); setShowModal(true); }
+
+  function handlePick(cm: CategoryMaterial, categoryName: string) {
+    const firstDim = cm.types.find(t => t.dimensions.length > 0)?.dimensions.find(d => d.unit);
+    const unit = firstDim?.unit ?? "Units";
+    setForm(prev => ({
+      ...prev,
+      name: cm.name,
+      category: categoryName,
+      materialType: cm.classification,
+      unit,
+      types: cm.types.map(t => ({ name: t.name, dimensions: t.dimensions, sku: t.sku })),
+    }));
+  }
+
   function save() {
     if (editTarget) {
       setMaterials((prev) => prev.map((m) => m.id === editTarget.id ? { ...form, id: editTarget.id } : m));
@@ -196,8 +296,8 @@ export function AllMaterialsPage() {
   }
   function exportCSV() {
     const rows = [
-      ["Material ID", "Name", "Category", "Type", "Unit", "Total Qty", "Available Qty", "Unit Cost", "Status"],
-      ...filtered.map((m) => [m.id, m.name, m.category, m.materialType, m.unit, m.totalQty, m.availableQty, m.unitCost, getStatus(m)]),
+      ["Material ID", "Name", "Category", "Type", "Unit", "Total Qty", "Available Qty", "Reserved Qty", "Unit Cost", "Status"],
+      ...filtered.map((m) => [m.id, m.name, m.category, m.materialType, m.unit, m.totalQty, m.availableQty, m.reservedQty, m.unitCost, getStatus(m)]),
     ];
     const csv = rows.map((r) => r.join(",")).join("\n");
     const a = document.createElement("a"); a.href = "data:text/csv," + encodeURIComponent(csv); a.download = "materials.csv"; a.click();
@@ -302,8 +402,10 @@ export function AllMaterialsPage() {
               <th className="px-4 py-3 text-left font-medium">Type</th>
               <th className="px-4 py-3 text-left font-medium">Category</th>
               <th className="px-4 py-3 text-left font-medium">Unit</th>
-              <th className="px-4 py-3 text-left font-medium">Available</th>
-              <th className="px-4 py-3 text-left font-medium">Unit Cost</th>
+              <th className="px-4 py-3 text-right font-medium">Total Qty</th>
+              <th className="px-4 py-3 text-right font-medium">Available</th>
+              <th className="px-4 py-3 text-right font-medium">Reserved</th>
+              <th className="px-4 py-3 text-right font-medium">Unit Cost</th>
               <th className="px-4 py-3 text-left font-medium">Stock Status</th>
               <th className="px-4 py-3 text-left font-medium">Allocation</th>
               <th className="px-4 py-3 w-28"></th>
@@ -311,59 +413,100 @@ export function AllMaterialsPage() {
           </thead>
           <tbody className="divide-y divide-gray-50">
             {filtered.length === 0 && (
-              <tr><td colSpan={10} className="px-4 py-8 text-center text-gray-400 text-sm">No materials found.</td></tr>
+              <tr><td colSpan={12} className="px-4 py-8 text-center text-gray-400 text-sm">No materials found.</td></tr>
             )}
             {filtered.map((m) => {
               const status = getStatus(m);
+              const types = resolveTypes(m, allCategoryMaterials);
+              const isOpen = expanded === m.id;
               return (
-                <tr key={m.id} className="hover:bg-gray-50 transition-colors group">
-                  <td className="px-4 py-3 font-mono text-xs text-gray-500">{m.id}</td>
-                  <td className="px-4 py-3 font-medium text-gray-900">
-                    {m.name}
-                    {m.allocatedTo && <p className="text-xs text-blue-500 mt-0.5">→ {m.allocatedTo}{m.allocatedProject ? ` · ${m.allocatedProject}` : ""}</p>}
-                  </td>
-                  <td className="px-4 py-3">
-                    <span className={`text-xs px-2 py-0.5 rounded-full font-medium flex items-center gap-1 w-fit ${m.materialType === "Reusable" ? "bg-indigo-100 text-indigo-700" : "bg-gray-100 text-gray-600"}`}>
-                      {m.materialType === "Reusable" ? <RefreshCw className="w-2.5 h-2.5" /> : <Package className="w-2.5 h-2.5" />}
-                      {m.materialType}
-                    </span>
-                  </td>
-                  <td className="px-4 py-3 text-gray-600">{m.category}</td>
-                  <td className="px-4 py-3 text-gray-600">{m.unit}</td>
-                  <td className="px-4 py-3 font-medium text-gray-900">{m.availableQty.toLocaleString()}</td>
-                  <td className="px-4 py-3 text-gray-600">{m.unitCost.toLocaleString()}</td>
-                  <td className="px-4 py-3">
-                    <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${STATUS_STYLE[status]}`}>{status}</span>
-                  </td>
-                <td className="px-4 py-3">
-                     {m.materialType === "Reusable" && m.allocationStatus ? (
-                       <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${ALLOC_STYLE[m.allocationStatus]}`}>{m.allocationStatus}</span>
-                     ) : <span className="text-gray-300 text-xs">—</span>}
-                   </td>
-                   <td className="px-4 py-3">
-                     <div className="flex items-center gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity">
-                       {m.materialType === "Reusable" && (
-                        <button onClick={() => setTrackTarget(m)}
-                          className="p-1 text-indigo-400 hover:text-indigo-600 rounded hover:bg-indigo-50" title="Track / Return">
-                          <ArrowRightLeft className="w-3.5 h-3.5" />
-                        </button>
-                      )}
-                      {(status === "Low Stock" || status === "Out of Stock") && (
-                        <button onClick={() => { setProcurementTarget(m); setProcurementQty(""); }}
-                          className={`p-1 rounded ${sentToProcurement.has(m.id) ? "text-green-500" : "text-amber-500 hover:text-amber-700 hover:bg-amber-50"}`}
-                          title={sentToProcurement.has(m.id) ? "Sent to Procurement" : "Send for Procurement"}>
-                          {sentToProcurement.has(m.id) ? <CheckCircle className="w-3.5 h-3.5" /> : <ShoppingCart className="w-3.5 h-3.5" />}
-                        </button>
-                      )}
-                      <button onClick={() => openEdit(m)} className="p-1 text-gray-400 hover:text-teal-600 rounded hover:bg-teal-50" title="Edit">
-                        <Pencil className="w-3.5 h-3.5" />
+                <Fragment key={m.id}>
+                  <tr className={`transition-colors group ${isOpen ? "bg-teal-50/40" : "hover:bg-gray-50"}`}>
+                    <td className="px-4 py-3 font-mono text-xs text-gray-500">{m.id}</td>
+                    <td className="px-4 py-3 font-medium text-gray-900">
+                      <button onClick={() => setExpanded(isOpen ? null : m.id)}
+                        className="inline-flex items-center gap-1.5 text-left group/title">
+                        <ChevronRight className={`w-3.5 h-3.5 text-gray-400 transition-transform ${isOpen ? "rotate-90" : ""}`} />
+                        <span className="hover:text-teal-700">{m.name}</span>
+                        {types.length > 0 && <span className="text-[10px] text-gray-400 font-normal">{types.length} type{types.length === 1 ? "" : "s"} · tap</span>}
                       </button>
-                      <button onClick={() => setDeleteTarget(m)} className="p-1 text-gray-400 hover:text-red-500 rounded hover:bg-red-50" title="Delete">
-                        <Trash2 className="w-3.5 h-3.5" />
-                      </button>
-                    </div>
-                  </td>
-                </tr>
+                      {m.allocatedTo && <p className="text-xs text-blue-500 mt-0.5">→ {m.allocatedTo}{m.allocatedProject ? ` · ${m.allocatedProject}` : ""}</p>}
+                    </td>
+                    <td className="px-4 py-3">
+                      <span className={`text-xs px-2 py-0.5 rounded-full font-medium flex items-center gap-1 w-fit ${m.materialType === "Reusable" ? "bg-indigo-100 text-indigo-700" : "bg-gray-100 text-gray-600"}`}>
+                        {m.materialType === "Reusable" ? <RefreshCw className="w-2.5 h-2.5" /> : <Package className="w-2.5 h-2.5" />}
+                        {m.materialType}
+                      </span>
+                    </td>
+                    <td className="px-4 py-3 text-gray-600">{m.category}</td>
+                    <td className="px-4 py-3 text-gray-600">{m.unit}</td>
+                    <td className="px-4 py-3 text-right font-medium text-gray-900">{m.totalQty.toLocaleString()}</td>
+                    <td className="px-4 py-3 text-right font-medium text-gray-900">{m.availableQty.toLocaleString()}</td>
+                    <td className="px-4 py-3 text-right text-gray-500">{m.reservedQty.toLocaleString()}</td>
+                    <td className="px-4 py-3 text-right text-gray-600">₦{m.unitCost.toLocaleString()}</td>
+                    <td className="px-4 py-3">
+                      <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${STATUS_STYLE[status]}`}>{status}</span>
+                    </td>
+                    <td className="px-4 py-3">
+                      {m.materialType === "Reusable" && m.allocationStatus ? (
+                        <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${ALLOC_STYLE[m.allocationStatus]}`}>{m.allocationStatus}</span>
+                      ) : <span className="text-gray-300 text-xs">—</span>}
+                    </td>
+                    <td className="px-4 py-3">
+                      <div className="flex items-center gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity">
+                        {m.materialType === "Reusable" && (
+                          <button onClick={() => setTrackTarget(m)}
+                            className="p-1 text-indigo-400 hover:text-indigo-600 rounded hover:bg-indigo-50" title="Track / Return">
+                            <ArrowRightLeft className="w-3.5 h-3.5" />
+                          </button>
+                        )}
+                        {(status === "Low Stock" || status === "Out of Stock") && (
+                          <button onClick={() => { setProcurementTarget(m); setProcurementQty(""); }}
+                            className={`p-1 rounded ${sentToProcurement.has(m.id) ? "text-green-500" : "text-amber-500 hover:text-amber-700 hover:bg-amber-50"}`}
+                            title={sentToProcurement.has(m.id) ? "Sent to Procurement" : "Send for Procurement"}>
+                            {sentToProcurement.has(m.id) ? <CheckCircle className="w-3.5 h-3.5" /> : <ShoppingCart className="w-3.5 h-3.5" />}
+                          </button>
+                        )}
+                        <button onClick={() => openEdit(m)} className="p-1 text-gray-400 hover:text-teal-600 rounded hover:bg-teal-50" title="Edit">
+                          <Pencil className="w-3.5 h-3.5" />
+                        </button>
+                        <button onClick={() => setDeleteTarget(m)} className="p-1 text-gray-400 hover:text-red-500 rounded hover:bg-red-50" title="Delete">
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                  {isOpen && (
+                    <tr className="bg-gray-50/60">
+                      <td colSpan={12} className="px-6 py-4">
+                        {types.length === 0 ? (
+                          <p className="text-sm text-gray-400">No catalogue types defined for this material — add types in Settings → Material Categories.</p>
+                        ) : (
+                          <div className="space-y-2">
+                            <p className="text-[10px] font-medium uppercase tracking-wide text-gray-400 flex items-center gap-1.5">
+                              <Layers className="w-3 h-3 text-teal-500" /> Catalogue types for {m.name}
+                            </p>
+                            <div className="flex flex-wrap gap-2">
+                              {types.map((t, ti) => (
+                                <div key={ti} className="inline-flex items-center gap-2 px-3 py-1.5 text-xs bg-white border border-gray-200 rounded-lg">
+                                  <span className="font-semibold text-gray-800">{t.name}</span>
+                                  {t.dimensions.map((d, di) => (
+                                    <span key={di} className="text-gray-500">
+                                      {d.standard === "Custom"
+                                        ? `${d.standard}: ${d.value || "—"} ${d.unit}`
+                                        : `${d.value || "—"} ${d.unit} ${d.standard}`}
+                                    </span>
+                                  ))}
+                                  {t.sku && <span className="font-mono text-[9px] text-gray-400">{t.sku}</span>}
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+                      </td>
+                    </tr>
+                  )}
+                </Fragment>
               );
             })}
           </tbody>
@@ -380,12 +523,19 @@ export function AllMaterialsPage() {
               <button onClick={() => setShowModal(false)} className="text-gray-400 hover:text-gray-600 text-xl leading-none">&times;</button>
             </div>
             <div className="p-6 space-y-4 max-h-[70vh] overflow-y-auto">
+              {!editTarget && (
+                <div>
+                  <label className="block text-xs font-medium text-gray-600 mb-1">Search & Select Material <span className="text-red-500">*</span></label>
+                  <CataloguePicker onPick={handlePick} />
+                  <p className="text-[10px] text-gray-400 mt-1">Pick an existing catalogue material — category, name, type and unit are filled in automatically.</p>
+                </div>
+              )}
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="block text-xs font-medium text-gray-600 mb-1">Category</label>
                   <select value={form.category} onChange={(e) => setForm({ ...form, category: e.target.value })}
                     className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-teal-500 bg-white">
-                    {CATEGORIES.filter((c) => c !== "All").map((c) => <option key={c}>{c}</option>)}
+                    {categories.map(c => <option key={c.id} value={c.name}>{c.name}</option>)}
                   </select>
                 </div>
                 <div>
@@ -493,5 +643,3 @@ export function AllMaterialsPage() {
     </div>
   );
 }
-
-

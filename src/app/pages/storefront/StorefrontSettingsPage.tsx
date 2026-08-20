@@ -1,6 +1,11 @@
-import { useState } from "react";
+import { Fragment, useState } from "react";
 import { Settings, Plus, Edit, Trash2, Ruler, Tag, Layers, Store, ChevronRight, Link2, FolderOpen, Hash, Save, X } from "lucide-react";
 import { useNumbering, type ModuleNumbering, MODULE_DOMAINS, formatId } from "../../stores/numberingStore";
+import {
+  useStorefront,
+  DIMENSION_STANDARDS, DIMENSION_UNITS,
+  type MaterialCategory, type CategoryMaterial, type MaterialType, type MaterialDimension, type MaterialClassification,
+} from "../../stores/storefrontStore";
 
 // ─── Store Level Configuration ────────────────────────────────────────────────
 
@@ -692,28 +697,6 @@ function UnitsOfMeasurementPanel() {
 
 // ─── Material Categories Panel ────────────────────────────────────────────────
 
-interface MaterialLevel {
-  name: string;            // e.g. "Wall tile", "Floor tile"
-  dimensions?: string;     // e.g. "600x600mm"
-  thickness?: string;      // e.g. "8mm"
-  finish?: string;         // e.g. "Gloss", "Matte"
-  sku?: string;
-}
-
-interface CategoryMaterial {
-  name: string;
-  unit?: string;
-  levels: MaterialLevel[];
-}
-
-interface MaterialCategory {
-  id: string;
-  name: string;
-  description: string;
-  color: string;
-  materials: CategoryMaterial[];
-}
-
 const CATEGORY_COLORS = [
   { label: "Teal",   value: "teal"   },
   { label: "Blue",   value: "blue"   },
@@ -736,76 +719,42 @@ const COLOR_CLASSES: Record<string, { bg: string; text: string }> = {
   gray:   { bg: "bg-gray-100",   text: "text-gray-600"   },
 };
 
-const SEED_CATEGORIES: MaterialCategory[] = [
-  { id: "1", name: "Concrete & Cement",     description: "Cement bags, ready-mix concrete, and admixtures",    color: "gray",   materials: [
-    { name: "Cement (50kg bag)", unit: "Bags", levels: [
-      { name: "Ordinary Portland Cement", dimensions: "50kg", sku: "CEM-OPC-50" },
-      { name: "Rapid-Hardening Cement", dimensions: "50kg", sku: "CEM-RHC-50" },
-    ] },
-    { name: "Concrete Block", unit: "Units", levels: [
-      { name: "Solid Block", dimensions: "9 Inch", sku: "BLK-SLD-9" },
-      { name: "Hollow Block", dimensions: "9 Inch", sku: "BLK-HLW-9" },
-    ] },
-  ] },
-  { id: "2", name: "Steel & Reinforcement", description: "Rebar, mesh, structural steel sections",             color: "blue",   materials: [
-    { name: "Steel Rebar", unit: "Tonnes", levels: [
-      { name: "Y12", dimensions: "12mm", sku: "STL-REB-Y12" },
-      { name: "Y16", dimensions: "16mm", sku: "STL-REB-Y16" },
-    ] },
-  ] },
-  { id: "3", name: "Electrical",            description: "Cables, conduits, switches, and distribution boards", color: "amber", materials: [
-    { name: "Cable", unit: "Metres", levels: [
-      { name: "2.5mm Twin", dimensions: "2.5mm", sku: "ELE-CAB-2.5" },
-      { name: "4mm Single", dimensions: "4mm", sku: "ELE-CAB-4.0" },
-    ] },
-  ] },
-  { id: "4", name: "Plumbing & Drainage",   description: "Pipes, fittings, valves, and drainage systems",      color: "teal",   materials: [
-    { name: "PVC Pipe", unit: "Lengths", levels: [
-      { name: "2 Inch", dimensions: "2 Inch", sku: "PLB-PVC-2" },
-      { name: "4 Inch", dimensions: "4 Inch", sku: "PLB-PVC-4" },
-    ] },
-  ] },
-  { id: "5", name: "Timber & Formwork",     description: "Planks, plywood sheets, and shuttering material",    color: "orange", materials: [
-    { name: "Plywood", unit: "Sheets", levels: [
-      { name: "12mm", dimensions: "1220x2440mm", thickness: "12mm", sku: "TMB-PLY-12" },
-      { name: "18mm", dimensions: "1220x2440mm", thickness: "18mm", sku: "TMB-PLY-18" },
-    ] },
-  ] },
-  { id: "6", name: "Finishing Materials",   description: "Paints, tiles, screeds, and wall finishes",          color: "purple", materials: [
-    { name: "Granite Tiles", unit: "Boxes", levels: [
-      { name: "Wall Tile", dimensions: "600x600mm", thickness: "8mm", finish: "Matte", sku: "GT-W-600600-MAT" },
-      { name: "Floor Tile", dimensions: "600x600mm", thickness: "10mm", finish: "Gloss", sku: "GT-F-600600-GLO" },
-    ] },
-  ] },
-  { id: "7", name: "Aggregates & Fill",     description: "Sharp sand, gravel, laterite, and hardcore fill",    color: "green",  materials: [
-    { name: "Sharp Sand", unit: "Tonnes", levels: [
-      { name: "River Sand", sku: "AGG-SND-RIV" },
-    ] },
-  ] },
-  { id: "8", name: "Plant & Equipment",     description: "Consumables and accessories for plant operations",   color: "red",    materials: [] },
-];
-
 function MaterialCategoriesPanel() {
-  const [categories, setCategories] = useState<MaterialCategory[]>(SEED_CATEGORIES);
-  const [showModal, setShowModal]   = useState(false);
-  const [editing, setEditing]       = useState<MaterialCategory | null>(null);
+  const { categories, setCategories, addCategory, updateCategory, deleteCategory } = useStorefront();
+  const [showModal, setShowModal]      = useState(false);
+  const [editing, setEditing]          = useState<MaterialCategory | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<MaterialCategory | null>(null);
-  const [expandedCat, setExpandedCat] = useState<string | null>(null);
+  const [expandedCat, setExpandedCat]  = useState<string | null>(null);
   const [form, setForm] = useState<Omit<MaterialCategory, "id">>({ name: "", description: "", color: "teal", materials: [] });
   const [materials, setMaterials] = useState<CategoryMaterial[]>([]);
 
   function openAdd() { setEditing(null); setForm({ name: "", description: "", color: "teal", materials: [] }); setMaterials([]); setShowModal(true); }
-  function openEdit(c: MaterialCategory) { setEditing(c); setForm({ name: c.name, description: c.description, color: c.color, materials: c.materials }); setMaterials(c.materials.map(m => ({ name: m.name, unit: m.unit, levels: [...m.levels] }))); setShowModal(true); }
+  function openEdit(c: MaterialCategory) { setEditing(c); setForm({ name: c.name, description: c.description, color: c.color, materials: c.materials }); setMaterials(c.materials.map(m => ({ name: m.name, classification: m.classification, types: m.types.map(t => ({ name: t.name, dimensions: t.dimensions.map(d => ({ ...d })), sku: t.sku })) }))); setShowModal(true); }
   function save() {
     if (!form.name.trim()) return;
     const merged = { ...form, materials };
     if (editing) {
-      setCategories(prev => prev.map(c => c.id === editing.id ? { id: c.id, ...merged } : c));
+      updateCategory(editing.id, merged);
     } else {
-      setCategories(prev => [...prev, { id: String(Date.now()), ...merged }]);
+      addCategory(merged);
     }
     setShowModal(false);
   }
+
+  function patchMaterial(mi: number, patch: Partial<CategoryMaterial>) {
+    setMaterials(prev => prev.map((m, j) => j === mi ? { ...m, ...patch } : m));
+  }
+  function patchType(mi: number, ti: number, patch: Partial<MaterialType>) {
+    setMaterials(prev => prev.map((m, j) => j === mi ? { ...m, types: m.types.map((t, k) => k === ti ? { ...t, ...patch } : t) } : m));
+  }
+  function patchDim(mi: number, ti: number, di: number, patch: Partial<MaterialDimension>) {
+    setMaterials(prev => prev.map((m, j) => j === mi ? { ...m, types: m.types.map((t, k) => k === ti ? { ...t, dimensions: t.dimensions.map((d, x) => x === di ? { ...d, ...patch } : d) } : t) } : m));
+  }
+
+  const CLASS_BADGE: Record<MaterialClassification, string> = {
+    Consumable: "bg-gray-100 text-gray-600",
+    Reusable:   "bg-indigo-100 text-indigo-700",
+  };
 
   return (
     <div className="space-y-4">
@@ -815,16 +764,18 @@ function MaterialCategoriesPanel() {
           <p className="text-2xl font-bold text-teal-700">{categories.length}</p>
           <p className="text-xs text-gray-500 mt-0.5">Total Categories</p>
         </div>
-        {["blue", "amber", "teal"].map(color => {
-          const count = categories.filter(c => c.color === color).length;
-          const cls = COLOR_CLASSES[color];
-          return (
-            <div key={color} className={`border rounded-xl p-4 text-center ${cls.bg} border-transparent`}>
-              <p className={`text-2xl font-bold ${cls.text}`}>{count}</p>
-              <p className={`text-xs mt-0.5 ${cls.text} opacity-80`}>{CATEGORY_COLORS.find(c => c.value === color)?.label}</p>
-            </div>
-          );
-        })}
+        <div className="bg-white border border-gray-200 rounded-xl p-4 text-center">
+          <p className="text-2xl font-bold text-gray-900">{categories.reduce((s, c) => s + c.materials.length, 0)}</p>
+          <p className="text-xs text-gray-500 mt-0.5">Total Materials</p>
+        </div>
+        <div className="bg-white border border-gray-200 rounded-xl p-4 text-center">
+          <p className="text-2xl font-bold text-indigo-600">{categories.reduce((s, c) => s + c.materials.filter(m => m.classification === "Reusable").length, 0)}</p>
+          <p className="text-xs text-gray-500 mt-0.5">Reusable</p>
+        </div>
+        <div className="bg-white border border-gray-200 rounded-xl p-4 text-center">
+          <p className="text-2xl font-bold text-gray-700">{categories.reduce((s, c) => s + c.materials.reduce((x, m) => x + m.types.length, 0), 0)}</p>
+          <p className="text-xs text-gray-500 mt-0.5">Total Types</p>
+        </div>
       </div>
 
       <div className="flex justify-end">
@@ -848,17 +799,17 @@ function MaterialCategoriesPanel() {
             {categories.map(c => {
               const cls = COLOR_CLASSES[c.color] ?? COLOR_CLASSES.gray;
               const materialCount = c.materials.length;
-              const levelCount = c.materials.reduce((s, m) => s + m.levels.length, 0);
+              const typeCount = c.materials.reduce((s, m) => s + m.types.length, 0);
               return (
-                <>
-                  <tr key={c.id} className="hover:bg-gray-50 group">
+                <Fragment key={c.id}>
+                  <tr className="hover:bg-gray-50 group">
                     <td className="px-4 py-3 font-medium text-gray-900">{c.name}</td>
                     <td className="px-4 py-3 text-gray-500 max-w-xs truncate">{c.description}</td>
                     <td className="px-4 py-3">
                       <button onClick={() => setExpandedCat(p => p === c.id ? null : c.id)}
                         className="inline-flex items-center gap-1 text-xs text-teal-700 hover:text-teal-800 font-medium">
                         <ChevronRight className={`w-3.5 h-3.5 transition-transform ${expandedCat === c.id ? "rotate-90" : ""}`} />
-                        {materialCount} materials · {levelCount} levels
+                        {materialCount} materials · {typeCount} types
                       </button>
                     </td>
                     <td className="px-4 py-3">
@@ -881,28 +832,33 @@ function MaterialCategoriesPanel() {
                     <tr key={`${c.id}-detail`}>
                       <td colSpan={5} className="px-6 py-4 bg-gray-50/60">
                         {c.materials.length === 0 ? (
-                          <p className="text-sm text-gray-400">No materials yet — edit this category to add materials and levels.</p>
+                          <p className="text-sm text-gray-400">No materials yet — edit this category to add materials and types.</p>
                         ) : (
                           <div className="space-y-3">
                             {c.materials.map((m, mi) => (
                               <div key={mi} className="border border-gray-200 bg-white rounded-xl p-3">
                                 <div className="flex items-center justify-between">
-                                  <p className="text-sm font-semibold text-gray-800">
-                                    {m.name} {m.unit ? <span className="text-xs font-normal text-gray-400">· {m.unit}</span> : null}
-                                  </p>
-                                  <span className="text-xs text-gray-400">{m.levels.length} level{m.levels.length === 1 ? "" : "s"}</span>
+                                  <div className="flex items-center gap-2">
+                                    <p className="text-sm font-semibold text-gray-800">{m.name}</p>
+                                    <span className={`text-[10px] px-2 py-0.5 rounded-full font-medium ${CLASS_BADGE[m.classification]}`}>{m.classification}</span>
+                                  </div>
+                                  <span className="text-xs text-gray-400">{m.types.length} type{m.types.length === 1 ? "" : "s"}</span>
                                 </div>
-                                {m.levels.length > 0 && (
+                                {m.types.length > 0 && (
                                   <div className="mt-2 flex flex-wrap gap-1.5">
-                                    {m.levels.map((l, li) => (
-                                      <span key={li} className="inline-flex items-center gap-1 px-2 py-0.5 text-xs bg-gray-50 border border-gray-200 rounded-md">
+                                    {m.types.map((t, ti) => (
+                                      <div key={ti} className="inline-flex items-center gap-1.5 px-2 py-1 text-xs bg-gray-50 border border-gray-200 rounded-md">
                                         <Layers className="w-3 h-3 text-teal-500" />
-                                        {l.name}
-                                        {l.dimensions && <span className="text-gray-400">{l.dimensions}</span>}
-                                        {l.thickness && <span className="text-gray-400">/{l.thickness}</span>}
-                                        {l.finish && <span className="text-gray-400">({l.finish})</span>}
-                                        {l.sku && <span className="font-mono text-[9px] text-gray-400">{l.sku}</span>}
-                                      </span>
+                                        <span className="font-medium">{t.name}</span>
+                                        {t.dimensions.map((d, di) => (
+                                          <span key={di} className="text-gray-500">
+                                            {d.standard === "Custom"
+                                              ? `${d.standard}: ${d.value || "—"} ${d.unit}`
+                                              : `${d.value || "—"} ${d.unit} ${d.standard}`}
+                                          </span>
+                                        ))}
+                                        {t.sku && <span className="font-mono text-[9px] text-gray-400">{t.sku}</span>}
+                                      </div>
                                     ))}
                                   </div>
                                 )}
@@ -913,7 +869,7 @@ function MaterialCategoriesPanel() {
                       </td>
                     </tr>
                   )}
-                </>
+                </Fragment>
               );
             })}
           </tbody>
@@ -955,18 +911,20 @@ function MaterialCategoriesPanel() {
                 </div>
               </div>
 
-              {/* Materials + Levels editor: Category → Materials → Levels */}
+              {/* Materials + Types editor: Category → Materials → Types → Dimensions */}
               <div className="border border-gray-200 rounded-xl p-4 space-y-3">
                 <div className="flex items-center justify-between">
                   <label className="text-xs font-semibold text-gray-600 flex items-center gap-1.5">
                     <FolderOpen className="w-3.5 h-3.5 text-teal-600" /> Materials under this category
                   </label>
-                  <button type="button" onClick={() => setMaterials(p => [...p, { name: "", unit: "", levels: [] }])}
+                  <button type="button" onClick={() => setMaterials(p => [...p, { name: "", classification: "Consumable", types: [] }])}
                     className="text-xs text-teal-700 hover:text-teal-800 font-medium flex items-center gap-1">
                     <Plus className="w-3 h-3" /> Add Material
                   </button>
                 </div>
-                <p className="text-[10px] text-gray-400">Each material can have as many levels (variants) as needed — e.g. Wall tile / Floor tile with dimensions.</p>
+                <p className="text-[10px] text-gray-400">
+                  Each material is classified Consumable (used up) or Reusable (returned to store), and can have as many types (variants) as needed — each type carries measurable dimensions.
+                </p>
 
                 {materials.length === 0 && (
                   <p className="text-xs text-gray-400">No materials yet.</p>
@@ -976,25 +934,27 @@ function MaterialCategoriesPanel() {
                   {materials.map((mat, mi) => (
                     <div key={mi} className="border border-gray-100 bg-gray-50/60 rounded-lg p-3 space-y-2">
                       <div className="grid grid-cols-12 gap-2 items-center">
-                        <div className="col-span-5">
+                        <div className="col-span-4">
                           <label className="block text-[10px] font-medium text-gray-500 mb-0.5">Material Name *</label>
                           <input value={mat.name}
-                            onChange={e => setMaterials(p => p.map((x, j) => j === mi ? { ...x, name: e.target.value } : x))}
+                            onChange={e => patchMaterial(mi, { name: e.target.value })}
                             placeholder="e.g. Granite Tiles"
                             className="w-full border border-gray-200 rounded-lg px-2 py-1.5 text-sm outline-none focus:ring-2 focus:ring-teal-500" />
                         </div>
                         <div className="col-span-3">
-                          <label className="block text-[10px] font-medium text-gray-500 mb-0.5">Unit</label>
-                          <input value={mat.unit ?? ""}
-                            onChange={e => setMaterials(p => p.map((x, j) => j === mi ? { ...x, unit: e.target.value } : x))}
-                            placeholder="e.g. Boxes"
-                            className="w-full border border-gray-200 rounded-lg px-2 py-1.5 text-sm outline-none focus:ring-2 focus:ring-teal-500" />
+                          <label className="block text-[10px] font-medium text-gray-500 mb-0.5">Classification</label>
+                          <select value={mat.classification}
+                            onChange={e => patchMaterial(mi, { classification: e.target.value as MaterialClassification })}
+                            className="w-full border border-gray-200 rounded-lg px-2 py-1.5 text-sm outline-none focus:ring-2 focus:ring-teal-500 bg-white">
+                            <option>Consumable</option>
+                            <option>Reusable</option>
+                          </select>
                         </div>
-                        <div className="col-span-2 flex justify-end pt-4">
+                        <div className="col-span-3 flex justify-end pt-4">
                           <button type="button"
-                            onClick={() => setMaterials(p => p.map((x, j) => j === mi ? { ...x, levels: [...x.levels, { name: "" }] } : x))}
+                            onClick={() => patchMaterial(mi, { types: [...mat.types, { name: "", dimensions: [{ standard: "Length", value: "", unit: "" }] }] })}
                             className="text-xs text-teal-700 hover:text-teal-800 font-medium flex items-center gap-1">
-                            <Plus className="w-3 h-3" /> Level
+                            <Plus className="w-3 h-3" /> Type
                           </button>
                         </div>
                         <div className="col-span-2 flex justify-end pt-4">
@@ -1005,40 +965,73 @@ function MaterialCategoriesPanel() {
                         </div>
                       </div>
 
-                      {mat.levels.length > 0 && (
+                      {mat.types.length > 0 && (
                         <div className="space-y-1.5 pl-2 border-l-2 border-teal-100">
-                          {mat.levels.map((lv, li) => (
-                            <div key={li} className="grid grid-cols-12 gap-2 items-center">
-                              <div className="col-span-3">
-                                <input value={lv.name}
-                                  onChange={e => setMaterials(p => p.map((x, j) => j === mi ? { ...x, levels: x.levels.map((z, k) => k === li ? { ...z, name: e.target.value } : z) } : x))}
-                                  placeholder="Level name (Wall tile)"
-                                  className="w-full border border-gray-200 rounded-lg px-2 py-1.5 text-sm outline-none focus:ring-2 focus:ring-teal-500" />
+                          {mat.types.map((tp, ti) => (
+                            <div key={ti} className="border border-gray-200 bg-white rounded-lg p-2 space-y-1.5">
+                              <div className="grid grid-cols-12 gap-2 items-center">
+                                <div className="col-span-3">
+                                  <input value={tp.name}
+                                    onChange={e => patchType(mi, ti, { name: e.target.value })}
+                                    placeholder="Type name (Wall tile)"
+                                    className="w-full border border-gray-200 rounded-lg px-2 py-1.5 text-sm outline-none focus:ring-2 focus:ring-teal-500" />
+                                </div>
+                                <div className="col-span-5">
+                                  <input value={tp.sku ?? ""}
+                                    onChange={e => patchType(mi, ti, { sku: e.target.value })}
+                                    placeholder="SKU (GT-W-600600)"
+                                    className="w-full border border-gray-200 rounded-lg px-2 py-1.5 text-sm font-mono outline-none focus:ring-2 focus:ring-teal-500" />
+                                </div>
+                                <div className="col-span-2 flex justify-end">
+                                  <button type="button"
+                                    onClick={() => patchType(mi, ti, { dimensions: [...tp.dimensions, { standard: "Length", value: "", unit: "" }] })}
+                                    className="text-xs text-teal-700 hover:text-teal-800 font-medium whitespace-nowrap">
+                                    + Dimension
+                                  </button>
+                                </div>
+                                <div className="col-span-1 flex justify-center">
+                                  <button type="button" onClick={() => patchMaterial(mi, { types: mat.types.filter((_, k) => k !== ti) })}
+                                    className="text-gray-400 hover:text-red-500">
+                                    <X className="w-3.5 h-3.5" />
+                                  </button>
+                                </div>
                               </div>
-                              <div className="col-span-3">
-                                <input value={lv.dimensions ?? ""}
-                                  onChange={e => setMaterials(p => p.map((x, j) => j === mi ? { ...x, levels: x.levels.map((z, k) => k === li ? { ...z, dimensions: e.target.value } : z) } : x))}
-                                  placeholder="Dimensions (600x600mm)"
-                                  className="w-full border border-gray-200 rounded-lg px-2 py-1.5 text-sm outline-none focus:ring-2 focus:ring-teal-500" />
-                              </div>
-                              <div className="col-span-2">
-                                <input value={lv.thickness ?? ""}
-                                  onChange={e => setMaterials(p => p.map((x, j) => j === mi ? { ...x, levels: x.levels.map((z, k) => k === li ? { ...z, thickness: e.target.value } : z) } : x))}
-                                  placeholder="Thickness (8mm)"
-                                  className="w-full border border-gray-200 rounded-lg px-2 py-1.5 text-sm outline-none focus:ring-2 focus:ring-teal-500" />
-                              </div>
-                              <div className="col-span-2">
-                                <input value={lv.finish ?? ""}
-                                  onChange={e => setMaterials(p => p.map((x, j) => j === mi ? { ...x, levels: x.levels.map((z, k) => k === li ? { ...z, finish: e.target.value } : z) } : x))}
-                                  placeholder="Finish (Gloss)"
-                                  className="w-full border border-gray-200 rounded-lg px-2 py-1.5 text-sm outline-none focus:ring-2 focus:ring-teal-500" />
-                              </div>
-                              <div className="col-span-1 flex justify-center">
-                                <button type="button" onClick={() => setMaterials(p => p.map((x, j) => j === mi ? { ...x, levels: x.levels.filter((_, k) => k !== li) } : x))}
-                                  className="text-gray-400 hover:text-red-500">
-                                  <X className="w-3.5 h-3.5" />
-                                </button>
-                              </div>
+
+                              {tp.dimensions.length > 0 && (
+                                <div className="space-y-1 pl-2 border-l-2 border-gray-100">
+                                  {tp.dimensions.map((dm, di) => (
+                                    <div key={di} className="grid grid-cols-12 gap-2 items-center">
+                                      <div className="col-span-4">
+                                        <select value={dm.standard}
+                                          onChange={e => patchDim(mi, ti, di, { standard: e.target.value })}
+                                          className="w-full border border-gray-200 rounded-lg px-2 py-1.5 text-xs outline-none focus:ring-2 focus:ring-teal-500 bg-white">
+                                          {DIMENSION_STANDARDS.map(s => <option key={s}>{s}</option>)}
+                                        </select>
+                                      </div>
+                                      <div className="col-span-4">
+                                        <input value={dm.value}
+                                          onChange={e => patchDim(mi, ti, di, { value: e.target.value })}
+                                          placeholder={dm.standard === "Custom" ? "e.g. Gloss" : "Value (9)"}
+                                          className="w-full border border-gray-200 rounded-lg px-2 py-1.5 text-xs outline-none focus:ring-2 focus:ring-teal-500" />
+                                      </div>
+                                      <div className="col-span-3">
+                                        <select value={dm.unit}
+                                          onChange={e => patchDim(mi, ti, di, { unit: e.target.value })}
+                                          className="w-full border border-gray-200 rounded-lg px-2 py-1.5 text-xs outline-none focus:ring-2 focus:ring-teal-500 bg-white">
+                                          <option value="">— unit —</option>
+                                          {DIMENSION_UNITS.map(u => <option key={u} value={u}>{u}</option>)}
+                                        </select>
+                                      </div>
+                                      <div className="col-span-1 flex justify-center">
+                                        <button type="button" onClick={() => patchType(mi, ti, { dimensions: tp.dimensions.filter((_, x) => x !== di) })}
+                                          className="text-gray-400 hover:text-red-500">
+                                          <X className="w-3 h-3" />
+                                        </button>
+                                      </div>
+                                    </div>
+                                  ))}
+                                </div>
+                              )}
                             </div>
                           ))}
                         </div>
@@ -1065,7 +1058,7 @@ function MaterialCategoriesPanel() {
             <p className="text-sm text-gray-600">Remove <span className="font-semibold">{deleteTarget.name}</span>? Materials already assigned to this category will not be changed.</p>
             <div className="flex justify-end gap-3">
               <button onClick={() => setDeleteTarget(null)} className="px-4 py-2 text-sm border border-gray-200 rounded-xl text-gray-700 hover:bg-gray-50">Cancel</button>
-              <button onClick={() => { setCategories(prev => prev.filter(c => c.id !== deleteTarget.id)); setDeleteTarget(null); }}
+              <button onClick={() => { deleteCategory(deleteTarget.id); setDeleteTarget(null); }}
                 className="px-4 py-2 text-sm bg-red-600 hover:bg-red-700 text-white rounded-xl">Delete</button>
             </div>
           </div>

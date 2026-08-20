@@ -10,12 +10,14 @@ import { EmployeeProvider } from "../stores/employeeStore";
 import { FinanceProvider } from "../stores/financeStore";
 import { ProcurementProvider } from "../stores/procurementStore";
 import { ProcurementSettingsProvider } from "../stores/procurementSettingsStore";
+import { StorefrontProvider } from "../stores/storefrontStore";
 
 export function AppLayout() {
   return (
     <FinanceProvider>
-<ProcurementProvider>
-        <ProcurementSettingsProvider>
+      <ProcurementProvider>
+        <StorefrontProvider>
+          <ProcurementSettingsProvider>
           <ChangelogProvider>
             <HRConfigProvider>
               <ResourceProvider>
@@ -36,6 +38,7 @@ export function AppLayout() {
             </HRConfigProvider>
           </ChangelogProvider>
         </ProcurementSettingsProvider>
+        </StorefrontProvider>
       </ProcurementProvider>
     </FinanceProvider>
   );

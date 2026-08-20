@@ -46,9 +46,10 @@ const SEED_ENTRIES: ChangelogEntry[] = [
   { id: "seed-19", timestamp: "2026-08-11T08:20:00.000Z", module: "Finance", action: "CHANGELOG", entityType: "System", entityId: "UPD-019", summary: "19. Finance handoff is driven by a shared Procurement store: POs sent to Finance appear on the Finance PO screen automatically, the payment trigger follows the PO's payment term (deposit tranche → act at PO approval, else wait for delivery), and the goods-received gate is computed from the real recorded GRNs.", performedBy: "System" },
   { id: "seed-20", timestamp: "2026-08-11T08:25:00.000Z", module: "Finance", action: "CHANGELOG", entityType: "System", entityId: "UPD-020", summary: "20. Posting Engine posts through Process Account Mapping: PO payments build lines from the 'Purchase Order Payment' mapping and payroll from granular mappings (Basic Salary + Allowances → Labour Costs, PAYE → WHT, Net → Cash). Posting configurations can be edited, and the engine falls back to the category DR/CR pair only when no mapping exists.", performedBy: "System" },
   { id: "seed-21", timestamp: "2026-08-11T08:30:00.000Z", module: "Admin", action: "CHANGELOG", entityType: "System", entityId: "UPD-021", summary: "21. Changelog now persists across page reloads (localStorage) and every entry deep-links to the page where the change was made — full Purchase Order payment posted to a balanced journal updates the General Ledger and Chart of Accounts, with the posting visible in the ledger.", performedBy: "System" },
+  { id: "seed-22", timestamp: "2026-08-20T09:00:00.000Z", module: "Storefront", action: "CHANGELOG", entityType: "System", entityId: "UPD-022", summary: "22. Storefront material catalogue redesign: Material Categories now classify each material Consumable/Reusable and define types with measurable dimensions (standard, value, unit — e.g. 9 inch Thickness, 2440×1220×12mm, Custom finish), sharing a single catalogue store across Settings and All Materials. All Materials shows Total/Available/Reserved Qty and Unit Cost per row, expands the material name to reveal its catalogue types, and adds materials via a search-and-select picker that auto-fills category, name, type and unit.", performedBy: "System" },
 ];
 
-const STORAGE_KEY = "buildos-changelog-v2";
+const STORAGE_KEY = "buildos-changelog-v3";
 
 function loadInitialEntries(): ChangelogEntry[] {
   try {
