@@ -1,67 +1,114 @@
 import { Fragment, useMemo, useState } from "react";
 import { Plus, Search, Download, Filter, AlertTriangle, Pencil, Trash2, ShoppingCart, CheckCircle, X, RefreshCw, ArrowRightLeft, Package, ChevronRight, Layers } from "lucide-react";
-import { useStorefront, type CategoryMaterial } from "../../stores/storefrontStore";
+import { useStorefront, type CategoryMaterial, type MaterialType as StoreType } from "../../stores/storefrontStore";
 
 type MaterialStatus = "In Stock" | "Low Stock" | "Out of Stock";
 type MaterialType = "Consumable" | "Reusable";
 type AllocationStatus = "Available" | "Allocated" | "Under Maintenance";
+
+interface MaterialStock {
+  name: string;
+  sku?: string;
+  totalQty: number;
+  availableQty: number;
+  reservedQty: number;
+  unitCost: number;
+}
 
 interface Material {
   id: string;
   name: string;
   category: string;
   unit: string;
-  totalQty: number;
-  availableQty: number;
-  reservedQty: number;
-  unitCost: number;
   reorderLevel: number;
   materialType: MaterialType;
-  types?: CatalogType[];
+  types: MaterialStock[];
   allocationStatus?: AllocationStatus;
   allocatedTo?: string;
   allocatedProject?: string;
   condition?: string;
 }
 
-type CatalogType = {
-  name: string;
-  dimensions: { standard: string; value: string; unit: string }[];
-  sku?: string;
-};
-
 const MOCK: Material[] = [
-  { id: "MAT-001", name: "Cement (50kg bag)",        category: "Concrete",   unit: "Bags",    totalQty: 380,  availableQty: 260, reservedQty: 120, unitCost: 8500,   reorderLevel: 100, materialType: "Consumable" },
-  { id: "MAT-002", name: "Steel Rebar Y16",           category: "Steel",      unit: "Tonnes",  totalQty: 12,   availableQty: 10,  reservedQty: 2,   unitCost: 410000, reorderLevel: 5,   materialType: "Consumable" },
-  { id: "MAT-003", name: "Electrical Conduit 25mm",   category: "Electrical", unit: "Metres",  totalQty: 45,   availableQty: 45,  reservedQty: 0,   unitCost: 1200,   reorderLevel: 200, materialType: "Consumable" },
-  { id: "MAT-004", name: "Binding Wire",              category: "Steel",      unit: "Rolls",   totalQty: 28,   availableQty: 20,  reservedQty: 8,   unitCost: 2800,   reorderLevel: 20,  materialType: "Consumable" },
-  { id: "MAT-005", name: "Concrete Block 9 Inch",     category: "Concrete",   unit: "Units",   totalQty: 4200, availableQty: 3500,reservedQty: 700, unitCost: 350,    reorderLevel: 1000,materialType: "Consumable" },
-  { id: "MAT-006", name: "2.5mm Twin Cable",          category: "Electrical", unit: "Metres",  totalQty: 80,   availableQty: 80,  reservedQty: 0,   unitCost: 850,    reorderLevel: 300, materialType: "Consumable" },
-  { id: "MAT-007", name: "PVC Pipes 2 Inch",          category: "Plumbing",   unit: "Lengths", totalQty: 12,   availableQty: 12,  reservedQty: 0,   unitCost: 4500,   reorderLevel: 50,  materialType: "Consumable" },
-  { id: "MAT-008", name: "Sand",                      category: "Aggregates", unit: "Tonnes",  totalQty: 95,   availableQty: 85,  reservedQty: 10,  unitCost: 18000,  reorderLevel: 30,  materialType: "Consumable" },
-  { id: "MAT-009", name: "Formwork Plywood",          category: "Timber",     unit: "Sheets",  totalQty: 30,   availableQty: 25,  reservedQty: 5,   unitCost: 14000,  reorderLevel: 15,  materialType: "Reusable",  allocationStatus: "Available", condition: "Good" },
-  { id: "MAT-010", name: "Steel Rebar Y12",           category: "Steel",      unit: "Tonnes",  totalQty: 8,    availableQty: 8,   reservedQty: 0,   unitCost: 390000, reorderLevel: 5,   materialType: "Consumable" },
-  { id: "MAT-011", name: "Flush Doors",               category: "Finishes",   unit: "Units",   totalQty: 20,   availableQty: 14,  reservedQty: 6,   unitCost: 45000,  reorderLevel: 10,  materialType: "Consumable" },
-  { id: "MAT-012", name: "Granite Tiles 600x600",     category: "Finishes",   unit: "Boxes",   totalQty: 0,    availableQty: 0,   reservedQty: 0,   unitCost: 28000,  reorderLevel: 20,  materialType: "Consumable" },
-  { id: "MAT-013", name: "Concrete Mixer (350L)",     category: "Equipment",  unit: "Units",   totalQty: 4,    availableQty: 1,   reservedQty: 0,   unitCost: 450000, reorderLevel: 1,   materialType: "Reusable",  allocationStatus: "Allocated",  allocatedTo: "Block A Site Team", allocatedProject: "Industrial Warehouse", condition: "Good" },
-  { id: "MAT-014", name: "Water Pump (3 inch)",       category: "Equipment",  unit: "Units",   totalQty: 6,    availableQty: 3,   reservedQty: 0,   unitCost: 180000, reorderLevel: 1,   materialType: "Reusable",  allocationStatus: "Available",  condition: "Good" },
-  { id: "MAT-015", name: "Plate Compactor",           category: "Equipment",  unit: "Units",   totalQty: 2,    availableQty: 0,   reservedQty: 0,   unitCost: 320000, reorderLevel: 1,   materialType: "Reusable",  allocationStatus: "Under Maintenance", condition: "Needs Servicing" },
-  { id: "MAT-016", name: "Safety Harness Set",        category: "Safety",     unit: "Sets",    totalQty: 20,   availableQty: 12,  reservedQty: 8,   unitCost: 65000,  reorderLevel: 5,   materialType: "Reusable",  allocationStatus: "Available",  condition: "Good" },
-  { id: "MAT-017", name: "Scaffolding Frame (H1.8m)", category: "Equipment",  unit: "Frames",  totalQty: 80,   availableQty: 60,  reservedQty: 20,  unitCost: 35000,  reorderLevel: 20,  materialType: "Reusable",  allocationStatus: "Allocated",  allocatedTo: "Scaffolding Crew", allocatedProject: "Downtown Office Complex", condition: "Good" },
+  { id: "MAT-001", name: "Cement (50kg bag)",        category: "Concrete & Cement",     unit: "Bags",    reorderLevel: 100, materialType: "Consumable", types: [
+    { name: "Ordinary Portland Cement", sku: "CEM-OPC-50", totalQty: 220, availableQty: 140, reservedQty: 80,  unitCost: 8500 },
+    { name: "Rapid-Hardening Cement",   sku: "CEM-RHC-50", totalQty: 160, availableQty: 120, reservedQty: 40,  unitCost: 8600 },
+  ] },
+  { id: "MAT-002", name: "Steel Rebar",              category: "Steel & Reinforcement", unit: "Tonnes",  reorderLevel: 5,   materialType: "Consumable", types: [
+    { name: "Y16", sku: "STL-REB-Y16", totalQty: 12, availableQty: 10, reservedQty: 2, unitCost: 410000 },
+    { name: "Y12", sku: "STL-REB-Y12", totalQty: 8,  availableQty: 8,  reservedQty: 0, unitCost: 390000 },
+  ] },
+  { id: "MAT-003", name: "Cable",                    category: "Electrical",            unit: "Metres",  reorderLevel: 300, materialType: "Consumable", types: [
+    { name: "2.5mm Twin", sku: "ELE-CAB-2.5", totalQty: 80, availableQty: 80, reservedQty: 0, unitCost: 850  },
+  ] },
+  { id: "MAT-004", name: "PVC Pipe",                 category: "Plumbing & Drainage",   unit: "Lengths", reorderLevel: 50,  materialType: "Consumable", types: [
+    { name: "2 Inch", sku: "PLB-PVC-2", totalQty: 12, availableQty: 12, reservedQty: 0, unitCost: 4500 },
+  ] },
+  { id: "MAT-005", name: "Concrete Block",           category: "Concrete & Cement",     unit: "Units",   reorderLevel: 1000,materialType: "Consumable", types: [
+    { name: "Solid Block", sku: "BLK-SLD-9", totalQty: 4200, availableQty: 3500, reservedQty: 700, unitCost: 350 },
+  ] },
+  { id: "MAT-006", name: "Sharp Sand",               category: "Aggregates & Fill",     unit: "Tonnes",  reorderLevel: 30,  materialType: "Consumable", types: [
+    { name: "River Sand", sku: "AGG-SND-RIV", totalQty: 95, availableQty: 85, reservedQty: 10, unitCost: 18000 },
+  ] },
+  { id: "MAT-007", name: "Plywood",                  category: "Timber & Formwork",     unit: "Sheets",  reorderLevel: 15,  materialType: "Reusable",  types: [
+    { name: "12mm Sheet", sku: "TMB-PLY-12", totalQty: 18, availableQty: 15, reservedQty: 3, unitCost: 14000 },
+    { name: "18mm Sheet", sku: "TMB-PLY-18", totalQty: 12, availableQty: 10, reservedQty: 2, unitCost: 18000 },
+  ], allocationStatus: "Available", condition: "Good" },
+  { id: "MAT-008", name: "Granite Tiles",            category: "Finishing Materials",   unit: "Boxes",   reorderLevel: 20,  materialType: "Consumable", types: [
+    { name: "Wall Tile", sku: "GT-W-600600-MAT", totalQty: 0, availableQty: 0, reservedQty: 0, unitCost: 26000 },
+    { name: "Floor Tile", sku: "GT-F-600600-GLO", totalQty: 0, availableQty: 0, reservedQty: 0, unitCost: 28000 },
+  ] },
+  { id: "MAT-009", name: "Flush Doors",              category: "Finishing Materials",   unit: "Units",   reorderLevel: 10,  materialType: "Consumable", types: [
+    { name: "Flush Doors", totalQty: 20, availableQty: 14, reservedQty: 6, unitCost: 45000 },
+  ] },
+  { id: "MAT-010", name: "Binding Wire",             category: "Steel & Reinforcement", unit: "Rolls",   reorderLevel: 20,  materialType: "Consumable", types: [
+    { name: "Binding Wire", totalQty: 28, availableQty: 20, reservedQty: 8, unitCost: 2800 },
+  ] },
+  { id: "MAT-011", name: "Electrical Conduit 25mm",  category: "Electrical",            unit: "Metres",  reorderLevel: 200, materialType: "Consumable", types: [
+    { name: "Electrical Conduit 25mm", totalQty: 45, availableQty: 45, reservedQty: 0, unitCost: 1200 },
+  ] },
+  { id: "MAT-012", name: "Concrete Mixer (350L)",    category: "Plant & Equipment",     unit: "Units",   reorderLevel: 1,   materialType: "Reusable",  types: [
+    { name: "Concrete Mixer (350L)", totalQty: 4, availableQty: 1, reservedQty: 0, unitCost: 450000 },
+  ], allocationStatus: "Allocated", allocatedTo: "Block A Site Team", allocatedProject: "Industrial Warehouse", condition: "Good" },
+  { id: "MAT-013", name: "Water Pump (3 inch)",      category: "Plant & Equipment",     unit: "Units",   reorderLevel: 1,   materialType: "Reusable",  types: [
+    { name: "Water Pump (3 inch)", totalQty: 6, availableQty: 3, reservedQty: 0, unitCost: 180000 },
+  ], allocationStatus: "Available", condition: "Good" },
+  { id: "MAT-014", name: "Plate Compactor",          category: "Plant & Equipment",     unit: "Units",   reorderLevel: 1,   materialType: "Reusable",  types: [
+    { name: "Plate Compactor", totalQty: 2, availableQty: 0, reservedQty: 0, unitCost: 320000 },
+  ], allocationStatus: "Under Maintenance", condition: "Needs Servicing" },
+  { id: "MAT-015", name: "Safety Harness Set",       category: "Plant & Equipment",     unit: "Sets",    reorderLevel: 5,   materialType: "Reusable",  types: [
+    { name: "Safety Harness Set", totalQty: 20, availableQty: 12, reservedQty: 8, unitCost: 65000 },
+  ], allocationStatus: "Available", condition: "Good" },
+  { id: "MAT-016", name: "Scaffolding Frame (H1.8m)", category: "Plant & Equipment",   unit: "Frames",  reorderLevel: 20,  materialType: "Reusable",  types: [
+    { name: "Scaffolding Frame (H1.8m)", totalQty: 80, availableQty: 60, reservedQty: 20, unitCost: 35000 },
+  ], allocationStatus: "Allocated", allocatedTo: "Scaffolding Crew", allocatedProject: "Downtown Office Complex", condition: "Good" },
 ];
 
-const CATEGORIES = ["All", "Concrete", "Steel", "Electrical", "Plumbing", "Aggregates", "Timber", "Finishes", "Equipment", "Safety"];
 const PROJECTS = ["Industrial Warehouse", "Downtown Office Complex", "Riverside Residential", "Highway Interchange", "University Science Block"];
 
 const BLANK: Omit<Material, "id"> = {
-  name: "", category: "Concrete", unit: "Units",
-  totalQty: 0, availableQty: 0, reservedQty: 0, unitCost: 0, reorderLevel: 0,
-  materialType: "Consumable",
+  name: "", category: "", unit: "Units", reorderLevel: 0,
+  materialType: "Consumable", types: [],
 };
 
+function stockTotals(m: Material) {
+  return {
+    total: m.types.reduce((s, t) => s + t.totalQty, 0),
+    available: m.types.reduce((s, t) => s + t.availableQty, 0),
+    reserved: m.types.reduce((s, t) => s + t.reservedQty, 0),
+  };
+}
+
+function avgUnitCost(m: Material): number {
+  const { total } = stockTotals(m);
+  if (total === 0) return 0;
+  return Math.round(m.types.reduce((s, t) => s + t.totalQty * t.unitCost, 0) / total);
+}
+
 function getStatus(m: Material): MaterialStatus {
-  if (m.availableQty === 0) return "Out of Stock";
-  if (m.availableQty <= m.reorderLevel) return "Low Stock";
+  const { available } = stockTotals(m);
+  if (available === 0) return "Out of Stock";
+  if (available <= m.reorderLevel) return "Low Stock";
   return "In Stock";
 }
 
@@ -77,9 +124,9 @@ const ALLOC_STYLE: Record<AllocationStatus, string> = {
   "Under Maintenance": "bg-orange-100 text-orange-700",
 };
 
-// Resolve the catalogue types (variants) for a material row by name.
-function resolveTypes(m: Material, catalog: { material: CategoryMaterial }[]): CatalogType[] {
-  if (m.types && m.types.length > 0) return m.types;
+// Resolve the catalogue types (variants) for a material row by name — used to
+// decorate each material's stock rows with dimensions from the catalogue.
+function resolveTypes(m: Material, catalog: { material: CategoryMaterial }[]): StoreType[] {
   const norm = (s: string) => s.toLowerCase().trim();
   const n = norm(m.name);
   let best: CategoryMaterial | null = null;
@@ -90,7 +137,73 @@ function resolveTypes(m: Material, catalog: { material: CategoryMaterial }[]): C
     if (n.startsWith(mn) && mn.length > bestScore) { best = material; bestScore = mn.length; }
     if (mn.startsWith(n) && n.length > bestScore) { best = material; bestScore = n.length; }
   }
-  return best ? best.types.map(t => ({ name: t.name, dimensions: t.dimensions, sku: t.sku })) : [];
+  return best ? best.types : [];
+}
+
+function fmtDim(standard: string, value: string, unit: string): string {
+  return standard === "Custom" ? `${standard}: ${value || "—"} ${unit}` : `${value || "—"} ${unit} ${standard}`;
+}
+
+// ── Search & select catalogue TYPE (auto-fills category / name / unit) ─────
+function CataloguePicker({ onPick, placeholder }: {
+  onPick: (type: StoreType, material: CategoryMaterial, categoryName: string) => void;
+  placeholder?: string;
+}) {
+  const { categories } = useStorefront();
+  const [q, setQ] = useState("");
+  const [open, setOpen] = useState(false);
+
+  const results = useMemo(() => {
+    const needle = q.toLowerCase().trim();
+    const rows: { categoryName: string; material: CategoryMaterial; type: StoreType }[] = [];
+    for (const c of categories) {
+      for (const m of c.materials) {
+        for (const t of m.types) {
+          if (!needle
+            || t.name.toLowerCase().includes(needle)
+            || m.name.toLowerCase().includes(needle)
+            || c.name.toLowerCase().includes(needle)) {
+            rows.push({ categoryName: c.name, material: m, type: t });
+          }
+        }
+      }
+    }
+    return rows.slice(0, 30);
+  }, [q, categories]);
+
+  function pick(type: StoreType, material: CategoryMaterial, categoryName: string) {
+    onPick(type, material, categoryName);
+    setQ("");
+    setOpen(false);
+  }
+
+  return (
+    <div className="relative">
+      <div className="relative">
+        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+        <input value={q} onChange={e => { setQ(e.target.value); setOpen(true); }} onFocus={() => setOpen(true)} onBlur={() => setTimeout(() => setOpen(false), 150)}
+          placeholder={placeholder ?? "Search material types…"} autoComplete="off"
+          className="w-full pl-9 pr-4 py-2 border border-gray-200 rounded-xl text-sm outline-none focus:ring-2 focus:ring-teal-500" />
+      </div>
+      {open && (
+        <div className="absolute z-20 mt-1 w-full bg-white border border-gray-200 rounded-xl shadow-xl max-h-64 overflow-y-auto">
+          {results.length === 0 && <p className="px-4 py-3 text-sm text-gray-400">No matching material types.</p>}
+          {results.map(({ categoryName, material, type }, i) => (
+            <button key={i} type="button" onMouseDown={() => pick(type, material, categoryName)}
+              className="w-full text-left px-4 py-2.5 hover:bg-teal-50 border-b border-gray-50 last:border-0 flex items-start justify-between gap-2">
+              <div className="min-w-0">
+                <p className="text-sm font-medium text-gray-800 truncate">{type.name}</p>
+                <p className="text-[10px] text-gray-400 mt-0.5">{material.name} · {categoryName}</p>
+              </div>
+              <span className={`text-[10px] px-2 py-0.5 rounded-full font-medium flex-shrink-0 ${material.classification === "Reusable" ? "bg-indigo-100 text-indigo-700" : "bg-gray-100 text-gray-600"}`}>
+                {material.classification}
+              </span>
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
 }
 
 // ── Allocation Tracking Modal ─────────────────────────────────────────────────
@@ -179,66 +292,6 @@ function TrackModal({ material, onClose, onSave }: {
   );
 }
 
-// ── Search & select catalogue material (auto-fills category / name / unit) ──
-function CataloguePicker({ onPick, placeholder }: {
-  onPick: (cm: CategoryMaterial, categoryName: string) => void;
-  placeholder?: string;
-}) {
-  const { categories } = useStorefront();
-  const [q, setQ] = useState("");
-  const [open, setOpen] = useState(false);
-
-  const results = useMemo(() => {
-    const needle = q.toLowerCase().trim();
-    const rows: { categoryName: string; material: CategoryMaterial }[] = [];
-    for (const c of categories) {
-      for (const m of c.materials) {
-        if (!needle
-          || m.name.toLowerCase().includes(needle)
-          || c.name.toLowerCase().includes(needle)
-          || m.types.some(t => t.name.toLowerCase().includes(needle))) {
-          rows.push({ categoryName: c.name, material: m });
-        }
-      }
-    }
-    return rows.slice(0, 30);
-  }, [q, categories]);
-
-  function pick(cm: CategoryMaterial, categoryName: string) {
-    onPick(cm, categoryName);
-    setQ("");
-    setOpen(false);
-  }
-
-  return (
-    <div className="relative">
-      <div className="relative">
-        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-        <input value={q} onChange={e => { setQ(e.target.value); setOpen(true); }} onFocus={() => setOpen(true)} onBlur={() => setTimeout(() => setOpen(false), 150)}
-          placeholder={placeholder ?? "Search catalogue for a material…"} autoComplete="off"
-          className="w-full pl-9 pr-4 py-2 border border-gray-200 rounded-xl text-sm outline-none focus:ring-2 focus:ring-teal-500" />
-      </div>
-      {open && (
-        <div className="absolute z-20 mt-1 w-full bg-white border border-gray-200 rounded-xl shadow-xl max-h-64 overflow-y-auto">
-          {results.length === 0 && <p className="px-4 py-3 text-sm text-gray-400">No matching materials.</p>}
-          {results.map(({ categoryName, material }, i) => (
-            <button key={i} type="button" onMouseDown={() => pick(material, categoryName)}
-              className="w-full text-left px-4 py-2.5 hover:bg-teal-50 border-b border-gray-50 last:border-0 flex items-start justify-between gap-2">
-              <div className="min-w-0">
-                <p className="text-sm font-medium text-gray-800 truncate">{material.name}</p>
-                <p className="text-[10px] text-gray-400 mt-0.5">{categoryName} · {material.types.length} type{material.types.length === 1 ? "" : "s"}</p>
-              </div>
-              <span className={`text-[10px] px-2 py-0.5 rounded-full font-medium flex-shrink-0 ${material.classification === "Reusable" ? "bg-indigo-100 text-indigo-700" : "bg-gray-100 text-gray-600"}`}>
-                {material.classification}
-              </span>
-            </button>
-          ))}
-        </div>
-      )}
-    </div>
-  );
-}
-
 export function AllMaterialsPage() {
   const { categories, allCategoryMaterials } = useStorefront();
   const [materials, setMaterials] = useState<Material[]>(MOCK);
@@ -256,6 +309,13 @@ export function AllMaterialsPage() {
   const [trackTarget, setTrackTarget] = useState<Material | null>(null);
   const [expanded, setExpanded] = useState<string | null>(null);
 
+  const CATEGORY_OPTIONS = useMemo(() => {
+    const names = new Set<string>();
+    categories.forEach(c => c.materials.forEach(() => names.add(c.name)));
+    materials.forEach(m => names.add(m.category));
+    return ["All", ...Array.from(names)];
+  }, [categories, materials]);
+
   const filtered = materials.filter((m) => {
     const q = search.toLowerCase();
     const matchSearch = m.name.toLowerCase().includes(q) || m.id.toLowerCase().includes(q) || m.category.toLowerCase().includes(q);
@@ -265,45 +325,62 @@ export function AllMaterialsPage() {
     return matchSearch && matchCat && matchStatus && matchType;
   });
 
-  function openAdd() { setEditTarget(null); setForm({ ...BLANK }); setShowModal(true); }
-  function openEdit(m: Material) { setEditTarget(m); const { id: _id, ...rest } = m; setForm(rest); setShowModal(true); }
+  function openAdd() {
+    setEditTarget(null);
+    setForm({ ...BLANK, category: CATEGORY_OPTIONS[1] ?? "" });
+    setShowModal(true);
+  }
+  function openEdit(m: Material) {
+    setEditTarget(m);
+    setForm({ ...m, types: m.types.map(t => ({ ...t })) });
+    setShowModal(true);
+  }
 
-  function handlePick(cm: CategoryMaterial, categoryName: string) {
-    const firstDim = cm.types.find(t => t.dimensions.length > 0)?.dimensions.find(d => d.unit);
+  function handlePick(type: StoreType, material: CategoryMaterial, categoryName: string) {
+    const firstDim = type.dimensions.find(d => d.unit);
     const unit = firstDim?.unit ?? "Units";
     setForm(prev => ({
       ...prev,
-      name: cm.name,
+      name: material.name,
       category: categoryName,
-      materialType: cm.classification,
       unit,
-      types: cm.types.map(t => ({ name: t.name, dimensions: t.dimensions, sku: t.sku })),
+      types: [{ name: type.name, sku: type.sku, totalQty: 0, availableQty: 0, reservedQty: 0, unitCost: 0 }],
     }));
   }
 
+  function patchType(i: number, patch: Partial<MaterialStock>) {
+    setForm(prev => ({ ...prev, types: prev.types.map((t, j) => j === i ? { ...t, ...patch } : t) }));
+  }
+
   function save() {
+    const cleanTypes = form.types.map(t => ({ ...t, name: t.name.trim() })).filter(t => t.name !== "");
+    if (!form.name.trim() || cleanTypes.length === 0) return;
+    const payload = { ...form, name: form.name.trim(), types: cleanTypes };
     if (editTarget) {
-      setMaterials((prev) => prev.map((m) => m.id === editTarget.id ? { ...form, id: editTarget.id } : m));
+      setMaterials(prev => prev.map(m => m.id === editTarget.id ? { ...payload, id: editTarget.id } : m));
     } else {
       const id = `MAT-${String(materials.length + 1).padStart(3, "0")}`;
-      setMaterials((prev) => [...prev, { ...form, id }]);
+      setMaterials(prev => [...prev, { ...payload, id }]);
     }
-    setShowModal(false); setForm({ ...BLANK }); setEditTarget(null);
+    setShowModal(false); setEditTarget(null);
   }
   function doDelete() {
-    if (deleteTarget) setMaterials((prev) => prev.filter((m) => m.id !== deleteTarget.id));
+    if (deleteTarget) setMaterials(prev => prev.filter(m => m.id !== deleteTarget.id));
     setDeleteTarget(null);
   }
   function exportCSV() {
     const rows = [
       ["Material ID", "Name", "Category", "Type", "Unit", "Total Qty", "Available Qty", "Reserved Qty", "Unit Cost", "Status"],
-      ...filtered.map((m) => [m.id, m.name, m.category, m.materialType, m.unit, m.totalQty, m.availableQty, m.reservedQty, m.unitCost, getStatus(m)]),
+      ...filtered.map(m => {
+        const t = stockTotals(m);
+        return [m.id, m.name, m.category, m.materialType, m.unit, t.total, t.available, t.reserved, avgUnitCost(m), getStatus(m)];
+      }),
     ];
-    const csv = rows.map((r) => r.join(",")).join("\n");
+    const csv = rows.map(r => r.join(",")).join("\n");
     const a = document.createElement("a"); a.href = "data:text/csv," + encodeURIComponent(csv); a.download = "materials.csv"; a.click();
   }
 
-  const low = materials.filter((m) => getStatus(m) !== "In Stock").length;
+  const low = materials.filter(m => getStatus(m) !== "In Stock").length;
   const reusable = materials.filter(m => m.materialType === "Reusable");
   const allocated = reusable.filter(m => m.allocationStatus === "Allocated").length;
 
@@ -328,7 +405,7 @@ export function AllMaterialsPage() {
       <div className="grid grid-cols-4 gap-3">
         <div className="bg-white border border-gray-200 rounded-xl p-4">
           <p className="text-2xl font-bold text-gray-900">{materials.length}</p>
-          <p className="text-xs text-gray-500">Total SKUs</p>
+          <p className="text-xs text-gray-500">Total Materials</p>
         </div>
         <div className="bg-white border border-gray-200 rounded-xl p-4">
           <p className="text-2xl font-bold text-yellow-600">{low}</p>
@@ -375,7 +452,7 @@ export function AllMaterialsPage() {
         </div>
         <div className="flex items-center gap-1 flex-wrap">
           <Filter className="w-4 h-4 text-gray-400" />
-          {CATEGORIES.map((c) => (
+          {CATEGORY_OPTIONS.map((c) => (
             <button key={c} onClick={() => setCatFilter(c)}
               className={`px-2.5 py-1.5 text-xs rounded-lg border font-medium ${catFilter === c ? "bg-teal-700 text-white border-teal-700" : "bg-white text-gray-600 border-gray-200 hover:bg-gray-50"}`}>
               {c}
@@ -417,7 +494,9 @@ export function AllMaterialsPage() {
             )}
             {filtered.map((m) => {
               const status = getStatus(m);
-              const types = resolveTypes(m, allCategoryMaterials);
+              const catByName = new Map(resolveTypes(m, allCategoryMaterials).map(t => [t.name, t]));
+              const totals = stockTotals(m);
+              const unitCost = avgUnitCost(m);
               const isOpen = expanded === m.id;
               return (
                 <Fragment key={m.id}>
@@ -428,7 +507,7 @@ export function AllMaterialsPage() {
                         className="inline-flex items-center gap-1.5 text-left group/title">
                         <ChevronRight className={`w-3.5 h-3.5 text-gray-400 transition-transform ${isOpen ? "rotate-90" : ""}`} />
                         <span className="hover:text-teal-700">{m.name}</span>
-                        {types.length > 0 && <span className="text-[10px] text-gray-400 font-normal">{types.length} type{types.length === 1 ? "" : "s"} · tap</span>}
+                        {m.types.length > 0 && <span className="text-[10px] text-gray-400 font-normal">{m.types.length} type{m.types.length === 1 ? "" : "s"} · tap</span>}
                       </button>
                       {m.allocatedTo && <p className="text-xs text-blue-500 mt-0.5">→ {m.allocatedTo}{m.allocatedProject ? ` · ${m.allocatedProject}` : ""}</p>}
                     </td>
@@ -440,10 +519,10 @@ export function AllMaterialsPage() {
                     </td>
                     <td className="px-4 py-3 text-gray-600">{m.category}</td>
                     <td className="px-4 py-3 text-gray-600">{m.unit}</td>
-                    <td className="px-4 py-3 text-right font-medium text-gray-900">{m.totalQty.toLocaleString()}</td>
-                    <td className="px-4 py-3 text-right font-medium text-gray-900">{m.availableQty.toLocaleString()}</td>
-                    <td className="px-4 py-3 text-right text-gray-500">{m.reservedQty.toLocaleString()}</td>
-                    <td className="px-4 py-3 text-right text-gray-600">₦{m.unitCost.toLocaleString()}</td>
+                    <td className="px-4 py-3 text-right font-medium text-gray-900">{totals.total.toLocaleString()}</td>
+                    <td className="px-4 py-3 text-right font-medium text-gray-900">{totals.available.toLocaleString()}</td>
+                    <td className="px-4 py-3 text-right text-gray-500">{totals.reserved.toLocaleString()}</td>
+                    <td className="px-4 py-3 text-right text-gray-600">₦{unitCost.toLocaleString()}</td>
                     <td className="px-4 py-3">
                       <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${STATUS_STYLE[status]}`}>{status}</span>
                     </td>
@@ -479,27 +558,56 @@ export function AllMaterialsPage() {
                   {isOpen && (
                     <tr className="bg-gray-50/60">
                       <td colSpan={12} className="px-6 py-4">
-                        {types.length === 0 ? (
-                          <p className="text-sm text-gray-400">No catalogue types defined for this material — add types in Settings → Material Categories.</p>
+                        {m.types.length === 0 ? (
+                          <p className="text-sm text-gray-400">No stock types defined for this material — edit the material to add types.</p>
                         ) : (
                           <div className="space-y-2">
                             <p className="text-[10px] font-medium uppercase tracking-wide text-gray-400 flex items-center gap-1.5">
-                              <Layers className="w-3 h-3 text-teal-500" /> Catalogue types for {m.name}
+                              <Layers className="w-3 h-3 text-teal-500" /> Types under {m.name}
                             </p>
-                            <div className="flex flex-wrap gap-2">
-                              {types.map((t, ti) => (
-                                <div key={ti} className="inline-flex items-center gap-2 px-3 py-1.5 text-xs bg-white border border-gray-200 rounded-lg">
-                                  <span className="font-semibold text-gray-800">{t.name}</span>
-                                  {t.dimensions.map((d, di) => (
-                                    <span key={di} className="text-gray-500">
-                                      {d.standard === "Custom"
-                                        ? `${d.standard}: ${d.value || "—"} ${d.unit}`
-                                        : `${d.value || "—"} ${d.unit} ${d.standard}`}
-                                    </span>
-                                  ))}
-                                  {t.sku && <span className="font-mono text-[9px] text-gray-400">{t.sku}</span>}
-                                </div>
-                              ))}
+                            <div className="bg-white border border-gray-200 rounded-lg overflow-hidden">
+                              <table className="w-full text-xs">
+                                <thead className="bg-gray-50 text-[10px] text-gray-500 uppercase tracking-wide border-b border-gray-100">
+                                  <tr>
+                                    <th className="px-4 py-2 text-left font-medium">Type</th>
+                                    <th className="px-4 py-2 text-right font-medium">Total Qty</th>
+                                    <th className="px-4 py-2 text-right font-medium">Available</th>
+                                    <th className="px-4 py-2 text-right font-medium">Reserved</th>
+                                    <th className="px-4 py-2 text-right font-medium">Unit Cost</th>
+                                  </tr>
+                                </thead>
+                                <tbody className="divide-y divide-gray-50">
+                                  {m.types.map((t, ti) => {
+                                    const cat = catByName.get(t.name);
+                                    return (
+                                      <tr key={ti} className="hover:bg-gray-50">
+                                        <td className="px-4 py-2">
+                                          <span className="font-semibold text-gray-800">{t.name}</span>
+                                          {cat && (
+                                            <div className="flex flex-wrap gap-1 mt-0.5">
+                                              {cat.dimensions.map((d, di) => (
+                                                <span key={di} className="text-[10px] text-gray-500">{fmtDim(d.standard, d.value, d.unit)}</span>
+                                              ))}
+                                              {cat.sku && <span className="font-mono text-[9px] text-gray-400">{cat.sku}</span>}
+                                            </div>
+                                          )}
+                                        </td>
+                                        <td className="px-4 py-2 text-right font-medium text-gray-900">{t.totalQty.toLocaleString()}</td>
+                                        <td className="px-4 py-2 text-right font-medium text-gray-900">{t.availableQty.toLocaleString()}</td>
+                                        <td className="px-4 py-2 text-right text-gray-500">{t.reservedQty.toLocaleString()}</td>
+                                        <td className="px-4 py-2 text-right text-gray-600">₦{t.unitCost.toLocaleString()}</td>
+                                      </tr>
+                                    );
+                                  })}
+                                  <tr className="bg-gray-50/80 border-t border-gray-100">
+                                    <td className="px-4 py-2 text-[10px] font-semibold uppercase tracking-wide text-gray-400">Accumulated totals</td>
+                                    <td className="px-4 py-2 text-right font-semibold text-gray-900">{totals.total.toLocaleString()}</td>
+                                    <td className="px-4 py-2 text-right font-semibold text-gray-900">{totals.available.toLocaleString()}</td>
+                                    <td className="px-4 py-2 text-right font-semibold text-gray-900">{totals.reserved.toLocaleString()}</td>
+                                    <td className="px-4 py-2 text-right font-semibold text-gray-900">₦{unitCost.toLocaleString()}</td>
+                                  </tr>
+                                </tbody>
+                              </table>
                             </div>
                           </div>
                         )}
@@ -517,128 +625,180 @@ export function AllMaterialsPage() {
       {/* Add / Edit Modal */}
       {showModal && (
         <div className="fixed inset-0 z-50 bg-black/40 flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl shadow-xl w-full max-w-lg">
-            <div className="px-6 py-5 border-b border-gray-100 flex items-center justify-between">
-              <h2 className="text-lg font-semibold text-gray-900">{editTarget ? "Edit Material" : "Add Material"}</h2>
-              <button onClick={() => setShowModal(false)} className="text-gray-400 hover:text-gray-600 text-xl leading-none">&times;</button>
+          <div className="bg-white rounded-2xl shadow-xl w-full max-w-2xl max-h-[85vh] overflow-y-auto">
+            <div className="px-6 py-5 border-b border-gray-100 flex items-center justify-between sticky top-0 bg-white">
+              <div>
+                <h2 className="text-base font-semibold text-gray-900">
+                  {editTarget ? `Edit Material (${editTarget.id})` : "Add Material"}
+                </h2>
+                <p className="text-xs text-gray-500 mt-0.5">
+                  {editTarget ? "Update stock types and quantities." : "Pick a type from the catalogue or define it manually."}
+                </p>
+              </div>
+              <button onClick={() => setShowModal(false)} className="text-gray-400 hover:text-gray-600"><X className="w-5 h-5" /></button>
             </div>
-            <div className="p-6 space-y-4 max-h-[70vh] overflow-y-auto">
+            <div className="p-6 space-y-4">
               {!editTarget && (
                 <div>
-                  <label className="block text-xs font-medium text-gray-600 mb-1">Search & Select Material <span className="text-red-500">*</span></label>
-                  <CataloguePicker onPick={handlePick} />
-                  <p className="text-[10px] text-gray-400 mt-1">Pick an existing catalogue material — category, name, type and unit are filled in automatically.</p>
+                  <label className="block text-xs font-medium text-gray-600 mb-1">Add from Catalogue</label>
+                  <CataloguePicker onPick={handlePick} placeholder="Search by material type (e.g. Ordinary Portland Cement)…" />
+                  <p className="text-[10px] text-gray-400 mt-1">Search matches <strong>material types</strong>; name, category and unit auto-fill from the chosen type.</p>
                 </div>
               )}
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-xs font-medium text-gray-600 mb-1">Category</label>
-                  <select value={form.category} onChange={(e) => setForm({ ...form, category: e.target.value })}
-                    className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-teal-500 bg-white">
-                    {categories.map(c => <option key={c.id} value={c.name}>{c.name}</option>)}
-                  </select>
+                  <label className="block text-xs font-medium text-gray-600 mb-1">Material Name</label>
+                  <input value={form.name} onChange={(e) => setForm(p => ({ ...p, name: e.target.value }))}
+                    placeholder="e.g. Cement (50kg bag)" className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-teal-500" />
                 </div>
                 <div>
+                  <label className="block text-xs font-medium text-gray-600 mb-1">Category</label>
+                  <select value={form.category} onChange={(e) => setForm(p => ({ ...p, category: e.target.value }))}
+                    className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-teal-500 bg-white">
+                    <option value="">— Select category —</option>
+                    {CATEGORY_OPTIONS.filter(c => c !== "All").map(c => <option key={c}>{c}</option>)}
+                  </select>
+                </div>
+              </div>
+              <div className="grid grid-cols-3 gap-3">
+                <div>
                   <label className="block text-xs font-medium text-gray-600 mb-1">Material Type</label>
-                  <select value={form.materialType} onChange={(e) => setForm({ ...form, materialType: e.target.value as MaterialType })}
+                  <select value={form.materialType} onChange={(e) => setForm(p => ({ ...p, materialType: e.target.value as MaterialType }))}
                     className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-teal-500 bg-white">
                     <option>Consumable</option>
                     <option>Reusable</option>
                   </select>
                 </div>
-              </div>
-              {([
-                ["name",         "Material Name",   "text"],
-                ["unit",         "Unit of Measure", "text"],
-                ["totalQty",     "Total Quantity",  "number"],
-                ["availableQty", "Available Qty",   "number"],
-                ["reservedQty",  "Reserved Qty",    "number"],
-                ["unitCost",     "Unit Cost (₦)",   "number"],
-                ["reorderLevel", "Reorder Level",   "number"],
-              ] as const).map(([key, label, type]) => (
-                <div key={key}>
-                  <label className="block text-xs font-medium text-gray-600 mb-1">{label}</label>
-                  <input type={type} value={(form as Record<string, unknown>)[key] as string}
-                    onChange={(e) => setForm({ ...form, [key]: type === "number" ? Number(e.target.value) : e.target.value })}
+                <div>
+                  <label className="block text-xs font-medium text-gray-600 mb-1">Unit</label>
+                  <input value={form.unit} onChange={(e) => setForm(p => ({ ...p, unit: e.target.value }))}
                     className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-teal-500" />
                 </div>
-              ))}
-              {form.materialType === "Reusable" && (
                 <div>
-                  <label className="block text-xs font-medium text-gray-600 mb-1">Condition</label>
-                  <select value={form.condition ?? "Good"} onChange={e => setForm({ ...form, condition: e.target.value })}
-                    className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-teal-500 bg-white">
-                    <option>Good</option><option>Fair</option><option>Needs Servicing</option><option>Damaged</option>
-                  </select>
+                  <label className="block text-xs font-medium text-gray-600 mb-1">Reorder Level</label>
+                  <input type="number" min={0} value={form.reorderLevel} onChange={(e) => setForm(p => ({ ...p, reorderLevel: Number(e.target.value) }))}
+                    className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-teal-500" />
                 </div>
-              )}
-            </div>
-            <div className="px-6 py-4 border-t border-gray-100 flex justify-end gap-3">
-              <button onClick={() => setShowModal(false)} className="px-4 py-2 text-sm border border-gray-200 rounded-xl text-gray-700 hover:bg-gray-50">Cancel</button>
-              <button onClick={save} className="px-4 py-2 text-sm bg-teal-700 hover:bg-teal-800 text-white rounded-xl">{editTarget ? "Save Changes" : "Add Material"}</button>
-            </div>
-          </div>
-        </div>
-      )}
+              </div>
 
-      {/* Delete Confirmation */}
-      {deleteTarget && (
-        <div className="fixed inset-0 z-50 bg-black/40 flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl shadow-xl w-full max-w-sm p-6 space-y-4">
-            <h2 className="text-base font-semibold text-gray-900">Delete Material?</h2>
-            <p className="text-sm text-gray-600">Remove <span className="font-medium">{deleteTarget.name}</span> from the catalogue? This cannot be undone.</p>
-            <div className="flex justify-end gap-3">
-              <button onClick={() => setDeleteTarget(null)} className="px-4 py-2 text-sm border border-gray-200 rounded-xl text-gray-700 hover:bg-gray-50">Cancel</button>
-              <button onClick={doDelete} className="px-4 py-2 text-sm bg-red-600 hover:bg-red-700 text-white rounded-xl">Delete</button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Send for Procurement Modal */}
-      {procurementTarget && (
-        <div className="fixed inset-0 z-50 bg-black/40 flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl shadow-xl w-full max-w-sm p-6 space-y-4">
-            <div className="flex items-center justify-between">
-              <h2 className="text-base font-semibold text-gray-900">Send for Procurement</h2>
-              <button onClick={() => setProcurementTarget(null)} className="text-gray-400 hover:text-gray-600"><X className="w-5 h-5" /></button>
-            </div>
-            <div className="bg-amber-50 border border-amber-200 rounded-xl px-4 py-3 flex gap-2.5">
-              <AlertTriangle className="w-4 h-4 text-amber-500 flex-shrink-0 mt-0.5" />
               <div>
-                <p className="text-sm font-semibold text-amber-800">{getStatus(procurementTarget)}</p>
-                <p className="text-xs text-amber-700 mt-0.5"><span className="font-medium">{procurementTarget.name}</span> — {procurementTarget.availableQty} {procurementTarget.unit} available, reorder level {procurementTarget.reorderLevel}</p>
+                <div className="flex items-center justify-between mb-1.5">
+                  <label className="text-xs font-medium text-gray-600">Stock Types</label>
+                  <button onClick={() => setForm(p => ({ ...p, types: [...p.types, { name: "", totalQty: 0, availableQty: 0, reservedQty: 0, unitCost: 0 }] }))}
+                    className="text-xs text-teal-700 hover:text-teal-800 font-medium flex items-center gap-1">
+                    <Plus className="w-3 h-3" /> Add Type
+                  </button>
+                </div>
+                {form.types.length === 0 && (
+                  <p className="text-sm text-gray-400 border border-dashed border-gray-200 rounded-xl px-4 py-6 text-center">
+                    No types yet — pick one above or add a type manually.
+                  </p>
+                )}
+                <div className="space-y-2">
+                  {form.types.map((t, i) => (
+                    <div key={i} className="rounded-xl border border-gray-200 p-3 space-y-2">
+                      <div className="flex items-center gap-2">
+                        <input value={t.name} onChange={(e) => patchType(i, { name: e.target.value })}
+                          placeholder={`Type name (e.g. ${i === 0 ? "Ordinary Portland Cement" : "Rapid-Hardening Cement"})`}
+                          className="flex-1 border border-gray-200 rounded-lg px-3 py-1.5 text-sm outline-none focus:ring-2 focus:ring-teal-500" />
+                        <input value={t.sku ?? ""} onChange={(e) => patchType(i, { sku: e.target.value })}
+                          placeholder="SKU" className="w-36 border border-gray-200 rounded-lg px-3 py-1.5 text-xs font-mono outline-none focus:ring-2 focus:ring-teal-500" />
+                        <button onClick={() => setForm(p => ({ ...p, types: p.types.filter((_, j) => j !== i) }))}
+                          className="p-1.5 text-gray-300 hover:text-red-500 rounded" title="Remove type"><Trash2 className="w-4 h-4" /></button>
+                      </div>
+                      <div className="grid grid-cols-4 gap-2">
+                        {([["totalQty", "Total Qty"], ["availableQty", "Available"], ["reservedQty", "Reserved"], ["unitCost", "Unit Cost ₦"]] as [keyof MaterialStock, string][]).map(([key, label]) => (
+                          <div key={String(key)}>
+                            <label className="block text-[10px] text-gray-400 font-medium mb-0.5">{label}</label>
+                            <input type="number" min={0} value={t[key]} onChange={(e) => patchType(i, { [key]: Number(e.target.value) } as Partial<MaterialStock>)}
+                              className="w-full border border-gray-200 rounded-lg px-2.5 py-1.5 text-sm outline-none focus:ring-2 focus:ring-teal-500" />
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  ))}
+                </div>
               </div>
             </div>
-            <div>
-              <label className="block text-xs font-medium text-gray-600 mb-1">Quantity to Procure <span className="text-red-500">*</span></label>
-              <input type="number" min="1" value={procurementQty} onChange={e => setProcurementQty(e.target.value)}
-                placeholder="Enter quantity…"
-                className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-teal-500" />
-            </div>
-            <p className="text-xs text-gray-500">A procurement request will be raised and sent to the Procurement team for sourcing.</p>
-            <div className="flex justify-end gap-3">
-              <button onClick={() => setProcurementTarget(null)} className="px-4 py-2 text-sm border border-gray-200 rounded-xl text-gray-700 hover:bg-gray-50">Cancel</button>
-              <button disabled={!procurementQty || Number(procurementQty) <= 0}
-                onClick={() => { setSentToProcurement(prev => new Set([...prev, procurementTarget.id])); setProcurementTarget(null); }}
-                className="px-4 py-2 text-sm bg-teal-700 hover:bg-teal-800 text-white rounded-xl disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2">
-                <ShoppingCart className="w-4 h-4" /> Send to Procurement
+            <div className="px-6 py-4 border-t border-gray-100 flex justify-end gap-3 sticky bottom-0 bg-white">
+              <button onClick={() => setShowModal(false)} className="px-4 py-2 text-sm border border-gray-200 rounded-xl text-gray-700 hover:bg-gray-50">Cancel</button>
+              <button onClick={save} disabled={!form.name.trim() || form.types.length === 0}
+                className="px-4 py-2 text-sm bg-teal-700 hover:bg-teal-800 text-white rounded-xl disabled:opacity-40 disabled:cursor-not-allowed">
+                {editTarget ? "Save Changes" : "Add Material"}
               </button>
             </div>
           </div>
         </div>
       )}
 
-      {/* Track Reusable Modal */}
+      {/* Delete confirmation */}
+      {deleteTarget && (
+        <div className="fixed inset-0 z-50 bg-black/40 flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl shadow-xl w-full max-w-sm">
+            <div className="p-6">
+              <div className="flex items-center gap-3 mb-3">
+                <div className="w-10 h-10 rounded-full bg-red-50 flex items-center justify-center"><Trash2 className="w-5 h-5 text-red-500" /></div>
+                <div>
+                  <h2 className="text-sm font-semibold text-gray-900">Delete material</h2>
+                  <p className="text-xs text-gray-500">{deleteTarget.name} — {deleteTarget.id}</p>
+                </div>
+              </div>
+              <p className="text-sm text-gray-600">This removes the material and its {deleteTarget.types.length} stock type{deleteTarget.types.length === 1 ? "" : "s"} from the inventory. This cannot be undone.</p>
+            </div>
+            <div className="px-6 py-4 border-t border-gray-100 flex justify-end gap-3">
+              <button onClick={() => setDeleteTarget(null)} className="px-4 py-2 text-sm border border-gray-200 rounded-xl text-gray-700 hover:bg-gray-50">Cancel</button>
+              <button onClick={doDelete} className="px-4 py-2 text-sm bg-red-500 hover:bg-red-600 text-white rounded-xl">Delete</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Procurement request */}
+      {procurementTarget && (
+        <div className="fixed inset-0 z-50 bg-black/40 flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl shadow-xl w-full max-w-md">
+            <div className="px-6 py-5 border-b border-gray-100 flex items-center justify-between">
+              <div>
+                <h2 className="text-base font-semibold text-gray-900">Send for Procurement</h2>
+                <p className="text-xs text-gray-500 mt-0.5">{procurementTarget.name} — {getStatus(procurementTarget)}</p>
+              </div>
+              <button onClick={() => setProcurementTarget(null)} className="text-gray-400 hover:text-gray-600"><X className="w-5 h-5" /></button>
+            </div>
+            <div className="p-6 space-y-4">
+              <div className="grid grid-cols-2 gap-3 text-sm">
+                <div className="bg-gray-50 rounded-xl px-4 py-3">
+                  <p className="text-xs text-gray-400">Available</p>
+                  <p className="text-lg font-semibold text-gray-900">{stockTotals(procurementTarget).available.toLocaleString()}</p>
+                </div>
+                <div className="bg-gray-50 rounded-xl px-4 py-3">
+                  <p className="text-xs text-gray-400">Reorder Level</p>
+                  <p className="text-lg font-semibold text-gray-900">{procurementTarget.reorderLevel.toLocaleString()}</p>
+                </div>
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-gray-600 mb-1">Quantity to Request</label>
+                <input type="number" min={1} value={procurementQty} onChange={(e) => setProcurementQty(e.target.value)}
+                  className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-teal-500" placeholder="e.g. 50" />
+              </div>
+            </div>
+            <div className="px-6 py-4 border-t border-gray-100 flex justify-end gap-3">
+              <button onClick={() => setProcurementTarget(null)} className="px-4 py-2 text-sm border border-gray-200 rounded-xl text-gray-700 hover:bg-gray-50">Cancel</button>
+              <button onClick={() => {
+                if (!procurementQty || Number(procurementQty) <= 0) return;
+                setSentToProcurement(p => new Set(p).add(procurementTarget.id));
+                setProcurementTarget(null);
+              }} disabled={!procurementQty || Number(procurementQty) <= 0}
+                className="px-4 py-2 text-sm bg-amber-500 hover:bg-amber-600 text-white rounded-xl flex items-center gap-2 disabled:opacity-40 disabled:cursor-not-allowed">
+                <ShoppingCart className="w-4 h-4" /> Send Request
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {trackTarget && (
-        <TrackModal
-          material={trackTarget}
-          onClose={() => setTrackTarget(null)}
-          onSave={(updated) => {
-            setMaterials(prev => prev.map(m => m.id === trackTarget.id ? { ...m, ...updated } : m));
-            setTrackTarget(null);
-          }}
-        />
+        <TrackModal material={trackTarget} onClose={() => setTrackTarget(null)}
+          onSave={(updated) => setMaterials(prev => prev.map(m => m.id === trackTarget.id ? { ...m, ...updated } : m))} />
       )}
     </div>
   );
