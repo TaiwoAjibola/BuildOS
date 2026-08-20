@@ -5,6 +5,7 @@
 ## Objective
 - Accounting posting logic core committed/pushed (`7570f27`); rounds 2–3 (read-only invoice ref, GL page, payroll workflow, Finance PO page) all shipped.
 - Round 4 (pushed as `6360bf7`): payment terms + signatories moved into **Procurement Settings** (shared reactive store); one coherent PO creation flow; deleted Finance Purchase Orders page/route/sidebar + Finance Settings PO-terms card; Posting Engine Linked Process is a list-driven dropdown.
+- Landing page now at `/` (was LoginPage) — marketing site: hero, live product preview, 7-module showcase (real launcher colors/metrics), workflow, financial-integrity ledger mock, roles, CTA + footer; links to `/auth/login` and `/auth/signup`. Authored `src/app/pages/LandingPage.tsx` (~430 lines) using the ui-ux-pro-max "Enterprise Gateway" pattern; DM Sans font link added to `index.html`.
 - Current round (Storefront redesign, pushed): Material Category settings replaced the "levels" model with a **"Plus Type" + measurable dimensions + unit** model plus **Consumable/Reusable** classification per material; All Materials rebuilt with **Total/Available/Reserved Qty + Unit Cost columns** (₦ via `toLocaleString()`), an **expandable types row** on the material name showing **each type's own stock + unit cost** (parent row accumulates across types via `stockTotals`/`avgUnitCost`), and an **Add-Material picker that searches by Material Type** auto-filling name/category/unit from the chosen type.
 
 ## Important Details
@@ -37,6 +38,7 @@
 
 ### Active
 - Round 4 pushed `6360bf7`; Storefront round pushed `eeffcdb`; All-Materials type-level stock follow-up pushed `602f3e8`.
+- Landing page authored at `/` (replaces LoginPage as root index; LoginPage still at `/auth/login`) — build passes; not yet committed.
 - Smoke-test (Storefront): Settings → Material Categories → Add Category (material name, Consumable/Reusable, Add Type, + Dimension rows with standard/value/unit) & expanded category shows type chips + dims; All Materials → expand material name shows per-type stock + dims + accumulated totals footer; Add Material → picker searches by Material Type fills name/category/unit; Edit → per-type qty editor; Export CSV uses totals.
 
 ### Storefront round — Completed (current)
@@ -71,7 +73,8 @@
 
 ## Next Move
 1. Browser smoke test (Storefront): /apps/storefront/settings → Material Categories → Add Category w/ classification + types + dimensions; All Materials → expand name → per-type stock rows + accumulated totals footer; Add Material → picker searches by **Material Type** fills name/category/unit; Edit → per-type qty editor; Export includes Reserved.
-2. R19 pension/allowance DR/CR posting blocked; R12/R14 open.
+2. Commit + push landing page (presently uncommitted: LandingPage.tsx + routes.tsx index swap + index.html font/title).
+3. R19 pension/allowance DR/CR posting blocked; R12/R14 open.
 
 ## Relevant Files
 - `src/app/stores/storefrontStore.tsx` — NEW: material categories/types/dimensions store (Storefront Provider, hoisted in AppLayout)

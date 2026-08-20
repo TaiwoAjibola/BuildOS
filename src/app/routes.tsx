@@ -10,6 +10,7 @@ import { VerifyEmailPage } from "./pages/auth/VerifyEmailPage";
 
 // App Launcher
 import { AppLauncherPage } from "./pages/AppLauncherPage";
+import { LandingPage } from "./pages/LandingPage";
 
 // Construction App
 import { ConstructionLayout } from "./pages/construction/ConstructionLayout";
@@ -399,7 +400,7 @@ export const router = createBrowserRouter([
           },
         ],
       },
-      { index: true, Component: LoginPage },
+      { index: true, Component: LandingPage },
     ],
   },
 ]);
